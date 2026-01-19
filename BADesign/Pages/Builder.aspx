@@ -491,6 +491,14 @@ body {
     position: relative; /* Cho loading overlay */
 }
 .prop-tab-body:not(.prop-body-active) { display: none; }
+/* ========== POPUP BODY - Position relative để grid absolute bên trong ========== */
+.popup-body {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: visible; /* Cho phép grid overflow nếu cần */
+}
+
 .prop-tab-body label,
 .prop-tab-body span,
 .prop-tab-body input,
@@ -2339,6 +2347,53 @@ body.ub-pan-active {
 
         // Tabs: Properties / Layers - đã được handle ở trên, xóa duplicate
     </script>
+
+    <style>
+    /* Context Menu Styles */
+    .builder-context-menu {
+        position: absolute;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        z-index: 10000;
+        min-width: 180px;
+        font-size: 12px;
+    }
+    .builder-context-menu ul {
+        list-style: none;
+        margin: 0;
+        padding: 4px 0;
+    }
+    .builder-context-menu li {
+        padding: 6px 12px;
+        cursor: pointer;
+        white-space: nowrap;
+    }
+    .builder-context-menu li:hover:not(.cm-disabled):not(.cm-label):not(.cm-sep) {
+        background: #e8f4fd;
+    }
+    .builder-context-menu li.cm-disabled {
+        color: #999;
+        cursor: default;
+    }
+    .builder-context-menu li.cm-sep {
+        height: 1px;
+        padding: 0;
+        margin: 4px 0;
+        background: #e0e0e0;
+        cursor: default;
+    }
+    .builder-context-menu li.cm-label {
+        padding: 4px 12px;
+        font-weight: 600;
+        color: #0078d4;
+        font-size: 11px;
+        cursor: default;
+        background: #f5f5f5;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    </style>
 
 </body>
 

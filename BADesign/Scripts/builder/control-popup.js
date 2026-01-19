@@ -151,6 +151,12 @@
                                 if (window.controlField && typeof controlField.moveDescendants === "function") {
                                     controlField.moveDescendants(cfg.id, p.dx, p.dy, false);
                                 }
+                                
+                                // ✅ DI CHUYỂN CÁC CONTROL CON (grid, ess-grid, toolbar, v.v.)
+                                // LƯU Ý: Gridview có position: absolute relative với popup-body
+                                // Khi popup di chuyển, popup-body cũng di chuyển, nên gridview sẽ tự động di chuyển theo
+                                // KHÔNG CẦN cập nhật CSS của gridview vì nó đã relative với popup-body
+                                // Chỉ cần đảm bảo popup-body có position: relative (đã có trong CSS)
                             });
                         }
                     },

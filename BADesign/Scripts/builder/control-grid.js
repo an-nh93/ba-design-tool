@@ -1,7 +1,7 @@
 ﻿var controlGrid = {
 
     // Tạo grid mới khi kéo từ toolbox
-    addNew: function () {
+    addNew: function (popupId, dropPoint) {
         var id = "grid_" + new Date().getTime();
         var index = builder.controls.length || 0;
 
@@ -50,8 +50,65 @@
             rowPermissions: {}
         };
 
+        // ✅ Nếu có dropPoint, convert về tọa độ canvas và set vị trí
+        if (dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
+            if (window.builder && typeof builder.clientToCanvasPoint === "function") {
+                var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
+                cfg.left = canvasPoint.x;
+                cfg.top = canvasPoint.y;
+            }
+        }
+
+        // ✅ Nếu drop vào popup → gán parentId và điều chỉnh vị trí
+        if (popupId && dropPoint) {
+            cfg.parentId = popupId;
+            
+            // Tìm popup config để lấy tọa độ canvas
+            var popupCfg = (builder.controls || []).find(function(c) { return c.id === popupId && c.type === "popup"; });
+            if (popupCfg) {
+                // Convert drop point về tọa độ canvas
+                var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
+                
+                // Tính vị trí relative với popup (cả popup và drop point đều là canvas coordinates)
+                var relativeX = canvasPoint.x - (popupCfg.left || 0);
+                var relativeY = canvasPoint.y - (popupCfg.top || 0);
+                
+                // Lưu relative position (relative với popup body, trừ header ~50px)
+                cfg.left = Math.max(10, relativeX);
+                cfg.top = Math.max(50, relativeY); // Tránh header
+                
+                // Đảm bảo nằm trong popup
+                var popupWidth = popupCfg.width || 800;
+                var popupHeight = popupCfg.height || 600;
+                if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
+                if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
+                
+                console.log("Grid: Set parentId=" + cfg.parentId + ", left=" + cfg.left + ", top=" + cfg.top);
+            }
+        }
+
         this.renderExisting(cfg);
         builder.registerControl(cfg);
+        
+        // ✅ LUÔN LUÔN check popup sau khi render (giống field controls)
+        // Vì tọa độ clientX/clientY có thể không chính xác do drag hint
+        // Đợi một chút để DOM được render xong
+        var self = this;
+        setTimeout(function() {
+            if (!cfg.parentId) {
+                console.log("Grid: Checking for popup after render, cfg.left=" + cfg.left + ", cfg.top=" + cfg.top);
+                var foundPopupId = builder.findParentPopupForControl(cfg);
+                if (foundPopupId) {
+                    cfg.parentId = foundPopupId;
+                    console.log("Grid: ✅ Detected popup after render:", foundPopupId, "- Re-rendering...");
+                    // Re-render với parentId mới
+                    self.renderExisting(cfg);
+                    builder.refreshJson();
+                } else {
+                    console.log("Grid: ❌ No popup found after render");
+                }
+            }
+        }, 50); // Đợi 50ms để DOM render xong
     },
 
     // trạng thái nút theo từng dòng
@@ -191,6 +248,12 @@
 
     // ====== RENDER GRID ======
     renderExisting: function (cfg) {
+        // ✅ XÓA DOM element cũ trước khi render mới để tránh duplicate
+        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
+        if ($oldGrid.length) {
+            $oldGrid.remove();
+        }
+        
         if (typeof cfg.showSearchBox === "undefined") {
             cfg.showSearchBox = true;
         }
@@ -221,8 +284,6 @@
             '</div>'
         ].join("");
 
-        $("#canvas").append(html);
-
         // chuẩn hoá width về number (px)
         if (typeof cfg.width !== "number") {
             var w = parseFloat(cfg.width);
@@ -230,13 +291,68 @@
             cfg.width = w;
         }
 
-        var $root = $(".canvas-control[data-id='" + cfg.id + "']");
+        // ✅ Nếu có parentId (popup) → append vào popup-body, không phải canvas
+        var $root;
+        if (cfg.parentId) {
+            var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
+            var $popupBody = $popup.find('.popup-body');
+            
+            // Debug: kiểm tra xem có tìm thấy popup và popup-body không
+            if (!$popup.length) {
+                console.warn("Popup not found:", cfg.parentId);
+            }
+            if (!$popupBody.length) {
+                console.warn("Popup body not found for popup:", cfg.parentId);
+            }
+            
+            if ($popupBody.length) {
+                // Append vào popup-body
+                $popupBody.append(html);
+                $root = $popupBody.find(".canvas-control[data-id='" + cfg.id + "']");
+                
+                if (!$root.length) {
+                    // Fallback: tìm trong toàn bộ DOM
+                    $root = $(".canvas-control[data-id='" + cfg.id + "']");
+                }
+                
+                // Position relative với popup-body (không cần cộng popup offset)
+                var finalLeft = cfg.left != null ? cfg.left : 10;
+                var finalTop = cfg.top != null ? cfg.top : 50; // Tránh header
+                
+                // Set z-index cao hơn để hiển thị trên popup
+                var popupZ = parseInt($popup.css("z-index") || "0", 10);
+                if (isNaN(popupZ)) popupZ = 0;
+                $root.css("z-index", popupZ + 10);
+                
         $root.css({
             position: "absolute",
-            left: (cfg.left != null ? cfg.left : 10),
-            top: (cfg.top != null ? cfg.top : 10),
+                    left: finalLeft + "px",
+                    top: finalTop + "px",
             width: cfg.width + "px"
         });
+            } else {
+                // Fallback: append vào canvas
+                console.warn("Fallback: appending to canvas instead of popup-body");
+                $("#canvas").append(html);
+                $root = $(".canvas-control[data-id='" + cfg.id + "']");
+                $root.css({
+                    position: "absolute",
+                    left: (cfg.left != null ? cfg.left : 10) + "px",
+                    top: (cfg.top != null ? cfg.top : 10) + "px",
+                    width: cfg.width + "px"
+                });
+            }
+        } else {
+            // Không có parentId → append vào canvas
+            $("#canvas").append(html);
+            $root = $(".canvas-control[data-id='" + cfg.id + "']");
+            $root.css({
+                position: "absolute",
+                left: (cfg.left != null ? cfg.left : 10) + "px",
+                top: (cfg.top != null ? cfg.top : 10) + "px",
+                width: cfg.width + "px"
+            });
+        }
 
         // kéo grid trên canvas (move)
         // CHỈ cho kéo khi bấm vào các thanh phía trên (View Data, Title...)
@@ -858,7 +974,7 @@
                 var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-index'), 10);
                 var val = $(this).val();
                 cfg.toolbarItems[idx].icon = val;
-                
+
                 var $preview = $("#toolbarItemsPanel .toolbar-icon-preview[data-toolbar-index='" + idx + "']");
                 if (val) {
                     $preview.html("<img src='" + val + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");

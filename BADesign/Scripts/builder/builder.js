@@ -81,17 +81,79 @@ var builder = {
     },
 
     hitTestPopupPoint: function (clientX, clientY) {
+        // ✅ CÁCH 1: Dùng elementFromPoint để tìm element tại vị trí drop
+        var el = document.elementFromPoint(clientX, clientY);
+        console.log("hitTestPopupPoint: elementFromPoint returned:", el ? (el.tagName + "." + el.className) : "null", "at", clientX, clientY);
+        
+        if (el) {
+            // Check xem element có phải popup không
+            if ($(el).hasClass('popup-design')) {
+                var popupId = $(el).attr("data-id");
+                console.log("hitTestPopupPoint: ✅ Found popup directly:", popupId);
+                return popupId;
+            }
+            
+            // Check xem element có nằm trong popup không (popup-body, popup-header, etc.)
+            var $popup = $(el).closest('.popup-design');
+            if ($popup.length) {
+                var popupId = $popup.attr("data-id");
+                console.log("hitTestPopupPoint: ✅ Found popup via closest:", popupId, "element:", el.tagName);
+                return popupId;
+            }
+        }
+        
+        // ✅ CÁCH 2: Check tất cả popups xem có popup nào chứa drop point không
+        // Đây là cách chính xác nhất vì không phụ thuộc vào elementFromPoint
         var hit = null;
+        var allPopups = $(".popup-design");
+        var closestPopup = null;
+        var closestDistance = Infinity;
+        
+        console.log("hitTestPopupPoint: Checking", allPopups.length, "popups at", clientX, clientY);
 
-        $(".popup-design").each(function () {
+        allPopups.each(function () {
             var $p = $(this);
             var pid = $p.attr("data-id");
             var r = this.getBoundingClientRect();
-
-            var inside = (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom);
-            if (inside) { hit = pid; return false; }
+            
+            // Kiểm tra xem popup có visible không
+            var isVisible = $p.is(":visible") && $p.css("display") !== "none";
+            if (!isVisible) return; // Skip invisible popups
+            
+            // ✅ Tính toán với tolerance lớn hơn để bù cho các edge cases
+            // Tolerance 50px để đảm bảo detect được ngay cả khi drop gần border
+            var tolerance = 50;
+            var inside = (clientX >= (r.left - tolerance) && 
+                         clientX <= (r.right + tolerance) && 
+                         clientY >= (r.top - tolerance) && 
+                         clientY <= (r.bottom + tolerance));
+            
+            if (inside) { 
+                // Tính khoảng cách từ drop point đến center của popup
+                var centerX = r.left + r.width / 2;
+                var centerY = r.top + r.height / 2;
+                var distance = Math.sqrt(Math.pow(clientX - centerX, 2) + Math.pow(clientY - centerY, 2));
+                
+                if (distance < closestDistance) {
+                    closestDistance = distance;
+                    closestPopup = pid;
+                }
+            }
         });
 
+        if (closestPopup) {
+            hit = closestPopup;
+            console.log("hitTestPopupPoint: ✅ Found popup", hit, "at", clientX, clientY, "distance:", closestDistance.toFixed(2));
+        } else {
+            console.log("hitTestPopupPoint: ❌ No popup found at", clientX, clientY, "Total popups:", allPopups.length);
+            // ✅ Debug: In ra tất cả popup rects để so sánh
+            allPopups.each(function() {
+                var r = this.getBoundingClientRect();
+                var $p = $(this);
+                var isVisible = $p.is(":visible") && $p.css("display") !== "none";
+                console.log("  - Popup", $p.attr("data-id"), "visible:", isVisible, "rect:", r.left, r.top, r.right, r.bottom, "size:", r.width, "x", r.height);
+            });
+        }
         return hit;
     },
 
@@ -100,6 +162,142 @@ var builder = {
         var cx = rect.left + rect.width / 2;
         var cy = rect.top + rect.height / 2;
         return this.hitTestPopupPoint(cx, cy);
+    },
+
+    // ✅ Convert clientX/clientY về tọa độ canvas
+    clientToCanvasPoint: function (clientX, clientY) {
+        var canvasEl = document.getElementById("canvas");
+        if (!canvasEl) return { x: clientX, y: clientY };
+        
+        var r = canvasEl.getBoundingClientRect();
+        var scale = (this.viewScale && this.viewScale > 0) ? this.viewScale : 1;
+        
+        var x = (clientX - r.left + canvasEl.scrollLeft) / scale;
+        var y = (clientY - r.top + canvasEl.scrollTop) / scale;
+        
+        return { x: x, y: y };
+    },
+
+    // ✅ Tìm popup chứa drop point (dùng tọa độ canvas)
+    // Nếu không tìm thấy popup chứa drop point, tìm popup gần nhất (trong khoảng cách cho phép)
+    findPopupAtCanvasPoint: function (canvasX, canvasY) {
+        var best = null;
+        var bestDistance = Infinity;
+        var self = this;
+        var maxDistance = 200; // Khoảng cách tối đa để coi như "drop vào popup"
+
+        // Duyệt qua tất cả popup DOM elements thay vì config
+        $(".popup-design").each(function() {
+            var $popup = $(this);
+            var popupId = $popup.attr("data-id");
+            if (!popupId) return;
+            
+            // Lấy tọa độ viewport của popup
+            var popupRect = this.getBoundingClientRect();
+            
+            // Convert popup's viewport rect về canvas coordinates
+            var canvasEl = document.getElementById("canvas");
+            if (!canvasEl) return;
+            
+            var canvasRect = canvasEl.getBoundingClientRect();
+            var scale = (self.viewScale && self.viewScale > 0) ? self.viewScale : 1;
+            
+            // Convert popup's viewport position về canvas position
+            var popupCanvasLeft = (popupRect.left - canvasRect.left + canvasEl.scrollLeft) / scale;
+            var popupCanvasTop = (popupRect.top - canvasRect.top + canvasEl.scrollTop) / scale;
+            var popupCanvasRight = popupCanvasLeft + (popupRect.width / scale);
+            var popupCanvasBottom = popupCanvasTop + (popupRect.height / scale);
+            var popupCenterX = popupCanvasLeft + (popupRect.width / scale) / 2;
+            var popupCenterY = popupCanvasTop + (popupRect.height / scale) / 2;
+
+            // Tính khoảng cách từ drop point đến center của popup
+            var distance = Math.sqrt(Math.pow(canvasX - popupCenterX, 2) + Math.pow(canvasY - popupCenterY, 2));
+            
+            // Check xem drop point có nằm trong popup không (với tolerance lớn)
+            var tolerance = 100; // Tăng tolerance lên 100px
+            var inside = (canvasX >= (popupCanvasLeft - tolerance) && 
+                         canvasX <= (popupCanvasRight + tolerance) && 
+                         canvasY >= (popupCanvasTop - tolerance) && 
+                         canvasY <= (popupCanvasBottom + tolerance));
+            
+            // Nếu nằm trong popup hoặc gần popup (trong khoảng cách cho phép)
+            if (inside || distance < maxDistance) {
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = popupId;
+                }
+            }
+        });
+
+        if (best) {
+            console.log("findPopupAtCanvasPoint: ✅ Found popup", best, "at canvas", canvasX, canvasY, "distance:", bestDistance.toFixed(2));
+        } else {
+            console.log("findPopupAtCanvasPoint: ❌ No popup found at canvas", canvasX, canvasY);
+        }
+        
+        return best;
+    },
+
+    // ✅ Tìm popup chứa control bằng cách check bounds (giống findParentContainerFor của field controls)
+    // Dùng DOM element thực tế thay vì config để có tọa độ chính xác
+    findParentPopupForControl: function (controlCfg) {
+        if (!controlCfg) return null;
+        
+        var left = controlCfg.left || 0;
+        var top = controlCfg.top || 0;
+        var right = left + (controlCfg.width || 900);
+        var bottom = top + (controlCfg.height || 400); // Giả sử height mặc định
+
+        var best = null;
+        var bestArea = 0;
+        var self = this;
+
+        // Duyệt qua tất cả popup DOM elements thay vì config
+        $(".popup-design").each(function() {
+            var $popup = $(this);
+            var popupId = $popup.attr("data-id");
+            if (!popupId) return;
+            
+            // Lấy tọa độ viewport của popup
+            var popupRect = this.getBoundingClientRect();
+            
+            // Convert popup's viewport rect về canvas coordinates
+            var canvasEl = document.getElementById("canvas");
+            if (!canvasEl) return;
+            
+            var canvasRect = canvasEl.getBoundingClientRect();
+            var scale = (self.viewScale && self.viewScale > 0) ? self.viewScale : 1;
+            
+            // Convert popup's viewport position về canvas position
+            var popupCanvasLeft = (popupRect.left - canvasRect.left + canvasEl.scrollLeft) / scale;
+            var popupCanvasTop = (popupRect.top - canvasRect.top + canvasEl.scrollTop) / scale;
+            var popupCanvasRight = popupCanvasLeft + (popupRect.width / scale);
+            var popupCanvasBottom = popupCanvasTop + (popupRect.height / scale);
+
+            // Check xem control có nằm trong popup không
+            // Dùng tolerance để tránh miss do border
+            var tolerance = 50; // Tăng tolerance để dễ detect hơn
+            if (left >= (popupCanvasLeft - tolerance) && 
+                top >= (popupCanvasTop - tolerance) && 
+                right <= (popupCanvasRight + tolerance) && 
+                bottom <= (popupCanvasBottom + tolerance)) {
+                
+                // Chọn popup nhỏ nhất chứa control (giống findParentContainerFor)
+                var area = (popupCanvasRight - popupCanvasLeft) * (popupCanvasBottom - popupCanvasTop);
+                if (!best || area < bestArea) {
+                    bestArea = area;
+                    best = popupId;
+                }
+            }
+        });
+
+        if (best) {
+            console.log("findParentPopupForControl: ✅ Found popup", best, "for control at", left, top);
+        } else {
+            console.log("findParentPopupForControl: ❌ No popup found for control at", left, top, "size:", right - left, "x", bottom - top);
+        }
+
+        return best;
     },
 
 
@@ -143,9 +341,16 @@ var builder = {
                 document.body.classList.add("ui-dragging");
                 $(event.target).addClass("tool-dragging");
                 builder.showDragHint(event.clientX, event.clientY);
+                // Reset last detected popup
+                builder._lastDetectedPopupId = null;
             },
             onmove: function (event) {
                 builder.moveDragHint(event.clientX, event.clientY);
+                // ✅ Detect popup trong khi drag để lưu lại
+                var popupId = builder.hitTestPopupPoint(event.clientX, event.clientY);
+                if (popupId) {
+                    builder._lastDetectedPopupId = popupId;
+                }
             },
             onend: function (event) {
                 document.body.classList.remove("ui-dragging");
@@ -153,11 +358,39 @@ var builder = {
                 var type = event.target.getAttribute("data-control");
                 var uiMode = event.target.getAttribute("data-ui") || "core"; // default core
 
-                builder.addControl(type, uiMode, { clientX: event.clientX, clientY: event.clientY });
+                // ✅ Ưu tiên dùng popup đã detect trong onmove
+                var popupId = builder._lastDetectedPopupId;
+                
+                // ✅ Nếu chưa có, detect lại tại vị trí drop
+                if (!popupId) {
+                    popupId = builder.hitTestPopupPoint(event.clientX, event.clientY);
+                }
+                
+                // ✅ Nếu vẫn không có, thử detect với một số điểm xung quanh để tránh miss do timing
+                if (!popupId) {
+                    var offsets = [[0,0], [-5,-5], [5,5], [-10,-10], [10,10]];
+                    for (var i = 0; i < offsets.length && !popupId; i++) {
+                        popupId = builder.hitTestPopupPoint(
+                            event.clientX + offsets[i][0], 
+                            event.clientY + offsets[i][1]
+                        );
+                    }
+                }
+                
+                var dropPoint = { 
+                    clientX: event.clientX, 
+                    clientY: event.clientY,
+                    popupId: popupId // Thêm popupId vào dropPoint để dễ debug
+                };
+                
+                console.log("Builder.onend: type=" + type + ", dropPoint=", dropPoint, ", detectedPopupId=", popupId);
+
+                builder.addControl(type, uiMode, dropPoint);
 
                 event.target.style.transform = "";
                 $(event.target).removeClass("tool-dragging");
                 builder.hideDragHint();
+                builder._lastDetectedPopupId = null; // Reset
             }
         });
 
@@ -392,7 +625,7 @@ var builder = {
         });
 
         // Chuột phải trên control/canvas
-        $(document).on("contextmenu", ".page-field, .popup-field, .popup-design, .canvas-toolbar, .canvas-tabpage, #canvas", function (e) {
+        $(document).on("contextmenu", ".page-field, .popup-field, .popup-design, .canvas-toolbar, .canvas-tabpage, .canvas-control, #canvas", function (e) {
             e.preventDefault();
             builder.showContextMenu(e, this);
         });
@@ -1778,22 +2011,129 @@ var builder = {
 
         var $t = $(target);
         var id = $t.attr("data-id") || $t.attr("id");
+        
+        // ✅ Tìm id từ các phần tử cha nếu không tìm thấy trực tiếp (cho gridview trong popup)
+        // Gridview có thể có nhiều phần tử con, cần tìm phần tử cha có data-id
+        if (!id) {
+            // Tìm canvas-control cha (cho Core GridView)
+            var $parentControl = $t.closest('.canvas-control[data-id]');
+            if ($parentControl.length) {
+                id = $parentControl.attr("data-id");
+                $t = $parentControl;
+            } else {
+                // Tìm ess-grid-control (cho ESS GridView)
+                var $essGrid = $t.closest('.ess-grid-control[data-id]');
+                if ($essGrid.length) {
+                    id = $essGrid.attr("data-id");
+                    $t = $essGrid;
+                } else {
+                    // Fallback: tìm bất kỳ phần tử cha nào có data-id
+                    var $parent = $t.closest('[data-id]');
+                    if ($parent.length) {
+                        id = $parent.attr("data-id");
+                        $t = $parent;
+                    }
+                }
+            }
+        } else {
+            // Nếu đã có id, nhưng có thể là phần tử con của gridview
+            // Kiểm tra xem có phải DevExtreme grid không
+            if ($t.hasClass("dx-datagrid") || $t.closest(".dx-datagrid").length) {
+                var $parentControl = $t.closest('.canvas-control[data-id]');
+                if ($parentControl.length) {
+                    id = $parentControl.attr("data-id");
+                    $t = $parentControl;
+                }
+            }
+        }
 
+        console.log("showContextMenu: target=", target, "id=", id, "element=", $t[0]);
+
+        // ✅ Lấy config và set selection
+        var cfg = null;
         if (id) {
-            var cfg = this.getControlConfig(id);
+            cfg = this.getControlConfig(id);
             if (cfg) {
                 this.selectedControlId = id;
                 this.selectedControlType = cfg.type;
+                console.log("showContextMenu: cfg=", cfg, "type=", cfg.type, "parentId=", cfg.parentId);
             }
         }
 
         // enable/disable theo ngữ cảnh
         var isField = (this.selectedControlType === "field");
         var multiFields = this.getSelectedFieldIds().length > 1;
+        var isGrid = (this.selectedControlType === "grid" || this.selectedControlType === "ess-grid");
+        
+        // ✅ Kiểm tra xem control có trong popup không
+        var isInPopup = false;
+        if (cfg && cfg.parentId) {
+            var $parentPopup = $('.popup-design[data-id="' + cfg.parentId + '"]');
+            isInPopup = $parentPopup.length > 0;
+            console.log("showContextMenu: isInPopup=", isInPopup, "parentId=", cfg.parentId, "popup found=", $parentPopup.length);
+        }
 
         $menu.find("[data-cmd^='align-']").toggleClass("cm-disabled", !multiFields);
         $menu.find("[data-cmd='copy-style'],[data-cmd='paste-style']").toggleClass("cm-disabled", !isField);
         $menu.find("[data-cmd='paste-ctrl']").toggleClass("cm-disabled", !this.clipboardControls || !this.clipboardControls.length);
+        
+        // ✅ GridView menu: Xóa tất cả menu items cũ liên quan đến popup
+        // Xóa từ cuối lên để tránh ảnh hưởng đến index
+        var $allItems = $menu.find("ul li");
+        $allItems.each(function() {
+            var $item = $(this);
+            if ($item.attr("data-cmd") && ($item.attr("data-cmd").indexOf("move-to-popup-") === 0 || $item.attr("data-cmd") === "move-out-popup")) {
+                $item.remove();
+            }
+            if ($item.hasClass("cm-label")) {
+                $item.remove();
+            }
+        });
+        // Xóa separator cuối cùng nếu không có item nào sau nó
+        var $lastSep = $menu.find("ul li.cm-sep").last();
+        if ($lastSep.length) {
+            var hasItemsAfter = false;
+            $lastSep.nextAll().each(function() {
+                if (!$(this).hasClass("cm-sep")) {
+                    hasItemsAfter = true;
+                    return false;
+                }
+            });
+            if (!hasItemsAfter) {
+                $lastSep.remove();
+            }
+        }
+        
+        if (isGrid) {
+            var $moveToPopupLi = $('<li class="cm-sep"></li>');
+            $menu.find("ul").append($moveToPopupLi);
+            
+            if (isInPopup) {
+                // Đang trong popup → hiện menu "Di chuyển khỏi popup"
+                var $moveOut = $('<li data-cmd="move-out-popup">📤 Di chuyển khỏi popup</li>');
+                $menu.find("ul").append($moveOut);
+            } else {
+                // Không trong popup → hiện danh sách popup để chọn
+                var $moveToLabel = $('<li class="cm-label" style="padding: 4px 12px; font-weight: 600; color: #0078d4; font-size: 11px; cursor: default;">📥 Di chuyển vào popup:</li>');
+                $menu.find("ul").append($moveToLabel);
+                
+                var $popups = $(".popup-design");
+                if ($popups.length > 0) {
+                    $popups.each(function() {
+                        var $popup = $(this);
+                        var popupId = $popup.attr("data-id");
+                        var popupCfg = builder.getControlConfig(popupId);
+                        var popupTitle = (popupCfg && popupCfg.headerText) ? popupCfg.headerText : (popupCfg && popupCfg.titleText) ? popupCfg.titleText : "Popup " + popupId;
+                        
+                        var $popupItem = $('<li data-cmd="move-to-popup-' + popupId + '" style="padding-left: 24px;">  ' + popupTitle + '</li>');
+                        $menu.find("ul").append($popupItem);
+                    });
+                } else {
+                    var $noPopup = $('<li class="cm-disabled" style="padding-left: 24px;">(Không có popup)</li>');
+                    $menu.find("ul").append($noPopup);
+                }
+            }
+        }
 
         $menu.css({
             left: e.pageX + "px",
@@ -1838,7 +2178,130 @@ var builder = {
             case "delete":
                 this.deleteSelectedControl();
                 break;
+            default:
+                // ✅ Xử lý menu GridView: move-to-popup-{popupId} hoặc move-out-popup
+                if (cmd && cmd.indexOf("move-to-popup-") === 0) {
+                    var popupId = cmd.substring("move-to-popup-".length);
+                    this.moveGridToPopup(popupId);
+                } else if (cmd === "move-out-popup") {
+                    this.moveGridOutOfPopup();
+                }
+                break;
         }
+    },
+
+    // ✅ Di chuyển GridView vào popup
+    moveGridToPopup: function (popupId) {
+        if (!this.selectedControlId) return;
+        
+        var cfg = this.getControlConfig(this.selectedControlId);
+        if (!cfg || (cfg.type !== "grid" && cfg.type !== "ess-grid")) {
+            this.showToast("Chỉ có thể di chuyển GridView vào popup", "warning");
+            return;
+        }
+        
+        var popupCfg = this.getControlConfig(popupId);
+        if (!popupCfg || popupCfg.type !== "popup") {
+            this.showToast("Popup không tồn tại", "error");
+            return;
+        }
+        
+        // ✅ XÓA DOM element cũ trước khi render mới
+        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
+        if ($oldGrid.length) {
+            $oldGrid.remove();
+        }
+        
+        // Set parentId và tính lại vị trí relative với popup
+        var oldParentId = cfg.parentId;
+        cfg.parentId = popupId;
+        
+        // Convert current position về relative với popup
+        var currentLeft = cfg.left || 0;
+        var currentTop = cfg.top || 0;
+        var popupLeft = popupCfg.left || 0;
+        var popupTop = popupCfg.top || 0;
+        
+        // Tính relative position
+        // Nếu grid đang trong popup khác, cần convert từ popup cũ sang popup mới
+        if (oldParentId && oldParentId !== popupId) {
+            var oldPopupCfg = this.getControlConfig(oldParentId);
+            if (oldPopupCfg) {
+                // Convert từ relative của popup cũ sang absolute, rồi sang relative của popup mới
+                currentLeft = (cfg.left || 0) + (oldPopupCfg.left || 0);
+                currentTop = (cfg.top || 0) + (oldPopupCfg.top || 0);
+            }
+        }
+        
+        // Convert absolute position về relative với popup mới
+        cfg.left = Math.max(10, currentLeft - popupLeft);
+        cfg.top = Math.max(50, currentTop - popupTop); // Tránh header
+        
+        // Đảm bảo nằm trong popup
+        var popupWidth = popupCfg.width || 800;
+        var popupHeight = popupCfg.height || 600;
+        if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
+        if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
+        
+        // Re-render grid
+        if (cfg.type === "grid" && window.controlGrid && typeof controlGrid.renderExisting === "function") {
+            controlGrid.renderExisting(cfg);
+        } else if (cfg.type === "ess-grid" && window.controlGridEss && typeof controlGridEss.renderExisting === "function") {
+            controlGridEss.renderExisting(cfg);
+        }
+        
+        // Update selection
+        this.selectedControlId = cfg.id;
+        this.selectedControlType = cfg.type;
+        
+        this.refreshJson();
+        this.showToast("Đã di chuyển GridView vào popup: " + (popupCfg.headerText || popupCfg.titleText || "Popup"), "success");
+    },
+
+    // ✅ Di chuyển GridView ra khỏi popup
+    moveGridOutOfPopup: function () {
+        if (!this.selectedControlId) return;
+        
+        var cfg = this.getControlConfig(this.selectedControlId);
+        if (!cfg || (cfg.type !== "grid" && cfg.type !== "ess-grid")) {
+            this.showToast("Chỉ có thể di chuyển GridView ra khỏi popup", "warning");
+            return;
+        }
+        
+        if (!cfg.parentId) {
+            this.showToast("GridView không nằm trong popup", "info");
+            return;
+        }
+        
+        // ✅ XÓA DOM element cũ trước khi render mới
+        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
+        if ($oldGrid.length) {
+            $oldGrid.remove();
+        }
+        
+        var popupCfg = this.getControlConfig(cfg.parentId);
+        if (popupCfg) {
+            // Convert relative position về absolute position trên canvas
+            cfg.left = (cfg.left || 0) + (popupCfg.left || 0);
+            cfg.top = (cfg.top || 0) + (popupCfg.top || 0);
+        }
+        
+        // Remove parentId
+        cfg.parentId = null;
+        
+        // Re-render grid
+        if (cfg.type === "grid" && window.controlGrid && typeof controlGrid.renderExisting === "function") {
+            controlGrid.renderExisting(cfg);
+        } else if (cfg.type === "ess-grid" && window.controlGridEss && typeof controlGridEss.renderExisting === "function") {
+            controlGridEss.renderExisting(cfg);
+        }
+        
+        // Update selection
+        this.selectedControlId = cfg.id;
+        this.selectedControlType = cfg.type;
+        
+        this.refreshJson();
+        this.showToast("Đã di chuyển GridView ra khỏi popup", "success");
     },
 
     // ========= Bottom toolbar giống thanh Figma =========
@@ -2522,13 +2985,60 @@ var builder = {
     addControl: function (type, uiMode, dropPoint) {
         uiMode = uiMode || "core";
 
+        // ✅ Detect popup: Check xem drop point có nằm trong viewport của popup không
+        var popupId = null;
+        var $popups = $(".popup-design");
+        
+        if ($popups.length > 0 && dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
+            var self = this;
+            var foundPopup = null;
+            
+            // Check từng popup xem drop point có nằm trong viewport của nó không
+            $popups.each(function() {
+                var $popup = $(this);
+                var pid = $popup.attr("data-id");
+                if (!pid) return;
+                
+                var popupRect = this.getBoundingClientRect();
+                
+                // Check xem drop point có nằm trong popup viewport không (với tolerance lớn)
+                // Dùng viewport coordinates vì đơn giản và chính xác hơn
+                var tolerance = 150; // Tolerance lớn để bù cho drag hint và các edge cases
+                var inside = (dropPoint.clientX >= (popupRect.left - tolerance) && 
+                             dropPoint.clientX <= (popupRect.right + tolerance) && 
+                             dropPoint.clientY >= (popupRect.top - tolerance) && 
+                             dropPoint.clientY <= (popupRect.bottom + tolerance));
+                
+                if (inside) {
+                    foundPopup = pid;
+                    console.log("Builder.addControl: ✅ Drop point inside popup viewport:", pid, "at", dropPoint.clientX, dropPoint.clientY);
+                    return false; // Break loop
+                }
+            });
+            
+            if (foundPopup) {
+                popupId = foundPopup;
+            } else {
+                // Nếu không tìm thấy, log để debug
+                console.log("Builder.addControl: Drop point not inside any popup viewport:", dropPoint.clientX, dropPoint.clientY);
+                $popups.each(function() {
+                    var r = this.getBoundingClientRect();
+                    console.log("  - Popup", $(this).attr("data-id"), "viewport rect:", r.left, r.top, r.right, r.bottom);
+                });
+            }
+        } else if ($popups.length === 0) {
+            console.log("Builder.addControl: No popup found in DOM");
+        } else {
+            console.log("Builder.addControl: No dropPoint or missing coordinates");
+        }
+
         if (type === "grid") {
-            controlGrid.addNew();
+            controlGrid.addNew(popupId, dropPoint);
 
         } else if (type === "ess-grid") {
             // NEW: ESS HTML grid
             if (window.controlGridEss && typeof controlGridEss.addNew === "function") {
-                controlGridEss.addNew(uiMode);   // uiMode lúc này là "ess"
+                controlGridEss.addNew(uiMode, popupId, dropPoint);
             }
 
         } else if (type === "popup") {
@@ -2538,7 +3048,7 @@ var builder = {
             var ftype = type.substring("field-".length);
 
             if (window.controlField && typeof controlField.addNew === "function") {
-                controlField.addNew(ftype, uiMode);
+                controlField.addNew(ftype, uiMode, popupId, dropPoint);
             }
 
         } else if (type === "toolbar") {
