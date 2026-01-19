@@ -1,0 +1,1019 @@
+﻿/* ================= ESS – COMMON SHELL ================= */
+
+.page-field.ess-field {
+    background: #fff;
+    border: 1px solid #d0d0d0;
+    border-radius: 2px;
+    padding: 4px 6px;
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: stretch; /* caption + editor cao bằng chiều cao control */
+    gap: 6px;
+}
+
+    /* Caption ESS: chữ xám đậm, nhỏ, canh giữa theo chiều dọc */
+    .page-field.ess-field .page-field-caption {
+        min-width: 80px;
+        font-size: 12px;
+        color: #494545;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Editor chiếm hết không gian còn lại */
+    .page-field.ess-field .page-field-editor {
+        flex: 1 1 auto;
+        display: flex;
+        align-items: stretch;
+    }
+
+        /* ================= ESS – INPUT / SELECT / TEXTAREA ================= */
+
+        .page-field.ess-field .page-field-editor input,
+        .page-field.ess-field .page-field-editor select,
+        .page-field.ess-field .page-field-editor textarea {
+            width: 100%;
+            min-height: 26px;
+            padding: 2px 6px;
+            border-radius: 2px;
+            border: 1px solid #c5c5c5;
+            font-size: 12px;
+            box-sizing: border-box;
+            color: #333;
+            background-color: #fff;
+        }
+
+            /* Numeric cơ bản: canh phải */
+            .page-field.ess-field .page-field-editor input[type=number] {
+                text-align: right;
+            }
+
+        /* Combobox ESS – chừa chỗ cho mũi tên */
+        .page-field.ess-field .page-field-editor select {
+            padding-right: 18px;
+        }
+
+        /* Date ESS – chừa rộng hơn cho icon lịch */
+        .page-field.ess-field .page-field-editor input[type="date"],
+        .page-field.ess-field .page-field-editor input.ess-date {
+            padding-right: 24px;
+        }
+
+        /* Memo ESS */
+        .page-field.ess-field .page-field-editor textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+
+        /* ================= ESS – BUTTON ================= */
+
+        /* Nút ESS: full 100% trong field, giống layout thật */
+        .page-field.ess-field .page-field-editor button:not(.ess-spin-up):not(.ess-spin-down),
+        button.ess-button {
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+            min-height: 0;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 9px 20px;
+            border-radius: 8px !important;
+            border-width: 2px;
+            border-style: solid;
+            border-color: #0A75BA; /* mặc định – có thể override bằng inline style */
+            background-color: #ed120b; /* màu nền mặc định */
+            color: #fff; /* màu chữ mặc định */
+            font-size: 12px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+            /* Hover: chỉ hơi tối đi, giữ border */
+            .page-field.ess-field .page-field-editor button:not(.ess-spin-up):not(.ess-spin-down):hover,
+            button.ess-button:hover {
+                filter: brightness(0.95);
+            }
+
+    /* Field được chọn trên canvas */
+    .page-field.ess-field.page-field-selected {
+        outline: 2px solid #0078d7;
+    }
+
+    /* ================= ESS – CUSTOM NUMERIC (ESS Numeric test) ================= */
+    /* HTML:
+   <div class="page-field ess-field">
+     <label class="page-field-caption">...</label>
+     <div class="page-field-editor">
+       <div class="ess-number">
+         <input type="number" class="ess-number-input">
+         <button type="button" class="ess-spin-up">▲</button>
+         <button type="button" class="ess-spin-down">▼</button>
+       </div>
+     </div>
+   </div>
+*/
+
+    /* Khung numeric bọc input + 2 nút ↑ ↓  */
+    .page-field.ess-field .page-field-editor .ess-number,
+    [data-ui-mode="ess"] .ess-number {
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+        min-height: 26px;
+        border: 1px solid #c5c5c5;
+        border-radius: 2px;
+        background: #fff;
+        box-sizing: border-box;
+        overflow: hidden;
+    }
+
+    /* Input bên trong – dùng border của .ess-number */
+    .page-field.ess-field .page-field-editor .ess-number-input,
+    [data-ui-mode="ess"] .ess-number-input {
+        width: 100%;
+        height: 100% !important; /* luôn full chiều cao khung (ghi đè inline style) */
+        min-height: 0;
+        box-sizing: border-box;
+        border: none;
+        padding: 3px 20px 3px 6px; /* chừa 20px bên phải cho cột spinner */
+        font-size: 12px;
+        line-height: 1.4;
+        color: #333;
+        background: transparent;
+        text-align: right;
+    }
+
+        /* Ẩn spinner mặc định của browser */
+        .page-field.ess-field .page-field-editor .ess-number-input::-webkit-inner-spin-button,
+        .page-field.ess-field .page-field-editor .ess-number-input::-webkit-outer-spin-button,
+        [data-ui-mode="ess"] .ess-number-input::-webkit-inner-spin-button,
+        [data-ui-mode="ess"] .ess-number-input::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+    .page-field.ess-field .page-field-editor .ess-number-input,
+    [data-ui-mode="ess"] .ess-number-input {
+        -moz-appearance: textfield;
+        appearance: textfield;
+    }
+
+    /* Nút ↑ ↓ – màu xám, nằm TRONG textbox, xếp dọc */
+    .page-field.ess-field .page-field-editor .ess-spin-up,
+    .page-field.ess-field .page-field-editor .ess-spin-down,
+    [data-ui-mode="ess"] .ess-spin-up,
+    [data-ui-mode="ess"] .ess-spin-down {
+        position: absolute;
+        right: 0;
+        width: 12px;
+        cursor: pointer;
+        border: 0;
+        background: #f0f0f0; /* xám nhạt */
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0; /* ẩn ký tự ▲ ▼ thật, chỉ dùng ::before */
+    }
+
+    /* Nửa trên / nửa dưới */
+    .page-field.ess-field .page-field-editor .ess-spin-up,
+    [data-ui-mode="ess"] .ess-spin-up {
+        top: 0;
+        height: 50%;
+        border-left: 1px solid #d0d0d0;
+        border-bottom: 1px solid #d0d0d0;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-spin-down,
+    [data-ui-mode="ess"] .ess-spin-down {
+        bottom: 0;
+        height: 50%;
+        border-left: 1px solid #d0d0d0;
+        border-top: 1px solid #d0d0d0;
+    }
+
+        /* Icon tam giác */
+        .page-field.ess-field .page-field-editor .ess-spin-up::before,
+        .page-field.ess-field .page-field-editor .ess-spin-down::before,
+        [data-ui-mode="ess"] .ess-spin-up::before,
+        [data-ui-mode="ess"] .ess-spin-down::before {
+            content: "";
+            display: inline-block;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+        }
+
+    .page-field.ess-field .page-field-editor .ess-spin-up::before,
+    [data-ui-mode="ess"] .ess-spin-up::before {
+        border-bottom: 5px solid #666;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-spin-down::before,
+    [data-ui-mode="ess"] .ess-spin-down::before {
+        border-top: 5px solid #666;
+    }
+
+    /* Hover nhẹ */
+    .page-field.ess-field .page-field-editor .ess-spin-up:hover,
+    .page-field.ess-field .page-field-editor .ess-spin-down:hover,
+    [data-ui-mode="ess"] .ess-spin-up:hover,
+    [data-ui-mode="ess"] .ess-spin-down:hover {
+        background: #e4e4e4;
+    }
+
+
+    /* ===== ESS DATE trên canvas builder ===== */
+
+    /* Container date trong vùng editor */
+    .page-field.ess-field .page-field-editor .ess-date.input-group {
+        display: flex;
+        align-items: stretch;
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Phần input */
+    .page-field.ess-field .page-field-editor .ess-date-input {
+        flex: 1 1 auto;
+        box-shadow: none;
+        border: 1px solid #c5c5c5;
+        border-right: none; /* liền với ô calendar, không bị double border */
+        border-radius: 2px 0 0 2px;
+        padding: 2px 6px;
+        font-size: 12px;
+    }
+
+    /* Ô calendar bên phải */
+    .page-field.ess-field .page-field-editor .ess-date-addon {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        padding: 0 8px;
+        border: 1px solid #c5c5c5;
+        border-left: none;
+        border-radius: 0 2px 2px 0;
+        background-color: #f5f5f5; /* nền xám giống hình 2 */
+    }
+
+        /* Icon trong ô calendar */
+        .page-field.ess-field .page-field-editor .ess-date-addon .glyphicon {
+            position: relative;
+            top: 0;
+            font-size: 14px;
+            line-height: 1;
+        }
+
+
+
+    /* ================= ESS – TAG PILL ================= */
+    /* 
+   HTML trong canvas:
+   <div class="page-field ess-field">
+     <label class="page-field-caption"></label>
+     <div class="page-field-editor">
+       <div class="ess-tag">
+         <span class="ess-tag-icon"><i class="bi bi-flag-fill"></i></span>
+         <span class="ess-tag-text">In Progress</span>
+       </div>
+     </div>
+   </div>
+*/
+
+    .page-field.ess-field .page-field-editor .ess-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 10px;
+        border-radius: 999px;
+        background-color: #0D9EFF; /* có thể đổi bằng inline style */
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+        box-shadow: 0 0 0 1px rgba(255, 255, 255, .3);
+    }
+
+    .page-field.ess-field .page-field-editor .ess-tag-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, .2);
+        font-size: 10px;
+    }
+
+        .page-field.ess-field .page-field-editor .ess-tag-icon > i {
+            position: relative;
+            top: -1px;
+        }
+
+    /* ================= ESS – PROGRESSBAR ================= */
+    /*
+  HTML:
+  <div class="page-field ess-field">
+    <label class="page-field-caption"></label>
+    <div class="page-field-editor">
+      <div class="ess-progress">
+        <div class="ess-progress-track">
+          <div class="ess-progress-fill" style="width:0%"></div>
+        </div>
+        <div class="ess-progress-text">0%</div>
+      </div>
+    </div>
+  </div>
+*/
+
+    .page-field.ess-field .page-field-editor .ess-progress {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 100%;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-progress-track {
+        flex: 1 1 auto;
+        height: 8px;
+        border-radius: 999px;
+        background-color: #e7ecf3;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-progress-fill {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        width: 0%;
+        background-image: linear-gradient(90deg, #1da2ff, #0f64ff);
+        transition: width .2s ease-out;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-progress-text {
+        min-width: 34px;
+        text-align: right;
+        font-size: 11px;
+        font-weight: 600;
+        color: #0078d7;
+    }
+
+    /* ================= ESS – IMAGE (DROPZONE) ================= */
+    /*
+  HTML:
+  <div class="page-field ess-field">
+    <label class="page-field-caption"></label>
+    <div class="page-field-editor">
+      <div class="ess-image-drop" data-role="ess-image-drop">
+        <div class="ess-image-placeholder">Drop / paste image</div>
+        <img class="ess-image" style="display:none" />
+        <input type="file" accept="image/*" style="display:none" />
+      </div>
+    </div>
+  </div>
+*/
+
+    .page-field.ess-field .page-field-editor .ess-image-drop {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        border-radius: 4px;
+        border: 1px dashed #d0d0d0;
+        background-color: #fafafa;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        cursor: pointer;
+    }
+
+        .page-field.ess-field .page-field-editor .ess-image-drop.ess-image-drop-over {
+            border-color: #0D9EFF;
+            background-color: #f0f8ff;
+        }
+
+    .page-field.ess-field .page-field-editor .ess-image-placeholder {
+        font-size: 11px;
+        color: #999;
+        text-align: center;
+        padding: 4px;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-image {
+        max-width: 100%;
+        max-height: 100%;
+        display: block;
+    }
+
+
+    /* ================= ESS – IMAGE ================= */
+
+    .page-field.ess-field .page-field-editor .ess-image-drop {
+        width: 100%;
+        height: 100%;
+        border: 1px dashed #c5c5c5;
+        border-radius: 2px;
+        background-color: #fafafa;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        cursor: pointer;
+        text-align: center;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-image-drop-hover {
+        border-color: #4aa3ff;
+        background-color: #eef6ff;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-image-inner {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    .page-field.ess-field .page-field-editor .ess-image-placeholder {
+        font-size: 11px;
+        color: #888;
+        padding: 4px;
+    }
+
+    /* Ảnh chung */
+    .page-field.ess-field .page-field-editor .ess-image-inner img.ess-image-img {
+        display: block;
+    }
+
+/* === Các mode hiển thị === */
+
+/* Fit (contain) – giữ tỉ lệ, không crop, có thể dư viền trắng */
+.ess-image-mode-fit img.ess-image-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Fill (cover) – lấp đầy khung, có thể bị crop một chút */
+.ess-image-mode-fill img.ess-image-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Stretch – kéo giãn theo khung, có thể méo hình */
+.ess-image-mode-stretch img.ess-image-img {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+}
+
+/* Center – giữ kích thước gốc, canh giữa, không phóng quá khung */
+.ess-image-mode-center img.ess-image-img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+
+
+
+/* ===== ESS GRID BASIC ===== */
+.ess-grid-control {
+    border: 1px solid #d6dde7;
+    border-radius: 4px;
+    background-color: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+/* Header: có background nhẹ, không giống core grid */
+.ess-grid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 10px 4px;
+    border-bottom: 1px solid #eef1f6;
+    background: linear-gradient(90deg, #f9fafb, #eef2ff);
+}
+
+.ess-grid-title {
+    font-size: 13px;
+    color: #111827;
+}
+
+/* Add row button style ESS, không dùng .btn bootstrap */
+.ess-grid-header-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.ess-grid-btn {
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    padding: 3px 10px;
+    background: #f9fafb;
+    font-size: 12px;
+    cursor: pointer;
+    color: #111827;
+}
+
+    .ess-grid-btn:hover {
+        background: #e5f0ff;
+    }
+
+/* table */
+.ess-grid-table-wrapper {
+    padding: 6px 10px 8px;
+    overflow: auto;
+}
+
+.ess-grid-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.ess-grid-th,
+.ess-grid-td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #edf1f6;
+    font-size: 12px;
+}
+
+.ess-grid-th {
+    white-space: nowrap;
+    color: #4b5563;
+    background-color: #f9fafb;
+    position: relative;
+}
+
+/* resizer: làm to lên cho dễ kéo */
+.ess-grid-col-resizer {
+    position: absolute;
+    top: 0;
+    right: -4px;
+    width: 10px; /* to hơn */
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+}
+
+    .ess-grid-col-resizer:hover {
+        background-color: rgba(148, 163, 184, 0.35);
+    }
+
+/* cell */
+.ess-grid-td {
+    vertical-align: middle;
+}
+
+.ess-grid-td-check {
+    width: 30px;
+    text-align: center;
+}
+
+.ess-grid-td-actions {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.ess-grid-cell-inner {
+    display: block;
+}
+
+.ess-grid-cell-center {
+    text-align: center;
+}
+
+.ess-grid-cell-right {
+    text-align: right;
+}
+
+/* ===== ESS STYLE FOR EDITOR TRONG GRID (KHÔNG DÙNG form-control) ===== */
+.ess-grid-editor {
+    box-sizing: border-box;
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 12px;
+    height: 24px;
+    background-color: #fff;
+}
+
+    .ess-grid-editor:focus {
+        outline: none;
+        border-color: #2563eb;
+        box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.25);
+    }
+
+/* memo */
+.ess-grid-editor-textarea {
+    height: 40px;
+    resize: vertical;
+}
+
+/* number */
+.ess-grid-editor-number {
+    text-align: right;
+}
+
+/* date */
+.ess-grid-editor-date-wrap {
+    display: flex;
+    align-items: center;
+}
+
+.ess-grid-editor-date {
+    flex: 1 1 auto;
+}
+
+.ess-grid-editor-date-icon {
+    width: 18px;
+    height: 18px;
+    margin-left: 4px;
+    border-radius: 4px;
+    border: 1px solid #d1d5db;
+    background-color: #f9fafb;
+    position: relative;
+}
+
+    .ess-grid-editor-date-icon::before {
+        content: "";
+        position: absolute;
+        inset: 3px;
+        border-radius: 3px;
+        border: 1px solid #9ca3af;
+    }
+
+/* combobox */
+.ess-grid-editor-combo {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #4b5563 50%), linear-gradient(135deg, #4b5563 50%, transparent 50%);
+    background-position: calc(100% - 10px) 9px, calc(100% - 6px) 9px;
+    background-size: 4px 4px, 4px 4px;
+    background-repeat: no-repeat;
+    padding-right: 18px;
+}
+
+/* view mode text */
+.ess-grid-cell-view {
+    padding: 2px 0;
+    color: #111827;
+    font-size: 12px;
+}
+
+.ess-grid-cell-view-right {
+    text-align: right;
+}
+
+/* Tag / status giống list Documents */
+.ess-grid-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.ess-grid-tag-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    margin-right: 4px;
+}
+
+.ess-grid-tag-pending {
+    background-color: #fff7ed;
+    color: #c05621;
+}
+
+    .ess-grid-tag-pending .ess-grid-tag-dot {
+        background-color: #fb923c;
+    }
+
+.ess-grid-tag-new {
+    background-color: #eff6ff;
+    color: #1d4ed8;
+}
+
+    .ess-grid-tag-new .ess-grid-tag-dot {
+        background-color: #3b82f6;
+    }
+
+/* editor tag trong mode Edit */
+.ess-grid-tag-editor {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ess-grid-tag-add {
+    border-radius: 999px;
+    width: 18px;
+    height: 18px;
+    border: 1px dashed #94a3b8;
+    background: #fff;
+    font-size: 11px;
+    line-height: 14px;
+    padding: 0;
+    cursor: pointer;
+}
+
+/* progress */
+.ess-grid-progress {
+    position: relative;
+    width: 100%;
+    height: 6px;
+    border-radius: 999px;
+    background-color: #e5edf8;
+    overflow: hidden;
+}
+
+.ess-grid-progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    border-radius: inherit;
+    background: linear-gradient(to right, #2563eb, #38bdf8);
+}
+
+/* action icons */
+.ess-grid-action-icon-wrap {
+    display: inline-block;
+    margin: 0 3px;
+}
+
+.ess-grid-action-icon {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.ess-grid-icon-disabled .ess-grid-action-icon {
+    opacity: 0.4;
+    cursor: default;
+}
+
+/* khi chọn control trên canvas */
+.canvas-control.ess-grid-control.canvas-control-selected {
+    box-shadow: 0 0 0 2px #3b82f6;
+}
+
+/* ===== ESS GRID – chỉnh chiều cao control, textarea, date, tag, progress ===== */
+
+.ess-grid-control .ess-grid-td {
+    padding: 4px 6px;
+    vertical-align: middle;
+    height: 32px; /* hơi cao hơn chút cho giống ESS */
+}
+
+/* Base editor (textbox / textarea / combo) trong grid */
+.ess-grid-control .ess-grid-input {
+    display: block;
+    width: 100%;
+    height: 35px;
+    padding: 3px 6px;
+    font-size: 12px;
+    color: #333;
+    border: 1px solid #cfcfcf;
+    border-radius: 2px;
+    background-color: #fff;
+    box-sizing: border-box; /* chống tràn sang cột kế bên */
+}
+
+/* Textarea – resize cả 2 chiều nhưng không tràn ra ngoài cell */
+.ess-grid-control textarea.ess-grid-editor-textarea {
+    min-height: 35px;
+    resize: both;
+}
+
+/* DATE editor trong ESS Grid – luôn có viền + icon */
+.ess-grid-control .ess-grid-editor-date {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 35px;
+    border: 1px solid #cfcfcf;
+    border-radius: 2px;
+    background-color: #fff;
+    box-sizing: border-box;
+}
+
+    .ess-grid-control .ess-grid-editor-date input {
+        flex: 1 1 auto;
+        border: none;
+        outline: none;
+        padding: 3px 6px;
+        background: transparent;
+        font-size: 12px;
+    }
+
+    .ess-grid-control .ess-grid-editor-date .ess-grid-date-icon {
+        padding: 0 6px;
+        border-left: 1px solid #e0e0e0;
+        font-size: 12px;
+        color: #666;
+    }
+
+/* Combobox trong ESS Grid */
+.ess-grid-control select.ess-grid-editor-combo {
+    height: 35px;
+    padding-right: 20px;
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, #4b5563 50%), linear-gradient(135deg, #4b5563 50%, transparent 50%);
+    background-position: calc(100% - 10px) 9px, calc(100% - 6px) 9px;
+    background-size: 4px 4px, 4px 4px;
+    background-repeat: no-repeat;
+}
+
+/* NUMERIC editor trong grid – dùng layout ess-number chuẩn (nút trên / dưới) */
+.ess-grid-control .ess-number.ess-grid-editor-number {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 35px;
+    border: 1px solid #c5c5c5;
+    border-radius: 2px;
+    background-color: #fff;
+    box-sizing: border-box;
+}
+
+.ess-grid-control .ess-number-input {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    padding: 3px 20px 3px 6px; /* chừa chỗ bên phải cho cột spinner */
+    font-size: 12px;
+    text-align: right;
+    box-sizing: border-box;
+}
+
+    /* Ẩn spinner mặc định của browser */
+    .ess-grid-control .ess-number-input::-webkit-inner-spin-button,
+    .ess-grid-control .ess-number-input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+.ess-grid-control .ess-number-input {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+/* Nút ↑ / ↓ xếp dọc trong khung */
+.ess-grid-control .ess-spin-up,
+.ess-grid-control .ess-spin-down {
+    position: absolute;
+    right: 0;
+    width: 14px;
+    cursor: pointer;
+    border: 0;
+    background: #f0f0f0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0; /* ẩn text nếu có */
+    line-height: 0;
+}
+
+
+.ess-grid-control .ess-spin-up {
+    top: 0;
+    height: 50%;
+    border-left: 1px solid #d0d0d0;
+    border-bottom: 1px solid #d0d0d0;
+}
+
+.ess-grid-control .ess-spin-down {
+    bottom: 0;
+    height: 50%;
+    border-left: 1px solid #d0d0d0;
+    border-top: 1px solid #d0d0d0;
+}
+
+    /* Tam giác mũi tên */
+    .ess-grid-control .ess-spin-up::before,
+    .ess-grid-control .ess-spin-down::before {
+        content: "";
+        display: inline-block;
+        border-left: 4px solid transparent;
+        border-right: 4px solid transparent;
+    }
+
+.ess-grid-control .ess-spin-up::before {
+    border-bottom: 5px solid #666;
+}
+
+.ess-grid-control .ess-spin-down::before {
+    border-top: 5px solid #666;
+}
+
+/* Hover */
+.ess-grid-control .ess-spin-up:hover,
+.ess-grid-control .ess-spin-down:hover {
+    background: #e4e4e4;
+}
+
+
+/* TAG – pill lớn hơn, bo tròn giống ESS Tag field */
+.ess-grid-control .ess-grid-tag {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 2px 10px;
+    height: 22px;
+    font-size: 11px;
+    line-height: 18px;
+}
+
+    .ess-grid-control .ess-grid-tag .ess-tag-icon {
+        margin-right: 4px;
+    }
+
+/* PROGRESS – bar + % text rõ hơn */
+.ess-grid-control .ess-grid-progress {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+}
+
+.ess-grid-control .ess-progress-track {
+    flex: 1 1 auto;
+    height: 12px; /* cao hơn cho dễ nhìn */
+    border-radius: 999px;
+    background: #e5edf8;
+    overflow: hidden;
+}
+
+.ess-grid-control .ess-progress-fill {
+    height: 100%;
+    background: linear-gradient(to right, #2563eb, #38bdf8);
+}
+
+.ess-grid-control .ess-progress-text {
+    font-size: 11px;
+    min-width: 32px;
+    text-align: right;
+}
+
+/* TABLE: cho phép bảng rộng hơn container, kéo cột không ảnh hưởng cột khác */
+.ess-grid-control .ess-grid-table-wrapper {
+    overflow-x: auto;
+}
+
+.ess-grid-control .ess-grid-table {
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+.ess-grid-control .ess-grid-th,
+.ess-grid-control .ess-grid-td {
+    box-sizing: border-box;
+}
+
+.ess-grid-control .ess-grid-col-resizer {
+    position: absolute;
+    top: 0;
+    right: -3px;
+    width: 6px;
+    height: 100%;
+    cursor: col-resize;
+}
+
+.ess-grid-control th.ess-grid-th {
+    position: relative;
+}
+
+/* Control trong cell ESS Grid luôn full width (trừ tag & progress) */
+.ess-grid-control .ess-grid-cell-inner > input,
+.ess-grid-control .ess-grid-cell-inner > textarea,
+.ess-grid-control .ess-grid-cell-inner > select,
+.ess-grid-control .ess-grid-cell-inner > .ess-grid-editor-date,
+.ess-grid-control .ess-grid-cell-inner > .ess-grid-editor-number {
+    width: 100%;
+}
+
+.ess-grid-control .ess-grid-cell-inner > .ess-grid-tag,
+.ess-grid-control .ess-grid-cell-inner > .ess-grid-progress {
+    width: auto;
+}

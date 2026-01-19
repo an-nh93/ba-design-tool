@@ -1,0 +1,188 @@
+﻿/* ===== Reset nhẹ cho body ===== */
+html,
+body {
+    height: 100%;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* Nền chung */
+.login-body {
+    background-color: #f3f5f9;
+}
+
+/* Wrapper 2 cột full màn hình */
+.login-wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Cột trái – form */
+.login-left {
+    flex: 1;
+    background-color: #f7f8fc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 40px 40px 60px;
+}
+
+.login-content {
+    max-width: 420px;
+    width: 100%;
+}
+
+/* Tiêu đề + mô tả */
+.login-title {
+    margin: 0 0 8px 0;
+    font-size: 26px;
+    font-weight: 600;
+    color: #30323d;
+}
+
+.login-subtitle {
+    margin: 0 0 24px 0;
+    font-size: 13px;
+    color: #7a7c88;
+    line-height: 1.5;
+}
+
+/* Thông báo lỗi */
+.login-error {
+    display: block;
+    margin-bottom: 12px;
+    color: #d93025;
+    font-size: 13px;
+}
+
+/* Form group */
+.form-group {
+    margin-bottom: 16px;
+}
+
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 13px;
+        color: #4b4f5c;
+    }
+
+/* Input ASP.NET (TextBox render thành input) */
+.login-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px 12px;
+    border-radius: 3px;
+    border: 1px solid #d0d3dd;
+    font-size: 13px;
+    outline: none;
+    background-color: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+    .login-input:focus {
+        border-color: rgba(10, 117, 186, 1);
+        box-shadow: 0 0 0 2px rgba(10, 117, 186, 0.15);
+    }
+
+/* Remember + Forgot */
+.login-extra {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0 20px 0;
+    font-size: 12px;
+}
+
+.remember-me {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: #616471;
+}
+
+    .remember-me input {
+        accent-color: rgba(10, 117, 186, 1);
+    }
+
+.forgot-link {
+    color: #8c8ea0;
+    text-decoration: none;
+}
+
+    .forgot-link:hover {
+        text-decoration: underline;
+    }
+
+/* Nút Login */
+.form-actions {
+    margin-top: 4px;
+}
+
+.btn-login {
+    display: inline-block;
+    width: 100%;
+    padding: 11px 16px;
+    border-radius: 3px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    color: #ffffff;
+    background: rgba(10, 117, 186, 1) !important; /* màu bạn yêu cầu */
+    box-shadow: 0 3px 6px rgba(10, 117, 186, 0.35);
+    transition: transform 0.05s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+    /* ASP.NET render button là <input type="submit"> */
+    .btn-login[type="submit"] {
+        appearance: none;
+        -webkit-appearance: none;
+    }
+
+    .btn-login:hover {
+        box-shadow: 0 4px 10px rgba(10, 117, 186, 0.45);
+        opacity: 0.95;
+    }
+
+    .btn-login:active {
+        transform: translateY(1px);
+        box-shadow: 0 2px 4px rgba(10, 117, 186, 0.4);
+    }
+
+/* Cột phải – hình nền */
+.login-right {
+    flex: 1;
+    min-width: 0;
+    background-image: url("../Content/images/login-right.jpg"); /* đổi path hình của bạn */
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+/* Lớp phủ mờ nhẹ cho đẹp mắt (tuỳ chọn) */
+.login-image-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.35)), url("../Content/images/login-overlay.png");
+    background-size: cover;
+    background-position: center;
+}
+
+
+/* Responsive: màn hình nhỏ thì xếp dọc */
+@media (max-width: 900px) {
+    .login-wrapper {
+        flex-direction: column;
+    }
+
+    .login-right {
+        display: none; /* ẩn panel ảnh trên mobile cho đỡ chật */
+    }
+
+    .login-left {
+        padding: 40px 20px;
+    }
+}

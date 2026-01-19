@@ -1,0 +1,296 @@
+﻿.builder-wrapper {
+    display: flex;
+    height: 70vh;
+    border: 1px solid #ccc;
+    margin: 10px;
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+}
+
+.toolbox {
+    width: 200px;
+    border-right: 1px solid #ccc;
+    padding: 10px;
+    background: #f5f5f5;
+}
+
+.toolbox h3 {
+    margin-top: 0;
+}
+
+.tool-item {
+    padding: 8px;
+    border: 1px solid #aaa;
+    margin-bottom: 6px;
+    background: #ffffff;
+    cursor: grab;
+    border-radius: 3px;
+}
+
+.canvas-area {
+    flex: 1;
+    padding: 10px;
+    border-right: 1px solid #ccc;
+    position: relative;
+    background: #fafafa;
+    overflow: auto;
+}
+
+.canvas-area .placeholder {
+    color: #999;
+}
+
+.properties-panel {
+    width: 320px;
+    padding: 10px;
+    background: #fcfcfc;
+}
+
+.canvas-control {
+    border: 1px dashed #0078d4;
+    margin-bottom: 15px;
+    background: white;
+    padding: 10px;
+}
+
+.footer-buttons {
+    margin: 10px;
+}
+
+.footer-buttons button {
+    margin-right: 5px;
+}
+
+.json-preview {
+    margin: 10px;
+}
+
+#txtJson {
+    width: 100%;
+    height: 150px;
+    font-family: Consolas, monospace;
+    font-size: 11px;
+}
+
+
+/* Hàng trên cùng: View Data / Applied for */
+.canvas-control .grid-data-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #dcdcdc;
+    font-size: 12px;
+}
+
+.grid-data-left,
+.grid-data-right {
+    display: flex;
+    align-items: center;
+}
+
+.grid-data-caption,
+.grid-applied-label {
+    margin-right: 4px;
+    font-weight: bold;
+}
+
+.grid-data-left select,
+.grid-data-right select {
+    font-size: 12px;
+    height: 22px;
+}
+
+/* Title bar của Grid */
+.canvas-control .grid-title-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #dcdcdc;
+    font-size: 12px;
+}
+
+.canvas-control .grid-title-left {
+    display: flex;
+    align-items: center;
+}
+
+.grid-title-text {
+    font-weight: bold;
+    margin-right: 8px;
+}
+
+/* Nút menu trên title */
+.grid-toolbar-btn {
+    margin-right: 4px;
+    padding: 1px 4px;
+    font-size: 12px;
+    background: #ffffff;
+    border: 1px solid #d0d0d0;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+    .grid-toolbar-btn img {
+        width: 12px;
+        height: 12px;
+        vertical-align: middle;
+        margin-right: 2px;
+    }
+
+/* Local Data Language – caption + flag trong combo */
+.grid-local-lang {
+    display: inline-flex;
+    align-items: center;
+}
+
+.grid-local-lang-label {
+    margin-right: 4px;
+}
+
+.grid-local-lang-select {
+    font-size: 12px;
+    height: 22px;
+    padding-left: 22px;
+    background: url('/Content/images/flag-en.png') no-repeat 4px center;
+    background-size: 16px 11px;
+}
+
+/* Căn giữa caption header */
+.canvas-area .dx-datagrid .dx-header-row .dx-datagrid-text-content {
+    width: 100%;
+    text-align: center !important;
+}
+
+/* Border cho header + data row */
+.canvas-area .dx-datagrid .dx-header-row > td,
+.canvas-area .dx-datagrid .dx-data-row > td {
+    border-bottom: 1px solid #dcdcdc;
+    border-right: 1px solid #dcdcdc;
+}
+
+/* Dòng focus */
+.canvas-area .dx-datagrid-rowsview .dx-selection {
+    background: #ccebff !important;
+}
+
+/* Icon View/Edit/Delete */
+.grid-icon-view,
+.grid-icon-edit,
+.grid-icon-delete {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    display: inline-block;
+}
+
+/* Icon disabled */
+.grid-icon-disabled {
+    opacity: 0.3;
+    cursor: default !important;
+}
+
+/* Cột icon canh giữa */
+.canvas-area .dx-datagrid td.grid-icon-col {
+    text-align: center;
+}
+
+/* Để title và phần + Search của DevExtreme dính lên nhau hơn */
+.canvas-control .dx-datagrid {
+    border-top: none;
+}
+
+.canvas-control .dx-datagrid-header-panel {
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+
+
+
+.grid-header-panel-row {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 2px 0 4px 0;
+}
+
+    .grid-header-panel-row .dx-datagrid-header-panel {
+        width: 100%;
+        padding: 0;
+        border: none;
+        background: transparent;
+    }
+
+
+
+.prop-inline-color {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.prop-input-color {
+    width: 36px;
+    padding: 0;
+}
+
+.prop-input-hex {
+    width: 80px;
+    font-family: Consolas, monospace;
+    font-size: 11px;
+    box-sizing: border-box;
+}
+
+.prop-color-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.prop-color-picker {
+    width: 30px;
+    height: 22px;
+    padding: 0;
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+}
+
+
+.page-field .page-field-caption {
+    margin: 0;
+    padding: 0;
+}
+
+/* Cho phép nhập trong DevExtreme grid trên canvas */
+.canvas-control[data-type="grid"] .dx-datagrid input,
+.canvas-control[data-type="grid"] .dx-datagrid select,
+.canvas-control[data-type="grid"] .dx-datagrid textarea {
+    pointer-events: auto;
+}
+
+.canvas-control[data-type="grid"] .dx-datagrid,
+.canvas-control[data-type="grid"] .dx-datagrid * {
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+    user-select: text !important;
+    pointer-events: auto; /* an toàn, kết hợp với rule cũ */
+}
+
+
+.canvas-toolbar.tb-no-bg,
+.canvas-toolbar.tb-no-bg .canvas-toolbar-inner,
+.canvas-toolbar.tb-no-bg .canvas-toolbar-btn {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+    .canvas-toolbar.tb-no-bg .canvas-toolbar-inner {
+        padding: 0 !important;
+    }

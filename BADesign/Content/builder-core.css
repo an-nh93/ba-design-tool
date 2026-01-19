@@ -1,0 +1,92 @@
+﻿/* =========================================================
+   CORE FIELDS – NUMERIC (Number) custom spinner
+   Áp dụng cho: .page-field.core-field với markup .core-number
+   ========================================================= */
+
+/* Wrapper bọc input + 2 nút spin */
+.page-field.core-field .page-field-editor .core-number {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding-right: 5px;
+}
+
+/* Input numeric trong core, chừa chỗ bên phải cho spinner */
+.page-field.core-field .core-number-input {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 2px 20px 2px 4px; /* 20px cho cột spin bên phải */
+    border: 1px solid #c0c0c0;
+    font-size: 12px;
+    text-align: right;
+}
+
+    /* Ẩn spinner mặc định của browser để không bị 2 cặp mũi tên */
+    .page-field.core-field .core-number-input::-webkit-inner-spin-button,
+    .page-field.core-field .core-number-input::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+
+.page-field.core-field .core-number-input {
+    -moz-appearance: textfield; /* Firefox */
+    appearance: textfield;
+}
+
+/* Hai nút ↑ ↓ nằm trong textbox, màu xám nhạt */
+.page-field.core-field .core-spin-up,
+.page-field.core-field .core-spin-down {
+    position: absolute;
+    right: 5px;
+    width: 12px;
+    padding: 0;
+    margin: 1px;
+    border: 0;
+    background: #f0f0f0; /* xám nhạt */
+    color: #333;
+    font-size: 9px; /* mũi tên nhỏ */
+    line-height: 1;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+/* Nửa trên / nửa dưới */
+.page-field.core-field .core-spin-up {
+    top: 0;
+    height: 50%;
+    border-left: 1px solid #c0c0c0;
+    border-bottom: 1px solid #c0c0c0;
+}
+
+.page-field.core-field .core-spin-down {
+    bottom: 0;
+    height: 50%;
+    border-left: 1px solid #c0c0c0;
+    border-top: 1px solid #c0c0c0;
+}
+
+    /* Hover nhẹ cho cảm giác bấm được */
+    .page-field.core-field .core-spin-up:hover,
+    .page-field.core-field .core-spin-down:hover {
+        background: #e4e4e4;
+    }
+
+
+
+/* ===== Caption wrap (core + ess) ===== */
+.page-field .page-field-caption {
+    /* cho phép xuống dòng */
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.2;
+}
+
+/* (tuỳ chọn) Core: label + editor cùng top khi caption nhiều dòng */
+.page-field.core-field .page-field-caption,
+.page-field.core-field .page-field-editor {
+    vertical-align: top;
+}

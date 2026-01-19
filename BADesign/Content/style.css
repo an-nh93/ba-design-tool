@@ -1,0 +1,178 @@
+﻿/* ====== SAVE DIALOG ====== */
+.ub-modal-backdrop {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.45);
+    z-index: 9998;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ub-modal {
+    background: #fff;
+    border-radius: 4px;
+    min-width: 380px;
+    max-width: 520px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+    font-size: 13px;
+}
+
+.ub-modal-header {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e0e0e0;
+    font-weight: 600;
+    background: #0078d4;
+    color: #fff;
+}
+
+.ub-modal-body {
+    padding: 10px 12px 4px 12px;
+}
+
+    .ub-modal-body label {
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .ub-modal-body input[type="text"] {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 4px 6px;
+    }
+
+.ub-modal-footer {
+    padding: 8px 12px 10px 12px;
+    text-align: right;
+    border-top: 1px solid #e0e0e0;
+}
+
+.ub-btn {
+    min-width: 70px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.ub-btn-primary {
+    background: #0078d4;
+    color: #fff;
+    border: 1px solid #005a9e;
+    border-radius: 2px;
+    margin-left: 6px;
+}
+
+.ub-btn-secondary {
+    background: #f3f3f3;
+    color: #333;
+    border: 1px solid #c8c8c8;
+    border-radius: 2px;
+}
+
+.ub-modal-error {
+    color: #c0392b;
+    font-size: 11px;
+    margin-top: 4px;
+}
+
+
+
+/* ====== TOAST ====== */
+.ui-toast-container {
+    position: fixed;
+    right: 16px;
+    top: 16px;
+    z-index: 9999;
+    pointer-events: none;
+    font-family: Segoe UI, Tahoma, Arial, sans-serif;
+}
+
+/* khung chung */
+.ui-toast {
+    min-width: 260px;
+    max-width: 380px;
+    margin-bottom: 8px;
+    background: #ffffff;
+    color: #333;
+    padding: 8px 10px 4px;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: opacity .2s ease, transform .2s ease;
+    pointer-events: auto;
+    font-size: 12px;
+}
+
+    /* khi show */
+    .ui-toast.show {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+/* loại message */
+.ui-toast-success {
+    border-left: 4px solid #2ecc71;
+    background: #eafaf1;
+}
+
+.ui-toast-error {
+    border-left: 4px solid #e74c3c;
+    background: #fdecea;
+}
+
+.ui-toast-warning {
+    border-left: 4px solid #f39c12; /* vàng cam */
+    background: #fff4e5;
+}
+
+.ui-toast-info {
+    border-left: 4px solid #3498db;
+    background: #e8f4fd;
+}
+
+/* header trong toast */
+.ui-toast-header {
+    display: flex;
+    align-items: center;
+}
+
+.ui-toast-text {
+    flex: 1 1 auto;
+}
+
+/* nút đóng + đếm ngược */
+.ui-toast-close {
+    cursor: pointer;
+    margin-left: 8px;
+    font-weight: bold;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.ui-toast-countdown {
+    margin-left: 8px;
+    font-size: 11px;
+    color: #666;
+}
+
+/* thanh progress đếm ngược */
+.ui-toast-progress {
+    height: 3px;
+    margin-top: 6px;
+    background: rgba(0,0,0,0.08);
+    overflow: hidden;
+    border-radius: 0 0 4px 4px;
+}
+
+.ui-toast-progress-bar {
+    height: 100%;
+    width: 100%;
+    background: rgba(0,0,0,0.35);
+    transform-origin: left center;
+    transform: scaleX(1);
+    transition: transform linear;
+}
