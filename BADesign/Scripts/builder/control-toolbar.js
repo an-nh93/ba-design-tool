@@ -161,29 +161,54 @@
     function showProperties(cfg) {
         var isBg = (cfg.showBackground !== false);
 
-        var html =
-            `<h3>Toolbar menu</h3>
-<div class="prop-section">
-  <div><b>ID:</b> ${cfg.id}</div>
-</div>
+        var html = [];
+        html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
+        html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Toolbar Menu</h3>');
+        
+        // Basic Info Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div style="display:grid; grid-template-columns: auto 1fr; gap:8px 12px; font-size:11px;">');
+        html.push('<span style="color:#666;">ID:</span><span style="color:#333; font-weight:500;">' + cfg.id + '</span>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Options Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">⚙️ Options</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;">');
+        html.push('<input type="checkbox" id="tbShowBg" ' + (isBg ? "checked" : "") + ' />');
+        html.push('<strong>Show background / border</strong>');
+        html.push('</label>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Menu Items Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">🔧 Menu Items</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div id="tbItemsPanel"></div>');
+        html.push('<button type="button" id="tbAddItem" class="ess-btn-primary" style="width:100%; margin-top:8px;">＋ Add menu</button>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Save Button
+        html.push('<div class="ess-col-card">');
+        html.push('<button type="button" class="ess-btn-primary" style="width:100%;" onclick="builder.saveControlToServer(\'' + cfg.id + '\')">💾 Lưu control này vào DB</button>');
+        html.push('</div>');
+        
+        html.push('</div>'); // Close ess-prop-tab-content
 
-<div class="prop-section">
-  <label style="display:block;margin-bottom:6px;">
-    <input type="checkbox" id="tbShowBg" ${isBg ? "checked" : ""} />
-    Show background / border
-  </label>
-</div>
-
-<div class="prop-section">
-  <div id="tbItemsPanel"></div>
-  <button type="button" id="tbAddItem">+ Add menu</button>
-</div>
-
-<div class="prop-section">
-  <button type="button" onclick="builder.saveControlToServer('${cfg.id}')">💾 Lưu control này vào DB</button>
-</div>`;
-
-        $("#propPanel").html(html);
+        $("#propPanel").html(html.join(''));
 
         $("#tbShowBg").off("change.tb").on("change.tb", function () {
             cfg.showBackground = this.checked;
@@ -192,7 +217,7 @@
         });
 
         function renderItems() {
-            var panelHtml = "";
+            var panelHtml = [];
             var iconOptionsHtml = (window.MENU_ICON_LIST || []).map(function (ic) {
                 return '<option value="' + ic.value + '">' + ic.text + '</option>';
             }).join("");
@@ -200,42 +225,52 @@
             (cfg.items || []).forEach(function (it, idx) {
                 var selectedIcon = it.icon || "";
                 var preview = selectedIcon
-                    ? "<img src='" + selectedIcon + "' style='width:14px;height:14px;vertical-align:middle;' />"
+                    ? "<img src='" + selectedIcon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />"
                     : "";
 
-                panelHtml +=
-                    "<div style='margin-bottom:4px;'>" +
-                    "Text: <input type='text' data-idx='" + idx + "' data-field='text' value='" + (it.text || "") + "' style='width:110px;' />" +
-                    " Icon: <select data-idx='" + idx + "' data-field='icon' class='tb-icon-select' style='width:160px;margin-right:4px;'>" +
-                    iconOptionsHtml +
-                    "</select>" +
-                    "<span class='tb-icon-preview' data-idx='" + idx + "'>" + preview + "</span>" +
-                    " <button type='button' class='tbDelItem' data-idx='" + idx + "'>x</button>" +
-                    "</div>";
+                panelHtml.push('<div class="ess-action-card" style="margin-bottom:8px;" data-toolbar-item-index="' + idx + '">');
+                panelHtml.push('<div class="ess-action-card-header">');
+                panelHtml.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
+                panelHtml.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
+                panelHtml.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔧 Menu:</span>');
+                panelHtml.push('<input type="text" class="ess-action-caption" data-idx="' + idx + '" data-field="text" value="' + (it.text || "") + '" placeholder="Menu text"/>');
+                panelHtml.push('<span class="tb-icon-preview" data-idx="' + idx + '">' + preview + '</span>');
+                panelHtml.push('</div>');
+                panelHtml.push('<button type="button" class="ess-action-delete tbDelItem" data-idx="' + idx + '" title="Delete">🗑</button>');
+                panelHtml.push('</div>');
+                panelHtml.push('<div class="ess-action-card-body">');
+                panelHtml.push('<div class="ess-action-row">');
+                panelHtml.push('<div class="ess-action-field ess-action-field-icon">');
+                panelHtml.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
+                panelHtml.push('<select class="ess-action-input tb-icon-select" data-idx="' + idx + '" data-field="icon">' + iconOptionsHtml + '</select>');
+                panelHtml.push('</div>');
+                panelHtml.push('</div>');
+                panelHtml.push('</div>');
+                panelHtml.push('</div>');
             });
 
-            $("#tbItemsPanel").html(panelHtml);
+            $("#tbItemsPanel").html(panelHtml.join(''));
 
             $("#tbItemsPanel .tb-icon-select").each(function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
+                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-item-index'), 10);
                 var icon = (cfg.items[idx] && cfg.items[idx].icon) || "";
                 $(this).val(icon);
             });
 
             $("#tbItemsPanel input[data-field='text']").off("change.tb").on("change.tb", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                cfg.items[idx].text = this.value;
+                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-item-index'), 10);
+                cfg.items[idx].text = $(this).val();
                 drawButtons(cfg);
                 builder.refreshJson();
             });
 
             $("#tbItemsPanel .tb-icon-select").off("change.tb").on("change.tb", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                var val = this.value;
+                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-item-index'), 10);
+                var val = $(this).val();
                 cfg.items[idx].icon = val;
 
                 var $preview = $("#tbItemsPanel .tb-icon-preview[data-idx='" + idx + "']");
-                if (val) $preview.html("<img src='" + val + "' style='width:14px;height:14px;vertical-align:middle;' />");
+                if (val) $preview.html("<img src='" + val + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
                 else $preview.empty();
 
                 drawButtons(cfg);
@@ -243,7 +278,7 @@
             });
 
             $("#tbItemsPanel .tbDelItem").off("click.tb").on("click.tb", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
+                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-item-index'), 10);
                 cfg.items.splice(idx, 1);
                 renderItems();
                 drawButtons(cfg);

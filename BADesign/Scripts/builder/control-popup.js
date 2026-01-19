@@ -265,53 +265,74 @@
         $p.addClass("popup-selected");
 
         const html = `
-<h3>Popup properties</h3>
+<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">
+<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Popup Properties</h3>
 
-<div class="prop-section">
-  <label>Header text:<br />
-    <input id="ppHeaderText" type="text" class="prop-input" value="${escapeHtml(cfg.headerText)}" />
-  </label>
+<div class="ess-col-card" style="margin-bottom:12px;">
+  <div class="ess-col-card-header">
+    <span style="font-size:12px; color:#0078d4; font-weight:600;">📝 Text Content</span>
+  </div>
+  <div class="ess-col-card-body">
+    <div class="ess-col-row">
+      <div class="ess-col-field ess-col-field-full">
+        <label><span style="color:#0078d4;">📋</span><strong>Header text:</strong></label>
+        <input id="ppHeaderText" type="text" class="ess-col-input" value="${escapeHtml(cfg.headerText)}" />
+      </div>
+    </div>
+    <div class="ess-col-row">
+      <div class="ess-col-field ess-col-field-full">
+        <label><span style="color:#0078d4;">📝</span><strong>Title text:</strong></label>
+        <input id="ppTitleText" type="text" class="ess-col-input" value="${escapeHtml(cfg.titleText)}" />
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="prop-section">
-  <label>Title text:<br />
-    <input id="ppTitleText" type="text" class="prop-input" value="${escapeHtml(cfg.titleText)}" />
-  </label>
+<div class="ess-col-card" style="margin-bottom:12px;">
+  <div class="ess-col-card-header">
+    <span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Size</span>
+  </div>
+  <div class="ess-col-card-body">
+    <div class="ess-col-row">
+      <div class="ess-col-field ess-col-field-width">
+        <label><span style="color:#0078d4;">📐</span><strong>Width:</strong></label>
+        <input id="ppWidth" type="number" class="ess-col-input" value="${cfg.width || 650}" min="350" />
+      </div>
+      <div class="ess-col-field ess-col-field-width">
+        <label><span style="color:#0078d4;">📐</span><strong>Height:</strong></label>
+        <input id="ppHeight" type="number" class="ess-col-input" value="${cfg.height || 380}" min="180" />
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="prop-section">
-  <label>Width:<br/>
-    <input id="ppWidth" type="number" class="prop-input" value="${cfg.width || 650}" min="350" />
-  </label>
+<div class="ess-col-card" style="margin-bottom:12px;">
+  <div class="ess-col-card-header">
+    <span style="font-size:12px; color:#0078d4; font-weight:600;">🎨 Header Style</span>
+  </div>
+  <div class="ess-col-card-body">
+    <div class="ess-col-row">
+      <div class="ess-col-field" style="flex: 0 0 180px; max-width: 180px;">
+        <label><span style="color:#0078d4;">📏</span><strong>Height:</strong></label>
+        <input id="ppHeaderHeight" type="number" class="ess-col-input" value="${cfg.headerHeight || 34}" min="24" max="120" />
+      </div>
+      <div class="ess-col-field" style="flex: 0 0 180px; max-width: 180px;">
+        <label><span style="color:#0078d4;">🔤</span><strong>Font size:</strong></label>
+        <input id="ppTitleFontSize" type="number" class="ess-col-input" value="${cfg.titleFontSize || 14}" min="10" max="48" />
+      </div>
+    </div>
+    <div class="ess-col-row">
+      <div class="ess-col-field" style="flex: 0 0 180px; max-width: 180px;">
+        <label><span style="color:#0078d4;">📏</span><strong>Line height:</strong></label>
+        <input id="ppTitleLineHeight" type="number" class="ess-col-input" value="${cfg.titleLineHeight || (cfg.headerHeight || 34)}" min="20" max="200" />
+      </div>
+    </div>
+  </div>
 </div>
 
-<div class="prop-section">
-  <label>Height:<br/>
-    <input id="ppHeight" type="number" class="prop-input" value="${cfg.height || 380}" min="180" />
-  </label>
+<div class="ess-col-card">
+  <button type="button" id="btnSavePopupTemplate" class="ess-btn-primary" style="width:100%;">💾 Lưu control này vào DB</button>
 </div>
-
-<!-- ✅ NEW: header/title size -->
-<div class="prop-section">
-  <label>Header height:<br/>
-    <input id="ppHeaderHeight" type="number" class="prop-input" value="${cfg.headerHeight || 34}" min="24" max="120" />
-  </label>
-</div>
-
-<div class="prop-section">
-  <label>Title font size:<br/>
-    <input id="ppTitleFontSize" type="number" class="prop-input" value="${cfg.titleFontSize || 14}" min="10" max="48" />
-  </label>
-</div>
-
-<div class="prop-section">
-  <label>Title line height:<br/>
-    <input id="ppTitleLineHeight" type="number" class="prop-input" value="${cfg.titleLineHeight || (cfg.headerHeight || 34)}" min="20" max="200" />
-  </label>
-</div>
-
-<div class="prop-section" style="margin-top:8px;border-top:1px solid #ddd;padding-top:6px;">
-  <button type="button" id="btnSavePopupTemplate">💾 Lưu control này vào DB</button>
 </div>
 `;
 

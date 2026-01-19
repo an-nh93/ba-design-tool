@@ -108,9 +108,10 @@ VALUES (@u, @p, @f, @e, @sa);";
 			newPass = newPass ?? "";
 			if (newPass.Trim().Length < 1)
 			{
-				lblMsg.Text = "Password mới phải >= 1 ký tự.";
+				lblMsg.Text = "Password mới phải >= 1 ký tự!";
 				return;
 			}
+
 
 			string hash = UiAuthHelper.HashPassword(newPass);
 

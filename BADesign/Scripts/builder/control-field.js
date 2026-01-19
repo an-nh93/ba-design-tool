@@ -1182,25 +1182,44 @@
             $field.css("z-index", cfg.zIndex);
         }
 
-        // DRAG + RESIZE
-        // DRAG
-        var fieldInteractable = interact($field[0]);
+        // DRAG + RESIZE - Cải thiện để tránh conflict
+        // Thêm resize handles vào DOM
+        var $resizeHandleRight = $('<div class="page-field-resize-handle-right"></div>');
+        var $resizeHandleBottom = $('<div class="page-field-resize-handle-bottom"></div>');
+        var $resizeHandleCorner = $('<div class="page-field-resizer"></div>');
+        $field.append($resizeHandleRight).append($resizeHandleBottom).append($resizeHandleCorner);
 
+        var fieldInteractable = interact($field[0]);
+        var isResizing = false;
+        var dragStartTime = 0;
+        var dragStartPos = null;
+
+        // DRAG - chỉ cho phép khi không phải từ resize handles
         fieldInteractable.draggable({
-            ignoreFrom: "input, select, textarea",
-            // ❌ BỎ modifiers.restrictRect đi – để canvas có thể tự nở ra
-            // modifiers: [
-            //     interact.modifiers.restrictRect({
-            //         restriction: document.getElementById("canvas"),
-            //         endOnly: true
-            //     })
-            // ],
+            ignoreFrom: "input, select, textarea, .page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom",
+            // Thêm threshold để phân biệt drag vs resize
+            startAxis: 'xy',
+            lockAxis: false,
             listeners: {
-                start: function () {
+                start: function (ev) {
+                    // Kiểm tra nếu click vào resize handle thì không drag
+                    var $target = $(ev.target);
+                    if ($target.hasClass('page-field-resizer') || 
+                        $target.hasClass('page-field-resize-handle-right') || 
+                        $target.hasClass('page-field-resize-handle-bottom') ||
+                        $target.closest('.page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom').length) {
+                        return false;
+                    }
+                    
+                    dragStartTime = Date.now();
+                    dragStartPos = { x: ev.clientX, y: ev.clientY };
                     $field.addClass("page-field-dragging");
                     builder.beginDragSelection(cfg.id);
                 },
                 move: function (ev) {
+                    // Nếu đang resize thì không drag
+                    if (isResizing) return;
+
                     var dx = ev.dx;
                     var dy = ev.dy;
 
@@ -1230,14 +1249,24 @@
                     $field.removeClass("page-field-dragging");
                     updateFieldParent(cfg);
                     builder.endDragSelection();
+                    isResizing = false;
+                    dragStartTime = 0;
+                    dragStartPos = null;
                 }
             }
         });
 
-
+        // RESIZE - chỉ cho phép từ resize handles
         fieldInteractable.resizable({
             edges: { left: false, top: false, right: true, bottom: true },
+            // Chỉ cho resize từ các handles
+            allowFrom: ".page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom",
+            // Tăng margin để dễ bắt
+            margin: 5,
             listeners: {
+                start: function (ev) {
+                    isResizing = true;
+                },
                 move: function (ev) {
                     var target = ev.target;
                     var id = $(target).attr("data-id");
@@ -1276,6 +1305,7 @@
                     builder.updateSelectionSizeHint();
                 },
                 end: function () {
+                    isResizing = false;
                     builder.refreshJson();
                 }
             }
@@ -1341,17 +1371,24 @@
         var imageModeHtml = "";
         if (isImage) {
             var imode = cfg.imageMode || "fit";
-            imageModeHtml = `
-<div class="prop-section">
-  <label>Image mode:<br/>
-    <select id="pfImageMode" class="prop-input">
-      <option value="fit" ${imode === "fit" ? "selected" : ""}>Fit (contain)</option>
-      <option value="fill" ${imode === "fill" ? "selected" : ""}>Fill (cover)</option>
-      <option value="stretch" ${imode === "stretch" ? "selected" : ""}>Stretch (distort)</option>
-      <option value="center" ${imode === "center" ? "selected" : ""}>Center (original)</option>
-    </select>
-  </label>
-</div>`;
+            imageModeHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
+                '<div class="ess-col-card-header">' +
+                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🖼️ Image Mode</span>' +
+                '</div>' +
+                '<div class="ess-col-card-body">' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">🖼️</span><strong>Mode:</strong></label>' +
+                '<select id="pfImageMode" class="ess-col-input">' +
+                '<option value="fit"' + (imode === "fit" ? " selected" : "") + '>Fit (contain)</option>' +
+                '<option value="fill"' + (imode === "fill" ? " selected" : "") + '>Fill (cover)</option>' +
+                '<option value="stretch"' + (imode === "stretch" ? " selected" : "") + '>Stretch (distort)</option>' +
+                '<option value="center"' + (imode === "center" ? " selected" : "") + '>Center (original)</option>' +
+                '</select>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
         }
 
         if (isCheckRadio && !cfg.captionPosition) {
@@ -1361,15 +1398,22 @@
         var capPosHtml = "";
         if (isCheckRadio) {
             var capPos = cfg.captionPosition || "left";
-            capPosHtml = `
-<div class="prop-section">
-  <label>Caption position:<br/>
-    <select id="pfCapPos" class="prop-input">
-      <option value="left"  ${capPos === "left" ? "selected" : ""}>Left of control</option>
-      <option value="right" ${capPos === "right" ? "selected" : ""}>Right of control</option>
-    </select>
-  </label>
-</div>`;
+            capPosHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
+                '<div class="ess-col-card-header">' +
+                '<span style="font-size:12px; color:#0078d4; font-weight:600;">📍 Caption Position</span>' +
+                '</div>' +
+                '<div class="ess-col-card-body">' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">📍</span><strong>Position:</strong></label>' +
+                '<select id="pfCapPos" class="ess-col-input">' +
+                '<option value="left"' + (capPos === "left" ? " selected" : "") + '>Left of control</option>' +
+                '<option value="right"' + (capPos === "right" ? " selected" : "") + '>Right of control</option>' +
+                '</select>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
         }
 
         var defaultLabel;
@@ -1420,26 +1464,38 @@
             cfg.btnTextColor = text;
             cfg.btnBorderColor = border;
 
-            buttonColorHtml =
-                '<div class="prop-section">' +
-                '<label>Button background color:</label>' +
-                '<div class="prop-color-row">' +
-                '<input id="pfBtnBackColorPicker" type="color" class="prop-color-picker" value="' + back + '">' +
-                '<input id="pfBtnBackColor" type="text" class="prop-input-small" value="' + back + '">' +
+            buttonColorHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
+                '<div class="ess-col-card-header">' +
+                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🎨 Button Colors</span>' +
+                '</div>' +
+                '<div class="ess-col-card-body">' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">🎨</span><strong>Background:</strong></label>' +
+                '<div style="display:flex; gap:8px; align-items:center;">' +
+                '<input id="pfBtnBackColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + back + '">' +
+                '<input id="pfBtnBackColor" type="text" class="ess-col-input" style="flex:1;" value="' + back + '">' +
                 '</div>' +
                 '</div>' +
-                '<div class="prop-section">' +
-                '<label>Button text color:</label>' +
-                '<div class="prop-color-row">' +
-                '<input id="pfBtnTextColorPicker" type="color" class="prop-color-picker" value="' + text + '">' +
-                '<input id="pfBtnTextColor" type="text" class="prop-input-small" value="' + text + '">' +
+                '</div>' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">🎨</span><strong>Text:</strong></label>' +
+                '<div style="display:flex; gap:8px; align-items:center;">' +
+                '<input id="pfBtnTextColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + text + '">' +
+                '<input id="pfBtnTextColor" type="text" class="ess-col-input" style="flex:1;" value="' + text + '">' +
                 '</div>' +
                 '</div>' +
-                '<div class="prop-section">' +
-                '<label>Button border color:</label>' +
-                '<div class="prop-color-row">' +
-                '<input id="pfBtnBorderColorPicker" type="color" class="prop-color-picker" value="' + border + '">' +
-                '<input id="pfBtnBorderColor" type="text" class="prop-input-small" value="' + border + '">' +
+                '</div>' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">🎨</span><strong>Border:</strong></label>' +
+                '<div style="display:flex; gap:8px; align-items:center;">' +
+                '<input id="pfBtnBorderColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + border + '">' +
+                '<input id="pfBtnBorderColor" type="text" class="ess-col-input" style="flex:1;" value="' + border + '">' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
                 '</div>' +
                 '</div>';
         }
@@ -1451,19 +1507,29 @@
             cfg.tagBackColor = tBack;
             cfg.tagTextColor = tText;
 
-            tagColorHtml =
-                '<div class="prop-section">' +
-                '<label>Tag background color:</label>' +
-                '<div class="prop-color-row">' +
-                '<input id="pfTagBackColorPicker" type="color" class="prop-color-picker" value="' + tBack + '">' +
-                '<input id="pfTagBackColor" type="text" class="prop-input-small" value="' + tBack + '">' +
+            tagColorHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
+                '<div class="ess-col-card-header">' +
+                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🏷️ Tag Colors</span>' +
+                '</div>' +
+                '<div class="ess-col-card-body">' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">🏷️</span><strong>Background:</strong></label>' +
+                '<div style="display:flex; gap:8px; align-items:center;">' +
+                '<input id="pfTagBackColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + tBack + '">' +
+                '<input id="pfTagBackColor" type="text" class="ess-col-input" style="flex:1;" value="' + tBack + '">' +
                 '</div>' +
                 '</div>' +
-                '<div class="prop-section">' +
-                '<label>Tag text color:</label>' +
-                '<div class="prop-color-row">' +
-                '<input id="pfTagTextColorPicker" type="color" class="prop-color-picker" value="' + tText + '">' +
-                '<input id="pfTagTextColor" type="text" class="prop-input-small" value="' + tText + '">' +
+                '</div>' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">🏷️</span><strong>Text:</strong></label>' +
+                '<div style="display:flex; gap:8px; align-items:center;">' +
+                '<input id="pfTagTextColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + tText + '">' +
+                '<input id="pfTagTextColor" type="text" class="ess-col-input" style="flex:1;" value="' + tText + '">' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
                 '</div>' +
                 '</div>';
         }
@@ -1473,81 +1539,173 @@
             var val = (typeof cfg.progressValue === "number") ? cfg.progressValue : 0;
             val = Math.max(0, Math.min(100, val));
             cfg.progressValue = val;
-            progressHtml =
-                '<div class="prop-section">' +
-                '<label>Progress (%):<br/>' +
-                '<input id="pfProgressValue" type="number" min="0" max="100" class="prop-input-small" value="' + val + '" />' +
-                '</label>' +
+            progressHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
+                '<div class="ess-col-card-header">' +
+                '<span style="font-size:12px; color:#0078d4; font-weight:600;">📊 Progress</span>' +
+                '</div>' +
+                '<div class="ess-col-card-body">' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                '<label><span style="color:#0078d4;">📊</span><strong>Progress (%):</strong></label>' +
+                '<input id="pfProgressValue" type="number" min="0" max="100" class="ess-col-input" style="max-width:150px;" value="' + val + '" />' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
                 '</div>';
         }
 
-        var html = `
-<h3>Field properties</h3>
-<div class="prop-section">
-  <div><b>ID:</b> ${cfg.id}</div>
-  <div><b>Type:</b> ${cfg.ftype}</div>
-  <div><b>UI mode:</b> ${cfg.uiMode || "core"}</div>
-</div>
-<div class="prop-section" ${(isButton || isTag || isImage || isProgress) ? 'style="display:none"' : ""}>
-  <label>Caption:<br/>
-    <input id="pfCaption" type="text" class="prop-input" value="${cfg.caption != null ? cfg.caption : ""}" />
-  </label>
-</div>
-<div class="prop-section" ${(isButton || isTag || isImage || isProgress) ? 'style="display:none"' : ""}>
-  <label><input type="checkbox" id="pfBold" ${cfg.captionBold ? "checked" : ""}/> Bold</label>
-  <label style="margin-left:10px;"><input type="checkbox" id="pfItalic" ${cfg.captionItalic ? "checked" : ""}/> Italic</label>
-</div>
-<div class="prop-section" ${(isButton || isTag || isImage || isProgress || isContainer) ? 'style="display:none"' : ""}>
-  <label>
-    <input type="checkbox" id="pfRequired" ${cfg.required ? "checked" : ""} />
-    Required
-  </label>
-</div>
-<div class="prop-section">
-  <label>
-    <input type="checkbox" id="pfDisabled" ${cfg.disabled ? "checked" : ""} />
-    Disabled
-  </label>
-</div>
-${capPosHtml}
-<div class="prop-section" ${hideDefaultSection ? 'style="display:none"' : ""}>
-  <label>${defaultLabel}<br/>
-    <input id="pfDefault" type="text" class="prop-input" value="${(cfg.defaultValue !== undefined && cfg.defaultValue !== null) ? cfg.defaultValue : ""}" />
-  </label>
-</div>
-${imageModeHtml}
-${progressHtml}
-<div class="prop-section" id="pfItemsBlock" style="${isCombo ? "" : "display:none"}">
-  <label>Items (one per line):<br/>
-    <textarea id="pfItems" class="prop-textarea">${(cfg.items || []).join("\n")}</textarea>
-  </label>
-</div>
-<div class="prop-section" ${(isContainer || cfg.ftype === "language" || isButton || isTag || isImage || isProgress) ? 'style="display:none"' : ""}>
-  <label>Caption width:<br/>
-    <input id="pfLabelWidth" type="number" class="prop-input-small" value="${cfg.labelWidth || 120}" />
-  </label>
-</div>
-${buttonColorHtml}
-${tagColorHtml}
-<div class="prop-section">
-  <label>Width:<br/>
-    <input id="pfWidth" type="number" class="prop-input-small" value="${cfg.width}" />
-  </label>
-  <label>Height:<br/>
-    <input id="pfHeight" type="number" class="prop-input-small" value="${cfg.height}" />
-  </label>
-</div>
-<div class="prop-section">
-  <label>Z-index:<br/>
-    <input id="pfZIndex" type="number" class="prop-input-small" value="${cfg.zIndex != null ? cfg.zIndex : ""}" />
-  </label>
-</div>
-<div class="prop-section">
-  <button type="button" onclick="builder.saveControlToServer('${cfg.id}')">💾 Lưu control này vào DB</button>
-</div>
-`;
+        // Cải cách Properties panel với style chuyên nghiệp
+        var html = [];
+        html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
+        html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Field Properties</h3>');
+        
+        // Basic Info Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div style="display:grid; grid-template-columns: auto 1fr; gap:8px 12px; font-size:11px;">');
+        html.push('<span style="color:#666;">ID:</span><span style="color:#333; font-weight:500;">' + cfg.id + '</span>');
+        html.push('<span style="color:#666;">Type:</span><span style="color:#333; font-weight:500;">' + cfg.ftype + '</span>');
+        html.push('<span style="color:#666;">UI mode:</span><span style="color:#333; font-weight:500;">' + (cfg.uiMode || "core") + '</span>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Caption Section
+        if (!(isButton || isTag || isImage || isProgress)) {
+            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+            html.push('<div class="ess-col-card-header">');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📝 Caption</span>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            // Caption input - label và input cùng hàng
+            html.push('<div class="ess-col-row">');
+            html.push('<div class="ess-col-field ess-col-field-full">');
+            html.push('<label><span style="color:#0078d4;">📝</span><strong>Caption:</strong></label>');
+            html.push('<input id="pfCaption" type="text" class="ess-col-input" value="' + (cfg.caption != null ? cfg.caption : "") + '" />');
+            html.push('</div>');
+            html.push('</div>');
+            // Bold và Italic cùng hàng
+            html.push('<div class="ess-col-row" style="margin-top:8px;">');
+            html.push('<div class="ess-col-field">');
+            html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfBold" ' + (cfg.captionBold ? "checked" : "") + '/><strong>Bold</strong></label>');
+            html.push('</div>');
+            html.push('<div class="ess-col-field">');
+            html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfItalic" ' + (cfg.captionItalic ? "checked" : "") + '/><i>Italic</i></label>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+        }
+        
+        // Options Section - Required và Disabled cùng hàng
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">⚙️ Options</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div class="ess-col-row">');
+        if (!(isButton || isTag || isImage || isProgress || isContainer)) {
+            html.push('<div class="ess-col-field">');
+            html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfRequired" ' + (cfg.required ? "checked" : "") + '/><strong>Required</strong></label>');
+            html.push('</div>');
+        }
+        html.push('<div class="ess-col-field">');
+        html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfDisabled" ' + (cfg.disabled ? "checked" : "") + '/><strong>Disabled</strong></label>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Caption Position (for checkbox/radio)
+        if (capPosHtml) {
+            html.push(capPosHtml);
+        }
+        
+        // Default Value Section - Label và input cùng hàng
+        if (!hideDefaultSection) {
+            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+            html.push('<div class="ess-col-card-header">');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">💬 Default Value</span>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            html.push('<div class="ess-col-row">');
+            html.push('<div class="ess-col-field ess-col-field-full">');
+            html.push('<label><span style="color:#0078d4;">💬</span><strong>' + defaultLabel + '</strong></label>');
+            html.push('<input id="pfDefault" type="text" class="ess-col-input" value="' + ((cfg.defaultValue !== undefined && cfg.defaultValue !== null) ? cfg.defaultValue : "") + '" />');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+        }
+        
+        // Image Mode, Progress, Items
+        if (imageModeHtml) html.push(imageModeHtml);
+        if (progressHtml) html.push(progressHtml);
+        if (isCombo) {
+            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+            html.push('<div class="ess-col-card-header">');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📋 Items</span>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            html.push('<label style="display:block; margin-bottom:6px; font-size:11px; color:#666;">Items (one per line):</label>');
+            var itemsText = (cfg.items || []).map(function(item) {
+                return typeof item === "string" ? item : (item.text || item.value || "");
+            }).join("\n");
+            html.push('<textarea id="pfItems" class="ess-col-input" style="min-height:80px; resize:vertical; font-family:monospace;">' + itemsText + '</textarea>');
+            html.push('</div>');
+            html.push('</div>');
+        }
+        
+        // Size & Position Section
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Size & Position</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        // Width và Height cùng hàng
+        html.push('<div class="ess-col-row">');
+        html.push('<div class="ess-col-field ess-col-field-width">');
+        html.push('<label><span style="color:#0078d4;">📐</span><strong>Width:</strong></label>');
+        html.push('<input id="pfWidth" type="number" class="ess-col-input" value="' + cfg.width + '" />');
+        html.push('</div>');
+        html.push('<div class="ess-col-field ess-col-field-width">');
+        html.push('<label><span style="color:#0078d4;">📐</span><strong>Height:</strong></label>');
+        html.push('<input id="pfHeight" type="number" class="ess-col-input" value="' + cfg.height + '" />');
+        html.push('</div>');
+        html.push('</div>');
+        // Caption Width và Z-index cùng hàng
+        html.push('<div class="ess-col-row">');
+        if (!(isContainer || cfg.ftype === "language" || isButton || isTag || isImage || isProgress)) {
+            html.push('<div class="ess-col-field ess-col-field-width">');
+            html.push('<label><span style="color:#0078d4;">📏</span><strong>Caption width:</strong></label>');
+            html.push('<input id="pfLabelWidth" type="number" class="ess-col-input" value="' + (cfg.labelWidth || 120) + '" />');
+            html.push('</div>');
+        }
+        html.push('<div class="ess-col-field ess-col-field-width">');
+        html.push('<label><span style="color:#0078d4;">🔢</span><strong>Z-index:</strong></label>');
+        html.push('<input id="pfZIndex" type="number" class="ess-col-input" value="' + (cfg.zIndex != null ? cfg.zIndex : "") + '" />');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Button/Tag Colors
+        if (buttonColorHtml) html.push(buttonColorHtml);
+        if (tagColorHtml) html.push(tagColorHtml);
+        
+        // Save Button
+        html.push('<div class="ess-col-card">');
+        html.push('<button type="button" class="ess-btn-primary" style="width:100%;" onclick="builder.saveControlToServer(\'' + cfg.id + '\')">💾 Lưu control này vào DB</button>');
+        html.push('</div>');
+        
+        html.push('</div>'); // Close ess-prop-tab-content
+        
+        var htmlStr = html.join('');
 
-        $("#propPanel").html(html);
+        $("#propPanel").html(htmlStr);
 
         var $dom = $('.canvas-control[data-id="' + cfg.id + '"]');
 

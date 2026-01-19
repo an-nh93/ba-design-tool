@@ -195,18 +195,44 @@
             this.initClickSelect();
         },
 
-        // Drag & resize tất cả .page-field / .popup-field
+        // Drag & resize tất cả .page-field / .popup-field - Cải thiện để tránh conflict
         initDragResize: function () {
             var self = this;
+            var isResizing = false;
+
+            // Thêm resize handles cho các field khi được chọn
+            $(document).on('mousedown', '.page-field, .popup-field', function() {
+                var $field = $(this);
+                if ($field.find('.page-field-resizer').length === 0) {
+                    var $resizeHandleRight = $('<div class="page-field-resize-handle-right"></div>');
+                    var $resizeHandleBottom = $('<div class="page-field-resize-handle-bottom"></div>');
+                    var $resizeHandleCorner = $('<div class="page-field-resizer"></div>');
+                    $field.append($resizeHandleRight).append($resizeHandleBottom).append($resizeHandleCorner);
+                }
+            });
 
             interact('.page-field, .popup-field').draggable({
+                ignoreFrom: "input, select, textarea, .page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom, .popup-field-resizer, .popup-field-resize-handle-right, .popup-field-resize-handle-bottom",
                 listeners: {
                     start: function (event) {
-                        var id = $(event.target).attr("data-id");
+                        // Kiểm tra nếu click vào resize handle thì không drag
+                        var $target = $(event.target);
+                        if ($target.hasClass('page-field-resizer') || 
+                            $target.hasClass('page-field-resize-handle-right') || 
+                            $target.hasClass('page-field-resize-handle-bottom') ||
+                            $target.hasClass('popup-field-resizer') ||
+                            $target.closest('.page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom, .popup-field-resizer').length) {
+                            return false;
+                        }
+                        
+                        if (isResizing) return false;
+                        
+                        var id = $(event.target).closest('.page-field, .popup-field').attr("data-id");
                         if (!id) return;
                         builder.beginDragSelection(id);
                     },
                     move: function (event) {
+                        if (isResizing) return;
                         builder.dragSelectionMove(event.dx, event.dy);
                     },
                     end: function () {
@@ -217,7 +243,12 @@
 
             interact('.page-field, .popup-field').resizable({
                 edges: { left: false, top: false, right: true, bottom: true },
+                allowFrom: ".page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom, .popup-field-resizer",
+                margin: 5,
                 listeners: {
+                    start: function (event) {
+                        isResizing = true;
+                    },
                     move: function (event) {
                         var target = event.target;
                         var id = $(target).attr("data-id");
@@ -239,6 +270,7 @@
                         builder.updateSelectionSizeHint();
                     },
                     end: function () {
+                        isResizing = false;
                         builder.refreshJson();
                     }
                 }
@@ -548,32 +580,76 @@
         showProperties: function (fieldId) {
             var cfg = builder.getControlConfig(fieldId);
             if (!cfg) {
-                $("#propPanel").html('<h3>Thuộc tính</h3><p>Không tìm thấy field.</p>');
+                $("#propPanel").html('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;"><h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Field Properties</h3><p style="color:#999;">Không tìm thấy field.</p></div>');
                 return;
             }
 
-            var html = '';
-            html += '<h3>Field properties</h3>';
-            html += '<div style="font-size:11px;color:#666;margin-bottom:6px;">ID: ' + cfg.id + ' | Type: ' + cfg.ftype + '</div>';
-
-            html += '<div class="ub-prop-row">';
-            html += 'Caption:<br/><input type="text" id="pf_caption" style="width:100%;" value="' + (cfg.caption || "") + '"/>';
-            html += '</div>';
-
+            var html = [];
+            html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
+            html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">ESS Field Properties</h3>');
+            
+            // Basic Info Card
+            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+            html.push('<div class="ess-col-card-header">');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            html.push('<div style="display:grid; grid-template-columns: auto 1fr; gap:8px 12px; font-size:11px;">');
+            html.push('<span style="color:#666;">ID:</span><span style="color:#333; font-weight:500;">' + cfg.id + '</span>');
+            html.push('<span style="color:#666;">Type:</span><span style="color:#333; font-weight:500;">' + cfg.ftype + '</span>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+            
+            // Caption Section
+            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+            html.push('<div class="ess-col-card-header">');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📝 Caption</span>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            html.push('<div class="ess-col-row">');
+            html.push('<div class="ess-col-field ess-col-field-full">');
+            html.push('<label><span style="color:#0078d4;">📝</span><strong>Caption:</strong></label>');
+            html.push('<input type="text" id="pf_caption" class="ess-col-input" value="' + (cfg.caption || "") + '"/>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+            
+            // Options Section - Checkboxes 2 cột
             if (!(cfg.ftype === "groupbox" || cfg.ftype === "section")) {
-                html += '<div class="ub-prop-row" style="margin-top:6px;">';
-                html += '<label><input type="checkbox" id="pf_required"' + (cfg.required ? ' checked' : '') + '> Required</label><br/>';
-                html += '<label><input type="checkbox" id="pf_disabled"' + (cfg.disabled ? ' checked' : '') + '> Disabled</label>';
-                html += '</div>';
+                html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+                html.push('<div class="ess-col-card-header">');
+                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">⚙️ Options</span>');
+                html.push('</div>');
+                html.push('<div class="ess-col-card-body">');
+                html.push('<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">');
+                html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pf_required"' + (cfg.required ? ' checked' : '') + '><strong>Required</strong></label>');
+                html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pf_disabled"' + (cfg.disabled ? ' checked' : '') + '><strong>Disabled</strong></label>');
+                html.push('</div>');
+                html.push('</div>');
+                html.push('</div>');
             }
-
+            
+            // Label Width Section
             if (!(cfg.ftype === "groupbox" || cfg.ftype === "section" ||
                 cfg.ftype === "checkbox" || cfg.ftype === "radio" || cfg.ftype === "button")) {
-                html += '<div class="ub-prop-row" style="margin-top:6px;">';
-                html += 'Label width (px): <input type="number" id="pf_labelWidth" style="width:80px;" value="' + (cfg.labelWidth || 120) + '"/>';
-                html += '</div>';
+                html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+                html.push('<div class="ess-col-card-header">');
+                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Label Width</span>');
+                html.push('</div>');
+                html.push('<div class="ess-col-card-body">');
+                html.push('<div class="ess-col-row">');
+                html.push('<div class="ess-col-field ess-col-field-width">');
+                html.push('<label><span style="color:#0078d4;">📏</span><strong>Width (px):</strong></label>');
+                html.push('<input type="number" id="pf_labelWidth" class="ess-col-input" value="' + (cfg.labelWidth || 120) + '"/>');
+                html.push('</div>');
+                html.push('</div>');
+                html.push('</div>');
+                html.push('</div>');
             }
-
+            
+            // Items Section (for combo)
             if (cfg.ftype === "combo") {
                 var itemsText = "";
                 if (Array.isArray(cfg.items) && cfg.items.length) {
@@ -581,13 +657,20 @@
                         return typeof x === "string" ? x : (x.text || x.value || "");
                     }).join(", ");
                 }
-                html += '<div class="ub-prop-row" style="margin-top:6px;">';
-                html += 'Items (comma separated):<br/>';
-                html += '<textarea id="pf_items" style="width:100%;height:50px;">' + itemsText + '</textarea>';
-                html += '</div>';
+                html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+                html.push('<div class="ess-col-card-header">');
+                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📋 Items</span>');
+                html.push('</div>');
+                html.push('<div class="ess-col-card-body">');
+                html.push('<label style="display:block; margin-bottom:6px; font-size:11px; color:#666;">Items (comma separated):</label>');
+                html.push('<textarea id="pf_items" class="ess-col-input" style="min-height:60px; resize:vertical; font-family:monospace;">' + itemsText + '</textarea>');
+                html.push('</div>');
+                html.push('</div>');
             }
-
-            $("#propPanel").html(html);
+            
+            html.push('</div>'); // Close ess-prop-tab-content
+            
+            $("#propPanel").html(html.join(''));
 
             var self = this;
 

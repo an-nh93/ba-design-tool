@@ -430,7 +430,7 @@
     },
 
     // ====== PANEL THUỘC TÍNH ======
-    showProperties: function (id) {
+    showProperties: function (id, preserveTab) {
         var cfg = builder.findControl(id);
         if (!cfg) return;
 
@@ -477,104 +477,277 @@
         }
         var widthVal = cfg.width;
 
-        var html = `
-            <h3>Grid Properties</h3>
-            <div><b>ID:</b> ${cfg.id}</div>
+        // Lưu tab hiện tại nếu không preserve
+        var currentTab = preserveTab;
+        if (!currentTab) {
+            var $activeTab = $("#propPanel").find('.ess-prop-tab.ess-prop-tab-active');
+            if ($activeTab.length) {
+                currentTab = $activeTab.data('tab') || 'general';
+            } else {
+                currentTab = 'general';
+            }
+        }
 
-            <div>
-                <label><input type="checkbox" id="chkFilterRow" ${cfg.filterRow ? "checked" : ""}/> Show Filter Row</label>
-            </div>
-            <div>
-                <label><input type="checkbox" id="chkAllowAdd" ${cfg.allowAdd ? "checked" : ""}/> Allow Add Row</label>
-            </div>
-            <div>
-                <label><input type="checkbox" id="chkAllowEdit" ${cfg.allowEdit ? "checked" : ""}/> Allow Edit</label>
-            </div>
+        var html = [];
+        html.push('<div class="ess-grid-props-header">');
+        html.push('<h3 style="margin:0 0 8px 0; font-size:14px; font-weight:600;">Core GridView</h3>');
+        html.push('<div class="ess-grid-props-tabs">');
+        var generalActive = currentTab === 'general' ? ' ess-prop-tab-active' : '';
+        var columnsActive = currentTab === 'columns' ? ' ess-prop-tab-active' : '';
+        var toolbarActive = currentTab === 'toolbar' ? ' ess-prop-tab-active' : '';
+        var actionsActive = currentTab === 'actions' ? ' ess-prop-tab-active' : '';
+        var permissionsActive = currentTab === 'permissions' ? ' ess-prop-tab-active' : '';
+        html.push('<button type="button" class="ess-prop-tab' + generalActive + '" data-tab="general">⚙️ General</button>');
+        html.push('<button type="button" class="ess-prop-tab' + columnsActive + '" data-tab="columns">📊 Columns (' + (cfg.columns ? cfg.columns.length : 0) + ')</button>');
+        html.push('<button type="button" class="ess-prop-tab' + toolbarActive + '" data-tab="toolbar">🔧 Toolbar (' + (cfg.toolbarItems ? cfg.toolbarItems.length : 0) + ')</button>');
+        html.push('<button type="button" class="ess-prop-tab' + actionsActive + '" data-tab="actions">🔘 Actions (' + (cfg.rowActionColumns ? cfg.rowActionColumns.length : 0) + ')</button>');
+        html.push('<button type="button" class="ess-prop-tab' + permissionsActive + '" data-tab="permissions">🔐 Permissions</button>');
+        html.push('</div>');
+        html.push('</div>');
 
-            <div>
-                <label><input type="checkbox" id="chkShowSearch" ${(cfg.showSearchBox !== false) ? "checked" : ""}/> Show search box</label>
-            </div>
+        // GENERAL TAB
+        var generalTabActive = currentTab === 'general' ? ' ess-prop-tab-active' : '';
+        html.push('<div class="ess-prop-tab-content' + generalTabActive + '" data-tab-content="general">');
+        html.push('<div style="font-size:11px;color:#666;margin-bottom:8px;"><b>ID:</b> ' + cfg.id + '</div>');
 
-            <div style="margin-top:8px;">
-                <label><input type="checkbox" id="chkShowCheckbox" ${(cfg.showCheckbox !== false) ? "checked" : ""}/> Show select checkbox</label>
-            </div>
-           <div>
-               <label><input type="checkbox" id="chkShowViewCol" ${getActVisible("view", cfg.showViewColumn) ? "checked" : ""}/> Show View column</label>
-           </div>
-           <div>
-               <label><input type="checkbox" id="chkShowEditCol" ${getActVisible("edit", cfg.showEditColumn) ? "checked" : ""}/> Show Edit column</label>
-           </div>
-           <div>
-               <label><input type="checkbox" id="chkShowDeleteCol" ${getActVisible("delete", cfg.showDeleteColumn) ? "checked" : ""}/> Show Delete column</label>
-           </div>
+        // Checkboxes - 2 cột để tiết kiệm diện tích
+        html.push('<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkFilterRow" ' + (cfg.filterRow ? "checked" : "") + '/> Show Filter Row</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkAllowAdd" ' + (cfg.allowAdd ? "checked" : "") + '/> Allow Add Row</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkAllowEdit" ' + (cfg.allowEdit ? "checked" : "") + '/> Allow Edit</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowSearch" ' + ((cfg.showSearchBox !== false) ? "checked" : "") + '/> Show search box</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowCheckbox" ' + ((cfg.showCheckbox !== false) ? "checked" : "") + '/> Show select checkbox</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowViewCol" ' + (getActVisible("view", cfg.showViewColumn) ? "checked" : "") + '/> Show View column</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowEditCol" ' + (getActVisible("edit", cfg.showEditColumn) ? "checked" : "") + '/> Show Edit column</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowDeleteCol" ' + (getActVisible("delete", cfg.showDeleteColumn) ? "checked" : "") + '/> Show Delete column</label>');
+        html.push('</div>');
+        html.push('</div>'); // Close grid container
+        html.push('<div class="mt-1">');
+        html.push('<label>Grid width (px):</label><br/>');
+        html.push('<input type="number" id="txtGridWidth" value="' + widthVal + '" style="width:100%;" placeholder="vd: 900" />');
+        html.push('</div>');
+        html.push('<hr style="margin:12px 0;"/>');
+        html.push('<h4 style="margin:8px 0 4px 0; font-size:13px;">View Data / Applied for</h4>');
+        // Checkbox này chỉ có 1 nên không cần grid
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowDataHeader" ' + (cfg.showDataHeader ? "checked" : "") + '/> Show View Data header</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label>View data caption:</label><br/>');
+        html.push('<input type="text" id="txtDataCaption" value="' + (cfg.dataHeaderCaption || "") + '" style="width:100%;" />');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label>View data value:</label><br/>');
+        html.push('<input type="text" id="txtDataValue" value="' + (cfg.dataHeaderValue || "") + '" style="width:100%;" />');
+        html.push('</div>');
+        html.push('<hr style="margin:12px 0;"/>');
+        html.push('<h4 style="margin:8px 0 4px 0; font-size:13px;">Title & Toolbar</h4>');
+        // Checkboxes - 2 cột
+        html.push('<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowTitle" ' + (cfg.showTitle ? "checked" : "") + '/> Show title</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowToolbar" ' + (cfg.showToolbar ? "checked" : "") + '/> Show toolbar menu</label>');
+        html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkShowLocalLang" ' + (cfg.showLocalDataLanguage ? "checked" : "") + '/> Show Local Data Language</label>');
+        html.push('</div>');
+        html.push('</div>'); // Close grid container
+        // Title text input - riêng 1 dòng
+        html.push('<div class="mt-1" style="margin-top:8px;">');
+        html.push('<label>Title text:</label><br/>');
+        html.push('<input type="text" id="txtGridTitle" value="' + (cfg.titleText || "") + '" style="width:100%;" />');
+        html.push('</div>');
+        // Title formatting checkboxes - riêng 1 dòng
+        html.push('<div class="mt-1" style="margin-top:8px;">');
+        html.push('<label><input type="checkbox" id="chkTitleBold" ' + (cfg.titleBold ? "checked" : "") + '/> <b>Bold</b></label>&nbsp;&nbsp;');
+        html.push('<label><input type="checkbox" id="chkTitleItalic" ' + (cfg.titleItalic ? "checked" : "") + '/> <i>Italic</i></label>');
+        html.push('</div>');
+        html.push('</div>'); // ess-prop-tab-content general
 
-            <div style="margin-top:8px;">
-                <label>Grid width (px):</label><br/>
-                <input type="number" id="txtGridWidth" value="${widthVal}" style="width:100%;"
-                       placeholder="vd: 900" />
-            </div>
+        // COLUMNS TAB - Compact card view
+        var columnsTabActive = currentTab === 'columns' ? ' ess-prop-tab-active' : '';
+        html.push('<div class="ess-prop-tab-content' + columnsTabActive + '" data-tab-content="columns">');
+        html.push('<div class="ess-col-header">');
+        html.push('<input type="text" class="ess-search-input" id="coreColSearch" placeholder="🔍 Search columns..." style="width:100%; margin-bottom:8px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px;"/>');
+        html.push('<button type="button" class="ess-btn-primary" id="btnAddCol" style="width:100%; margin-bottom:12px;">＋ Add Column</button>');
+        html.push('</div>');
+        html.push('<div class="ess-columns-list-wrapper">');
+        html.push('<div class="ess-columns-list" id="gridColumnsPanel">');
+        
+        // Render columns as compact cards với styling chuyên nghiệp
+        (cfg.columns || []).forEach(function (col, idx) {
+            html.push('<div class="ess-col-card" data-col-index="' + idx + '">');
+            html.push('<div class="ess-col-card-header">');
+            html.push('<span class="ess-col-number">' + (idx + 1) + '</span>');
+            html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
+            html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">📋 Field:</span>');
+            html.push('<input type="text" class="ess-col-caption" data-col-field="name" data-col-index="' + idx + '" value="' + (col.name || "") + '" placeholder="Field name (e.g. Code, Name)"/>');
+            html.push('</div>');
+            html.push('<button type="button" class="ess-col-expand" data-cmd="toggle-col-expand" title="Expand/Collapse">▼</button>');
+            html.push('<button type="button" class="ess-col-delete btnDelCol" data-col-index="' + idx + '" title="Delete">🗑</button>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            html.push('<div class="ess-col-row">');
+            html.push('<div class="ess-col-field ess-col-field-full">');
+            html.push('<label><span style="color:#0078d4;">📝</span><strong>Caption:</strong></label>');
+            html.push('<input type="text" class="ess-col-input" data-col-field="caption" data-col-index="' + idx + '" value="' + (col.caption || "") + '" placeholder="Column caption"/>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('<div class="ess-col-row">');
+            html.push('<div class="ess-col-field ess-col-field-width">');
+            html.push('<label><span style="color:#0078d4;">📏</span><strong>Width:</strong></label>');
+            html.push('<input type="number" min="60" max="1500" class="ess-col-input" data-col-field="width" data-col-index="' + idx + '" value="' + (col.width || "") + '" placeholder="Auto"/>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>'); // ess-col-card-body
+            html.push('</div>'); // ess-col-card
+        });
+        
+        html.push('</div>'); // ess-columns-list
+        html.push('</div>'); // ess-columns-list-wrapper
+        html.push('</div>'); // ess-prop-tab-content columns
 
-            <hr/>
-            <h4>View Data / Applied for</h4>
-            <div>
-                <label><input type="checkbox" id="chkShowDataHeader" ${cfg.showDataHeader ? "checked" : ""}/> Show View Data header</label>
-            </div>
-            <div>
-                <label>View data caption:</label><br/>
-                <input type="text" id="txtDataCaption" value="${cfg.dataHeaderCaption}" style="width:100%;" />
-            </div>
-            <div>
-                <label>View data value:</label><br/>
-                <input type="text" id="txtDataValue" value="${cfg.dataHeaderValue}" style="width:100%;" />
-            </div>
+        // Icon options HTML - dùng chung cho toolbar và actions
+        var iconOptionsHtml = (window.MENU_ICON_LIST || []).map(function (ic) {
+            return '<option value="' + ic.value + '">' + ic.text + '</option>';
+        }).join("");
 
-            <hr/>
-            <h4>Title & Toolbar</h4>
-            <div>
-                <label><input type="checkbox" id="chkShowTitle" ${cfg.showTitle ? "checked" : ""}/> Show title</label>
-            </div>
-            <div>
-                <label>Title text:</label><br/>
-                <input type="text" id="txtGridTitle" value="${cfg.titleText}" style="width:100%;" />
-            </div>
-            <div>
-                <label><input type="checkbox" id="chkTitleBold" ${cfg.titleBold ? "checked" : ""}/> Bold</label>
-                <label style="margin-left:10px;"><input type="checkbox" id="chkTitleItalic" ${cfg.titleItalic ? "checked" : ""}/> Italic</label>
-            </div>
-            <div>
-                <label><input type="checkbox" id="chkShowToolbar" ${cfg.showToolbar ? "checked" : ""}/> Show toolbar menu</label>
-            </div>
-            <div>
-                <label><input type="checkbox" id="chkShowLocalLang" ${cfg.showLocalDataLanguage ? "checked" : ""}/> Show Local Data Language</label>
-            </div>
+        // TOOLBAR TAB - Compact card view
+        var toolbarTabActive = currentTab === 'toolbar' ? ' ess-prop-tab-active' : '';
+        html.push('<div class="ess-prop-tab-content' + toolbarTabActive + '" data-tab-content="toolbar">');
+        html.push('<div class="ess-col-header">');
+        html.push('<button type="button" class="ess-btn-primary" id="btnAddToolbarItem" style="width:100%; margin-bottom:12px;">＋ Add Toolbar Item</button>');
+        html.push('</div>');
+        html.push('<div class="ess-actions-list-wrapper">');
+        html.push('<div class="ess-actions-list" id="toolbarItemsPanel">');
+        
+        // Render toolbar items as cards với styling chuyên nghiệp
+        (cfg.toolbarItems || []).forEach(function (item, idx) {
+            var preview = item.icon ? "<img src='" + item.icon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />" : "";
+            html.push('<div class="ess-action-card" data-toolbar-index="' + idx + '">');
+            html.push('<div class="ess-action-card-header">');
+            html.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
+            html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
+            html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔧 Menu:</span>');
+            html.push('<input type="text" class="ess-action-caption" data-toolbar-field="text" data-toolbar-index="' + idx + '" value="' + (item.text || "") + '" placeholder="Menu text"/>');
+            html.push('<span class="toolbar-icon-preview" data-toolbar-index="' + idx + '">' + preview + '</span>');
+            html.push('</div>');
+            html.push('<button type="button" class="ess-action-expand" data-cmd="toggle-toolbar-expand" title="Expand/Collapse">▼</button>');
+            html.push('<button type="button" class="ess-action-delete btnDelToolbar" data-toolbar-index="' + idx + '" title="Delete">🗑</button>');
+            html.push('</div>');
+            html.push('<div class="ess-action-card-body">');
+            html.push('<div class="ess-action-row">');
+            html.push('<div class="ess-action-field ess-action-field-icon">');
+            html.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
+            html.push('<select class="ess-action-input toolbar-icon-select" data-toolbar-field="icon" data-toolbar-index="' + idx + '">' + iconOptionsHtml + '</select>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>'); // ess-action-card-body
+            html.push('</div>'); // ess-action-card
+        });
+        
+        html.push('</div>'); // ess-actions-list
+        html.push('</div>'); // ess-actions-list-wrapper
+        html.push('</div>'); // ess-prop-tab-content toolbar
 
-            <div style="margin-top:6px;">
-                <strong>Toolbar menus</strong>
-                <div id="toolbarItemsPanel"></div>
-                <button type="button" id="btnAddToolbarItem">+ Add menu</button>
-            </div>
+        // ACTIONS TAB - Compact card view
+        var actionsTabActive = currentTab === 'actions' ? ' ess-prop-tab-active' : '';
+        html.push('<div class="ess-prop-tab-content' + actionsTabActive + '" data-tab-content="actions">');
+        html.push('<div class="ess-col-header">');
+        html.push('<button type="button" class="ess-btn-primary" id="btnAddRowActionCol" style="width:100%; margin-bottom:12px;">＋ Add Action Column</button>');
+        html.push('</div>');
+        html.push('<div class="ess-actions-list-wrapper">');
+        html.push('<div class="ess-actions-list" id="rowActionColsPanel">');
+        
+        // Render row action columns as cards với styling chuyên nghiệp
+        (cfg.rowActionColumns || []).forEach(function (ac, idx) {
+            var preview = ac.icon ? "<img src='" + ac.icon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />" : "";
+            html.push('<div class="ess-action-card" data-action-index="' + idx + '">');
+            html.push('<div class="ess-action-card-header">');
+            html.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
+            html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
+            html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔘 Action:</span>');
+            html.push('<input type="text" class="ess-action-caption" data-action-field="text" data-action-index="' + idx + '" value="' + (ac.text || "") + '" placeholder="Action text"/>');
+            html.push('<span class="rowact-icon-preview" data-action-index="' + idx + '">' + preview + '</span>');
+            html.push('</div>');
+            html.push('<button type="button" class="ess-action-expand" data-cmd="toggle-action-expand" title="Expand/Collapse">▼</button>');
+            html.push('<button type="button" class="ess-action-delete btnDelRowAction" data-action-index="' + idx + '" title="Delete">🗑</button>');
+            html.push('</div>');
+            html.push('<div class="ess-action-card-body">');
+            html.push('<div class="ess-action-row">');
+            html.push('<div class="ess-action-field ess-action-field-key">');
+            html.push('<label><span style="color:#0078d4;">🔑</span><strong>Key:</strong></label>');
+            html.push('<input type="text" class="ess-action-input" data-action-field="key" data-action-index="' + idx + '" value="' + (ac.key || "") + '" placeholder="key"/>');
+            html.push('</div>');
+            html.push('<div class="ess-action-field ess-action-field-width">');
+            html.push('<label><span style="color:#0078d4;">📏</span><strong>Width:</strong></label>');
+            html.push('<input type="number" class="ess-action-input" data-action-field="width" data-action-index="' + idx + '" value="' + (ac.width || "") + '" placeholder="40"/>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('<div class="ess-action-row">');
+            html.push('<div class="ess-action-field ess-action-field-icon">');
+            html.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
+            html.push('<select class="ess-action-input rowact-icon-select" data-action-field="icon" data-action-index="' + idx + '">' + iconOptionsHtml + '</select>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('<div class="ess-action-row">');
+            html.push('<div class="ess-action-field">');
+            html.push('<label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-action-field="visible" data-action-index="' + idx + '" ' + ((ac.visible !== false) ? "checked" : "") + '/><span style="color:#0078d4;">👁️</span><strong>Show</strong></label>');
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>'); // ess-action-card-body
+            html.push('</div>'); // ess-action-card
+        });
+        
+        html.push('</div>'); // ess-actions-list
+        html.push('</div>'); // ess-actions-list-wrapper
+        html.push('</div>'); // ess-prop-tab-content actions
 
-            <hr/>
-            <h4>Row action columns</h4>
-            <div id="rowActionColsPanel"></div>
-            <button type="button" id="btnAddRowActionCol">+ Add action column</button>
+        // PERMISSIONS TAB - Card view cho row permissions
+        var permissionsTabActive = currentTab === 'permissions' ? ' ess-prop-tab-active' : '';
+        html.push('<div class="ess-prop-tab-content' + permissionsTabActive + '" data-tab-content="permissions">');
+        html.push('<div class="ess-col-header">');
+        html.push('<div style="font-size:12px; color:#666; margin-bottom:8px; padding:8px; background:#f8f9fa; border-radius:4px;">');
+        html.push('🔐 <strong>Row Permissions:</strong> Configure permissions for each row based on action columns');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('<div class="ess-columns-list-wrapper">');
+        html.push('<div class="ess-columns-list" id="rowPermPanel">');
+        // Permissions sẽ được render bằng hàm renderRowPerm() sau
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>'); // ess-prop-tab-content permissions
 
-            <hr/>
-            <h4>Columns</h4>
-            <div id="gridColumnsPanel"></div>
-            <button type="button" id="btnAddCol">+ Add Column</button>
+        var htmlStr = html.join('');
 
-            <hr/>
-            <h4>Row permission sample</h4>
-            <div id="rowPermPanel"></div>
+        $("#propPanel").html(htmlStr);
 
-            <hr/>
-            <button type="button" onclick="builder.saveControlToServer('${cfg.id}')">
-                💾 Lưu control này vào DB
-            </button>
-        `;
-
-        $("#propPanel").html(html);
+        // Tab switching logic
+        $("#propPanel").off("click.coreGridTab").on("click.coreGridTab", ".ess-prop-tab", function(e) {
+            e.stopPropagation();
+            var tab = $(this).data('tab');
+            $("#propPanel").find('.ess-prop-tab').removeClass('ess-prop-tab-active');
+            $("#propPanel").find('.ess-prop-tab-content').removeClass('ess-prop-tab-active');
+            $(this).addClass('ess-prop-tab-active');
+            $("#propPanel").find('.ess-prop-tab-content[data-tab-content="' + tab + '"]').addClass('ess-prop-tab-active');
+        });
 
         var self = this;
 
@@ -664,130 +837,107 @@
             self.refreshGrid(cfg);
         });
 
-        // ==== toolbar items ====
+        // ==== toolbar items ==== - Card view đã được render trong HTML, chỉ wire events
         function renderToolbarItems() {
-            var panelHtml = "";
-
-            var iconOptionsHtml = (window.MENU_ICON_LIST || []).map(function (ic) {
-                return '<option value="' + ic.value + '">' + ic.text + '</option>';
-            }).join("");
-
-            (cfg.toolbarItems || []).forEach(function (it, index) {
-
-                var preview = it.icon
-                    ? "<img src='" + it.icon + "' style='width:14px;height:14px;vertical-align:middle;' />"
-                    : "";
-
-                panelHtml +=
-                    "<div style='margin-bottom:4px;'>" +
-                    "Text: <input type='text' data-idx='" + index + "' data-field='text' value='" + (it.text || "") + "' style='width:110px;' />" +
-                    " Icon: <select data-idx='" + index + "' data-field='icon' class='toolbar-icon-select' style='width:160px;margin-right:4px;'>" +
-                    iconOptionsHtml +
-                    "</select>" +
-                    "<span class='toolbar-icon-preview' data-idx='" + index + "'>" + preview + "</span>" +
-                    " <button type='button' class='btnDelToolbar' data-idx='" + index + "'>x</button>" +
-                    "</div>";
-            });
-
-            $("#toolbarItemsPanel").html(panelHtml);
-
+            // Card view đã được render trong HTML, chỉ cần wire events
+            // Set giá trị icon cho các select đã render
             $("#toolbarItemsPanel .toolbar-icon-select").each(function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
+                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-index'), 10);
                 var icon = (cfg.toolbarItems[idx] && cfg.toolbarItems[idx].icon) || "";
                 $(this).val(icon);
             });
 
-            $("#toolbarItemsPanel input[data-field='text']").on("change", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                cfg.toolbarItems[idx].text = this.value;
-                controlGrid.refreshGrid(cfg);
+            // Wire events cho toolbar items
+            $("#toolbarItemsPanel input[data-toolbar-field='text']").off("change.coreGridToolbar").on("change.coreGridToolbar", function () {
+                var idx = parseInt($(this).data('toolbar-index'), 10);
+                cfg.toolbarItems[idx].text = $(this).val();
+                self.refreshGrid(cfg);
             });
 
-            $("#toolbarItemsPanel .toolbar-icon-select").on("change", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                var val = this.value;
-
+            $("#toolbarItemsPanel .toolbar-icon-select").off("change.coreGridToolbar").on("change.coreGridToolbar", function () {
+                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-index'), 10);
+                var val = $(this).val();
                 cfg.toolbarItems[idx].icon = val;
-
-                var $preview = $("#toolbarItemsPanel .toolbar-icon-preview[data-idx='" + idx + "']");
+                
+                var $preview = $("#toolbarItemsPanel .toolbar-icon-preview[data-toolbar-index='" + idx + "']");
                 if (val) {
-                    $preview.html("<img src='" + val + "' style='width:14px;height:14px;vertical-align:middle;' />");
+                    $preview.html("<img src='" + val + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
                 } else {
                     $preview.empty();
                 }
-
-                controlGrid.refreshGrid(cfg);
+                self.refreshGrid(cfg);
             });
 
-            $(".btnDelToolbar").on("click", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
+            $("#toolbarItemsPanel .btnDelToolbar").off("click.coreGridToolbar").on("click.coreGridToolbar", function () {
+                var idx = parseInt($(this).data('toolbar-index'), 10);
                 cfg.toolbarItems.splice(idx, 1);
-                renderToolbarItems();
-                controlGrid.refreshGrid(cfg);
+                // Re-render properties để cập nhật card view
+                self.showProperties(cfg.id, 'toolbar');
+                self.refreshGrid(cfg);
             });
         }
 
-        // ==== columns ====
+        // ==== columns ==== - Card view đã được render trong HTML, chỉ wire events
         function renderColumns() {
-            var panelHtml = "";
-            (cfg.columns || []).forEach(function (c, index) {
-                var w = c.width != null ? c.width : "";
-                panelHtml += `
-                    <div style="margin-bottom:4px;">
-                        <input type="text" data-idx="${index}" data-field="name" value="${c.name}" placeholder="FieldName" style="width:110px;"/>
-                        <input type="text" data-idx="${index}" data-field="caption" value="${c.caption}" placeholder="Caption" style="width:110px;"/>
-                        <input type="number" data-idx="${index}" data-field="width" value="${w}" placeholder="Width(px)" style="width:80px;"/>
-                        <button type="button" data-idx="${index}" class="btnDelCol">x</button>
-                    </div>`;
-            });
-            $("#gridColumnsPanel").html(panelHtml);
-
-            $("#gridColumnsPanel").find("input").on("change", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                var field = this.getAttribute("data-field");
+            // Card view đã được render trong HTML, chỉ cần wire events
+            $("#gridColumnsPanel").find("input[data-col-field]").off("change.coreGridCol").on("change.coreGridCol", function () {
+                var idx = parseInt($(this).data('col-index'), 10);
+                var field = $(this).data('col-field');
                 if (field === "width") {
-                    var val = parseFloat(this.value);
+                    var val = parseFloat($(this).val());
                     cfg.columns[idx].width = isNaN(val) || val <= 0 ? null : val;
                 } else {
-                    cfg.columns[idx][field] = this.value;
+                    cfg.columns[idx][field] = $(this).val();
                 }
                 self.refreshGrid(cfg);
             });
 
-            $(".btnDelCol").on("click", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
+            $("#gridColumnsPanel").find(".btnDelCol").off("click.coreGridCol").on("click.coreGridCol", function () {
+                var idx = parseInt($(this).data('col-index'), 10);
                 cfg.columns.splice(idx, 1);
-                renderColumns();
+                // Re-render properties để cập nhật card view
+                self.showProperties(cfg.id, 'columns');
                 self.refreshGrid(cfg);
             });
         }
 
-        $("#btnAddToolbarItem").on("click", function () {
+        $("#btnAddToolbarItem").off("click.coreGridAdd").on("click.coreGridAdd", function () {
             cfg.toolbarItems = cfg.toolbarItems || [];
             cfg.toolbarItems.push({
                 text: "Menu " + (cfg.toolbarItems.length + 1),
                 icon: ""
             });
-            renderToolbarItems();
+            // Re-render properties để cập nhật card view
+            self.showProperties(cfg.id, 'toolbar');
             self.refreshGrid(cfg);
         });
 
-        // ==== row permission: dynamic theo rowActionColumns ====
+        // ==== row permission: dynamic theo rowActionColumns ==== - Card view
         function renderRowPerm() {
             var maxRows = 5;
             var actions = cfg.rowActionColumns || [];
-            var html = "";
+            var html = [];
 
             if (!actions.length) {
-                html = "<div style='font-size:11px;color:#777;'>No row action columns.</div>";
-                $("#rowPermPanel").html(html);
+                html.push('<div class="ess-col-card" style="padding:20px; text-align:center; color:#999;">');
+                html.push('🔐 <strong>No row action columns.</strong><br/>');
+                html.push('<span style="font-size:11px;">Add action columns in the Actions tab first.</span>');
+                html.push('</div>');
+                $("#rowPermPanel").html(html.join(''));
                 return;
             }
 
             for (var i = 0; i < maxRows; i++) {
                 var rp = cfg.rowPermissions[i] || {};
 
-                html += "<div style='margin-bottom:4px;'>Row " + (i + 1) + ": ";
+                html.push('<div class="ess-col-card" data-row-index="' + i + '">');
+                html.push('<div class="ess-col-card-header">');
+                html.push('<span class="ess-col-number">' + (i + 1) + '</span>');
+                html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
+                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">🔐 Row ' + (i + 1) + ' Permissions</span>');
+                html.push('</div>');
+                html.push('</div>');
+                html.push('<div class="ess-col-card-body">');
 
                 actions.forEach(function (act, idx) {
                     if (act.visible === false) return;
@@ -796,23 +946,28 @@
                     var label = act.text || key;
                     var state = rp[key] || "enabled";
 
-                    html += label + ": "
-                        + "<select data-row='" + i + "' data-key='" + key + "'>"
-                        + "<option value='enabled'" + (state === "enabled" ? " selected" : "") + ">Enabled</option>"
-                        + "<option value='disabled'" + (state === "disabled" ? " selected" : "") + ">Disabled</option>"
-                        + "<option value='hidden'" + (state === "hidden" ? " selected" : "") + ">Hidden</option>"
-                        + "</select> ";
+                    html.push('<div class="ess-col-row">');
+                    html.push('<div class="ess-col-field ess-col-field-full">');
+                    html.push('<label><span style="color:#0078d4;">🔘</span><strong>' + label + ':</strong></label>');
+                    html.push('<select class="ess-col-input" data-row="' + i + '" data-key="' + key + '">');
+                    html.push('<option value="enabled"' + (state === "enabled" ? " selected" : "") + '>✅ Enabled</option>');
+                    html.push('<option value="disabled"' + (state === "disabled" ? " selected" : "") + '>❌ Disabled</option>');
+                    html.push('<option value="hidden"' + (state === "hidden" ? " selected" : "") + '>👁️‍🗨️ Hidden</option>');
+                    html.push('</select>');
+                    html.push('</div>');
+                    html.push('</div>');
                 });
-
-                html += "</div>";
+                
+                html.push('</div>'); // ess-col-card-body
+                html.push('</div>'); // ess-col-card
             }
 
-            $("#rowPermPanel").html(html);
+            $("#rowPermPanel").html(html.join(''));
 
-            $("#rowPermPanel select").on("change", function () {
-                var rowIndex = parseInt(this.getAttribute("data-row"), 10);
-                var key = this.getAttribute("data-key");
-                var val = this.value;
+            $("#rowPermPanel select").off("change.rowPerm").on("change.rowPerm", function () {
+                var rowIndex = parseInt($(this).data('row'), 10);
+                var key = $(this).data('key');
+                var val = $(this).val();
 
                 cfg.rowPermissions[rowIndex] = cfg.rowPermissions[rowIndex] || {};
                 cfg.rowPermissions[rowIndex][key] = val;
@@ -822,74 +977,62 @@
         }
 
         function renderRowActionCols() {
-            var panelHtml = "";
-
-            var iconOptionsHtml = (window.MENU_ICON_LIST || []).map(function (ic) {
-                return '<option value="' + ic.value + '">' + ic.text + '</option>';
-            }).join("");
-
-            (cfg.rowActionColumns || []).forEach(function (ac, index) {
-                var visibleChecked = (ac.visible !== false) ? "checked" : "";
-                var w = ac.width != null ? ac.width : "";
-
-                panelHtml +=
-                    "<div style='margin-bottom:4px;'>" +
-                    "Key: <input type='text' data-idx='" + index + "' data-field='key' value='" + (ac.key || "") + "' style='width:70px;' /> " +
-                    "Text: <input type='text' data-idx='" + index + "' data-field='text' value='" + (ac.text || "") + "' style='width:90px;' /> " +
-                    "Width: <input type='number' data-idx='" + index + "' data-field='width' value='" + w + "' style='width:70px;' /> " +
-                    "Icon: <select data-idx='" + index + "' data-field='icon' class='rowact-icon-select' style='width:160px;margin-right:4px;'>" +
-                    iconOptionsHtml +
-                    "</select>" +
-                    "<label><input type='checkbox' data-idx='" + index + "' data-field='visible' " + visibleChecked + "/> Show</label> " +
-                    "<button type='button' class='btnDelRowAction' data-idx='" + index + "'>x</button>" +
-                    "</div>";
-            });
-
-            $("#rowActionColsPanel").html(panelHtml);
-            renderRowPerm();
-
+            // Card view đã được render trong HTML, chỉ cần wire events
+            // Set giá trị icon cho các select đã render
             $("#rowActionColsPanel .rowact-icon-select").each(function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
+                var idx = parseInt($(this).closest('.ess-action-card').data('action-index'), 10);
                 var icon = (cfg.rowActionColumns[idx] && cfg.rowActionColumns[idx].icon) || "";
                 $(this).val(icon);
             });
 
-            $("#rowActionColsPanel input[data-field!='visible']").on("change", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                var field = this.getAttribute("data-field");
+            // Wire events cho row action columns
+            $("#rowActionColsPanel input[data-action-field!='visible']").off("change.coreGridAction").on("change.coreGridAction", function () {
+                var idx = parseInt($(this).data('action-index'), 10);
+                var field = $(this).data('action-field');
                 if (field === "width") {
-                    var val = parseFloat(this.value);
+                    var val = parseFloat($(this).val());
                     cfg.rowActionColumns[idx].width = isNaN(val) || val <= 0 ? null : val;
                 } else {
-                    cfg.rowActionColumns[idx][field] = this.value;
+                    cfg.rowActionColumns[idx][field] = $(this).val();
                 }
-                controlGrid.refreshGrid(cfg);
+                self.refreshGrid(cfg);
                 renderRowPerm();
             });
 
-            $("#rowActionColsPanel input[data-field='visible']").on("change", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                cfg.rowActionColumns[idx].visible = this.checked;
-                controlGrid.refreshGrid(cfg);
+            $("#rowActionColsPanel input[data-action-field='visible']").off("change.coreGridAction").on("change.coreGridAction", function () {
+                var idx = parseInt($(this).data('action-index'), 10);
+                cfg.rowActionColumns[idx].visible = $(this).is(':checked');
+                self.refreshGrid(cfg);
                 renderRowPerm();
             });
 
-            $("#rowActionColsPanel .rowact-icon-select").on("change", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
-                cfg.rowActionColumns[idx].icon = this.value;
-                controlGrid.refreshGrid(cfg);
+            $("#rowActionColsPanel .rowact-icon-select").off("change.coreGridAction").on("change.coreGridAction", function () {
+                var idx = parseInt($(this).closest('.ess-action-card').data('action-index'), 10);
+                var val = $(this).val();
+                cfg.rowActionColumns[idx].icon = val;
+                
+                var $preview = $("#rowActionColsPanel .rowact-icon-preview[data-action-index='" + idx + "']");
+                if (val) {
+                    $preview.html("<img src='" + val + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
+                } else {
+                    $preview.empty();
+                }
+                self.refreshGrid(cfg);
                 renderRowPerm();
             });
 
-            $(".btnDelRowAction").on("click", function () {
-                var idx = parseInt(this.getAttribute("data-idx"), 10);
+            $("#rowActionColsPanel .btnDelRowAction").off("click.coreGridAction").on("click.coreGridAction", function () {
+                var idx = parseInt($(this).data('action-index'), 10);
                 cfg.rowActionColumns.splice(idx, 1);
-                renderRowActionCols();
-                controlGrid.refreshGrid(cfg);
+                // Re-render properties để cập nhật card view
+                self.showProperties(cfg.id, 'actions');
+                self.refreshGrid(cfg);
             });
+            
+            renderRowPerm();
         }
 
-        $("#btnAddRowActionCol").on("click", function () {
+        $("#btnAddRowActionCol").off("click.coreGridAdd").on("click.coreGridAdd", function () {
             cfg.rowActionColumns = cfg.rowActionColumns || [];
             var n = cfg.rowActionColumns.length + 1;
             cfg.rowActionColumns.push({
@@ -899,25 +1042,36 @@
                 visible: true,
                 width: 40
             });
-            renderRowActionCols();
+            // Re-render properties để cập nhật card view
+            self.showProperties(cfg.id, 'actions');
             self.refreshGrid(cfg);
         });
 
-        $("#btnAddCol").on("click", function () {
+        $("#btnAddCol").off("click.coreGridAdd").on("click.coreGridAdd", function () {
             cfg.columns = cfg.columns || [];
             cfg.columns.push({
                 name: "Field" + (cfg.columns.length + 1),
                 caption: "Column " + (cfg.columns.length + 1),
                 width: 150
             });
-            renderColumns();
-            renderRowActionCols();
+            // Re-render properties để cập nhật card view
+            self.showProperties(cfg.id, 'columns');
             self.refreshGrid(cfg);
         });
 
+        // Wire events cho card view đã render
         renderToolbarItems();
         renderColumns();
         renderRowActionCols();
+        
+        // Wire expand/collapse buttons
+        $("#propPanel").off("click.coreGridExpand").on("click.coreGridExpand", "[data-cmd='toggle-col-expand'], [data-cmd='toggle-action-expand'], [data-cmd='toggle-toolbar-expand']", function(e) {
+            e.stopPropagation();
+            var $card = $(this).closest('.ess-col-card, .ess-action-card');
+            $card.toggleClass('ess-col-card-collapsed ess-action-card-collapsed');
+            var isCollapsed = $card.hasClass('ess-col-card-collapsed') || $card.hasClass('ess-action-card-collapsed');
+            $(this).text(isCollapsed ? '▶' : '▼');
+        });
     },
 
     // ====== REFRESH GRID ======

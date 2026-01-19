@@ -431,8 +431,8 @@ var builder = {
                 return;
             }
 
-            // Nếu click trong panel thuộc tính hoặc toolbar thì giữ selection
-            if ($t.closest("#propPanel, .canvas-toolbar").length) {
+            // Nếu click trong panel thuộc tính, toolbar, hoặc splitter thì giữ selection
+            if ($t.closest("#propPanel, .canvas-toolbar, #propSplitter, .prop-splitter").length) {
                 return;
             }
 

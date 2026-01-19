@@ -63,33 +63,169 @@ body {
 /* ========== MAIN LAYOUT ========== */
 /* 3 cột: Toolbox – Center – Properties */
 .builder-wrapper {
-    display: grid;
-    grid-template-columns: 220px minmax(0, 1fr) 320px;
+    display: flex;
     gap: 0;
     /* trừ header (~50px) + footer (~50px) */
     height: calc(100vh - 100px);
 }
 
+/* Toolbox - fixed width với toggle */
+.builder-wrapper > .toolbox {
+    width: 220px;
+    flex-shrink: 0;
+    position: relative;
+    transition: width 0.3s;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100%;
+}
+.builder-wrapper.toolbox-collapsed > .toolbox {
+    width: 26px;
+    overflow: hidden;
+}
+.builder-wrapper.toolbox-collapsed > .toolbox > *:not(.toolbox-toggle) {
+    display: none;
+}
+
+/* Toolbox toggle button - Sticky để scroll theo */
+.toolbox-toggle {
+    position: absolute; /* Đổi sang absolute để không chiếm không gian trong flow */
+    top: calc(50vh - 40px); /* Giữ ở giữa viewport */
+    right: -13px;
+    width: 26px;
+    height: 80px;
+    background: linear-gradient(180deg, #f8f8f8 0%, #f0f0f0 100%);
+    border: 1px solid #ddd;
+    border-left: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: 0 6px 6px 0;
+    transition: all 0.2s;
+    box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+    /* Bỏ float và margin để không tạo khoảng trống */
+}
+.toolbox-toggle:hover {
+    background: linear-gradient(180deg, #0078d4 0%, #005a9e 100%);
+    border-color: #0078d4;
+    box-shadow: 2px 0 6px rgba(0,120,212,0.3);
+}
+.toolbox-toggle:hover::before {
+    color: #fff;
+}
+.toolbox-toggle::before {
+    content: '◀';
+    font-size: 14px;
+    color: #666;
+    transition: all 0.2s;
+    font-weight: bold;
+}
+.builder-wrapper.toolbox-collapsed .toolbox-toggle {
+    right: 0;
+    border-radius: 0;
+    border-left: 1px solid #ddd;
+}
+.builder-wrapper.toolbox-collapsed .toolbox-toggle::before {
+    content: '▶';
+    color: #0078d4;
+}
+.builder-wrapper.toolbox-collapsed .toolbox-toggle:hover::before {
+    color: #fff;
+}
+
+/* Center pane - flexible */
+.builder-wrapper > .center-pane {
+    flex: 1 1 auto;
+    min-width: 0;
+    position: relative;
+}
+
+/* Properties panel - resizable width */
+.builder-wrapper > .prop-shell {
+    width: 320px;
+    flex-shrink: 0;
+    position: relative;
+}
+
 /* Khi gập Properties: cột phải còn ~26px (thanh dọc) */
-.builder-wrapper.props-collapsed {
-    grid-template-columns: 220px minmax(0, 1fr) 26px;
+.builder-wrapper.props-collapsed > .prop-shell {
+    width: 26px;
+}
+.builder-wrapper.props-collapsed > .prop-shell > .prop-main {
+    display: none;
+}
+.builder-wrapper.props-collapsed > .prop-splitter {
+    display: none;
+}
+.builder-wrapper.resizing-props {
+    user-select: none;
+}
+.builder-wrapper.resizing-props * {
+    cursor: col-resize !important;
+}
+
+/* Splitter giữa center và properties */
+.prop-splitter {
+    width: 4px;
+    background: #ddd;
+    cursor: col-resize;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 100;
+    transition: background 0.2s;
+    user-select: none;
+}
+.prop-splitter:hover {
+    background: #0078d4;
+}
+.prop-splitter::before {
+    content: '';
+    position: absolute;
+    left: -2px;
+    top: 0;
+    bottom: 0;
+    width: 8px;
+    background: transparent;
+    cursor: col-resize;
+}
+.prop-splitter.resizing {
+    background: #0078d4;
+}
+.prop-splitter.resizing::before {
+    background: rgba(0, 120, 212, 0.1);
 }
 
 /* Toolbox */
 .toolbox {
     border-right: 1px solid #ddd;
     padding: 10px;
+    padding-top: 10px; /* Đảm bảo padding-top nhất quán */
     background: #fafafa;
 
     /* NEW: scroll dọc */
     overflow-y: auto;
     height: 100%;
     box-sizing: border-box;
+    position: relative; /* Để toolbox-toggle có thể position absolute */
 }
 
 /* Group trong toolbox */
 .tool-group {
     margin-bottom: 8px;
+    margin-left: 0 !important; /* Đảm bảo tất cả groups không bị thụt vào */
+    padding-left: 0 !important;
+    clear: both; /* Clear float từ toolbox-toggle */
+    width: 100%; /* Đảm bảo chiếm full width */
+    box-sizing: border-box;
+}
+/* Đảm bảo group đầu tiên không bị ảnh hưởng bởi float */
+.tool-group:first-of-type {
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+    margin-top: 0 !important; /* Loại bỏ khoảng trống ở trên */
+    clear: both;
 }
 
 /* Header của group (Controls, Core controls, ESS controls...) */
@@ -99,12 +235,13 @@ body {
     justify-content: space-between;
     font-size: 13px;
     font-weight: 600;
-    padding: 4px 2px;
+    padding: 4px 2px 4px 5px !important; /* Đảm bảo padding-left nhất quán cho tất cả groups */
     cursor: pointer;
     user-select: none;
     background: linear-gradient(34deg, rgba(10, 117, 186, 1) 0%, rgba(18, 140, 223, 1) 100%);
     color: white;
-    padding-left: 5px;
+    margin-left: 0 !important; /* Đảm bảo không có margin trái */
+    position: relative; /* Đảm bảo không bị ảnh hưởng bởi float */
 }
 
 /* Nút chevron bên phải */
@@ -284,49 +421,794 @@ body {
     text-orientation: mixed;
     border-left: 1px solid #ddd;
     border-right: 1px solid #ddd;
-    background: #f0f0f0;
+    background: linear-gradient(180deg, #f8f8f8 0%, #f0f0f0 100%);
     cursor: pointer;
     font-size: 12px;
     user-select: none;
+    transition: all 0.2s;
+    position: relative;
 }
-.prop-toggle:hover { background: #e0e0e0; }
+.prop-toggle:hover { 
+    background: linear-gradient(180deg, #0078d4 0%, #005a9e 100%);
+    color: #fff;
+}
+.prop-toggle .pt-text {
+    transition: color 0.2s;
+}
+.prop-toggle:hover .pt-text {
+    color: #fff;
+}
 
 .prop-main {
     flex: 1 1 auto;
     display: flex;
     flex-direction: column;
-    padding: 10px;
+    padding: 0;
     overflow: hidden;
     background: #fcfcfc;
+    min-height: 0; /* Cho phép flex child shrink */
 }
 .prop-tabs {
     display: flex;
     gap: 4px;
-    margin-bottom: 6px;
+    margin: 10px 10px 6px 10px;
+    flex-shrink: 0;
 }
 .prop-tab {
     flex: 1 1 0;
-    padding: 4px 6px;
+    padding: 6px 8px;
     font-size: 12px;
     border: 1px solid #ccc;
     background: #f5f5f5;
     cursor: pointer;
     border-radius: 4px;
+    transition: all 0.2s;
+}
+.prop-tab:hover {
+    background: #e8e8e8;
 }
 .prop-tab-active {
     background: #ffffff;
     border-bottom-color: #ffffff;
     font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
 .prop-tab-body {
     flex: 1 1 auto;
-    overflow: auto;
+    overflow-y: auto;
+    overflow-x: hidden; /* Chỉ scroll dọc, scroll ngang ở wrapper level */
     border: 1px solid #ccc;
     border-radius: 4px;
-    padding: 6px 8px;
+    margin: 0 10px 10px 10px;
+    padding: 10px;
     background: #fcfcfc;
+    min-height: 0; /* Quan trọng: cho phép scroll */
+    max-height: calc(100vh - 200px);
+    min-width: 0;
+    width: calc(100% - 20px);
+    box-sizing: border-box;
+    color: #000; /* Text màu đen */
+    position: relative; /* Cho loading overlay */
 }
 .prop-tab-body:not(.prop-body-active) { display: none; }
+.prop-tab-body label,
+.prop-tab-body span,
+.prop-tab-body input,
+.prop-tab-body select,
+.prop-tab-body textarea {
+    color: #000;
+}
+
+/* Scrollbar styling cho Properties panel */
+.prop-tab-body::-webkit-scrollbar {
+    width: 8px;
+}
+.prop-tab-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+.prop-tab-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+.prop-tab-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Collapsible sections cho Properties panel */
+.prop-section {
+    margin-bottom: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #ffffff;
+    overflow: hidden;
+}
+.prop-section-header {
+    padding: 8px 10px;
+    background: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-weight: 600;
+    font-size: 13px;
+    color: #333;
+    transition: background 0.2s;
+}
+.prop-section-header:hover {
+    background: #ebebeb;
+}
+.prop-section-header .prop-section-toggle {
+    font-size: 10px;
+    color: #666;
+    transition: transform 0.2s;
+}
+.prop-section.collapsed .prop-section-toggle {
+    transform: rotate(-90deg);
+}
+.prop-section-content {
+    padding: 10px;
+    display: block;
+}
+.prop-section.collapsed .prop-section-content {
+    display: none;
+}
+.prop-section label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 12px;
+    color: #000;
+    font-weight: normal;
+}
+.prop-section input[type="text"],
+.prop-section input[type="number"],
+.prop-section select,
+.prop-section textarea {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 12px;
+    box-sizing: border-box;
+    margin-bottom: 8px;
+}
+.prop-section .mt-1 {
+    margin-top: 8px;
+}
+.prop-section .mt-1 label {
+    display: inline;
+    margin-right: 12px;
+    font-weight: normal;
+}
+/* General tab styling */
+.ess-prop-tab-content[data-tab-content="general"] {
+    padding: 12px;
+}
+.ess-prop-tab-content[data-tab-content="general"] .mt-1 {
+    margin-top: 12px; /* Tăng spacing giữa các dòng */
+    margin-bottom: 4px;
+    padding: 8px;
+    background: #fafafa;
+    border-radius: 4px;
+    border: 1px solid #f0f0f0;
+    transition: all 0.2s;
+}
+.ess-prop-tab-content[data-tab-content="general"] .mt-1:hover {
+    background: #f5f5f5;
+    border-color: #e0e0e0;
+}
+.ess-prop-tab-content[data-tab-content="general"] label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #333;
+    font-weight: normal;
+    cursor: pointer;
+}
+.ess-prop-tab-content[data-tab-content="general"] input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    margin: 0;
+}
+.ess-prop-tab-content[data-tab-content="general"] input[type="text"],
+.ess-prop-tab-content[data-tab-content="general"] input[type="number"] {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-top: 4px;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+.ess-prop-tab-content[data-tab-content="general"] input[type="text"]:focus,
+.ess-prop-tab-content[data-tab-content="general"] input[type="number"]:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 2px rgba(0,120,212,0.1);
+}
+.ess-prop-tab-content[data-tab-content="general"] h4 {
+    margin: 16px 0 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #0078d4;
+    padding-bottom: 6px;
+    border-bottom: 2px solid #e0e0e0;
+}
+.ess-prop-tab-content[data-tab-content="general"] hr {
+    margin: 16px 0;
+    border: none;
+    border-top: 2px solid #e0e0e0;
+}
+/* Styling cho bảng trong Properties panel */
+.prop-section table {
+    width: 100%;
+    font-size: 12px;
+    margin-top: 8px;
+    border-collapse: collapse;
+    table-layout: auto;
+}
+.prop-section table th,
+.prop-section table td {
+    padding: 6px 4px;
+    border: 1px solid #ddd;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.prop-section table th {
+    background: #f0f4f8;
+    font-weight: 600;
+    color: #333;
+    font-size: 11px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+.prop-section table tbody tr:hover {
+    background: #f8f9fa;
+}
+.prop-section table input[type="text"],
+.prop-section table input[type="number"],
+.prop-section table select {
+    width: 100%;
+    min-width: 60px;
+    padding: 4px 6px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-size: 11px;
+    box-sizing: border-box;
+    background-color: #fff;
+}
+.prop-section table input[type="text"]:focus,
+.prop-section table input[type="number"]:focus,
+.prop-section table select:focus {
+    outline: 2px solid #0078d4;
+    outline-offset: -1px;
+    border-color: #0078d4;
+}
+.prop-section table select {
+    cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23333' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    padding-right: 24px;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+/* Type dropdown với icon và màu sắc */
+.prop-section table select[data-col-prop="type"] {
+    font-weight: 500;
+}
+.prop-section table select[data-col-prop="type"] option[value="text"] {
+    background: #e3f2fd;
+}
+.prop-section table select[data-col-prop="type"] option[value="textarea"] {
+    background: #fff3e0;
+}
+.prop-section table select[data-col-prop="type"] option[value="number"] {
+    background: #f3e5f5;
+}
+.prop-section table select[data-col-prop="type"] option[value="date"] {
+    background: #e8f5e9;
+}
+.prop-section table select[data-col-prop="type"] option[value="combo"] {
+    background: #fff9c4;
+}
+.prop-section table select[data-col-prop="type"] option[value="tag"] {
+    background: #fce4ec;
+}
+.prop-section table select[data-col-prop="type"] option[value="progress"] {
+    background: #e0f2f1;
+}
+
+/* Icon buttons cho edit/delete */
+.prop-section table .btn-link {
+    padding: 2px 6px;
+    font-size: 14px;
+    line-height: 1;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    text-decoration: none;
+    border-radius: 3px;
+    transition: all 0.2s;
+}
+.prop-section table .btn-link:hover {
+    background: #f0f0f0;
+    transform: scale(1.1);
+}
+.prop-section table .btn-link.text-danger {
+    color: #dc3545 !important;
+}
+.prop-section table .btn-link.text-danger:hover {
+    background: #fee;
+    color: #c82333 !important;
+}
+
+/* ESS Grid specific table styling */
+.ess-grid-actions-table,
+.ess-grid-cols-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.ess-grid-actions-table {
+    min-width: 510px;
+}
+.ess-grid-cols-table {
+    min-width: 750px;
+}
+
+/* Wrapper cho table scroll */
+.prop-section-content > div[style*="overflow-x"] {
+    border: 1px solid #e0e0e0;
+    border-radius: 3px;
+    background: #fafafa;
+    padding: 2px;
+}
+
+/* ========== ESS Grid Properties - Tabbed Interface ========== */
+/* Loading overlay khi change type */
+.ess-props-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+}
+.ess-props-loading-spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #f3f3f3;
+    border-top: 3px solid #0078d4;
+    border-radius: 50%;
+    animation: ess-props-spin 0.6s linear infinite;
+}
+@keyframes ess-props-spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.ess-grid-props-header {
+    margin-bottom: 12px;
+    border-bottom: 2px solid #e0e0e0;
+    padding-bottom: 8px;
+}
+.ess-grid-props-tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+}
+.ess-prop-tab {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    background: #f5f5f5;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    font-size: 11px;
+    text-align: center;
+    transition: all 0.2s;
+    border-bottom: none;
+}
+.ess-prop-tab:hover {
+    background: #ebebeb;
+}
+.ess-prop-tab-active {
+    background: #fff;
+    border-color: #0078d4;
+    border-bottom-color: #fff;
+    color: #0078d4;
+    font-weight: 600;
+    position: relative;
+    margin-bottom: -2px;
+}
+.ess-prop-tab-content {
+    display: none;
+    width: 100%;
+    overflow-x: hidden; /* Không scroll ngang ở level này */
+    overflow-y: visible; /* Để các list con tự scroll */
+    min-width: 0;
+    color: #000; /* Text màu đen cho General tab */
+    position: relative; /* Cho loading overlay */
+}
+.ess-prop-tab-content.ess-prop-tab-active {
+    display: block;
+}
+/* Bỏ font-weight bold cho General tab */
+.ess-prop-tab-content[data-tab-content="general"] label,
+.ess-prop-tab-content[data-tab-content="general"] span:not(.ess-col-number):not(.ess-action-number) {
+    font-weight: normal !important;
+}
+.ess-prop-tab-content label,
+.ess-prop-tab-content span,
+.ess-prop-tab-content input[type="text"],
+.ess-prop-tab-content input[type="number"],
+.ess-prop-tab-content textarea,
+.ess-prop-tab-content select {
+    color: #000;
+}
+/* Option text trong select phải màu đen, không phải xanh */
+.ess-prop-tab-content select option,
+.ess-col-input option,
+.ess-action-input option {
+    color: #000 !important;
+    background: #fff;
+}
+.ess-prop-tab-content .mt-1 {
+    color: #000;
+}
+.ess-prop-tab-content .mt-1 label {
+    color: #000;
+}
+
+/* ========== Columns Card View ========== */
+/* Wrapper cho scroll ngang */
+.ess-columns-list-wrapper,
+.ess-actions-list-wrapper {
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    width: 100%;
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    min-width: 0; /* Cho phép shrink */
+    max-width: 100%;
+}
+.ess-columns-list-wrapper::-webkit-scrollbar,
+.ess-actions-list-wrapper::-webkit-scrollbar {
+    height: 6px;
+}
+.ess-columns-list-wrapper::-webkit-scrollbar-track,
+.ess-actions-list-wrapper::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+.ess-columns-list-wrapper::-webkit-scrollbar-thumb,
+.ess-actions-list-wrapper::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+.ess-columns-list-wrapper::-webkit-scrollbar-thumb:hover,
+.ess-actions-list-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+.ess-columns-list,
+.ess-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: calc(100vh - 350px);
+    overflow-y: auto;
+    overflow-x: visible; /* Cho phép wrapper scroll ngang */
+    padding-right: 4px;
+    min-width: fit-content; /* Cho phép list rộng hơn wrapper */
+    width: auto; /* Tự điều chỉnh theo content */
+    box-sizing: border-box;
+}
+.ess-columns-list::-webkit-scrollbar,
+.ess-actions-list::-webkit-scrollbar {
+    width: 8px;
+}
+.ess-columns-list::-webkit-scrollbar-track,
+.ess-actions-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+.ess-columns-list::-webkit-scrollbar-thumb,
+.ess-actions-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+.ess-columns-list::-webkit-scrollbar-thumb:hover,
+.ess-actions-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+.ess-col-card,
+.ess-action-card {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    padding: 12px;
+    transition: all 0.2s;
+    min-width: 420px; /* Giảm min-width xuống để card nhỏ gọn hơn */
+    flex-shrink: 0;
+    width: auto; /* Cho phép card tự điều chỉnh width */
+    max-width: none;
+    box-sizing: border-box;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+.ess-col-card:hover,
+.ess-action-card:hover {
+    border-color: #0078d4;
+    box-shadow: 0 4px 8px rgba(0,120,212,0.15);
+    transform: translateY(-1px);
+}
+.ess-col-card-header,
+.ess-action-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f0f0;
+    background: linear-gradient(to bottom, #fafbfc, transparent);
+    padding: 8px 10px;
+    margin: -12px -12px 12px -12px;
+    border-radius: 8px 8px 0 0;
+}
+.ess-col-number,
+.ess-action-number {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #0078d4;
+    color: #ffffff !important; /* Đảm bảo text màu trắng */
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+.ess-col-caption,
+.ess-action-caption {
+    flex: 1;
+    min-width: 0; /* Cho phép shrink */
+    max-width: 200px; /* Tăng để có thể hiển thị đủ text */
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    background: #fff;
+    transition: all 0.2s;
+    color: #333;
+}
+.ess-col-caption:focus,
+.ess-action-caption:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 2px rgba(0,120,212,0.1);
+}
+.ess-col-caption:hover,
+.ess-action-caption:hover {
+    border-color: #bbb;
+}
+.ess-col-expand,
+.ess-action-expand {
+    padding: 2px 6px;
+    border: 1px solid #ddd;
+    background: #f5f5f5;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 10px;
+    color: #666;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+.ess-col-expand:hover,
+.ess-action-expand:hover {
+    background: #e0e0e0;
+    border-color: #0078d4;
+}
+.ess-col-card-collapsed .ess-col-card-body,
+.ess-action-card-collapsed .ess-action-card-body {
+    display: none;
+}
+.ess-col-delete,
+.ess-action-delete {
+    padding: 4px 8px;
+    border: none;
+    background: transparent;
+    color: #dc3545;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+.ess-col-delete:hover,
+.ess-action-delete:hover {
+    background: #fee;
+}
+.ess-col-card-body,
+.ess-action-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; /* Tăng từ 8px lên 12px để có khoảng cách rõ ràng hơn */
+    padding-left: 0; /* Canh đều với header */
+    margin-left: 0;
+}
+.ess-col-row,
+.ess-action-row {
+    display: flex;
+    gap: 12px; /* Tăng từ 8px lên 12px để có khoảng cách rõ ràng hơn */
+}
+.ess-col-field,
+.ess-action-field {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    min-width: 0; /* Cho phép shrink */
+}
+.ess-col-field label,
+.ess-action-field label {
+    flex-shrink: 0;
+    white-space: nowrap;
+    min-width: fit-content;
+    margin-bottom: 0;
+}
+.ess-col-field .ess-col-input,
+.ess-col-field select,
+.ess-action-field .ess-action-input,
+.ess-action-field select {
+    flex: 1;
+    min-width: 0;
+}
+/* Field Type và Align - tăng width một chút */
+.ess-col-field-type,
+.ess-col-field-align {
+    flex: 0 0 150px; /* Tăng từ 130px lên 150px */
+    max-width: 150px;
+}
+/* Field Width - tăng width để có thể nhập được */
+.ess-col-field-width {
+    flex: 0 0 130px; /* Tăng từ 90px lên 130px */
+    max-width: 130px;
+    min-width: 130px; /* Đảm bảo không bị shrink */
+}
+/* Field full width (Sample Text, Tag Text, etc.) - giới hạn width */
+.ess-col-field-full {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 280px; /* Giới hạn width để không quá rộng */
+}
+/* Row chứa Sample Text - canh đều với header (column name và button xóa) */
+.ess-col-row-sample {
+    margin-left: 0; /* Canh đều với header */
+    padding-left: 0;
+}
+/* Action fields - tương tự column fields */
+.ess-action-field-key {
+    flex: 0 0 180px; /* Tăng từ 140px lên 180px */
+    max-width: 180px;
+    min-width: 180px;
+}
+.ess-action-field-width {
+    flex: 0 0 150px; /* Tăng từ 130px lên 150px */
+    max-width: 150px;
+    min-width: 150px;
+}
+.ess-action-field-icon {
+    flex: 0 0 150px;
+    max-width: 150px;
+    min-width: 150px;
+}
+.ess-col-field label,
+.ess-action-field label {
+    font-size: 11px;
+    color: #333;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.ess-col-field label strong,
+.ess-action-field label strong {
+    color: #0078d4;
+    font-weight: 600;
+}
+.ess-col-input,
+.ess-action-input {
+    padding: 6px 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+    width: 100%;
+    box-sizing: border-box;
+    min-width: 0; /* Cho phép shrink */
+    background: #fff;
+    transition: all 0.2s;
+    color: #333;
+}
+.ess-col-input:focus,
+.ess-action-input:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 0 2px rgba(0,120,212,0.1);
+}
+.ess-col-input:hover,
+.ess-action-input:hover {
+    border-color: #bbb;
+}
+.ess-col-checkboxes {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding-top: 4px;
+}
+.ess-col-checkboxes label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 11px;
+}
+.ess-search-input {
+    padding: 6px 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 12px;
+}
+.ess-btn-primary {
+    padding: 8px 12px;
+    background: #0078d4;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.ess-btn-primary:hover {
+    background: #005a9e;
+}
+.ess-col-header {
+    margin-bottom: 12px;
+}
+.prop-section hr {
+    margin: 12px 0;
+    border: none;
+    border-top: 1px solid #e0e0e0;
+}
+.prop-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: #333;
+}
 
 /* ========== POPUP DESIGN ========== */
 .popup-design{
@@ -588,13 +1470,61 @@ body {
     pointer-events: none;
 }
 
-.page-field-resizer {
+/* Resize handles - cải thiện để tránh conflict với drag */
+.page-field-resizer,
+.popup-field-resizer {
     position: absolute;
-    width: 10px;
-    height: 10px;
-    right: 2px;
-    bottom: 2px;
+    width: 12px;
+    height: 12px;
+    right: -1px;
+    bottom: -1px;
     cursor: se-resize;
+    background: #0078d4;
+    border: 1px solid #ffffff;
+    border-radius: 2px 0 0 0;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+.page-field-selected .page-field-resizer,
+.popup-field-selected .popup-field-resizer,
+.canvas-control-selected .page-field-resizer {
+    opacity: 1;
+}
+.page-field-resizer:hover,
+.popup-field-resizer:hover {
+    background: #005a9e;
+    opacity: 1 !important;
+}
+
+/* Resize handles cho các cạnh */
+.page-field-resize-handle-right,
+.popup-field-resize-handle-right {
+    position: absolute;
+    width: 6px;
+    top: 0;
+    right: -3px;
+    bottom: 0;
+    cursor: ew-resize;
+    z-index: 999;
+}
+.page-field-resize-handle-bottom,
+.popup-field-resize-handle-bottom {
+    position: absolute;
+    height: 6px;
+    left: 0;
+    right: 0;
+    bottom: -3px;
+    cursor: ns-resize;
+    z-index: 999;
+}
+.page-field-selected .page-field-resize-handle-right,
+.page-field-selected .page-field-resize-handle-bottom,
+.popup-field-selected .popup-field-resize-handle-right,
+.popup-field-selected .popup-field-resize-handle-bottom,
+.canvas-control-selected .page-field-resize-handle-right,
+.canvas-control-selected .page-field-resize-handle-bottom {
+    background: rgba(0, 120, 212, 0.1);
 }
 
 /* Field đang được kéo */
@@ -880,19 +1810,69 @@ body.ub-pan-active {
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 6px 16px;
-    background: #f5f5f5;
-    border-top: 1px solid #ddd;
+    padding: 10px 24px;
+    background: linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%);
+    border-top: 2px solid #e0e0e0;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
     z-index: 4000;
     display: flex;
     align-items: center;
-    gap: 6px;
+    justify-content: space-between;
+    gap: 16px;
 }
-.footer-buttons button { margin-right: 4px; }
 .footer-buttons .fb-info {
-    font-size: 12px;
-    color: #555;
-    margin-right: auto;
+    font-size: 13px;
+    color: #666;
+    font-weight: 500;
+    padding: 6px 12px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    border: 1px solid #e0e0e0;
+}
+.footer-buttons .fb-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.footer-buttons button {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid #d0d0d0;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    margin: 0;
+}
+.footer-buttons button:hover {
+    background: #f8f8f8;
+    border-color: #0078d4;
+    color: #0078d4;
+    box-shadow: 0 2px 4px rgba(0,120,212,0.15);
+    transform: translateY(-1px);
+}
+.footer-buttons button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+/* Primary action button (Save to DB) */
+.footer-buttons button.fb-primary {
+    background: linear-gradient(180deg, #0078d4 0%, #005a9e 100%);
+    color: #ffffff;
+    border-color: #005a9e;
+    font-weight: 600;
+}
+.footer-buttons button.fb-primary:hover {
+    background: linear-gradient(180deg, #005a9e 0%, #004578 100%);
+    border-color: #004578;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(0,120,212,0.3);
 }
 
 
@@ -957,6 +1937,7 @@ body.ub-pan-active {
 
             <!-- Toolbox -->
             <aside class="toolbox">
+                <div class="toolbox-toggle" id="toolboxToggle"></div>
                 <!-- GROUP: Controls -->
                 <div class="tool-group" data-group="controls">
                     <div class="tool-group-header">
@@ -1076,6 +2057,9 @@ body.ub-pan-active {
                 </section>
             </main>
 
+        <!-- Splitter để resize Properties panel -->
+        <div class="prop-splitter" id="propSplitter"></div>
+
         <aside class="prop-shell">
             <div class="prop-toggle" id="propToggle">
                 <span class="pt-text">Properties</span>
@@ -1158,12 +2142,23 @@ body.ub-pan-active {
         <!-- Footer buttons -->
         <div class="footer-buttons">
             <span class="fb-info" id="lblFooterInfo"></span>
-
-            <button type="button" onclick="builder.saveConfig()">💾 Lưu cấu hình JSON</button>
-            <button type="button" onclick="builder.showPreview()">👁 Xem preview</button>
-            <button type="button" onclick="builder.downloadJson()">⬇ Tải file JSON</button>
-            <button type="button" onclick="builder.exportWord()">📄 Xuất Word (HTML)</button>
-            <button type="button" onclick="builder.savePageToServer()">💾 Lưu design vào DB</button>
+            <div class="fb-actions">
+                <button type="button" onclick="builder.saveConfig()" title="Lưu cấu hình JSON">
+                    <i class="bi bi-save"></i> Lưu JSON
+                </button>
+                <button type="button" onclick="builder.showPreview()" title="Xem preview">
+                    <i class="bi bi-eye"></i> Preview
+                </button>
+                <button type="button" onclick="builder.downloadJson()" title="Tải file JSON">
+                    <i class="bi bi-download"></i> Tải JSON
+                </button>
+                <button type="button" onclick="builder.exportWord()" title="Xuất Word (HTML)">
+                    <i class="bi bi-file-earmark-word"></i> Xuất Word
+                </button>
+                <button type="button" onclick="builder.savePageToServer()" class="fb-primary" title="Lưu design vào DB">
+                    <i class="bi bi-cloud-upload"></i> Lưu vào DB
+                </button>
+            </div>
         </div>
 
         <asp:HiddenField runat="server" ID="hiddenInitialJson" ClientIDMode="Static" />
@@ -1181,11 +2176,115 @@ body.ub-pan-active {
     function initPanelToggles() {
         var $wrapper = $(".builder-wrapper");
         var $center = $(".center-pane");
+        var $propShell = $(".prop-shell");
+        var $splitter = $("#propSplitter");
 
-        // Toggle PROPERTIES
-        $("#propToggle").on("click", function () {
-            $wrapper.toggleClass("props-collapsed");
+        // Load saved width từ localStorage
+        var savedWidth = localStorage.getItem('propPanelWidth');
+        if (savedWidth) {
+            $propShell.css('width', savedWidth + 'px');
+        }
+
+        // Toggle TOOLBOX (Controls panel bên trái)
+        $("#toolboxToggle").on("click", function () {
+            $wrapper.toggleClass("toolbox-collapsed");
         });
+
+        // Toggle PROPERTIES - Click vào text "Properties" để toggle panel
+        $("#propToggle").on("click", function (e) {
+            // Chỉ toggle khi click vào text "Properties", không toggle khi click vào tab hoặc ESS Grid tabs
+            var $target = $(e.target);
+            // Nếu click vào tab thì không toggle
+            if ($target.closest('.prop-tabs').length > 0 || 
+                $target.closest('.prop-tab').length > 0 ||
+                $target.closest('.ess-grid-props-tabs').length > 0 ||
+                $target.closest('.ess-prop-tab').length > 0) {
+                return;
+            }
+            // Chỉ toggle khi click vào text "Properties"
+            if ($target.hasClass('pt-text') || $target.closest('.pt-text').length > 0 || $target.is('#propToggle')) {
+                var isCollapsed = $wrapper.hasClass("props-collapsed");
+                $wrapper.toggleClass("props-collapsed");
+                
+                if ($wrapper.hasClass("props-collapsed")) {
+                    // Đang collapse - lưu width hiện tại trước khi collapse và force về 26px
+                    var currentWidth = $propShell.width();
+                    if (currentWidth > 26) {
+                        localStorage.setItem('propPanelWidth', currentWidth);
+                    }
+                    // Force reset width về 26px để collapse hoàn toàn
+                    $propShell.css('width', '26px');
+                } else {
+                    // Đang expand - restore width từ localStorage nếu có
+                    var savedWidth = localStorage.getItem('propPanelWidth');
+                    if (savedWidth && parseInt(savedWidth) > 26) {
+                        $propShell.css('width', savedWidth + 'px');
+                    } else {
+                        // Nếu không có saved width, dùng default
+                        $propShell.css('width', '320px');
+                    }
+                }
+            }
+        });
+
+        // Resize Properties panel với splitter
+        if (typeof interact !== 'undefined' && $splitter.length) {
+            var isResizing = false;
+            var startWidth = 0;
+            var startX = 0;
+
+            // Ngăn click event từ splitter bubble lên canvas
+            $splitter.on("mousedown", function(e) {
+                e.stopPropagation();
+            });
+            
+            interact($splitter[0])
+                .draggable({
+                    listeners: {
+                        start: function (event) {
+                            isResizing = true;
+                            startWidth = $propShell.width();
+                            startX = event.clientX;
+                            $splitter.addClass('resizing');
+                            $wrapper.addClass('resizing-props');
+                            event.preventDefault();
+                            event.stopPropagation();
+                            // Ngăn clear selection khi click vào splitter
+                            if (window.builder && typeof builder.clearSelection === "function") {
+                                // Không clear selection khi resize
+                            }
+                        },
+                        move: function (event) {
+                            if (!isResizing) return;
+                            
+                            var deltaX = event.clientX - startX;
+                            var newWidth = startWidth - deltaX; // Kéo sang trái = giảm width
+                            
+                            // Giới hạn min/max width
+                            var minWidth = 200;
+                            var maxWidth = Math.min(window.innerWidth * 0.6, 800);
+                            
+                            if (newWidth < minWidth) newWidth = minWidth;
+                            if (newWidth > maxWidth) newWidth = maxWidth;
+                            
+                            $propShell.css('width', newWidth + 'px');
+                            event.stopPropagation();
+                        },
+                        end: function (event) {
+                            isResizing = false;
+                            $splitter.removeClass('resizing');
+                            $wrapper.removeClass('resizing-props');
+                            
+                            // Lưu width vào localStorage
+                            var width = $propShell.width();
+                            if (width > 26 && !$wrapper.hasClass("props-collapsed")) {
+                                localStorage.setItem('propPanelWidth', width);
+                            }
+                            event.stopPropagation();
+                        }
+                    }
+                });
+        }
 
         // Toggle JSON
         $("#jsonToggle").on("click", function () {
@@ -1198,7 +2297,27 @@ body.ub-pan-active {
                 $icon.text("▼");    // đang mở
             }
         });
-        }
+
+        // Initialize collapsible sections cho Properties panel
+        $(document).on("click", "[data-toggle-section]", function() {
+            var $section = $(this).closest(".prop-section");
+            $section.toggleClass("collapsed");
+        });
+        
+        // Tab switching - không toggle panel khi click vào tab
+        $(".prop-tabs").on("click", ".prop-tab", function (e) {
+            e.stopPropagation(); // Ngăn event bubble lên prop-toggle
+            var tab = $(this).data("tab");
+            $(".prop-tab").removeClass("prop-tab-active");
+            $(".prop-tab-body").removeClass("prop-body-active");
+            $(this).addClass("prop-tab-active");
+            if (tab === "props") {
+                $("#propPanel").addClass("prop-body-active");
+            } else {
+                $("#outlinePanel").addClass("prop-body-active");
+            }
+        });
+    }
 
         function initBorderToggle() {
             var $body = $("body");
@@ -1218,20 +2337,7 @@ body.ub-pan-active {
         }
 
 
-        // Tabs: Properties / Layers
-        $(".prop-tabs").on("click", ".prop-tab", function () {
-            var tab = $(this).data("tab");
-
-            $(".prop-tab").removeClass("prop-tab-active");
-            $(this).addClass("prop-tab-active");
-
-            $(".prop-tab-body").removeClass("prop-body-active");
-            if (tab === "props") {
-                $("#propPanel").addClass("prop-body-active");
-            } else {
-                $("#outlinePanel").addClass("prop-body-active");
-            }
-        });
+        // Tabs: Properties / Layers - đã được handle ở trên, xóa duplicate
     </script>
 
 </body>

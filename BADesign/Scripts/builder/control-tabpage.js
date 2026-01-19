@@ -176,13 +176,19 @@
         $(".canvas-control").removeClass("canvas-control-selected");
         getDom(cfg).addClass("canvas-control-selected");
 
-        var htmlTabs = (cfg.tabs || []).map(function (t, idx) {
-            return `
-<div>
-  Caption: <input type="text" class="tpCaption" data-idx="${idx}" value="${t.caption || ""}" />
-  <button type="button" class="btnTpRemove" data-idx="${idx}">x</button>
-</div>`;
-        }).join("");
+        var htmlTabs = [];
+        (cfg.tabs || []).forEach(function (t, idx) {
+            htmlTabs.push('<div class="ess-action-card" style="margin-bottom:8px; padding:8px;" data-tab-index="' + idx + '">');
+            htmlTabs.push('<div style="display:flex; align-items:center; gap:8px;">');
+            htmlTabs.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
+            htmlTabs.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
+            htmlTabs.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">📑 Tab:</span>');
+            htmlTabs.push('<input type="text" class="ess-action-caption tpCaption" data-idx="' + idx + '" value="' + (t.caption || "") + '" placeholder="Tab caption" style="flex:1;"/>');
+            htmlTabs.push('</div>');
+            htmlTabs.push('<button type="button" class="ess-action-delete btnTpRemove" data-idx="' + idx + '" title="Delete">🗑</button>');
+            htmlTabs.push('</div>');
+            htmlTabs.push('</div>');
+        });
 
         var activeOptions = (cfg.tabs || []).map(function (t, idx) {
             var text = (idx + 1) + " - " + (t.caption || ("Tab " + (idx + 1)));
@@ -190,40 +196,89 @@
             return `<option value="${idx}" ${sel}>${text}</option>`;
         }).join("");
 
-        var html = `
-<h3>Tab page</h3>
-<div class="prop-section">
-  <div><b>ID:</b> ${cfg.id}</div>
-</div>
-<div class="prop-section">
-  Width: <input id="tpWidth" type="number" class="prop-input-small" value="${cfg.width}" />
-  Height: <input id="tpHeight" type="number" class="prop-input-small" value="${cfg.height}" />
-</div>
-<div class="prop-section">
-  ${htmlTabs}
-  <button type="button" id="btnTpAddTab">+ Add tab</button>
-</div>
-<div class="prop-section">
-  Active tab:
-  <select id="tpActiveTab">${activeOptions}</select>
-</div>
-<div class="prop-section">
-  <button type="button" onclick="builder.saveControlToServer('${cfg.id}')">💾 Lưu control này vào DB</button>
-</div>`;
+        var html = [];
+        html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
+        html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Tab Page</h3>');
+        
+        // Basic Info Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div style="display:grid; grid-template-columns: auto 1fr; gap:8px 12px; font-size:11px;">');
+        html.push('<span style="color:#666;">ID:</span><span style="color:#333; font-weight:500;">' + cfg.id + '</span>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Size Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Size</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div class="ess-col-row">');
+        html.push('<div class="ess-col-field ess-col-field-width">');
+        html.push('<label><span style="color:#0078d4;">📐</span><strong>Width:</strong></label>');
+        html.push('<input id="tpWidth" type="number" class="ess-col-input" value="' + cfg.width + '" />');
+        html.push('</div>');
+        html.push('<div class="ess-col-field ess-col-field-width">');
+        html.push('<label><span style="color:#0078d4;">📐</span><strong>Height:</strong></label>');
+        html.push('<input id="tpHeight" type="number" class="ess-col-input" value="' + cfg.height + '" />');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Tabs Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📑 Tabs (' + (cfg.tabs ? cfg.tabs.length : 0) + ')</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div id="tpTabsPanel">');
+        html.push(htmlTabs.join(''));
+        html.push('</div>');
+        html.push('<button type="button" id="btnTpAddTab" class="ess-btn-primary" style="width:100%; margin-top:8px;">＋ Add tab</button>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Active Tab Card
+        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+        html.push('<div class="ess-col-card-header">');
+        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">🎯 Active Tab</span>');
+        html.push('</div>');
+        html.push('<div class="ess-col-card-body">');
+        html.push('<div class="ess-col-row">');
+        html.push('<div class="ess-col-field ess-col-field-full">');
+        html.push('<label><span style="color:#0078d4;">🎯</span><strong>Select active tab:</strong></label>');
+        html.push('<select id="tpActiveTab" class="ess-col-input">' + activeOptions + '</select>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        html.push('</div>');
+        
+        // Save Button
+        html.push('<div class="ess-col-card">');
+        html.push('<button type="button" class="ess-btn-primary" style="width:100%;" onclick="builder.saveControlToServer(\'' + cfg.id + '\')">💾 Lưu control này vào DB</button>');
+        html.push('</div>');
+        
+        html.push('</div>'); // Close ess-prop-tab-content
 
-        $("#propPanel").html(html);
+        $("#propPanel").html(html.join(''));
 
         // Width / height
-        $("#tpWidth").on("change", function () {
-            var v = parseInt(this.value || "0", 10);
+        $("#tpWidth").off("change.tp").on("change.tp", function () {
+            var v = parseInt($(this).val() || "0", 10);
             if (!isNaN(v) && v > 0) {
                 cfg.width = v;
                 getDom(cfg).css("width", v);
                 builder.refreshJson();
             }
         });
-        $("#tpHeight").on("change", function () {
-            var v = parseInt(this.value || "0", 10);
+        $("#tpHeight").off("change.tp").on("change.tp", function () {
+            var v = parseInt($(this).val() || "0", 10);
             if (!isNaN(v) && v > 0) {
                 cfg.height = v;
                 getDom(cfg).css("height", v);
@@ -232,11 +287,11 @@
         });
 
         // Caption change
-        $(".tpCaption").on("input", function () {
-            var idx = parseInt($(this).data("idx"), 10);
+        $(".tpCaption").off("input.tp change.tp").on("input.tp change.tp", function () {
+            var idx = parseInt($(this).closest('.ess-action-card').data('tab-index'), 10);
             var t = cfg.tabs[idx];
             if (!t) return;
-            t.caption = this.value;
+            t.caption = $(this).val();
             renderTabsHeader(getDom(cfg), cfg);
 
             // Cập nhật lại dropdown Active tab
@@ -245,8 +300,8 @@
         });
 
         // Remove tab
-        $(".btnTpRemove").on("click", function () {
-            var idx = parseInt($(this).data("idx"), 10);
+        $(".btnTpRemove").off("click.tp").on("click.tp", function () {
+            var idx = parseInt($(this).closest('.ess-action-card').data('tab-index'), 10);
             if (!confirm("Remove tab " + (idx + 1) + " ?")) return;
             cfg.tabs.splice(idx, 1);
             if (cfg.activeTabIndex >= cfg.tabs.length) cfg.activeTabIndex = cfg.tabs.length - 1;
@@ -256,16 +311,17 @@
         });
 
         // Add tab
-        $("#btnTpAddTab").on("click", function () {
-            cfg.tabs.push({ caption: "New tab" });
+        $("#btnTpAddTab").off("click.tp").on("click.tp", function () {
+            cfg.tabs = cfg.tabs || [];
+            cfg.tabs.push({ caption: "Tab " + (cfg.tabs.length + 1) });
             renderTabsHeader(getDom(cfg), cfg);
             showProperties(cfg);
             builder.refreshJson();
         });
 
         // Active tab dropdown
-        $("#tpActiveTab").on("change", function () {
-            var idx = parseInt(this.value || "0", 10);
+        $("#tpActiveTab").off("change.tp").on("change.tp", function () {
+            var idx = parseInt($(this).val() || "0", 10);
             if (isNaN(idx)) idx = 0;
             cfg.activeTabIndex = idx;
             applyActiveTab(cfg);
