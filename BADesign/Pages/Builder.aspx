@@ -2041,7 +2041,7 @@ body.ub-pan-active {
 
 
             <!-- Khu vực giữa: Canvas + JSON -->
-            <main class="center-pane">
+            <main class="center-pane json-collapsed">
                 <!-- Canvas Editable -->
                 <section class="canvas-shell">
                     <div class="canvas-ruler-h"></div>
@@ -2279,17 +2279,22 @@ body.ub-pan-active {
                 });
         }
 
-        // Toggle JSON
+        // Toggle JSON - mặc định đóng (json-collapsed)
         $("#jsonToggle").on("click", function () {
             $center.toggleClass("json-collapsed");
 
             var $icon = $(this).find(".jt-icon");
             if ($center.hasClass("json-collapsed")) {
-                $icon.text("◀");    // đang gập
+                $icon.text("▼");    // đang gập (mũi tên xuống để mở)
             } else {
-                $icon.text("▼");    // đang mở
+                $icon.text("▲");    // đang mở (mũi tên lên để đóng)
             }
         });
+        
+        // ✅ Đảm bảo icon ban đầu đúng với trạng thái collapsed
+        if ($center.hasClass("json-collapsed")) {
+            $("#jsonToggle .jt-icon").text("▼");
+        }
 
         // Initialize collapsible sections cho Properties panel
         $(document).on("click", "[data-toggle-section]", function() {
