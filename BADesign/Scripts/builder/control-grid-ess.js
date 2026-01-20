@@ -434,13 +434,14 @@ var controlGridEss = (function () {
                 var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
                 var $popupBody = $popup.find('.popup-body');
                 
-                // Debug: kiểm tra xem có tìm thấy popup và popup-body không
-                if (!$popup.length) {
-                    console.warn("ESS Grid: Popup not found:", cfg.parentId);
-                }
-                if (!$popupBody.length) {
-                    console.warn("ESS Grid: Popup body not found for popup:", cfg.parentId);
-                }
+                // ✅ Kiểm tra xem có tìm thấy popup và popup-body không
+                // Comment debug logs
+                // if (!$popup.length) {
+                //     console.warn("ESS Grid: Popup not found:", cfg.parentId);
+                // }
+                // if (!$popupBody.length) {
+                //     console.warn("ESS Grid: Popup body not found for popup:", cfg.parentId);
+                // }
                 
                 if ($popupBody.length) {
                     // Append vào popup-body (grid sẽ là child của popup)
@@ -463,7 +464,8 @@ var controlGridEss = (function () {
                     });
                 } else if ($parent && $parent.length) {
                     // Fallback: append vào canvas
-                    console.warn("ESS Grid: Fallback: appending to canvas instead of popup-body");
+                    // Comment debug logs
+                    // console.warn("ESS Grid: Fallback: appending to canvas instead of popup-body");
                     $parent.append($root);
                     $root.css({
                         position: "absolute",
@@ -637,6 +639,7 @@ var controlGridEss = (function () {
         });
 
         enableColumnResize($root, cfg);
+        enableMoveAndResize($root, cfg);
 
         // Add row (demo)
         $root.off("click.essGridAddRow")
@@ -650,6 +653,59 @@ var controlGridEss = (function () {
             });
 
         return $root;
+    }
+
+    // ----------------- wire select events -----------------
+    function wireSelectEvents(cfg) {
+        var $root = $("#" + cfg.id);
+        if (!$root.length) return;
+
+        // ✅ Chọn grid khi click (giống Core GridView)
+        $root.off("mousedown.essGridSelect").on("mousedown.essGridSelect", function (e) {
+            // Nếu click vào table hoặc các phần tử con của table → không select
+            if ($(e.target).closest(".ess-grid-table-wrapper, .ess-grid-table, .ess-grid-th, .ess-grid-td").length) {
+                return; // Cho phép tương tác với table
+            }
+
+            // Còn lại (click vào header, viền...) → chọn control
+            e.stopPropagation();
+
+            $(".canvas-control").removeClass("canvas-control-selected");
+            $(".popup-design").removeClass("popup-selected");
+            $(".popup-field").removeClass("popup-field-selected");
+
+            if (typeof controlPopup !== "undefined" &&
+                typeof controlPopup.clearSelection === "function") {
+                controlPopup.clearSelection();
+            }
+
+            $root.addClass("canvas-control-selected");
+            if (window.builder) {
+                builder.selectedControlId = cfg.id;
+                builder.selectedControlType = "ess-grid";
+                showProperties(cfg.id);
+            }
+        });
+
+        // ✅ Contextmenu: Giữ focus khi click chuột phải
+        $root.off("contextmenu.essGridSelect").on("contextmenu.essGridSelect", function (e) {
+            // Đảm bảo gridview được select trước khi hiện menu
+            if (window.builder && builder.selectedControlId !== cfg.id) {
+                $(".canvas-control").removeClass("canvas-control-selected");
+                $(".popup-design").removeClass("popup-selected");
+                $(".popup-field").removeClass("popup-field-selected");
+
+                if (typeof controlPopup !== "undefined" &&
+                    typeof controlPopup.clearSelection === "function") {
+                    controlPopup.clearSelection();
+                }
+
+                $root.addClass("canvas-control-selected");
+                builder.selectedControlId = cfg.id;
+                builder.selectedControlType = "ess-grid";
+            }
+            // Không preventDefault để contextmenu event vẫn bubble lên document
+        });
     }
 
     function snapshotSampleDataFromGrid(cfg) {
@@ -1364,12 +1420,24 @@ var controlGridEss = (function () {
 
         $root.off("mousedown.essGridSelect")
             .on("mousedown.essGridSelect", function (e) {
+                // Nếu click vào table hoặc các phần tử con của table → không select
+                if ($(e.target).closest(".ess-grid-table-wrapper, .ess-grid-table, .ess-grid-th, .ess-grid-td").length) {
+                    return; // Cho phép tương tác với table
+                }
+
                 if (e.button !== 0) return;
                 e.stopPropagation();
 
                 if (window.builder) {
                     if (typeof builder.clearSelection === "function") builder.clearSelection();
                     $(".canvas-control").removeClass("canvas-control-selected");
+                    $(".popup-design").removeClass("popup-selected");
+                    $(".popup-field").removeClass("popup-field-selected");
+
+                    if (typeof controlPopup !== "undefined" &&
+                        typeof controlPopup.clearSelection === "function") {
+                        controlPopup.clearSelection();
+                    }
 
                     builder.selectedControlId = cfg.id;
                     builder.selectedControlType = "ess-grid";
@@ -1385,6 +1453,26 @@ var controlGridEss = (function () {
 
                 showProperties(cfg);
             });
+
+        // ✅ Contextmenu: Giữ focus khi click chuột phải
+        $root.off("contextmenu.essGridSelect").on("contextmenu.essGridSelect", function (e) {
+            // Đảm bảo gridview được select trước khi hiện menu
+            if (window.builder && builder.selectedControlId !== cfg.id) {
+                $(".canvas-control").removeClass("canvas-control-selected");
+                $(".popup-design").removeClass("popup-selected");
+                $(".popup-field").removeClass("popup-field-selected");
+
+                if (typeof controlPopup !== "undefined" &&
+                    typeof controlPopup.clearSelection === "function") {
+                    controlPopup.clearSelection();
+                }
+
+                $root.addClass("canvas-control-selected");
+                builder.selectedControlId = cfg.id;
+                builder.selectedControlType = "ess-grid";
+            }
+            // Không preventDefault để contextmenu event vẫn bubble lên document
+        });
 
         enableMoveAndResize($root, cfg);
     }
@@ -1405,7 +1493,8 @@ var controlGridEss = (function () {
 
         // ✅ Nếu drop vào popup → gán parentId và điều chỉnh vị trí
         if (popupId && dropPoint) {
-            console.log("ESS Grid: Drop vào popup:", popupId, dropPoint);
+            // Comment debug logs
+            // console.log("ESS Grid: Drop vào popup:", popupId, dropPoint);
             cfg.parentId = popupId;
             
             // Tìm popup config để lấy tọa độ canvas
@@ -1430,12 +1519,15 @@ var controlGridEss = (function () {
                 if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
                 if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
                 
-                console.log("ESS Grid: Set parentId=" + cfg.parentId + ", left=" + cfg.left + ", top=" + cfg.top);
+                // Comment debug logs
+                // console.log("ESS Grid: Set parentId=" + cfg.parentId + ", left=" + cfg.left + ", top=" + cfg.top);
             } else {
-                console.warn("ESS Grid: Popup config not found or builder not available:", popupId);
+                // Comment debug logs
+                // console.warn("ESS Grid: Popup config not found or builder not available:", popupId);
             }
         } else {
-            console.log("ESS Grid: Không drop vào popup, popupId=", popupId, "dropPoint=", dropPoint);
+            // Comment debug logs
+            // console.log("ESS Grid: Không drop vào popup, popupId=", popupId, "dropPoint=", dropPoint);
         }
 
         var $canvas = $("#canvas");
@@ -1459,11 +1551,13 @@ var controlGridEss = (function () {
             // Đợi một chút để DOM được render xong
             setTimeout(function() {
                 if (!cfg.parentId && typeof builder.findParentPopupForControl === "function") {
-                    console.log("ESS Grid: Checking for popup after render, cfg.left=" + cfg.left + ", cfg.top=" + cfg.top);
+                    // Comment debug logs
+                    // console.log("ESS Grid: Checking for popup after render, cfg.left=" + cfg.left + ", cfg.top=" + cfg.top);
                     var foundPopupId = builder.findParentPopupForControl(cfg);
                     if (foundPopupId) {
                         cfg.parentId = foundPopupId;
-                        console.log("ESS Grid: ✅ Detected popup after render:", foundPopupId, "- Re-rendering...");
+                        // Comment debug logs
+                        // console.log("ESS Grid: ✅ Detected popup after render:", foundPopupId, "- Re-rendering...");
                         // Re-render với parentId mới
                         render(cfg, $canvas);
                         wireSelectEvents(cfg);
@@ -1471,7 +1565,8 @@ var controlGridEss = (function () {
                             builder.refreshJson();
                         }
                     } else {
-                        console.log("ESS Grid: ❌ No popup found after render");
+                        // Comment debug logs
+                        // console.log("ESS Grid: ❌ No popup found after render");
                     }
                 }
             }, 50); // Đợi 50ms để DOM render xong

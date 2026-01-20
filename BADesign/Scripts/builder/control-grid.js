@@ -535,6 +535,26 @@
 
             self.showProperties(cfg.id);
         });
+
+        // ✅ Contextmenu: Giữ focus khi click chuột phải (giống ESS GridView)
+        $root.on("contextmenu", function (e) {
+            // Đảm bảo gridview được select trước khi hiện menu
+            if (builder.selectedControlId !== cfg.id) {
+                $(".canvas-control").removeClass("canvas-control-selected");
+                $(".popup-design").removeClass("popup-selected");
+                $(".popup-field").removeClass("popup-field-selected");
+
+                if (typeof controlPopup !== "undefined" &&
+                    typeof controlPopup.clearSelection === "function") {
+                    controlPopup.clearSelection();
+                }
+
+                $root.addClass("canvas-control-selected");
+                builder.selectedControlId = cfg.id;
+                builder.selectedControlType = "grid";
+            }
+            // Không preventDefault để contextmenu event vẫn bubble lên document
+        });
     },
 
     syncSampleDataFromGrid: function (cfg, gridInstance) {

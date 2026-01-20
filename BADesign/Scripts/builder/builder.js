@@ -635,6 +635,8 @@ var builder = {
         $(document).on("mousedown.builderClearSelection", function (e) {
             var $menu = $("#builderContextMenu");
             if ($menu.length && $menu.is(":visible")) {
+                // ✅ Ẩn context menu nếu click vào bất kỳ đâu ngoài menu
+                // Bao gồm cả click vào popup-body, canvas, hoặc bất kỳ đâu
                 if ($(e.target).closest("#builderContextMenu").length === 0) {
                     builder.hideContextMenu();
                 }
@@ -648,6 +650,16 @@ var builder = {
             // Nếu click trong context menu / dialog / toast -> bỏ qua
             if ($t.closest("#builderContextMenu, .ub-modal, .ui-toast-container").length) {
                 return;
+            }
+
+            // ✅ Nếu click vào popup-body (vùng trống trong popup) -> ẩn context menu và clear selection
+            if ($t.closest(".popup-body").length) {
+                // Kiểm tra xem có click vào control nào không
+                if ($t.closest(".canvas-control, .popup-field").length === 0) {
+                    // Click vào vùng trống trong popup -> clear selection
+                    builder.clearSelection();
+                }
+                return; // Không xử lý thêm
             }
 
             // Nếu click trong canvas thì để handler #canvas lo (marquee / pan / v.v.)
@@ -2047,7 +2059,8 @@ var builder = {
             }
         }
 
-        console.log("showContextMenu: target=", target, "id=", id, "element=", $t[0]);
+        // Comment debug logs
+        // console.log("showContextMenu: target=", target, "id=", id, "element=", $t[0]);
 
         // ✅ Lấy config và set selection
         var cfg = null;
@@ -2056,7 +2069,7 @@ var builder = {
             if (cfg) {
                 this.selectedControlId = id;
                 this.selectedControlType = cfg.type;
-                console.log("showContextMenu: cfg=", cfg, "type=", cfg.type, "parentId=", cfg.parentId);
+                // console.log("showContextMenu: cfg=", cfg, "type=", cfg.type, "parentId=", cfg.parentId);
             }
         }
 
@@ -2070,7 +2083,7 @@ var builder = {
         if (cfg && cfg.parentId) {
             var $parentPopup = $('.popup-design[data-id="' + cfg.parentId + '"]');
             isInPopup = $parentPopup.length > 0;
-            console.log("showContextMenu: isInPopup=", isInPopup, "parentId=", cfg.parentId, "popup found=", $parentPopup.length);
+            // console.log("showContextMenu: isInPopup=", isInPopup, "parentId=", cfg.parentId, "popup found=", $parentPopup.length);
         }
 
         $menu.find("[data-cmd^='align-']").toggleClass("cm-disabled", !multiFields);

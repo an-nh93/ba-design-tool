@@ -200,6 +200,18 @@
             // Nếu click trúng field bên trong popup thì để handler của field xử lý
             if ($(e.target).closest(".popup-field").length) return;
 
+            // ✅ Ẩn context menu nếu đang hiện (trước khi stopPropagation)
+            if (window.builder && typeof builder.hideContextMenu === "function") {
+                var $menu = $("#builderContextMenu");
+                if ($menu.length && $menu.is(":visible")) {
+                    // Kiểm tra xem có click vào control nào không
+                    if ($(e.target).closest(".canvas-control, .popup-field").length === 0) {
+                        // Click vào vùng trống trong popup -> ẩn context menu
+                        builder.hideContextMenu();
+                    }
+                }
+            }
+
             e.stopPropagation();
 
             // Bỏ focus khỏi input đang chọn (nếu có) để mất viền xanh
