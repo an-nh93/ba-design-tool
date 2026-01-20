@@ -918,9 +918,14 @@ var builder = {
     beginMarquee: function (e) {
         this.isMarquee = true;
 
-        var canvasRect = $("#canvas")[0].getBoundingClientRect();
-        var x = e.clientX - canvasRect.left;
-        var y = e.clientY - canvasRect.top;
+        var $canvas = $("#canvas");
+        var canvasEl = $canvas[0];
+        var canvasRect = canvasEl.getBoundingClientRect();
+        
+        // ✅ Tính toán vị trí chính xác: clientX/Y - canvas viewport + scroll offset
+        // Không cần chia cho zoom vì CSS zoom đã scale cả canvas rồi
+        var x = e.clientX - canvasRect.left + $canvas.scrollLeft();
+        var y = e.clientY - canvasRect.top + $canvas.scrollTop();
 
         this.marqueeStartX = x;
         this.marqueeStartY = y;
@@ -935,9 +940,15 @@ var builder = {
 
     updateMarquee: function (e) {
         if (!this.isMarquee || !this.marqueeRectEl) return;
-        var canvasRect = $("#canvas")[0].getBoundingClientRect();
-        var x = e.clientX - canvasRect.left;
-        var y = e.clientY - canvasRect.top;
+        
+        var $canvas = $("#canvas");
+        var canvasEl = $canvas[0];
+        var canvasRect = canvasEl.getBoundingClientRect();
+        
+        // ✅ Tính toán vị trí chính xác: clientX/Y - canvas viewport + scroll offset
+        // Không cần chia cho zoom vì CSS zoom đã scale cả canvas rồi
+        var x = e.clientX - canvasRect.left + $canvas.scrollLeft();
+        var y = e.clientY - canvasRect.top + $canvas.scrollTop();
 
         var left = Math.min(this.marqueeStartX, x);
         var top = Math.min(this.marqueeStartY, y);
