@@ -3152,6 +3152,232 @@ var builder = {
         window.location.href = "WordExport.aspx";
     },
 
+    // ✅ Xuất hình ảnh (dùng html2canvas) - Clone canvas giống preview để capture đầy đủ
+    exportImage: function () {
+        var self = this;
+        var $canvas = $("#canvas");
+        
+        if (!$canvas.length) {
+            this.showToast("Không tìm thấy canvas để xuất hình ảnh", "error");
+            return;
+        }
+
+        this.showToast("Đang xuất hình ảnh...", "info");
+
+        // Tính toán kích thước thực tế của nội dung (giống preview)
+        var canvasElement = $canvas[0];
+        var scrollWidth = Math.max(canvasElement.scrollWidth, canvasElement.offsetWidth);
+        var scrollHeight = Math.max(canvasElement.scrollHeight, canvasElement.offsetHeight);
+        
+        // Tìm tất cả các element con để tính kích thước thực tế
+        var maxRight = 0;
+        var maxBottom = 0;
+        $canvas.find("*").each(function() {
+            var $el = $(this);
+            var rect = this.getBoundingClientRect();
+            var canvasRect = canvasElement.getBoundingClientRect();
+            
+            // Tính vị trí relative với canvas (bao gồm scroll)
+            var relativeLeft = rect.left - canvasRect.left + $canvas.scrollLeft();
+            var relativeTop = rect.top - canvasRect.top + $canvas.scrollTop();
+            var relativeRight = relativeLeft + rect.width;
+            var relativeBottom = relativeTop + rect.height;
+            
+            maxRight = Math.max(maxRight, relativeRight);
+            maxBottom = Math.max(maxBottom, relativeBottom);
+        });
+        
+        var finalWidth = Math.max(scrollWidth, maxRight + 40);
+        var finalHeight = Math.max(scrollHeight, maxBottom + 40);
+
+        // Tạo container tạm thời để clone canvas (giống preview)
+        var $tempContainer = $('<div id="tempExportContainer" style="position: absolute; left: -9999px; top: 0; width: ' + finalWidth + 'px; min-height: ' + finalHeight + 'px; background: #ffffff; overflow: visible;"></div>');
+        $("body").append($tempContainer);
+
+        // Clone toàn bộ canvas (giống preview)
+        var $canvasClone = $canvas.clone(false);
+        
+        // Loại bỏ các class/attribute tương tác
+        $canvasClone.find("*").each(function() {
+            var $el = $(this);
+            $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
+            $el.removeAttr("data-interact-id");
+        });
+        
+        // Set style cho canvas clone
+        $canvasClone.css({
+            "overflow": "visible",
+            "position": "relative",
+            "width": finalWidth + "px",
+            "minHeight": finalHeight + "px",
+            "margin": "0",
+            "padding": "0",
+            "transform": "none",
+            "background": "#ffffff"
+        });
+        
+        $tempContainer.append($canvasClone);
+
+        // Đợi một chút để DOM render
+        setTimeout(function() {
+            // Sử dụng html2canvas để chụp container clone
+            html2canvas($tempContainer[0], {
+                backgroundColor: "#ffffff",
+                scale: 2, // Tăng độ phân giải
+                useCORS: true,
+                logging: false,
+                width: finalWidth,
+                height: finalHeight,
+                allowTaint: true,
+                foreignObjectRendering: false
+            }).then(function (canvas) {
+                // Xóa container tạm thời
+                $tempContainer.remove();
+
+                // Chuyển canvas thành blob và download
+                canvas.toBlob(function (blob) {
+                    var a = document.createElement("a");
+                    a.href = URL.createObjectURL(blob);
+                    a.download = "ui-design-" + new Date().getTime() + ".png";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+                    
+                    self.showToast("Đã xuất hình ảnh thành công!", "success");
+                }, "image/png");
+            }).catch(function (error) {
+                // Xóa container tạm thời nếu lỗi
+                $tempContainer.remove();
+                
+                console.error("Export image error:", error);
+                self.showToast("Lỗi khi xuất hình ảnh: " + error.message, "error");
+            });
+        }, 200); // Đợi 200ms để DOM render đầy đủ
+    },
+
+    // ✅ Hiển thị Preview fullscreen
+    showPreview: function () {
+        var self = this;
+        var $canvas = $("#canvas");
+        if (!$canvas.length) {
+            this.showToast("Không tìm thấy canvas để preview", "error");
+            return;
+        }
+
+        // Tạo modal fullscreen
+        var $modal = $('<div class="preview-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; z-index: 100000; overflow: auto; display: flex; flex-direction: column;">');
+        
+        // Header với nút đóng
+        var $header = $('<div style="position: sticky; top: 0; background: #0078d4; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 100001; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">');
+        $header.append('<h3 style="margin: 0; font-size: 18px; font-weight: 600;">👁️ Preview Design</h3>');
+        var $closeBtn = $('<button style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;" type="button"><i class="bi bi-x-lg"></i> Đóng (ESC)</button>');
+        $closeBtn.on("mouseenter", function() {
+            $(this).css("background", "rgba(255,255,255,0.3)");
+        }).on("mouseleave", function() {
+            $(this).css("background", "rgba(255,255,255,0.2)");
+        });
+        $header.append($closeBtn);
+        $modal.append($header);
+
+        // Content: Clone canvas content
+        var $content = $('<div style="flex: 1; padding: 40px; background: #e8e8e8; overflow: auto; display: flex; justify-content: center; align-items: flex-start;"></div>');
+        
+        // Tính toán kích thước thực tế của nội dung
+        var canvasElement = $canvas[0];
+        var scrollWidth = Math.max(canvasElement.scrollWidth, canvasElement.offsetWidth);
+        var scrollHeight = Math.max(canvasElement.scrollHeight, canvasElement.offsetHeight);
+        
+        // Tìm tất cả các element con để tính kích thước thực tế
+        var maxRight = 0;
+        var maxBottom = 0;
+        $canvas.find("*").each(function() {
+            var $el = $(this);
+            var rect = this.getBoundingClientRect();
+            var canvasRect = canvasElement.getBoundingClientRect();
+            
+            // Tính vị trí relative với canvas (bao gồm scroll)
+            var relativeLeft = rect.left - canvasRect.left + $canvas.scrollLeft();
+            var relativeTop = rect.top - canvasRect.top + $canvas.scrollTop();
+            var relativeRight = relativeLeft + rect.width;
+            var relativeBottom = relativeTop + rect.height;
+            
+            maxRight = Math.max(maxRight, relativeRight);
+            maxBottom = Math.max(maxBottom, relativeBottom);
+        });
+        
+        var finalWidth = Math.max(scrollWidth, maxRight + 40);
+        var finalHeight = Math.max(scrollHeight, maxBottom + 40);
+        
+        // Tạo preview canvas với kích thước chính xác
+        var $previewCanvas = $('<div id="previewCanvas" style="position: relative; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 0; overflow: visible;"></div>');
+        $previewCanvas.css({
+            width: finalWidth + "px",
+            minHeight: finalHeight + "px"
+        });
+        
+        // Clone toàn bộ canvas (bao gồm cả popup và controls)
+        var $canvasClone = $canvas.clone(false); // Clone false để không clone event handlers
+        
+        // Loại bỏ các class/attribute tương tác và event handlers
+        $canvasClone.find("*").each(function() {
+            var $el = $(this);
+            // Xóa các class tương tác
+            $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
+            // Xóa các attribute tương tác
+            $el.removeAttr("data-interact-id");
+            // Loại bỏ pointer events cho các control (chỉ xem, không tương tác)
+            if ($el.hasClass("canvas-control") || $el.hasClass("popup-design") || $el.hasClass("page-field") || $el.hasClass("popup-field")) {
+                $el.css("pointer-events", "none");
+            }
+        });
+        
+        // Loại bỏ event handlers
+        $canvasClone.off();
+        $canvasClone.find("*").off();
+        
+        // Set style cho canvas clone - giữ nguyên kích thước và vị trí
+        $canvasClone.css({
+            "overflow": "visible",
+            "position": "relative",
+            "width": finalWidth + "px",
+            "minHeight": finalHeight + "px",
+            "margin": "0",
+            "padding": "0",
+            "transform": "none",
+            "background": "#ffffff"
+        });
+        
+        $previewCanvas.append($canvasClone);
+        $content.append($previewCanvas);
+        $modal.append($content);
+
+        // Thêm vào body
+        $("body").append($modal);
+
+        // Event đóng modal
+        var closeModal = function() {
+            $(document).off("keydown.previewModal");
+            $modal.remove();
+        };
+        
+        $closeBtn.on("click", closeModal);
+        
+        // Đóng bằng ESC
+        $(document).on("keydown.previewModal", function(e) {
+            if (e.key === "Escape" || e.keyCode === 27) {
+                closeModal();
+            }
+        });
+
+        // Click vào overlay (phần ngoài preview canvas) cũng đóng
+        $content.on("click", function(e) {
+            if ($(e.target).is($content)) {
+                closeModal();
+            }
+        });
+    },
+
     setCurrentDesignInfo: function (dto, isClone) {
         this.currentDesignInfo = dto ? $.extend({}, dto) : null;
         if (this.currentDesignInfo) {

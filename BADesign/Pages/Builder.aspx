@@ -2151,17 +2151,18 @@ body.ub-pan-active {
         <div class="footer-buttons">
             <span class="fb-info" id="lblFooterInfo"></span>
             <div class="fb-actions">
-                <button type="button" onclick="builder.saveConfig()" title="Lưu cấu hình JSON">
+                <!-- Ẩn nút Lưu JSON và Tải JSON vì đã có lưu vào DB -->
+                <!-- <button type="button" onclick="builder.saveConfig()" title="Lưu cấu hình JSON">
                     <i class="bi bi-save"></i> Lưu JSON
-                </button>
+                </button> -->
                 <button type="button" onclick="builder.showPreview()" title="Xem preview">
                     <i class="bi bi-eye"></i> Preview
                 </button>
-                <button type="button" onclick="builder.downloadJson()" title="Tải file JSON">
+                <!-- <button type="button" onclick="builder.downloadJson()" title="Tải file JSON">
                     <i class="bi bi-download"></i> Tải JSON
-                </button>
-                <button type="button" onclick="builder.exportWord()" title="Xuất Word (HTML)">
-                    <i class="bi bi-file-earmark-word"></i> Xuất Word
+                </button> -->
+                <button type="button" onclick="builder.exportImage()" title="Xuất hình ảnh">
+                    <i class="bi bi-image"></i> Xuất hình ảnh
                 </button>
                 <button type="button" onclick="builder.savePageToServer()" class="fb-primary" title="Lưu design vào DB">
                     <i class="bi bi-cloud-upload"></i> Lưu vào DB
