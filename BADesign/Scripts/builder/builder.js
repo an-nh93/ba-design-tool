@@ -1555,32 +1555,93 @@ var builder = {
         this.updateSelectionSizeHint();
     },
 
+    // ✅ Lấy tất cả các control đã chọn (bao gồm cả fields, grids, popups, v.v.)
+    getAllSelectedControlIds: function () {
+        var ids = [];
+        
+        // Lấy từ DOM: các control có class selected
+        $("#canvas .canvas-control-selected, #canvas .page-field-selected, #canvas .popup-field-selected, #canvas .popup-selected")
+            .each(function () {
+                var id = $(this).attr("data-id") || this.id;
+                if (id && ids.indexOf(id) < 0) ids.push(id);
+            });
+        
+        // Nếu không có multi-select, dùng selectedControlId
+        if (!ids.length && this.selectedControlId) {
+            ids = [this.selectedControlId];
+        }
+        
+        return ids;
+    },
+
     alignSelection: function (type) {
-        var ids = this.getSelectedFieldIds();
-        if (ids.length < 2) return;
+        // ✅ Lấy tất cả các control đã chọn (không chỉ fields)
+        var ids = this.getAllSelectedControlIds();
+        if (ids.length < 2) {
+            this.showToast("Cần chọn ít nhất 2 control để căn chỉnh", "warning");
+            return;
+        }
 
         var self = this;
         var cfgs = ids.map(function (id) { return self.getControlConfig(id); }).filter(Boolean);
         if (!cfgs.length) return;
 
+        // ✅ Tính toán bounds của tất cả controls để lấy anchor
+        var minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+        cfgs.forEach(function (c) {
+            if (!c) return;
+            var left = c.left || 0;
+            var top = c.top || 0;
+            var width = c.width || 0;
+            var height = c.height || 0;
+            
+            minLeft = Math.min(minLeft, left);
+            minTop = Math.min(minTop, top);
+            maxRight = Math.max(maxRight, left + width);
+            maxBottom = Math.max(maxBottom, top + height);
+        });
+
+        // Anchor là control đầu tiên
         var anchor = cfgs[0];
 
         cfgs.forEach(function (c) {
             if (!c) return;
-
+            
+            // ✅ Tính toán vị trí mới dựa trên anchor và bounds
             switch (type) {
                 case "left":
-                    c.left = anchor.left;
+                    c.left = minLeft;
                     break;
                 case "right":
-                    c.left = anchor.left + (anchor.width || 0) - (c.width || 0);
+                    var cWidth = c.width || 0;
+                    c.left = maxRight - cWidth;
                     break;
                 case "top":
-                    c.top = anchor.top;
+                    c.top = minTop;
                     break;
                 case "bottom":
-                    c.top = anchor.top + (anchor.height || 0) - (c.height || 0);
+                    var cHeight = c.height || 0;
+                    c.top = maxBottom - cHeight;
                     break;
+            }
+            
+            // ✅ Cập nhật DOM
+            var $el = $('[data-id="' + c.id + '"], #' + c.id);
+            if ($el.length) {
+                $el.css({
+                    left: c.left,
+                    top: c.top
+                });
+            }
+            
+            // ✅ Nếu là popup, cần re-render để cập nhật
+            if (c.type === "popup" && window.controlPopup && typeof controlPopup.renderExisting === "function") {
+                // Không cần re-render, chỉ cần update CSS
+            }
+            
+            // ✅ Nếu là field trong popup, cần update parent
+            if (c.parentId) {
+                // Vị trí đã được tính relative với parent, không cần làm gì thêm
             }
 
             if (self.snapEnabled) {
@@ -1596,6 +1657,25 @@ var builder = {
 
         this.updateSelectionSizeHint();
         this.refreshJson();
+    },
+
+    // ✅ Lấy tất cả các control đã chọn (bao gồm cả fields, grids, popups, v.v.)
+    getAllSelectedControlIds: function () {
+        var ids = [];
+        
+        // Lấy từ DOM: các control có class selected
+        $("#canvas .canvas-control-selected, #canvas .page-field-selected, #canvas .popup-field-selected, #canvas .popup-selected")
+            .each(function () {
+                var id = $(this).attr("data-id") || this.id;
+                if (id && ids.indexOf(id) < 0) ids.push(id);
+            });
+        
+        // Nếu không có multi-select, dùng selectedControlId
+        if (!ids.length && this.selectedControlId) {
+            ids = [this.selectedControlId];
+        }
+        
+        return ids;
     },
 
     distributeSelection: function (orientation) {
@@ -2324,24 +2404,14 @@ var builder = {
 
         var self = this;
 
-        // --- NEW: combo zoom ---
-        var $zoomSelect = $("#zoomSelect");
-        if ($zoomSelect.length) {
-            $zoomSelect.on("change", function () {
-                var v = $(this).val();
-                if (!v) return;
+        // ✅ Ngăn mất focus khi click vào toolbar
+        $bar.on("mousedown", function(e) {
+            e.stopPropagation(); // Ngăn event bubble lên document để không clear selection
+        });
 
-                // option “current” chỉ để hiển thị, không set zoom
-                if (v === "custom") return;
-
-                var scale = parseFloat(v);
-                if (!isNaN(scale) && scale > 0) {
-                    self.setZoom(scale);
-                }
-            });
-        }
-
-        $bar.on("click", "[data-cmd]", function () {
+        // ✅ Event handler cho toolbar buttons
+        $bar.on("click", "[data-cmd]", function (e) {
+            e.stopPropagation(); // Ngăn event bubble để không clear selection
             var cmd = $(this).data("cmd");
             switch (cmd) {
                 case "zoom-out":
@@ -2357,28 +2427,49 @@ var builder = {
                     self.applyCanvasTransform();
                     break;
                 case "align-left":
-                    self.alignSelection("left"); break;
+                    self.alignSelection("left");
+                    break;
                 case "align-right":
-                    self.alignSelection("right"); break;
+                    self.alignSelection("right");
+                    break;
                 case "align-top":
-                    self.alignSelection("top"); break;
+                    self.alignSelection("top");
+                    break;
                 case "align-bottom":
-                    self.alignSelection("bottom"); break;
-                case "dist-h":
-                    self.distributeSelection("h"); break;
-                case "dist-v":
-                    self.distributeSelection("v"); break;
+                    self.alignSelection("bottom");
+                    break;
                 case "duplicate":
-                    self.duplicateSelection(); break;
+                    self.duplicateSelection();
+                    break;
                 case "delete":
-                    self.deleteSelectedControl(); break;
+                    if (self.selectedControlId) {
+                        self.deleteSelectedControl();
+                    } else {
+                        self.showToast("Chưa chọn control nào để xóa", "warning");
+                    }
+                    break;
             }
         });
 
+        // ✅ Event handler cho zoom select dropdown
+        var $zoomSelect = $("#zoomSelect");
+        if ($zoomSelect.length) {
+            $zoomSelect.off("change").on("change", function (e) {
+                e.stopPropagation(); // Ngăn event bubble để không clear selection
+                var v = $(this).val();
+                if (!v) return;
 
-        $("#chkSnapToolbar").on("change", function () {
-            self.snapEnabled = $(this).is(":checked");
-        });
+                // option "current" chỉ để hiển thị, không set zoom
+                if (v === "custom") return;
+
+                var scale = parseFloat(v);
+                if (!isNaN(scale) && scale > 0) {
+                    self.setZoom(scale);
+                }
+            });
+        }
+
+        // ✅ Snap checkbox đã được loại bỏ khỏi toolbar (không cần thiết cho design tool)
     },
 
     // ========= Common helpers =========
@@ -2404,11 +2495,18 @@ var builder = {
 
         if (!allIds.length) return;
 
-        // Nếu chỉ có 1 control → dùng logic cũ
+        // Nếu chỉ có 1 control → xóa trực tiếp (không cần confirm cho control thường)
         if (allIds.length === 1) {
             this.selectedControlId = allIds[0];
-            this.removeControl(allIds[0]);
-            return;
+            var cfg = this.getControlConfig(allIds[0]);
+            
+            // Popup cần confirm vì có thể có nhiều controls bên trong
+            if (cfg && cfg.type === "popup") {
+                // Xử lý popup ở phần dưới (multi-control confirm)
+            } else {
+                this.removeControl(allIds[0]);
+                return;
+            }
         }
 
         // Nhiều control → xoá hàng loạt
@@ -2476,6 +2574,74 @@ var builder = {
         });
     },
 
+
+    // ✅ Duplicate selected control
+    duplicateSelection: function () {
+        if (!this.selectedControlId) {
+            this.showToast("Chưa chọn control nào để duplicate", "warning");
+            return;
+        }
+
+        var cfg = this.getControlConfig(this.selectedControlId);
+        if (!cfg) {
+            this.showToast("Không tìm thấy control để duplicate", "error");
+            return;
+        }
+
+        // Deep clone config
+        var newCfg = JSON.parse(JSON.stringify(cfg));
+        
+        // Generate new ID
+        var newId = "ctrl_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+        newCfg.id = newId;
+        
+        // Offset position (di chuyển sang phải và xuống dưới 20px)
+        newCfg.left = (newCfg.left || 0) + 20;
+        newCfg.top = (newCfg.top || 0) + 20;
+        
+        // Clear parentId nếu đang trong popup (duplicate sẽ ra ngoài canvas)
+        // Hoặc giữ nguyên parentId nếu muốn duplicate trong cùng popup
+        // newCfg.parentId = null; // Uncomment nếu muốn duplicate ra ngoài popup
+        
+        // Add to controls array
+        this.controls.push(newCfg);
+        
+        // Render the duplicated control
+        this.renderControlByConfig(newCfg);
+        
+        // Select the new control
+        this.selectedControlId = newId;
+        this.selectedControlType = newCfg.type;
+        
+        // Update UI
+        this.refreshJson();
+        this.showToast("Đã duplicate control", "success");
+    },
+
+    // ✅ Remove control helper
+    removeControl: function (controlId) {
+        var cfg = this.getControlConfig(controlId);
+        if (!cfg) return;
+
+        // Remove from controls array
+        this.controls = (this.controls || []).filter(function (c) { return c.id !== controlId; });
+
+        // Remove from DOM
+        $('[data-id="' + controlId + '"], #' + controlId).remove();
+
+        // If it's a field, use controlField.deleteWithChildren
+        if (cfg.type === "field" && window.controlField && typeof controlField.deleteWithChildren === "function") {
+            controlField.deleteWithChildren(controlId);
+        }
+
+        // Clear selection if this was selected
+        if (this.selectedControlId === controlId) {
+            this.clearSelection();
+        }
+
+        this.syncControlsWithDom();
+        this.refreshJson();
+    },
 
     clearSelection: function () {
         this.selectedControlId = null;

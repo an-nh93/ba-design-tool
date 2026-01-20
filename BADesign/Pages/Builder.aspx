@@ -2095,10 +2095,10 @@ body.ub-pan-active {
                 <!-- Bottom canvas toolbar -->
         <div id="canvasToolbar" class="canvas-bottom-toolbar">
             <!-- Zoom -->
-            <button type="button" data-cmd="zoom-out">–</button>
+            <button type="button" data-cmd="zoom-out" title="Zoom out (Ctrl+-)">–</button>
 
-            <select id="zoomSelect" class="zoom-select">
-                <!-- Dòng đầu là “current” – JS sẽ update % tự động -->
+            <select id="zoomSelect" class="zoom-select" title="Zoom level">
+                <!-- Dòng đầu là "current" – JS sẽ update % tự động -->
                 <option value="custom" data-role="current">100%</option>
                 <option value="0.5">50%</option>
                 <option value="0.75">75%</option>
@@ -2110,38 +2110,22 @@ body.ub-pan-active {
                 <option value="4">400%</option>
             </select>
 
-            <button type="button" data-cmd="zoom-in">+</button>
-            <button type="button" data-cmd="zoom-reset">100%</button>
+            <button type="button" data-cmd="zoom-in" title="Zoom in (Ctrl++)">+</button>
+            <button type="button" data-cmd="zoom-reset" title="Reset zoom to 100% (Ctrl+0)">100%</button>
 
             <span class="tb-sep"></span>
 
             <!-- Align -->
-            <button type="button" title="Align left" data-cmd="align-left">⭰</button>
-            <button type="button" title="Align right" data-cmd="align-right">⭲</button>
-            <button type="button" title="Align top" data-cmd="align-top">⭱</button>
-            <button type="button" title="Align bottom" data-cmd="align-bottom">⭳</button>
-
-            <span class="tb-sep"></span>
-
-            <!-- Distribute -->
-            <button type="button" title="Distribute H" data-cmd="dist-h">H</button>
-            <button type="button" title="Distribute V" data-cmd="dist-v">V</button>
+            <button type="button" title="Align left (căn trái)" data-cmd="align-left">⭰</button>
+            <button type="button" title="Align right (căn phải)" data-cmd="align-right">⭲</button>
+            <button type="button" title="Align top (căn trên)" data-cmd="align-top">⭱</button>
+            <button type="button" title="Align bottom (căn dưới)" data-cmd="align-bottom">⭳</button>
 
             <span class="tb-sep"></span>
 
             <!-- Duplicate / Delete -->
-            <button type="button" title="Duplicate" data-cmd="duplicate">⧉</button>
-            <button type="button" title="Delete" data-cmd="delete">⌫</button>
-
-            <span class="tb-sep"></span>
-
-            <!-- Snap -->
-            <div class="tb-snap">
-                <label>
-                    <input type="checkbox" id="chkSnapToolbar" checked />
-                    Snap
-                </label>
-            </div>
+            <button type="button" title="Duplicate (Ctrl+D)" data-cmd="duplicate">⧉</button>
+            <button type="button" title="Delete (Del)" data-cmd="delete">⌫</button>
         </div>
 
         <!-- Footer buttons -->

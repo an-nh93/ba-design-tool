@@ -263,9 +263,9 @@
         selectedPopupId = cfg.id;
         selectedFieldId = null;
 
-        // reset selection ở builder
-        builder.selectedControlId = null;
-        builder.selectedControlType = null;
+        // ✅ Set selection ở builder để toolbar và các tính năng khác nhận biết popup được chọn
+        builder.selectedControlId = cfg.id;
+        builder.selectedControlType = "popup";
 
         // Bỏ tất cả selection của control / field
         $(".canvas-control").removeClass("canvas-control-selected");
