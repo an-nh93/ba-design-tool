@@ -1703,7 +1703,7 @@ body {
     position: fixed;
     left: 50%;
     transform: translateX(-50%);
-    bottom: 56px;
+    bottom: 87px;
     padding: 4px 8px;
     border-radius: 999px;
     background: rgba(32,32,32,0.96);
@@ -2123,6 +2123,12 @@ body.ub-pan-active {
 
             <span class="tb-sep"></span>
 
+            <!-- Distribute -->
+            <button type="button" title="Distribute horizontal (phân bố ngang)" data-cmd="distribute-h">⇄</button>
+            <button type="button" title="Distribute vertical (phân bố dọc)" data-cmd="distribute-v">⇅</button>
+
+            <span class="tb-sep"></span>
+
             <!-- Duplicate / Delete -->
             <button type="button" title="Duplicate (Ctrl+D)" data-cmd="duplicate">⧉</button>
             <button type="button" title="Delete (Del)" data-cmd="delete">⌫</button>
@@ -2382,6 +2388,80 @@ body.ub-pan-active {
         cursor: default;
         background: #f5f5f5;
         border-bottom: 1px solid #e0e0e0;
+    }
+
+    /* ========== GROUP VISUAL INDICATORS ========== */
+    /* Border màu xanh cho grouped controls */
+    /* QUAN TRỌNG: KHÔNG thay đổi position để tránh làm nhảy vị trí controls */
+    /* box-shadow không làm thay đổi kích thước của element, chỉ là visual effect */
+    .canvas-control-grouped,
+    .page-field-grouped,
+    .popup-field-grouped,
+    .popup-design-grouped,
+    .ess-grid-control-grouped {
+        /* CHỈ thêm box-shadow, KHÔNG thay đổi position */
+        box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.4) !important;
+    }
+
+    /* Badge hiển thị số lượng controls trong group */
+    .group-badge {
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        min-width: 20px;
+        height: 20px;
+        background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
+        color: #fff;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        z-index: 10000;
+        pointer-events: none; /* Không chặn click vào control */
+        border: 2px solid #fff;
+        line-height: 1;
+    }
+    
+    /* ✅ Ẩn badge khi preview hoặc export */
+    .preview-mode .group-badge,
+    .export-mode .group-badge {
+        display: none !important;
+    }
+
+    /* Highlight khi chọn một control trong group */
+    .group-highlight {
+        box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.6) !important;
+        animation: groupPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes groupPulse {
+        0%, 100% {
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.6);
+        }
+        50% {
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.3);
+        }
+    }
+
+    /* Tooltip khi hover vào badge */
+    .group-badge:hover::after {
+        content: attr(title);
+        position: absolute;
+        bottom: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 4px 8px;
+        background: #333;
+        color: #fff;
+        font-size: 11px;
+        white-space: nowrap;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        pointer-events: none;
     }
     </style>
 

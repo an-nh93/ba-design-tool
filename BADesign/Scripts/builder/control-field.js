@@ -1243,6 +1243,17 @@
 
                     // Di chuyển selection (builder sẽ lo phần auto-extend canvas)
                     builder.dragSelectionMove(dx, dy);
+                    
+                    // ✅ Nếu field thuộc group nhưng không được chọn, di chuyển cả group
+                    if (cfg.groupId && builder && typeof builder.moveGroupControls === "function") {
+                        // Kiểm tra xem field này có trong _dragSelectionIds không
+                        var isInDragSelection = builder._dragSelectionIds && builder._dragSelectionIds.indexOf(cfg.id) >= 0;
+                        if (!isInDragSelection) {
+                            // Field này không được chọn nhưng thuộc group → di chuyển cả group
+                            builder.moveGroupControls(cfg.groupId, dx, dy);
+                        }
+                    }
+                    
                     builder.updateSelectionSizeHint();
                 },
                 end: function () {

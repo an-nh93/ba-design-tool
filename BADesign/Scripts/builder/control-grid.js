@@ -373,6 +373,11 @@
                     cfg.left = newLeft;
                     cfg.top = newTop;
 
+                    // ✅ Nếu grid thuộc group, di chuyển tất cả controls trong group cùng lúc
+                    if (cfg.groupId && builder && typeof builder.moveGroupControls === "function") {
+                        builder.moveGroupControls(cfg.groupId, event.dx, event.dy);
+                    }
+
                     builder.refreshJson();
                 }
             },

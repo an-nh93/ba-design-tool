@@ -32,6 +32,7 @@ var builder = {
 
     copiedStyle: null,
     clipboardControls: null,  // copy/paste control
+    groups: {},  // ✅ Groups: lưu thông tin các groups {groupId: {id, left, top, width, height, controlIds}}
     // marquee
     isMarquee: false,
     marqueeStartX: 0,
@@ -108,14 +109,14 @@ var builder = {
         var allPopups = $(".popup-design");
         var closestPopup = null;
         var closestDistance = Infinity;
-        
+
         console.log("hitTestPopupPoint: Checking", allPopups.length, "popups at", clientX, clientY);
 
         allPopups.each(function () {
             var $p = $(this);
             var pid = $p.attr("data-id");
             var r = this.getBoundingClientRect();
-            
+
             // Kiểm tra xem popup có visible không
             var isVisible = $p.is(":visible") && $p.css("display") !== "none";
             if (!isVisible) return; // Skip invisible popups
@@ -477,6 +478,20 @@ var builder = {
             // Duplicate Ctrl+D
             if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "d") {
                 builder.duplicateSelection();
+                e.preventDefault();
+                return;
+            }
+
+            // Group Ctrl+G
+            if (e.ctrlKey && !e.shiftKey && e.key.toLowerCase() === "g") {
+                builder.groupSelection();
+                e.preventDefault();
+                return;
+            }
+
+            // Ungroup Ctrl+Shift+G
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "g") {
+                builder.ungroupSelection();
                 e.preventDefault();
                 return;
             }
@@ -1440,6 +1455,18 @@ var builder = {
         if (!ids.length || ids.indexOf(baseId) === -1) {
             ids = [baseId];
         }
+        
+        // ✅ Nếu control đang drag thuộc group, thêm tất cả controls trong group vào selection
+        var baseCfg = this.getControlConfig(baseId);
+        if (baseCfg && baseCfg.groupId) {
+            var self = this;
+            this.controls.forEach(function(c) {
+                if (c.groupId === baseCfg.groupId && ids.indexOf(c.id) === -1) {
+                    ids.push(c.id);
+                }
+            });
+        }
+        
         this._dragSelectionIds = ids;
         this._dragSelectionStart = {};
         this._dragSelectionDxTotal = 0;
@@ -1491,11 +1518,16 @@ var builder = {
                 cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
             }
 
-            $('[data-id="' + id + '"]').css({
+            // ✅ Cập nhật DOM cho tất cả loại controls
+            var $el = $('[data-id="' + id + '"], #' + id);
+            if ($el.length) {
+                $el.css({
                 left: cfg.left,
                 top: cfg.top
             });
+            }
 
+            // ✅ Di chuyển descendants nếu là field container (groupbox, section)
             if (cfg.type === "field" &&
                 (cfg.ftype === "groupbox" || cfg.ftype === "section") &&
                 window.controlField &&
@@ -1617,7 +1649,7 @@ var builder = {
 
         cfgs.forEach(function (c) {
             if (!c) return;
-            
+
             // ✅ Tính toán vị trí mới dựa trên anchor và bounds
             switch (type) {
                 case "left":
@@ -1670,6 +1702,410 @@ var builder = {
         this.refreshJson();
     },
 
+    // ✅ Distribute spacing - Phân bố khoảng cách đều giữa các controls
+    // Ý nghĩa: Giữ nguyên vị trí control đầu và cuối, phân bố các controls ở giữa sao cho khoảng cách giữa chúng đều nhau
+    // Ví dụ: 4 controls ở vị trí top = 0, 50, 150, 200 → sau khi Distribute V sẽ thành 0, 66.67, 133.33, 200 (khoảng cách đều)
+    distributeSelection: function (orientation) {
+        // ✅ Lấy tất cả các control đã chọn (không chỉ fields)
+        var ids = this.getAllSelectedControlIds();
+        if (ids.length <= 2) {
+            this.showToast("Cần chọn ít nhất 3 control để phân bố khoảng cách", "warning");
+            return;
+        }
+
+        var self = this;
+        var cfgs = ids.map(function (id) { 
+            var cfg = self.getControlConfig(id);
+            if (!cfg) return null;
+            
+            // ✅ Lấy width/height từ DOM nếu không có trong config
+            var $el = $('[data-id="' + id + '"], #' + id);
+            if ($el.length) {
+                if (!cfg.width || cfg.width === 0) {
+                    cfg.width = $el.outerWidth() || $el.width() || 100;
+                }
+                if (!cfg.height || cfg.height === 0) {
+                    cfg.height = $el.outerHeight() || $el.height() || 30;
+                }
+            }
+            
+            return cfg;
+        }).filter(Boolean);
+        
+        if (!cfgs.length) return;
+
+        // ✅ Sắp xếp controls theo vị trí
+        if (orientation === "h") {
+            // Phân bố ngang: sắp xếp theo left (từ trái sang phải)
+            cfgs.sort(function (a, b) {
+                return (a.left || 0) - (b.left || 0);
+            });
+        } else if (orientation === "v") {
+            // Phân bố dọc: sắp xếp theo top (từ trên xuống dưới)
+            cfgs.sort(function (a, b) {
+                return (a.top || 0) - (b.top || 0);
+            });
+        } else {
+            return;
+        }
+
+        if (orientation === "h") {
+            // ✅ Phân bố ngang: tính khoảng cách đều giữa các controls
+            var firstLeft = cfgs[0].left || 0;
+            var firstWidth = cfgs[0].width || 100;
+            var lastLeft = cfgs[cfgs.length - 1].left || 0;
+            var lastWidth = cfgs[cfgs.length - 1].width || 100;
+            var lastRight = lastLeft + lastWidth;
+            
+            // Tính tổng width của tất cả controls ở giữa
+            var totalMiddleWidth = 0;
+            for (var i = 1; i < cfgs.length - 1; i++) {
+                totalMiddleWidth += (cfgs[i].width || 100);
+            }
+            
+            // Tính khoảng cách đều giữa các controls
+            // availableSpace = khoảng trống giữa control đầu và cuối (không tính width của controls)
+            // gap = availableSpace / số khoảng cách
+            var firstRight = firstLeft + firstWidth;
+            var availableSpace = lastRight - firstRight - totalMiddleWidth;
+            var gap = availableSpace / (cfgs.length - 1);
+
+            // Đặt vị trí cho các controls ở giữa (giữ nguyên control đầu và cuối)
+            var currentX = firstRight + gap;
+            for (var i = 1; i < cfgs.length - 1; i++) {
+                cfgs[i].left = currentX;
+                if (self.snapEnabled) {
+                    cfgs[i].left = Math.round(cfgs[i].left / self.snapStep) * self.snapStep;
+                }
+                
+                // ✅ Cập nhật DOM
+                var $el = $('[data-id="' + cfgs[i].id + '"], #' + cfgs[i].id);
+                if ($el.length) {
+                    $el.css({ left: cfgs[i].left });
+                }
+                
+                currentX += (cfgs[i].width || 100) + gap;
+            }
+        } else if (orientation === "v") {
+            // ✅ Phân bố dọc: tính khoảng cách đều giữa các controls
+            var firstTop = cfgs[0].top || 0;
+            var firstHeight = cfgs[0].height || 30;
+            var lastTop = cfgs[cfgs.length - 1].top || 0;
+            var lastHeight = cfgs[cfgs.length - 1].height || 30;
+            var lastBottom = lastTop + lastHeight;
+            
+            // Tính tổng height của tất cả controls ở giữa
+            var totalMiddleHeight = 0;
+            for (var i = 1; i < cfgs.length - 1; i++) {
+                totalMiddleHeight += (cfgs[i].height || 30);
+            }
+            
+            // Tính khoảng cách đều giữa các controls
+            var firstBottom = firstTop + firstHeight;
+            var availableSpace = lastBottom - firstBottom - totalMiddleHeight;
+            var gap = availableSpace / (cfgs.length - 1);
+
+            // Đặt vị trí cho các controls ở giữa (giữ nguyên control đầu và cuối)
+            var currentY = firstBottom + gap;
+            for (var i = 1; i < cfgs.length - 1; i++) {
+                cfgs[i].top = currentY;
+                if (self.snapEnabled) {
+                    cfgs[i].top = Math.round(cfgs[i].top / self.snapStep) * self.snapStep;
+                }
+                
+                // ✅ Cập nhật DOM
+                var $el = $('[data-id="' + cfgs[i].id + '"], #' + cfgs[i].id);
+                if ($el.length) {
+                    $el.css({ top: cfgs[i].top });
+                }
+                
+                currentY += (cfgs[i].height || 30) + gap;
+            }
+        }
+
+        this.updateSelectionSizeHint();
+        this.refreshJson();
+        this.showToast("Đã phân bố khoảng cách đều cho " + ids.length + " controls", "success");
+    },
+
+    // ✅ Helper: Di chuyển tất cả controls trong group cùng lúc
+    moveGroupControls: function (groupId, dx, dy) {
+        if (!groupId || !this.groups || !this.groups[groupId]) return;
+        
+        var group = this.groups[groupId];
+        var self = this;
+        
+        group.controlIds.forEach(function(controlId) {
+            var c = self.getControlConfig(controlId);
+            if (!c || c.groupId !== groupId) return;
+            
+            // Cập nhật vị trí
+            c.left = (c.left || 0) + dx;
+            c.top = (c.top || 0) + dy;
+            
+            // Cập nhật DOM
+            var $el = $('[data-id="' + c.id + '"], #' + c.id);
+            if ($el.length) {
+                $el.css({ left: c.left, top: c.top });
+            }
+        });
+    },
+
+    // ✅ Group/Ungroup controls
+    groupSelection: function () {
+        var ids = this.getAllSelectedControlIds();
+        if (ids.length < 2) {
+            this.showToast("Cần chọn ít nhất 2 control để nhóm", "warning");
+            return;
+        }
+
+        var self = this;
+        var cfgs = ids.map(function (id) { return self.getControlConfig(id); }).filter(Boolean);
+        if (!cfgs.length) return;
+
+        // ✅ Tính bounds của group (min left/top, max right/bottom)
+        var minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+        cfgs.forEach(function (c) {
+            var left = c.left || 0;
+            var top = c.top || 0;
+            var width = c.width || 0;
+            var height = c.height || 0;
+            
+            minLeft = Math.min(minLeft, left);
+            minTop = Math.min(minTop, top);
+            maxRight = Math.max(maxRight, left + width);
+            maxBottom = Math.max(maxBottom, top + height);
+        });
+
+        // ✅ Tạo group ID
+        var groupId = "group_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+
+        // ✅ Set groupId cho tất cả controls trong group
+        // Tính offset relative với top-left của group
+        // QUAN TRỌNG: KHÔNG thay đổi left/top của controls, chỉ lưu offset
+        cfgs.forEach(function (c) {
+            c.groupId = groupId;
+            c.groupOffsetX = (c.left || 0) - minLeft;
+            c.groupOffsetY = (c.top || 0) - minTop;
+            // ✅ Đảm bảo không thay đổi vị trí của controls
+            // Giữ nguyên left và top như ban đầu
+        });
+
+        // ✅ Lưu group info vào builder (để có thể ungroup sau)
+        if (!this.groups) this.groups = {};
+        this.groups[groupId] = {
+            id: groupId,
+            left: minLeft,
+            top: minTop,
+            width: maxRight - minLeft,
+            height: maxBottom - minTop,
+            controlIds: ids
+        };
+
+        // ✅ Cập nhật visual indicator sau khi group (KHÔNG thay đổi vị trí)
+        this.updateGroupVisuals();
+        this.refreshJson();
+        this.showToast("Đã nhóm " + ids.length + " controls (Ctrl+Shift+G để hủy nhóm)", "success");
+    },
+
+    ungroupSelection: function () {
+        var ids = this.getAllSelectedControlIds();
+        if (!ids.length) {
+            this.showToast("Chưa chọn control nào để hủy nhóm", "warning");
+            return;
+        }
+
+        var self = this;
+        var ungroupedCount = 0;
+        var groupIds = {};
+
+        // ✅ Tìm tất cả groups chứa các controls đã chọn
+        ids.forEach(function (id) {
+            var cfg = self.getControlConfig(id);
+            if (cfg && cfg.groupId) {
+                groupIds[cfg.groupId] = true;
+            }
+        });
+
+        // ✅ Ungroup tất cả controls trong các groups này
+        Object.keys(groupIds).forEach(function (groupId) {
+            if (!self.groups || !self.groups[groupId]) return;
+            
+            var group = self.groups[groupId];
+            group.controlIds.forEach(function (controlId) {
+                var cfg = self.getControlConfig(controlId);
+                if (cfg && cfg.groupId === groupId) {
+                    delete cfg.groupId;
+                    delete cfg.groupOffsetX;
+                    delete cfg.groupOffsetY;
+                    ungroupedCount++;
+                }
+            });
+
+            delete self.groups[groupId];
+        });
+
+        if (ungroupedCount > 0) {
+            // ✅ Cập nhật visual indicator sau khi ungroup
+            this.updateGroupVisuals();
+            this.refreshJson();
+            this.showToast("Đã hủy nhóm " + ungroupedCount + " controls", "success");
+            
+            // Xóa highlight sau khi ungroup
+            $(".group-highlight").removeClass("group-highlight");
+        } else {
+            this.showToast("Không có control nào được nhóm", "warning");
+        }
+    },
+
+    // ✅ Cập nhật visual indicator cho tất cả grouped controls
+    // QUAN TRỌNG: Hàm này CHỈ thêm/xóa visual indicators, KHÔNG thay đổi vị trí của controls
+    updateGroupVisuals: function () {
+        var self = this;
+        
+        // ✅ Xóa TẤT CẢ group indicators và badges hiện tại
+        $(".group-badge").remove(); // Fix: Xóa badge cũ
+        $(".group-indicator").remove();
+        $(".canvas-control-grouped").removeClass("canvas-control-grouped");
+        $(".page-field-grouped").removeClass("page-field-grouped");
+        $(".popup-field-grouped").removeClass("popup-field-grouped");
+        $(".popup-design-grouped").removeClass("popup-design-grouped");
+        $(".ess-grid-control-grouped").removeClass("ess-grid-control-grouped");
+        
+        // Rebuild groups từ controls (chỉ tính lại bounds, KHÔNG thay đổi vị trí)
+        this.rebuildGroups();
+        
+        // Thêm visual indicator cho mỗi group
+        if (this.groups) {
+            Object.keys(this.groups).forEach(function (groupId) {
+                var group = self.groups[groupId];
+                if (!group || !group.controlIds || group.controlIds.length < 2) return;
+                
+                // Thêm class cho tất cả controls trong group
+                group.controlIds.forEach(function (controlId) {
+                    var $el = $('[data-id="' + controlId + '"], #' + controlId);
+                    if ($el.length) {
+                        // ✅ KHÔNG thay đổi position của control để tránh làm nhảy vị trí
+                        // Controls đã có position: absolute hoặc relative từ trước
+                        // Chỉ thêm class grouped, không thay đổi CSS position
+                        
+                        // Thêm class grouped
+                        if ($el.hasClass("canvas-control") || $el.hasClass("ess-grid-control")) {
+                            $el.addClass("canvas-control-grouped");
+                        } else if ($el.hasClass("page-field")) {
+                            $el.addClass("page-field-grouped");
+                        } else if ($el.hasClass("popup-field")) {
+                            $el.addClass("popup-field-grouped");
+                        } else if ($el.hasClass("popup-design")) {
+                            $el.addClass("popup-design-grouped");
+                        }
+                        
+                        // ✅ Thêm badge ở vị trí absolute bên ngoài control (không đè lên control)
+                        // Badge sẽ được đặt ở góc trên phải, cách control một khoảng nhỏ
+                        // Badge sẽ được đặt relative với control (control cần có position: relative hoặc absolute)
+                        var $badge = $('<span class="group-badge" title="Nhóm ' + group.controlIds.length + ' controls">' + group.controlIds.length + '</span>');
+                        $badge.css({
+                            position: 'absolute',
+                            top: '-10px',
+                            right: '-10px',
+                            zIndex: 10000,
+                            pointerEvents: 'none' // Không chặn click vào control
+                        });
+                        $el.append($badge);
+                    }
+                });
+            });
+        }
+    },
+
+    // ✅ Rebuild groups từ controls (khi load lại từ JSON)
+    rebuildGroups: function () {
+        if (!this.groups) this.groups = {};
+        
+        var self = this;
+        var groupMap = {}; // Map groupId -> array of controlIds
+        
+        // Thu thập tất cả controls có groupId
+        this.controls.forEach(function (cfg) {
+            if (cfg && cfg.groupId) {
+                if (!groupMap[cfg.groupId]) {
+                    groupMap[cfg.groupId] = [];
+                }
+                groupMap[cfg.groupId].push(cfg.id);
+            }
+        });
+        
+        // Rebuild groups object
+        Object.keys(groupMap).forEach(function (groupId) {
+            var controlIds = groupMap[groupId];
+            if (controlIds.length < 2) {
+                // Nếu group chỉ có 1 control, xóa groupId
+                controlIds.forEach(function (controlId) {
+                    var cfg = self.getControlConfig(controlId);
+                    if (cfg) {
+                        delete cfg.groupId;
+                        delete cfg.groupOffsetX;
+                        delete cfg.groupOffsetY;
+                    }
+                });
+                return;
+            }
+            
+            // Tính bounds của group
+            var minLeft = Infinity, minTop = Infinity, maxRight = -Infinity, maxBottom = -Infinity;
+            controlIds.forEach(function (controlId) {
+                var cfg = self.getControlConfig(controlId);
+                if (!cfg) return;
+                
+                var left = cfg.left || 0;
+                var top = cfg.top || 0;
+                var width = cfg.width || 0;
+                var height = cfg.height || 0;
+                
+                minLeft = Math.min(minLeft, left);
+                minTop = Math.min(minTop, top);
+                maxRight = Math.max(maxRight, left + width);
+                maxBottom = Math.max(maxBottom, top + height);
+            });
+            
+            // Lưu group info
+            self.groups[groupId] = {
+                id: groupId,
+                left: minLeft,
+                top: minTop,
+                width: maxRight - minLeft,
+                height: maxBottom - minTop,
+                controlIds: controlIds
+            };
+        });
+    },
+
+    // ✅ Highlight tất cả controls trong cùng group khi chọn một control
+    highlightGroupControls: function (controlId) {
+        // Xóa highlight cũ
+        $(".group-highlight").removeClass("group-highlight");
+        
+        var cfg = this.getControlConfig(controlId);
+        if (!cfg || !cfg.groupId) return;
+        
+        // Rebuild groups nếu chưa có
+        if (!this.groups || !this.groups[cfg.groupId]) {
+            this.rebuildGroups();
+        }
+        
+        var group = this.groups && this.groups[cfg.groupId];
+        if (!group || !group.controlIds) return;
+        
+        // Highlight tất cả controls trong group
+        var self = this;
+        group.controlIds.forEach(function (id) {
+            var $el = $('[data-id="' + id + '"], #' + id);
+            if ($el.length) {
+                $el.addClass("group-highlight");
+            }
+        });
+    },
+
     // ✅ Lấy tất cả các control đã chọn (bao gồm cả fields, grids, popups, v.v.)
     getAllSelectedControlIds: function () {
         var ids = [];
@@ -1689,15 +2125,36 @@ var builder = {
         return ids;
     },
 
+    // ✅ Distribute spacing - Phân bố khoảng cách đều giữa các controls
     distributeSelection: function (orientation) {
-        var ids = this.getSelectedFieldIds();
-        if (ids.length <= 2) return;
+        // ✅ Lấy tất cả các control đã chọn (không chỉ fields)
+        var ids = this.getAllSelectedControlIds();
+        if (ids.length <= 2) {
+            this.showToast("Cần chọn ít nhất 3 control để phân bố khoảng cách", "warning");
+            return;
+        }
 
         var self = this;
         var cfgs = ids.map(function (id) { return self.getControlConfig(id); }).filter(Boolean);
+        if (!cfgs.length) return;
+
+        // ✅ Sắp xếp controls theo vị trí
+        if (orientation === "h") {
+            // Phân bố ngang: sắp xếp theo left
+            cfgs.sort(function (a, b) {
+                return (a.left || 0) - (b.left || 0);
+            });
+        } else if (orientation === "v") {
+            // Phân bố dọc: sắp xếp theo top
+            cfgs.sort(function (a, b) {
+                return (a.top || 0) - (b.top || 0);
+            });
+        } else {
+            return;
+        }
 
         if (orientation === "h") {
-            cfgs.sort(function (a, b) { return (a.left || 0) - (b.left || 0); });
+            // Phân bố ngang: tính khoảng cách đều giữa các controls
             var firstLeft = cfgs[0].left || 0;
             var lastRight = (cfgs[cfgs.length - 1].left || 0) + (cfgs[cfgs.length - 1].width || 0);
             var totalWidth = cfgs.reduce(function (s, c) { return s + (c.width || 0); }, 0);
@@ -1713,11 +2170,15 @@ var builder = {
                 if (self.snapEnabled) {
                     c.left = Math.round(c.left / self.snapStep) * self.snapStep;
                 }
-                $('[data-id="' + c.id + '"]').css({ left: c.left });
+                // ✅ Cập nhật DOM
+                var $el = $('[data-id="' + c.id + '"], #' + c.id);
+                if ($el.length) {
+                    $el.css({ left: c.left });
+                }
                 pos = c.left + (c.width || 0) + gap;
             });
-        } else {
-            cfgs.sort(function (a, b) { return (a.top || 0) - (b.top || 0); });
+        } else if (orientation === "v") {
+            // Phân bố dọc: tính khoảng cách đều giữa các controls
             var firstTop = cfgs[0].top || 0;
             var lastBottom = (cfgs[cfgs.length - 1].top || 0) + (cfgs[cfgs.length - 1].height || 0);
             var totalHeight = cfgs.reduce(function (s, c) { return s + (c.height || 0); }, 0);
@@ -1727,13 +2188,17 @@ var builder = {
             cfgs.forEach(function (c, i) {
                 if (i === 0 || i === cfgs.length - 1) {
                     posV += (c.height || 0) + gapV;
-                    return;
+                    return; // giữ nguyên first & last
                 }
                 c.top = posV;
                 if (self.snapEnabled) {
                     c.top = Math.round(c.top / self.snapStep) * self.snapStep;
                 }
-                $('[data-id="' + c.id + '"]').css({ top: c.top });
+                // ✅ Cập nhật DOM
+                var $el = $('[data-id="' + c.id + '"], #' + c.id);
+                if ($el.length) {
+                    $el.css({ top: c.top });
+                }
                 posV = c.top + (c.height || 0) + gapV;
             });
         }
@@ -2068,6 +2533,9 @@ var builder = {
             $dom[0].scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
         }
 
+        // ✅ Highlight tất cả controls trong cùng group
+        this.highlightGroupControls(id);
+
         this.highlightOutlineSelection();   // dùng outline-row-selected để highlight layer
         this.updateSelectionSizeHint();
     },
@@ -2114,7 +2582,7 @@ var builder = {
 
         var $t = $(target);
         var id = $t.attr("data-id") || $t.attr("id");
-        
+
         // ✅ Tìm id từ các phần tử cha nếu không tìm thấy trực tiếp (cho gridview trong popup)
         // Gridview có thể có nhiều phần tử con, cần tìm phần tử cha có data-id
         if (!id) {
@@ -2180,6 +2648,52 @@ var builder = {
         $menu.find("[data-cmd^='align-']").toggleClass("cm-disabled", !multiFields);
         $menu.find("[data-cmd='copy-style'],[data-cmd='paste-style']").toggleClass("cm-disabled", !isField);
         $menu.find("[data-cmd='paste-ctrl']").toggleClass("cm-disabled", !this.clipboardControls || !this.clipboardControls.length);
+        
+        // ✅ Xóa các menu items group/ungroup cũ trước khi thêm mới
+        $menu.find("li[data-cmd='group'], li[data-cmd='ungroup']").remove();
+        // Xóa separator trước group menu nếu không còn item nào sau nó
+        var $groupSeps = $menu.find("li.cm-sep");
+        $groupSeps.each(function() {
+            var $sep = $(this);
+            var hasGroupAfter = false;
+            $sep.nextAll().each(function() {
+                if ($(this).attr("data-cmd") === "group" || $(this).attr("data-cmd") === "ungroup") {
+                    hasGroupAfter = true;
+                    return false;
+                }
+            });
+            if (!hasGroupAfter && ($sep.next().length === 0 || $sep.next().hasClass("cm-sep"))) {
+                $sep.remove();
+            }
+        });
+        
+        // ✅ Group/Ungroup menu
+        var allSelectedIds = this.getAllSelectedControlIds();
+        var hasGroupedControls = false;
+        var self = this; // ✅ Fix: Khai báo self để dùng trong forEach
+        if (allSelectedIds.length > 0) {
+            allSelectedIds.forEach(function(id) {
+                var c = self.getControlConfig(id);
+                if (c && c.groupId) {
+                    hasGroupedControls = true;
+                    return false; // break
+                }
+            });
+        }
+        
+        // Thêm Group/Ungroup vào menu (sau duplicate, trước separator)
+        if (hasGroupedControls || allSelectedIds.length >= 2) {
+            var $groupSep = $('<li class="cm-sep"></li>');
+            $menu.find("ul").append($groupSep);
+            
+            if (hasGroupedControls) {
+                var $ungroupItem = $('<li data-cmd="ungroup">🔓 Hủy nhóm (Ctrl+Shift+G)</li>');
+                $menu.find("ul").append($ungroupItem);
+            } else if (allSelectedIds.length >= 2) {
+                var $groupItem = $('<li data-cmd="group">🔒 Nhóm (Ctrl+G)</li>');
+                $menu.find("ul").append($groupItem);
+            }
+        }
         
         // ✅ GridView menu: Xóa tất cả menu items cũ liên quan đến popup
         // Xóa từ cuối lên để tránh ảnh hưởng đến index
@@ -2281,6 +2795,12 @@ var builder = {
                 break;
             case "delete":
                 this.deleteSelectedControl();
+                break;
+            case "group":
+                this.groupSelection();
+                break;
+            case "ungroup":
+                this.ungroupSelection();
                 break;
             default:
                 // ✅ Xử lý menu GridView: move-to-popup-{popupId} hoặc move-out-popup
@@ -2449,6 +2969,12 @@ var builder = {
                 case "align-bottom":
                     self.alignSelection("bottom");
                     break;
+                case "distribute-h":
+                    self.distributeSelection("h");
+                    break;
+                case "distribute-v":
+                    self.distributeSelection("v");
+                    break;
                 case "duplicate":
                     self.duplicateSelection();
                     break;
@@ -2515,8 +3041,8 @@ var builder = {
             if (cfg && cfg.type === "popup") {
                 // Xử lý popup ở phần dưới (multi-control confirm)
             } else {
-                this.removeControl(allIds[0]);
-                return;
+            this.removeControl(allIds[0]);
+            return;
             }
         }
 
@@ -3374,11 +3900,13 @@ var builder = {
         // Clone toàn bộ canvas (giống preview)
         var $canvasClone = $canvas.clone(false);
         
-        // Loại bỏ các class/attribute tương tác
+        // Loại bỏ các class/attribute tương tác và badge group
         $canvasClone.find("*").each(function() {
             var $el = $(this);
             $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
             $el.removeAttr("data-interact-id");
+            // ✅ Xóa badge group để không xuất hiện trong ảnh
+            $el.find(".group-badge").remove();
         });
         
         // Set style cho canvas clone
@@ -3460,41 +3988,155 @@ var builder = {
         // Content: Clone canvas content
         var $content = $('<div style="flex: 1; padding: 40px; background: #e8e8e8; overflow: auto; display: flex; justify-content: center; align-items: flex-start;"></div>');
         
-        // Tính toán kích thước thực tế của nội dung
-        var canvasElement = $canvas[0];
-        var scrollWidth = Math.max(canvasElement.scrollWidth, canvasElement.offsetWidth);
-        var scrollHeight = Math.max(canvasElement.scrollHeight, canvasElement.offsetHeight);
+        // ✅ Tính toán kích thước thực tế của nội dung từ DOM
+        // QUAN TRỌNG: Tính từ DOM để đảm bảo chính xác, bao gồm cả controls ngoài viewport
+        // Sử dụng getBoundingClientRect() để lấy vị trí chính xác, không phụ thuộc vào scroll
+        var minLeft = Infinity;
+        var minTop = Infinity;
+        var maxRight = -Infinity;
+        var maxBottom = -Infinity;
         
-        // Tìm tất cả các element con để tính kích thước thực tế
-        var maxRight = 0;
-        var maxBottom = 0;
-        $canvas.find("*").each(function() {
+        // ✅ Tính từ DOM: tìm tất cả controls và tính bounds
+        var allControls = $canvas.find(".popup-design, .canvas-control, .page-field, .popup-field, .canvas-toolbar, .canvas-tabpage, .ess-grid-control");
+        
+        // Debug: Log số lượng controls tìm được
+        console.log("Found controls for bounds calculation:", allControls.length);
+        
+        // Lấy canvas rect để tính offset
+        var canvasRect = $canvas[0].getBoundingClientRect();
+        var canvasScrollLeft = $canvas.scrollLeft() || 0;
+        var canvasScrollTop = $canvas.scrollTop() || 0;
+        
+        allControls.each(function() {
             var $el = $(this);
-            var rect = this.getBoundingClientRect();
-            var canvasRect = canvasElement.getBoundingClientRect();
+            var el = this;
             
-            // Tính vị trí relative với canvas (bao gồm scroll)
-            var relativeLeft = rect.left - canvasRect.left + $canvas.scrollLeft();
-            var relativeTop = rect.top - canvasRect.top + $canvas.scrollTop();
-            var relativeRight = relativeLeft + rect.width;
-            var relativeBottom = relativeTop + rect.height;
+            // ✅ QUAN TRỌNG: Lấy vị trí từ CSS (đã là absolute position trên canvas)
+            // CSS left/top đã là relative với canvas, không cần tính scroll
+            var leftStr = $el.css("left");
+            var topStr = $el.css("top");
+            var left = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
+            var top = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
+            if (isNaN(left)) left = 0;
+            if (isNaN(top)) top = 0;
             
-            maxRight = Math.max(maxRight, relativeRight);
-            maxBottom = Math.max(maxBottom, relativeBottom);
+            var width = $el.outerWidth() || 0;
+            var height = $el.outerHeight() || 0;
+            
+            // ✅ Nếu control nằm trong popup, cần cộng thêm vị trí của popup
+            var $parentPopup = $el.closest(".popup-design");
+            if ($parentPopup.length) {
+                var popupLeftStr = $parentPopup.css("left");
+                var popupTopStr = $parentPopup.css("top");
+                var popupLeft = (popupLeftStr && popupLeftStr !== "auto" && popupLeftStr !== "none") ? parseFloat(popupLeftStr) : 0;
+                var popupTop = (popupTopStr && popupTopStr !== "auto" && popupTopStr !== "none") ? parseFloat(popupTopStr) : 0;
+                if (isNaN(popupLeft)) popupLeft = 0;
+                if (isNaN(popupTop)) popupTop = 0;
+                left += popupLeft;
+                top += popupTop;
+            }
+            
+            // Debug: Log từng control để kiểm tra
+            if (left < 20 || top < 20) {
+                console.log("Control at edge:", {
+                    class: $el.attr("class"),
+                    id: $el.attr("data-id"),
+                    left: left,
+                    top: top,
+                    width: width,
+                    height: height,
+                    cssLeft: leftStr,
+                    cssTop: topStr
+                });
+            }
+            
+            // Cập nhật bounds
+            minLeft = Math.min(minLeft, left);
+            minTop = Math.min(minTop, top);
+            maxRight = Math.max(maxRight, left + width);
+            maxBottom = Math.max(maxBottom, top + height);
         });
         
-        var finalWidth = Math.max(scrollWidth, maxRight + 40);
-        var finalHeight = Math.max(scrollHeight, maxBottom + 40);
+        // Nếu không tìm thấy controls nào, dùng giá trị mặc định
+        if (minLeft === Infinity) {
+            minLeft = 0;
+            minTop = 0;
+            maxRight = 800;
+            maxBottom = 600;
+        }
+        
+        // ✅ QUAN TRỌNG: Đảm bảo minLeft >= 0 để tránh mất phần bên trái
+        // Nếu minLeft < 0, điều chỉnh để đảm bảo tất cả controls đều được tính
+        if (minLeft < 0) {
+            var adjustNegative = -minLeft;
+            minLeft = 0;
+            // Điều chỉnh maxRight để giữ nguyên contentWidth
+            maxRight += adjustNegative;
+        }
+        if (minTop < 0) {
+            var adjustNegative = -minTop;
+            minTop = 0;
+            maxBottom += adjustNegative;
+        }
+        
+        // Tính kích thước cuối cùng với padding
+        // ✅ QUAN TRỌNG: Tăng padding bên trái và phải để đảm bảo không mất phần bên trái/phải
+        var padding = 40;
+        var paddingLeft = 80; // ✅ Padding bên trái lớn hơn để đảm bảo không mất phần bên trái
+        var paddingRight = 80; // ✅ Padding bên phải lớn hơn để đảm bảo không mất phần bên phải
+        var paddingTop = 40;
+        var paddingBottom = 40;
+        
+        var contentWidth = maxRight - minLeft;
+        var contentHeight = maxBottom - minTop;
+        var finalWidth = contentWidth + paddingLeft + paddingRight;
+        var finalHeight = contentHeight + paddingTop + paddingBottom;
+        
+        // ✅ QUAN TRỌNG: Tính offset để dịch controls về vị trí bắt đầu từ paddingLeft và paddingTop
+        // offsetX = paddingLeft - minLeft: dịch để control đầu tiên (ở minLeft) đến vị trí paddingLeft
+        // offsetY = paddingTop - minTop: dịch để control đầu tiên (ở minTop) đến vị trí paddingTop
+        // Nếu minLeft = 0, offsetX = 60 (dịch sang phải 60px để có padding)
+        // Nếu minLeft = 20, offsetX = 40 (dịch sang phải 40px để có padding)
+        // ✅ QUAN TRỌNG: Nếu minTop > paddingTop, không dịch lên trên, chỉ dịch xuống dưới nếu cần
+        // Ví dụ: minTop = 90, paddingTop = 40 -> offsetY = -50 (dịch lên trên) -> KHÔNG ĐÚNG!
+        // Giải pháp: Nếu minTop > paddingTop, điều chỉnh paddingTop = minTop để không dịch lên trên
+        var offsetX = paddingLeft - minLeft;
+        var offsetY = paddingTop - minTop;
+        
+        // ✅ Nếu minTop > paddingTop, điều chỉnh paddingTop để không dịch lên trên
+        if (minTop > paddingTop) {
+            var extraTopPadding = minTop - paddingTop;
+            paddingTop = minTop; // Điều chỉnh paddingTop = minTop
+            finalHeight += extraTopPadding; // Tăng chiều cao để bù phần padding thêm
+            offsetY = 0; // Không dịch lên trên
+        }
         
         // Tạo preview canvas với kích thước chính xác
-        var $previewCanvas = $('<div id="previewCanvas" style="position: relative; background: #ffffff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 0; overflow: visible;"></div>');
+        // ✅ QUAN TRỌNG: Không có margin, padding để đảm bảo controls được đặt đúng vị trí
+        var $previewCanvas = $('<div id="previewCanvas"></div>');
         $previewCanvas.css({
+            position: "relative",
+            background: "#ffffff",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            padding: "0",
+            margin: "0",
+            overflow: "visible",
             width: finalWidth + "px",
             minHeight: finalHeight + "px"
         });
         
         // Clone toàn bộ canvas (bao gồm cả popup và controls)
         var $canvasClone = $canvas.clone(false); // Clone false để không clone event handlers
+        
+        // ✅ QUAN TRỌNG: Reset CSS của canvas clone để không bị ảnh hưởng bởi CSS gốc
+        $canvasClone.css({
+            position: "relative",
+            left: "0",
+            top: "0",
+            margin: "0",
+            padding: "0",
+            overflow: "visible"
+        });
         
         // Loại bỏ các class/attribute tương tác và event handlers
         $canvasClone.find("*").each(function() {
@@ -3503,6 +4145,8 @@ var builder = {
             $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
             // Xóa các attribute tương tác
             $el.removeAttr("data-interact-id");
+            // ✅ Xóa badge group để không xuất hiện trong preview
+            $el.find(".group-badge").remove();
             // Loại bỏ pointer events cho các control (chỉ xem, không tương tác)
             if ($el.hasClass("canvas-control") || $el.hasClass("popup-design") || $el.hasClass("page-field") || $el.hasClass("popup-field")) {
                 $el.css("pointer-events", "none");
@@ -3514,15 +4158,264 @@ var builder = {
         $canvasClone.find("*").off();
         
         // Set style cho canvas clone - giữ nguyên kích thước và vị trí
+        // ✅ offsetX và offsetY đã được tính ở trên
+        
+        // Debug: Log để kiểm tra (có thể xóa sau khi test xong)
+        console.log("Preview bounds BEFORE adjustment:", { 
+            minLeft: minLeft, 
+            minTop: minTop, 
+            maxRight: maxRight, 
+            maxBottom: maxBottom, 
+            offsetX: offsetX, 
+            offsetY: offsetY, 
+            finalWidth: finalWidth, 
+            finalHeight: finalHeight,
+            contentWidth: contentWidth,
+            contentHeight: contentHeight
+        });
+        
+        // ✅ Kiểm tra: Nếu minLeft > 0, có nghĩa là có controls ở vị trí dương
+        // Điều này có nghĩa là không có controls ở vị trí 0 hoặc âm
+        // Nhưng vẫn cần dịch chuyển để có padding bên trái
+        
+        // ✅ Điều chỉnh vị trí của tất cả controls trong clone
+        // QUAN TRỌNG: Điều chỉnh TẤT CẢ controls một cách đơn giản và rõ ràng
+        
+        // Helper function để điều chỉnh vị trí một element
+        var adjustPosition = function($el, offsetX, offsetY) {
+            var leftStr = $el.css("left");
+            var topStr = $el.css("top");
+            var currentLeft = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
+            var currentTop = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
+            if (isNaN(currentLeft)) currentLeft = 0;
+            if (isNaN(currentTop)) currentTop = 0;
+            
+            $el.css({
+                "left": (currentLeft + offsetX) + "px",
+                "top": (currentTop + offsetY) + "px"
+            });
+        };
+        
+        // ✅ Điều chỉnh TẤT CẢ controls một cách rõ ràng
+        // QUAN TRỌNG: Điều chỉnh từng loại control để đảm bảo không bỏ sót
+        
+        // Bước 1: Điều chỉnh popup trước
+        $canvasClone.find(".popup-design").each(function() {
+            adjustPosition($(this), offsetX, offsetY);
+        });
+        
+        // Bước 2: Điều chỉnh tất cả controls trực tiếp trên canvas (không trong popup)
+        // ✅ QUAN TRỌNG: Sử dụng selector cụ thể để đảm bảo không bỏ sót
+        // Điều chỉnh từng loại control một cách rõ ràng
+        $canvasClone.find(".canvas-control").each(function() {
+            var $el = $(this);
+            // Bỏ qua controls bên trong popup-body
+            if ($el.closest(".popup-body").length > 0) {
+                return;
+            }
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".page-field").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) {
+                return;
+            }
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".canvas-toolbar").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) {
+                return;
+            }
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".canvas-tabpage").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) {
+                return;
+            }
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".ess-grid-control").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) {
+                return;
+            }
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".popup-field").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) {
+                return;
+            }
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        // Điều chỉnh lại bounds sau khi dịch chuyển
+        var adjustedMinLeft = minLeft + offsetX; // Sẽ = padding
+        var adjustedMinTop = minTop + offsetY;    // Sẽ = padding
+        var adjustedMaxRight = maxRight + offsetX;
+        var adjustedMaxBottom = maxBottom + offsetY;
+        
+        // Tính lại kích thước sau khi điều chỉnh
+        // adjustedMinLeft sẽ = paddingLeft, adjustedMinTop sẽ = paddingTop sau khi dịch chuyển
+        // adjustedContentWidth = adjustedMaxRight - adjustedMinLeft = (maxRight + offsetX) - (minLeft + offsetX) = maxRight - minLeft = contentWidth
+        var adjustedContentWidth = adjustedMaxRight - adjustedMinLeft;
+        var adjustedContentHeight = adjustedMaxBottom - adjustedMinTop;
+        finalWidth = adjustedContentWidth + paddingLeft + paddingRight; // ✅ Padding cả hai bên (trái + phải)
+        finalHeight = adjustedContentHeight + paddingTop + paddingBottom; // ✅ Padding cả hai bên (trên + dưới)
+        
+        // ✅ Tính lại bounds thực tế sau khi điều chỉnh để đảm bảo chính xác
+        var actualMinLeft = Infinity;
+        var actualMinTop = Infinity;
+        var actualMaxRight = -Infinity;
+        var actualMaxBottom = -Infinity;
+        
+        var allControlsAfter = $canvasClone.find(".popup-design, .canvas-control, .page-field, .popup-field, .canvas-toolbar, .canvas-tabpage, .ess-grid-control");
+        console.log("Found controls AFTER adjustment:", allControlsAfter.length);
+        
+        allControlsAfter.each(function() {
+            var $el = $(this);
+            var leftStr = $el.css("left");
+            var topStr = $el.css("top");
+            var left = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
+            var top = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
+            if (isNaN(left)) left = 0;
+            if (isNaN(top)) top = 0;
+            
+            var width = $el.outerWidth() || 0;
+            var height = $el.outerHeight() || 0;
+            
+            // Nếu trong popup, cộng thêm vị trí popup
+            var $parentPopup = $el.closest(".popup-design");
+            if ($parentPopup.length) {
+                var popupLeftStr = $parentPopup.css("left");
+                var popupTopStr = $parentPopup.css("top");
+                var popupLeft = (popupLeftStr && popupLeftStr !== "auto" && popupLeftStr !== "none") ? parseFloat(popupLeftStr) : 0;
+                var popupTop = (popupTopStr && popupTopStr !== "auto" && popupTopStr !== "none") ? parseFloat(popupTopStr) : 0;
+                if (isNaN(popupLeft)) popupLeft = 0;
+                if (isNaN(popupTop)) popupTop = 0;
+                left += popupLeft;
+                top += popupTop;
+            }
+            
+            // Debug: Log controls ở vị trí < paddingLeft hoặc < paddingTop
+            if (left < paddingLeft || top < paddingTop) {
+                console.log("Control still at edge AFTER adjustment:", {
+                    class: $el.attr("class"),
+                    id: $el.attr("data-id"),
+                    left: left,
+                    top: top,
+                    width: width,
+                    height: height,
+                    paddingLeft: paddingLeft,
+                    paddingTop: paddingTop
+                });
+            }
+            
+            actualMinLeft = Math.min(actualMinLeft, left);
+            actualMinTop = Math.min(actualMinTop, top);
+            actualMaxRight = Math.max(actualMaxRight, left + width);
+            actualMaxBottom = Math.max(actualMaxBottom, top + height);
+        });
+        
+        // ✅ QUAN TRỌNG: Đảm bảo actualMinLeft >= paddingLeft và actualMinTop >= paddingTop
+        // Nếu actualMinLeft < paddingLeft hoặc actualMinTop < paddingTop, điều chỉnh lại tất cả controls
+        var extraPaddingLeft = 0;
+        var extraPaddingTop = 0;
+        
+        if (actualMinLeft !== Infinity && actualMinLeft < paddingLeft) {
+            extraPaddingLeft = paddingLeft - actualMinLeft;
+            finalWidth += extraPaddingLeft;
+            console.log("Need extra padding LEFT:", extraPaddingLeft, "actualMinLeft:", actualMinLeft, "paddingLeft:", paddingLeft);
+        }
+        
+        if (actualMinTop !== Infinity && actualMinTop < paddingTop) {
+            extraPaddingTop = paddingTop - actualMinTop;
+            finalHeight += extraPaddingTop;
+            console.log("Need extra padding TOP:", extraPaddingTop, "actualMinTop:", actualMinTop, "paddingTop:", paddingTop);
+        }
+        
+        if (extraPaddingLeft > 0 || extraPaddingTop > 0) {
+            console.log("Adjusting extra padding:", { extraPaddingLeft, extraPaddingTop, actualMinLeft, actualMinTop, paddingLeft, paddingTop });
+            
+            // Dịch thêm TẤT CẢ elements có position absolute/relative
+            $canvasClone.find("*").each(function() {
+                var $el = $(this);
+                var position = $el.css("position");
+                
+                if (position !== "absolute" && position !== "relative") {
+                    return;
+                }
+                
+                // Bỏ qua controls bên trong popup-body
+                if ($el.closest(".popup-body").length > 0 && !$el.hasClass("popup-design")) {
+                    return;
+                }
+                
+                // Dịch left
+                if (extraPaddingLeft > 0) {
+                    var leftStr = $el.css("left");
+                    var left = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
+                    if (isNaN(left)) left = 0;
+                    $el.css("left", (left + extraPaddingLeft) + "px");
+                }
+                
+                // Dịch top
+                if (extraPaddingTop > 0) {
+                    var topStr = $el.css("top");
+                    var top = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
+                    if (isNaN(top)) top = 0;
+                    $el.css("top", (top + extraPaddingTop) + "px");
+                }
+            });
+            
+            // Cập nhật lại actualMinLeft và actualMinTop sau khi dịch
+            if (extraPaddingLeft > 0) actualMinLeft += extraPaddingLeft;
+            if (extraPaddingTop > 0) actualMinTop += extraPaddingTop;
+        }
+        
+        // ✅ Cập nhật lại finalWidth và finalHeight dựa trên actual bounds
+        if (actualMinLeft !== Infinity) {
+            var actualContentWidth = actualMaxRight - actualMinLeft;
+            var actualContentHeight = actualMaxBottom - actualMinTop;
+            finalWidth = Math.max(finalWidth, actualContentWidth + paddingLeft + paddingRight);
+            finalHeight = Math.max(finalHeight, actualContentHeight + paddingTop + paddingBottom);
+        }
+        
+        console.log("Preview bounds AFTER adjustment:", {
+            actualMinLeft: actualMinLeft,
+            actualMinTop: actualMinTop,
+            actualMaxRight: actualMaxRight,
+            actualMaxBottom: actualMaxBottom,
+            finalWidth: finalWidth,
+            finalHeight: finalHeight
+        });
+        
+        // ✅ QUAN TRỌNG: Đảm bảo canvas clone có kích thước đúng
+        // Canvas clone phải có width/height đủ để chứa tất cả controls
         $canvasClone.css({
             "overflow": "visible",
             "position": "relative",
             "width": finalWidth + "px",
-            "minHeight": finalHeight + "px",
+            "height": finalHeight + "px", // ✅ Dùng height thay vì minHeight để đảm bảo kích thước chính xác
             "margin": "0",
             "padding": "0",
             "transform": "none",
-            "background": "#ffffff"
+            "background": "transparent" // Transparent để không che controls
+        });
+        
+        // ✅ QUAN TRỌNG: Đảm bảo preview canvas có kích thước đúng
+        $previewCanvas.css({
+            width: finalWidth + "px",
+            height: finalHeight + "px", // ✅ Dùng height thay vì minHeight
+            minWidth: finalWidth + "px",
+            minHeight: finalHeight + "px"
         });
         
         $previewCanvas.append($canvasClone);
