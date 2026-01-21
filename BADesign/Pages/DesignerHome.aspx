@@ -1198,7 +1198,7 @@
                                         <th>Name</th>
                                         <th style="width: 120px;">Type</th>
                                         <th style="width: 100px;">Status</th>
-                                        <th style="width: 150px;">Updated</th>
+                                        <th style="width: 160px;">Updated</th>
                                         <th style="width: 200px;">Actions</th>
                                     </tr>
                                 </thead>
