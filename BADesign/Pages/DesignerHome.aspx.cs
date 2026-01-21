@@ -124,10 +124,12 @@ ORDER BY ISNULL(c.UpdatedAt, c.CreatedAt) DESC, c.ControlId DESC;";
 				cmd.CommandText = @"
 SELECT c.ControlId, c.Name, c.ControlType, c.IsPublic,
        ISNULL(c.UpdatedAt, c.CreatedAt) AS UpdatedAt,
-       c.ThumbnailPath,
-       u.UserName
+       c.ThumbnailPath, c.ProjectId,
+       u.UserName,
+       ISNULL(p.Name, N'Uncategorized') AS ProjectName
 FROM dbo.UiBuilderControl c
 JOIN dbo.UiUser u ON c.OwnerUserId = u.UserId
+LEFT JOIN dbo.UiProject p ON c.ProjectId = p.ProjectId AND p.IsDeleted = 0
 WHERE c.IsDeleted = 0
   AND c.IsPublic   = 1          -- CHỈ CÒN ĐIỀU KIỆN NÀY
 ORDER BY ISNULL(c.UpdatedAt, c.CreatedAt) DESC, c.ControlId DESC;";
@@ -154,6 +156,8 @@ ORDER BY ISNULL(c.UpdatedAt, c.CreatedAt) DESC, c.ControlId DESC;";
 							UpdatedAt = (DateTime)rd["UpdatedAt"],
 							ThumbnailUrl = thumb,
 							OwnerName = (string)rd["UserName"],
+							ProjectId = rd["ProjectId"] != DBNull.Value ? (int?)rd["ProjectId"] : null,
+							ProjectName = rd["ProjectName"] as string ?? "Uncategorized",
 							CloneUrl = "Builder.aspx?cloneId=" + id
 						});
 					}

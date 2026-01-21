@@ -437,6 +437,146 @@
             transition: all 0.2s ease;
         }
 
+        /* ===== Project Filter Multi-Select ===== */
+        .project-filter-wrapper {
+            position: relative;
+        }
+
+        .project-filter-trigger {
+            padding: 0.375rem 0.75rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 180px;
+            justify-content: space-between;
+        }
+
+        .project-filter-trigger:hover {
+            border-color: var(--primary);
+        }
+
+        .project-filter-trigger.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+
+        .project-filter-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .project-filter-count {
+            background: var(--primary);
+            color: white;
+            padding: 0.125rem 0.375rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .project-filter-arrow {
+            font-size: 0.75rem;
+            transition: transform 0.2s ease;
+        }
+
+        .project-filter-trigger.active .project-filter-arrow {
+            transform: rotate(180deg);
+        }
+
+        .project-filter-dropdown {
+            position: absolute;
+            top: calc(100% + 0.25rem);
+            left: 0;
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            min-width: 250px;
+        }
+
+        .project-filter-header {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .project-filter-checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            flex: 1;
+        }
+
+        .project-filter-checkbox {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .project-filter-clear {
+            padding: 0.25rem 0.5rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 0.25rem;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .project-filter-clear:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border-color: var(--primary);
+        }
+
+        .project-filter-list {
+            padding: 0.5rem 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .project-filter-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s ease;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+        }
+
+        .project-filter-item:hover {
+            background: var(--bg-hover);
+        }
+
+        .project-filter-item span {
+            flex: 1;
+        }
+
         .toolbar-select:hover {
             border-color: var(--primary);
         }
@@ -444,6 +584,166 @@
         .toolbar-select:focus {
             border-color: var(--primary);
             box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+
+        .badge-project {
+            background: rgba(0, 120, 212, 0.2);
+            color: var(--primary-light);
+        }
+
+        /* ===== Custom Multi-Select Dropdown ===== */
+        .custom-multiselect {
+            position: relative;
+            display: inline-block;
+        }
+
+        .custom-multiselect-btn {
+            padding: 0.375rem 0.75rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            min-width: 180px;
+            justify-content: space-between;
+        }
+
+        .custom-multiselect-btn:hover {
+            border-color: var(--primary);
+        }
+
+        .custom-multiselect-btn.active {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+
+        .filter-text {
+            flex: 1;
+            text-align: left;
+        }
+
+        .filter-count {
+            background: var(--primary);
+            color: white;
+            padding: 0.125rem 0.375rem;
+            border-radius: 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            min-width: 1.25rem;
+            text-align: center;
+        }
+
+        .filter-arrow {
+            font-size: 0.625rem;
+            transition: transform 0.2s ease;
+        }
+
+        .custom-multiselect-btn.active .filter-arrow {
+            transform: rotate(180deg);
+        }
+
+        .custom-multiselect-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.25rem);
+            left: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            min-width: 250px;
+            max-width: 350px;
+            max-height: 400px;
+            overflow: hidden;
+            flex-direction: column;
+        }
+
+        .custom-multiselect-dropdown.show {
+            display: flex;
+        }
+
+        .multiselect-search {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .multiselect-search input {
+            width: 100%;
+            padding: 0.375rem 0.5rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 0.25rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            outline: none;
+        }
+
+        .multiselect-search input:focus {
+            border-color: var(--primary);
+        }
+
+        .multiselect-options {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 0.25rem;
+        }
+
+        .multiselect-options::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .multiselect-options::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        .multiselect-options::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .multiselect-options::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+
+        .multiselect-option {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            cursor: pointer;
+            border-radius: 0.25rem;
+            transition: background 0.2s ease;
+            user-select: none;
+        }
+
+        .multiselect-option:hover {
+            background: var(--bg-hover);
+        }
+
+        .multiselect-option input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+            accent-color: var(--primary);
+            flex-shrink: 0;
+        }
+
+        .multiselect-option span {
+            flex: 1;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .multiselect-option input[type="checkbox"]:checked + span {
+            color: var(--primary-light);
+            font-weight: 500;
         }
 
         .toolbar-search {
@@ -1351,6 +1651,31 @@
                                     </select>
                 </div>
                                 <div class="toolbar-group">
+                                    <span class="toolbar-label">Project:</span>
+                                    <div class="custom-multiselect" id="projectFilterWrapper">
+                                        <button type="button" class="custom-multiselect-btn" id="projectFilterBtn">
+                                            <span class="filter-text">All Projects</span>
+                                            <span class="filter-count" style="display: none;"></span>
+                                            <span class="filter-arrow">▼</span>
+                                        </button>
+                                        <div class="custom-multiselect-dropdown" id="projectFilterDropdown">
+                                            <div class="multiselect-search">
+                                                <input type="text" placeholder="Search projects..." id="projectFilterSearch" />
+                                            </div>
+                                            <div class="multiselect-options" id="projectFilterOptions">
+                                                <label class="multiselect-option" data-value="all">
+                                                    <input type="checkbox" value="all" checked />
+                                                    <span>All Projects</span>
+                                                </label>
+                                                <label class="multiselect-option" data-value="null">
+                                                    <input type="checkbox" value="null" />
+                                                    <span>Uncategorized</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                </div>
+                                <div class="toolbar-group">
                                     <span class="toolbar-label">Sort by:</span>
                                     <select class="toolbar-select" id="sortMyDesigns">
                                         <option value="date-desc">Date (Newest)</option>
@@ -1398,6 +1723,9 @@
                                                 <span class='<%# (bool)Eval("IsPublic") ? "badge badge-public" : "badge badge-private" %>'>
                                                         <%# (bool)Eval("IsPublic") ? "Public" : "Private" %>
                                                     </span>
+                                                <span class="project-badge" data-project-id='<%# Eval("ProjectId") != DBNull.Value ? Eval("ProjectId") : "" %>' style="display: none;">
+                                                    · <span class="badge badge-project"><%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %></span>
+                                                </span>
                                                 <br />
                                                 <small>Updated: <%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></small>
                                             </div>
@@ -1445,6 +1773,7 @@
                                         <th>Name</th>
                                         <th style="width: 120px;">Type</th>
                                         <th style="width: 100px;">Status</th>
+                                        <th style="width: 150px;">Project</th>
                                         <th style="width: 160px;">Updated</th>
                                         <th style="width: 200px;">Actions</th>
                                     </tr>
@@ -1502,7 +1831,9 @@
                                          data-type='<%# Eval("ControlType") %>'
                                          data-owner='<%# Eval("OwnerName") %>'
                                          data-date='<%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm:ss}") %>'
-                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'>
+                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'
+                                         data-project-id='<%# Eval("ProjectId") != DBNull.Value ? Eval("ProjectId") : "" %>'
+                                         data-project-name='<%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %>'>
                                         <img src='<%# Eval("ThumbnailUrl") %>' 
                                              class="design-card-thumb" 
                                              alt='<%# Eval("Name") %>' />
@@ -1512,6 +1843,9 @@
                                             </div>
                                             <div class="design-card-meta">
                                                 <%# Eval("ControlType") %> · Owner: <%# Eval("OwnerName") %>
+                                                <span class="project-badge">
+                                                    · <span class="badge badge-project"><%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %></span>
+                                                </span>
                                                 <br />
                                                 <small>Updated: <%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></small>
                                             </div>
@@ -1534,6 +1868,7 @@
                                         <th>Name</th>
                                         <th style="width: 120px;">Type</th>
                                         <th style="width: 120px;">Owner</th>
+                                        <th style="width: 150px;">Project</th>
                                         <th style="width: 150px;">Updated</th>
                                         <th style="width: 120px;">Actions</th>
                                     </tr>
@@ -1702,29 +2037,201 @@
 
         function loadProjects() {
             $.ajax({
-                url: '/Pages/Builder.aspx/GetProjects',
-                method: "POST",
+                url: '<%= ResolveUrl("~/Pages/Builder.aspx/GetProjects") %>',
+                type: "POST",
                 contentType: "application/json; charset=utf-8",
+                dataType: "json",
                 data: "{}",
                 success: function(res) {
-                    var projects = res.d || [];
+                    var projects = res.d || res || [];
                     var $projectsList = $('#projectsList');
                     $projectsList.empty();
                     
+                    // Update project filter dropdown
+                    var $projectFilterOptions = $('#projectFilterOptions');
+                    if ($projectFilterOptions.length) {
+                        // Find Uncategorized project ID
+                        var uncategorizedProjectId = null;
+                        projects.forEach(function(p) {
+                            if ((p.name || '').toLowerCase() === 'uncategorized') {
+                                uncategorizedProjectId = p.projectId;
+                            }
+                        });
+                        
+                        // Keep "All Projects" option, remove others
+                        $projectFilterOptions.find('label:not([data-value="all"])').remove();
+                        
+                        // Add all project options (including Uncategorized)
+                        projects.forEach(function(p) {
+                            var projectName = (p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            var projectId = p.projectId;
+                            var designCount = p.designCount || 0;
+                            var $option = $('<label class="multiselect-option" data-value="' + projectId + '">' +
+                                '<input type="checkbox" value="' + projectId + '" />' +
+                                '<span>' + projectName + ' <small style="color: var(--text-muted);">(' + designCount + ')</small></span>' +
+                                '</label>');
+                            $projectFilterOptions.append($option);
+                        });
+                        
+                        // Add "Uncategorized" option for NULL ProjectId designs (if Uncategorized project exists, use its ID; otherwise use "null")
+                        var uncategorizedValue = uncategorizedProjectId || 'null';
+                        var $uncategorizedOption = $projectFilterOptions.find('label[data-value="' + uncategorizedValue + '"]');
+                        if (!$uncategorizedOption.length) {
+                            // If Uncategorized project doesn't exist in list, add option for NULL ProjectId
+                            var $uncategorized = $('<label class="multiselect-option" data-value="null">' +
+                                '<input type="checkbox" value="null" />' +
+                                '<span>Uncategorized</span>' +
+                                '</label>');
+                            $projectFilterOptions.append($uncategorized);
+                        }
+                        
+                        // If "All Projects" is selected in sidebar, check all projects in dropdown
+                        if (currentProjectId === null || currentProjectId === undefined || currentProjectId === 'all') {
+                            $projectFilterOptions.find('input[type="checkbox"]').prop('checked', true);
+                        }
+                    }
+                    
+                    // Update filter button text
+                    updateProjectFilterButton();
+                    
+                    if (projects.length === 0) {
+                        // Show message if no projects
+                        $projectsList.html('<div style="padding: 0.5rem 1rem; color: var(--text-muted); font-size: 0.75rem;">No projects yet</div>');
+                        return;
+                    }
+                    
                     projects.forEach(function(p) {
-                        var $item = $('<div class="nav-item project-item" data-project="' + p.projectId + '" data-project-id="' + p.projectId + '" data-design-count="' + p.designCount + '">' +
+                        var projectName = (p.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                        var $item = $('<div class="nav-item project-item" data-project="' + p.projectId + '" data-project-id="' + p.projectId + '" data-design-count="' + (p.designCount || 0) + '">' +
                             '<span class="icon">📁</span>' +
-                            '<span class="project-name" onclick="selectProject(' + p.projectId + '); return false;">' + p.name + '</span>' +
-                            '<span class="project-count">' + p.designCount + '</span>' +
-                            '<span class="project-delete" onclick="deleteProject(' + p.projectId + ', ' + p.designCount + ', \'' + p.name.replace(/'/g, "\\'") + '\'); return false;" title="Delete project">🗑️</span>' +
+                            '<span class="project-name" onclick="selectProject(' + p.projectId + '); return false;">' + projectName + '</span>' +
+                            '<span class="project-count">' + (p.designCount || 0) + '</span>' +
+                            '<span class="project-delete" onclick="deleteProject(' + p.projectId + ', ' + (p.designCount || 0) + ', \'' + projectName + '\'); return false;" title="Delete project">🗑️</span>' +
                             '</div>');
                         $projectsList.append($item);
                     });
+                    
+                    // Show project badges in cards when viewing "All Projects"
+                    updateProjectBadges();
                 },
-                error: function() {
-                    console.error('Error loading projects');
+                error: function(xhr, status, error) {
+                    console.error('Error loading projects:', error);
+                    var $projectsList = $('#projectsList');
+                    $projectsList.html('<div style="padding: 0.5rem 1rem; color: var(--danger); font-size: 0.75rem;">Error loading projects</div>');
                 }
             });
+        }
+
+        function updateProjectBadges() {
+            // Show project badges when viewing "All Projects" (currentProjectId is null or 'all')
+            var showBadges = (currentProjectId === null || currentProjectId === 'all' || currentProjectId === undefined);
+            $('.project-badge').each(function() {
+                $(this).toggle(showBadges);
+            });
+        }
+
+        function initProjectFilter() {
+            var $btn = $('#projectFilterBtn');
+            var $dropdown = $('#projectFilterDropdown');
+            var $options = $('#projectFilterOptions');
+            var $search = $('#projectFilterSearch');
+
+            // Toggle dropdown
+            $btn.on('click', function(e) {
+                e.stopPropagation();
+                $dropdown.toggleClass('show');
+                $btn.toggleClass('active');
+                if ($dropdown.hasClass('show')) {
+                    $search.focus();
+                }
+            });
+
+            // Close dropdown when clicking outside
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.custom-multiselect').length) {
+                    $dropdown.removeClass('show');
+                    $btn.removeClass('active');
+                }
+            });
+
+            // Handle checkbox changes
+            $options.on('change', 'input[type="checkbox"]', function() {
+                var $checkbox = $(this);
+                var value = $checkbox.val();
+                var $allCheckbox = $options.find('input[type="checkbox"][value="all"]');
+                var $otherCheckboxes = $options.find('input[type="checkbox"]:not([value="all"]):not([value="null"])');
+                var $uncategorizedCheckbox = $options.find('input[type="checkbox"][value="null"]');
+
+                // Handle "All Projects" checkbox
+                if (value === 'all') {
+                    if ($checkbox.is(':checked')) {
+                        // Check all other projects (including Uncategorized)
+                        $options.find('input[type="checkbox"]:not([value="all"])').prop('checked', true);
+                    } else {
+                        // Uncheck all others when "All Projects" is unchecked
+                        $options.find('input[type="checkbox"]:not([value="all"])').prop('checked', false);
+                    }
+                } else {
+                    // Handle individual project checkbox
+                    if ($checkbox.is(':checked')) {
+                        // Uncheck "All Projects" when any specific project is checked
+                        $allCheckbox.prop('checked', false);
+                        
+                        // Check if all projects (excluding "All Projects" and "Uncategorized") are checked
+                        var allProjectsChecked = $otherCheckboxes.length > 0 && 
+                            $otherCheckboxes.filter(':checked').length === $otherCheckboxes.length;
+                        
+                        // If all projects are checked, automatically check "All Projects" and Uncategorized
+                        if (allProjectsChecked) {
+                            $allCheckbox.prop('checked', true);
+                            // Also check Uncategorized when all projects are selected
+                            $uncategorizedCheckbox.prop('checked', true);
+                            // Keep all others checked
+                            $options.find('input[type="checkbox"]:not([value="all"])').prop('checked', true);
+                        }
+                    } else {
+                        // When unchecking a project, ensure "All Projects" is unchecked
+                        $allCheckbox.prop('checked', false);
+                    }
+                }
+
+                updateProjectFilterButton();
+                applyFilterAndSort('my-designs');
+            });
+
+            // Search filter
+            $search.on('input', function() {
+                var searchText = $(this).val().toLowerCase();
+                $options.find('.multiselect-option').each(function() {
+                    var $option = $(this);
+                    var text = $option.find('span').text().toLowerCase();
+                    $option.toggle(text.indexOf(searchText) !== -1);
+                });
+            });
+        }
+
+        function updateProjectFilterButton() {
+            var $btn = $('#projectFilterBtn');
+            var $text = $btn.find('.filter-text');
+            var $count = $btn.find('.filter-count');
+            var $options = $('#projectFilterOptions');
+            
+            var $allCheckbox = $options.find('input[type="checkbox"][value="all"]');
+            var checkedBoxes = $options.find('input[type="checkbox"]:checked');
+            var checkedValues = Array.from(checkedBoxes).map(function(cb) { return cb.value; });
+            
+            // If "All Projects" is checked, always show "All Projects" text
+            if ($allCheckbox.is(':checked')) {
+                $text.text('All Projects');
+                $count.hide();
+            } else if (checkedValues.length === 0) {
+                $text.text('All Projects');
+                $count.hide();
+            } else {
+                var count = checkedValues.length;
+                $text.text(count === 1 ? '1 project' : count + ' projects');
+                $count.text(count).show();
+            }
         }
 
         function showNewProjectModal() {
@@ -1748,12 +2255,13 @@
             }
 
             $.ajax({
-                url: '/Pages/Builder.aspx/CreateProject',
-                method: "POST",
+                url: '<%= ResolveUrl("~/Pages/Builder.aspx/CreateProject") %>',
+                type: "POST",
                 contentType: "application/json; charset=utf-8",
+                dataType: "json",
                 data: JSON.stringify({ name: name, description: description }),
                 success: function(res) {
-                    var result = res.d;
+                    var result = res.d || res;
                     if (result && result.success) {
                         hideNewProjectModal();
                         loadProjects();
@@ -1814,6 +2322,31 @@
             var projectName = (currentProjectId === null) ? 'All Projects' : 
                 $('.nav-item[data-project="' + currentProjectId + '"] .project-name').text();
             $('.top-bar-title').text(projectName);
+            
+            // Show/hide project filter based on selection
+            var $projectFilterWrapper = $('#projectFilterWrapper').closest('.toolbar-group');
+            if (currentProjectId === null || currentProjectId === undefined || currentProjectId === 'all') {
+                // Show project filter when "All Projects" is selected
+                if ($projectFilterWrapper.length) {
+                    $projectFilterWrapper.show();
+                }
+                
+                // Reset and check all projects in dropdown
+                var $projectFilterOptions = $('#projectFilterOptions');
+                if ($projectFilterOptions.length) {
+                    // Check all projects including "All Projects" and Uncategorized
+                    $projectFilterOptions.find('input[type="checkbox"]').prop('checked', true);
+                    updateProjectFilterButton();
+                }
+            } else {
+                // Hide project filter when specific project is selected
+                if ($projectFilterWrapper.length) {
+                    $projectFilterWrapper.hide();
+                }
+            }
+            
+            // Update project badges visibility
+            updateProjectBadges();
             
             // Apply filter
             applyFilterAndSort('my-designs');
@@ -1880,12 +2413,13 @@
                 function() {
                     // User confirmed deletion
                     $.ajax({
-                        url: '/Pages/Builder.aspx/DeleteProject',
-                        method: "POST",
+                        url: '<%= ResolveUrl("~/Pages/Builder.aspx/DeleteProject") %>',
+                        type: "POST",
                         contentType: "application/json; charset=utf-8",
+                        dataType: "json",
                         data: JSON.stringify({ projectId: projectId }),
                         success: function(res) {
-                            var result = res.d;
+                            var result = res.d || res;
                             if (result && result.success) {
                                 // Reload projects list
                                 loadProjects();
@@ -2060,6 +2594,10 @@
 
         // ===== Navigation =====
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize: select "All Projects" by default
+            currentProjectId = null;
+            $('.nav-item[data-project="all"]').addClass('active');
+            
             // Load projects when page loads
             loadProjects();
             
@@ -2173,6 +2711,9 @@
                 });
             }
 
+            // Project filter for My Designs (custom multi-select)
+            initProjectFilter();
+
             // Sort for My Designs
             var sortMyDesigns = document.getElementById('sortMyDesigns');
             if (sortMyDesigns) {
@@ -2272,20 +2813,62 @@
                 (document.getElementById('searchMyDesigns')?.value || '').toLowerCase().trim() :
                 (document.getElementById('searchPublicDesigns')?.value || '').toLowerCase().trim();
             
+            // Get selected projects from custom multi-select filter
+            var selectedProjects = [];
+            if (section === 'my-designs') {
+                var $projectFilterOptions = $('#projectFilterOptions');
+                if ($projectFilterOptions.length) {
+                    var checkedBoxes = $projectFilterOptions.find('input[type="checkbox"]:checked');
+                    selectedProjects = Array.from(checkedBoxes).map(function(cb) { return cb.value; });
+                    // If "all" is selected or no selection, show all
+                    if (selectedProjects.length === 0 || selectedProjects.indexOf('all') !== -1) {
+                        selectedProjects = []; // Empty means show all
+                    }
+                }
+            }
+            
+            // Debug log
+            if (section === 'my-designs' && selectedProjects.length > 0) {
+                console.log('Selected projects:', selectedProjects);
+            }
+            
             // Filter
             var filteredCards = Array.from(cards).filter(function(card) {
                 // Project filter (only for My Designs)
                 if (section === 'my-designs') {
-                    // Only filter if currentProjectId is a valid number (not null, not undefined, not 'all')
+                    // Filter by sidebar selection (currentProjectId) - takes precedence
                     if (currentProjectId !== null && currentProjectId !== undefined && currentProjectId !== 'all') {
-                        // Filter by specific project
+                        // Filter by specific project from sidebar
                         var cardProjectId = card.getAttribute('data-project-id') || '';
-                        // Compare as strings - empty string means null project
                         if (cardProjectId !== String(currentProjectId)) {
                             return false;
                         }
+                    } else if (selectedProjects.length > 0) {
+                        // Filter by multi-select dropdown
+                        var cardProjectId = card.getAttribute('data-project-id') || '';
+                        var cardProjectValue = cardProjectId === '' ? 'null' : String(cardProjectId);
+                        
+                        // Check if this card's project matches any selected project
+                        var matches = false;
+                        for (var i = 0; i < selectedProjects.length; i++) {
+                            var selectedValue = String(selectedProjects[i]);
+                            
+                            // Match: selectedValue matches cardProjectValue
+                            // Also handle: if selectedValue is "null" and cardProjectId is empty, they match
+                            // Also handle: if selectedValue is a project ID and cardProjectId matches, they match
+                            if (selectedValue === 'null' && cardProjectValue === 'null') {
+                                matches = true;
+                                break;
+                            } else if (selectedValue !== 'null' && selectedValue !== 'all' && cardProjectValue === selectedValue) {
+                                matches = true;
+                                break;
+                            }
+                        }
+                        if (!matches) {
+                            return false;
+                        }
                     }
-                    // If currentProjectId is null/undefined/'all', show all cards (including null/empty projectId)
+                    // If no filter selected, show all cards
                 }
                 
                 // Search filter
@@ -2365,10 +2948,38 @@
                 });
             }
 
+            // Show/hide empty state for grid
+            if (grid) {
+                var emptyState = grid.parentElement.querySelector('.empty-state');
+                if (!emptyState && filteredCards.length === 0) {
+                    // Create empty state if it doesn't exist
+                    emptyState = document.createElement('div');
+                    emptyState.className = 'empty-state';
+                    emptyState.innerHTML = '<div class="empty-state-icon">📭</div><div>No designs found</div>';
+                    grid.parentElement.appendChild(emptyState);
+                } else if (emptyState) {
+                    emptyState.style.display = filteredCards.length === 0 ? 'block' : 'none';
+                }
+            }
+
             // Update table if visible
             var table = document.getElementById(section + '-table');
             if (table && table.classList.contains('show')) {
                 generateTableRows(section, filteredCards);
+                
+                // Show/hide empty state for table
+                var tbody = document.getElementById(section + '-table-body');
+                if (tbody) {
+                    var emptyState = table.parentElement.querySelector('.empty-state');
+                    if (!emptyState && filteredCards.length === 0) {
+                        emptyState = document.createElement('div');
+                        emptyState.className = 'empty-state';
+                        emptyState.innerHTML = '<div class="empty-state-icon">📭</div><div>No designs found</div>';
+                        table.parentElement.appendChild(emptyState);
+                    } else if (emptyState) {
+                        emptyState.style.display = filteredCards.length === 0 ? 'block' : 'none';
+                    }
+                }
             }
         }
 
@@ -2522,6 +3133,16 @@
                 statusCell.textContent = owner;
             }
             row.appendChild(statusCell);
+
+            // Project (for both My Designs and Public Designs)
+            var projectCell = document.createElement('td');
+            var projectId = card.getAttribute('data-project-id') || '';
+            var projectName = card.getAttribute('data-project-name') || 'Uncategorized';
+            var projectBadge = document.createElement('span');
+            projectBadge.className = 'badge badge-project';
+            projectBadge.textContent = projectName;
+            projectCell.appendChild(projectBadge);
+            row.appendChild(projectCell);
 
             // Updated
             var dateCell = document.createElement('td');
