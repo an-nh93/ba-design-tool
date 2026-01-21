@@ -451,6 +451,152 @@
             background: rgba(239, 68, 68, 0.2);
             color: var(--danger);
         }
+
+        /* ===== User Modal (Figma Style) ===== */
+        .user-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .user-modal.show {
+            display: flex;
+        }
+
+        .user-modal-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: modalSlideIn 0.2s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .user-modal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .user-modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .user-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .user-modal-close:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .user-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .user-modal-footer {
+            padding: 1.5rem 2rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .user-form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .user-form-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .user-form-input {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            width: 100%;
+            transition: all 0.2s ease;
+        }
+
+        .user-form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+
+        .user-form-input:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .user-form-checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .user-form-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
     </style>
 </head>
 <body>
@@ -474,6 +620,9 @@
                 <!-- Top Bar -->
                 <div class="admin-top-bar">
                     <div class="admin-top-bar-title">User Management</div>
+                    <button type="button" class="admin-btn admin-btn-primary" onclick="showUserModal(); return false;">
+                        + Add New User
+                    </button>
                 </div>
 
                 <!-- Content -->
@@ -521,6 +670,11 @@
                                                 <div class="admin-action-buttons">
                                                     <button type="button" 
                                                             class="admin-btn admin-btn-primary admin-btn-sm"
+                                                            onclick="editUser(<%# Eval("UserId") %>); return false;">
+                                                        Edit
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="admin-btn admin-btn-secondary admin-btn-sm"
                                                             onclick="changePassword(<%# Eval("UserId") %>); return false;">
                                                         Change
                                                     </button>
@@ -543,45 +697,56 @@
                         </table>
                     </div>
 
-                    <!-- Add New User Form -->
-                    <div class="admin-form-card">
-                        <div class="admin-form-title">Add New User</div>
-                        <div class="admin-form-grid">
-                            <div class="admin-form-group">
-                                <label class="admin-form-label" for="txtNewUser">Username *</label>
-                                <asp:TextBox ID="txtNewUser" runat="server" CssClass="admin-input" placeholder="Enter username" />
-                            </div>
-                            <div class="admin-form-group">
-                                <label class="admin-form-label" for="txtNewPass">Password *</label>
-                                <asp:TextBox ID="txtNewPass" runat="server" TextMode="Password" CssClass="admin-input" placeholder="Enter password" />
-                            </div>
-                            <div class="admin-form-group">
-                                <label class="admin-form-label" for="txtNewFullName">Full Name</label>
-                                <asp:TextBox ID="txtNewFullName" runat="server" CssClass="admin-input" placeholder="Enter full name" />
-                            </div>
-                            <div class="admin-form-group">
-                                <label class="admin-form-label" for="txtNewEmail">Email</label>
-                                <asp:TextBox ID="txtNewEmail" runat="server" CssClass="admin-input" placeholder="Enter email" />
-                            </div>
-                            <div class="admin-form-group">
-                                <label class="admin-form-label">
-                                    <asp:CheckBox ID="chkNewSuper" runat="server" CssClass="admin-checkbox" />
-                                    <span style="margin-left: 0.5rem;">Super Admin</span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="admin-form-actions">
-                            <asp:Button ID="btnAddUser" runat="server" Text="Add User" 
-                                       CssClass="admin-btn admin-btn-primary"
-                                       OnClick="btnAddUser_Click" />
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
 
         <!-- Toast Container -->
         <div id="toastContainer" class="toast-container"></div>
+        
+        <!-- User Modal (Add/Edit) -->
+        <div id="userModal" class="user-modal">
+            <div class="user-modal-content">
+                <div class="user-modal-header">
+                    <h3 class="user-modal-title" id="userModalTitle">Add New User</h3>
+                    <button type="button" class="user-modal-close" onclick="hideUserModal(); return false;">×</button>
+                </div>
+                <div class="user-modal-body">
+                    <div class="user-form-group">
+                        <label class="user-form-label" for="modalUsername">Username *</label>
+                        <input type="text" id="modalUsername" class="user-form-input" placeholder="Enter username" />
+                    </div>
+                    <div class="user-form-group">
+                        <label class="user-form-label" for="modalPassword">Password <span id="passwordRequired">*</span></label>
+                        <input type="password" id="modalPassword" class="user-form-input" placeholder="Enter password" />
+                    </div>
+                    <div class="user-form-group">
+                        <label class="user-form-label" for="modalFullName">Full Name</label>
+                        <input type="text" id="modalFullName" class="user-form-input" placeholder="Enter full name" />
+                    </div>
+                    <div class="user-form-group">
+                        <label class="user-form-label" for="modalEmail">Email</label>
+                        <input type="email" id="modalEmail" class="user-form-input" placeholder="Enter email" />
+                    </div>
+                    <div class="user-form-group">
+                        <div class="user-form-checkbox-group">
+                            <input type="checkbox" id="modalIsSuperAdmin" class="user-form-checkbox" />
+                            <label class="user-form-label" for="modalIsSuperAdmin" style="margin: 0;">Super Admin</label>
+                        </div>
+                    </div>
+                    <div class="user-form-group">
+                        <div class="user-form-checkbox-group">
+                            <input type="checkbox" id="modalIsActive" class="user-form-checkbox" />
+                            <label class="user-form-label" for="modalIsActive" style="margin: 0;">Active</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="user-modal-footer">
+                    <button type="button" class="admin-btn admin-btn-primary" onclick="saveUser(); return false;" id="btnSaveUser">Save</button>
+                    <button type="button" class="admin-btn admin-btn-secondary" onclick="hideUserModal(); return false;">Cancel</button>
+                </div>
+            </div>
+        </div>
         
         <!-- Hidden label for server-side messages -->
         <asp:Label ID="lblMsg" runat="server" style="display: none;" />
@@ -743,6 +908,144 @@
                 }
             });
         }
+
+        // ===== User Modal Functions =====
+        var currentEditUserId = null;
+
+        function showUserModal(userId) {
+            currentEditUserId = userId || null;
+            var $modal = $('#userModal');
+            var $title = $('#userModalTitle');
+            var $username = $('#modalUsername');
+            var $password = $('#modalPassword');
+            var $fullName = $('#modalFullName');
+            var $email = $('#modalEmail');
+            var $isSuperAdmin = $('#modalIsSuperAdmin');
+            var $isActive = $('#modalIsActive');
+            var $btnSave = $('#btnSaveUser');
+            var $passwordRequired = $('#passwordRequired');
+
+            // Reset form
+            $username.val('');
+            $password.val('');
+            $fullName.val('');
+            $email.val('');
+            $isSuperAdmin.prop('checked', false);
+            $isActive.prop('checked', true);
+            $username.prop('disabled', false);
+            $passwordRequired.show();
+
+            if (userId) {
+                // Edit mode
+                $title.text('Edit User');
+                $btnSave.text('Update');
+                $username.prop('disabled', true);
+                $passwordRequired.hide();
+
+                // Load user data
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/Users.aspx/GetUserInfo") %>',
+                    type: "POST",
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    data: JSON.stringify({ userId: userId }),
+                    success: function(res) {
+                        var result = res.d || res;
+                        if (result && result.success) {
+                            $username.val(result.userName || '');
+                            $fullName.val(result.fullName || '');
+                            $email.val(result.email || '');
+                            $isSuperAdmin.prop('checked', result.isSuperAdmin || false);
+                            $isActive.prop('checked', result.isActive !== false);
+                        } else {
+                            showToast(result && result.message ? result.message : 'Error loading user data.', 'error');
+                        }
+                    },
+                    error: function() {
+                        showToast('Error loading user data.', 'error');
+                    }
+                });
+            } else {
+                // Add mode
+                $title.text('Add New User');
+                $btnSave.text('Save');
+            }
+
+            $modal.addClass('show');
+        }
+
+        function hideUserModal() {
+            $('#userModal').removeClass('show');
+            currentEditUserId = null;
+        }
+
+        function saveUser() {
+            var username = $('#modalUsername').val().trim();
+            var password = $('#modalPassword').val();
+            var fullName = $('#modalFullName').val().trim();
+            var email = $('#modalEmail').val().trim();
+            var isSuperAdmin = $('#modalIsSuperAdmin').is(':checked');
+            var isActive = $('#modalIsActive').is(':checked');
+
+            // Validation
+            if (!username) {
+                showToast('Username is required.', 'error');
+                return;
+            }
+
+            if (!currentEditUserId && !password) {
+                showToast('Password is required for new users.', 'error');
+                return;
+            }
+
+            var data = {
+                userId: currentEditUserId,
+                userName: username,
+                password: password,
+                fullName: fullName,
+                email: email,
+                isSuperAdmin: isSuperAdmin,
+                isActive: isActive
+            };
+
+            var url = currentEditUserId 
+                ? '<%= ResolveUrl("~/Pages/Users.aspx/UpdateUser") %>'
+                : '<%= ResolveUrl("~/Pages/Users.aspx/CreateUser") %>';
+
+            $.ajax({
+                url: url,
+                type: "POST",
+                contentType: "application/json; charset=utf-8",
+                dataType: "json",
+                data: JSON.stringify(data),
+                success: function(res) {
+                    var result = res.d || res;
+                    if (result && result.success) {
+                        showToast(result.message || (currentEditUserId ? 'User updated successfully.' : 'User created successfully.'), 'success');
+                        hideUserModal();
+                        setTimeout(function() {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        showToast(result && result.message ? result.message : 'Error saving user.', 'error');
+                    }
+                },
+                error: function() {
+                    showToast('Error saving user.', 'error');
+                }
+            });
+        }
+
+        function editUser(userId) {
+            showUserModal(userId);
+        }
+
+        // Close modal when clicking outside
+        $(document).on('click', '.user-modal', function(e) {
+            if (e.target === this) {
+                hideUserModal();
+            }
+        });
 
         // Show server-side messages as toast
         <% if (!string.IsNullOrEmpty(lblMsg.Text)) { %>

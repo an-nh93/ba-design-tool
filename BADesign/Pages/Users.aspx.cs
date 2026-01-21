@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.Web.Services;
@@ -174,6 +175,180 @@ WHERE UserId=@id";
 				}
 
 				return new { success = true, message = "User status updated successfully." };
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object GetUserInfo(int userId)
+		{
+			try
+			{
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+				{
+					return new { success = false, message = "Unauthorized." };
+				}
+
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "SELECT UserId, UserName, FullName, Email, IsSuperAdmin, IsActive FROM UiUser WHERE UserId=@id";
+					cmd.Parameters.AddWithValue("@id", userId);
+					conn.Open();
+					using (var rd = cmd.ExecuteReader())
+					{
+						if (rd.Read())
+						{
+							return new
+							{
+								success = true,
+								userId = (int)rd["UserId"],
+								userName = (string)rd["UserName"],
+								fullName = rd["FullName"] as string ?? "",
+								email = rd["Email"] as string ?? "",
+								isSuperAdmin = (bool)rd["IsSuperAdmin"],
+								isActive = (bool)rd["IsActive"]
+							};
+						}
+						else
+						{
+							return new { success = false, message = "User not found." };
+						}
+					}
+				}
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object CreateUser(string userName, string password, string fullName = null, string email = null, bool isSuperAdmin = false, bool isActive = true)
+		{
+			try
+			{
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+				{
+					return new { success = false, message = "Unauthorized." };
+				}
+
+				if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrWhiteSpace(password))
+				{
+					return new { success = false, message = "Username and password are required." };
+				}
+
+				var hash = UiAuthHelper.HashPassword(password);
+
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = @"
+INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin, IsActive)
+VALUES (@u, @p, @f, @e, @sa, @ia);
+SELECT CAST(SCOPE_IDENTITY() AS INT);";
+					cmd.Parameters.AddWithValue("@u", userName.Trim());
+					cmd.Parameters.AddWithValue("@p", hash);
+					cmd.Parameters.AddWithValue("@f", string.IsNullOrWhiteSpace(fullName) ? (object)DBNull.Value : fullName.Trim());
+					cmd.Parameters.AddWithValue("@e", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim());
+					cmd.Parameters.AddWithValue("@sa", isSuperAdmin);
+					cmd.Parameters.AddWithValue("@ia", isActive);
+
+					conn.Open();
+					var userId = (int)cmd.ExecuteScalar();
+
+					return new { success = true, message = "User created successfully.", userId = userId };
+				}
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object UpdateUser(int? userId, string userName, string password = null, string fullName = null, string email = null, bool? isSuperAdmin = null, bool? isActive = null)
+		{
+			try
+			{
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+				{
+					return new { success = false, message = "Unauthorized." };
+				}
+
+				if (!userId.HasValue)
+				{
+					return new { success = false, message = "User ID is required." };
+				}
+
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					var updates = new List<string>();
+					var parameters = new List<SqlParameter>();
+
+					// Password (optional - only update if provided)
+					if (!string.IsNullOrWhiteSpace(password))
+					{
+						var hash = UiAuthHelper.HashPassword(password);
+						updates.Add("PasswordHash=@p");
+						parameters.Add(new SqlParameter("@p", hash));
+					}
+
+					// FullName
+					if (fullName != null)
+					{
+						updates.Add("FullName=@f");
+						parameters.Add(new SqlParameter("@f", string.IsNullOrWhiteSpace(fullName) ? (object)DBNull.Value : fullName.Trim()));
+					}
+
+					// Email
+					if (email != null)
+					{
+						updates.Add("Email=@e");
+						parameters.Add(new SqlParameter("@e", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim()));
+					}
+
+					// IsSuperAdmin
+					if (isSuperAdmin.HasValue)
+					{
+						updates.Add("IsSuperAdmin=@sa");
+						parameters.Add(new SqlParameter("@sa", isSuperAdmin.Value));
+					}
+
+					// IsActive
+					if (isActive.HasValue)
+					{
+						updates.Add("IsActive=@ia");
+						parameters.Add(new SqlParameter("@ia", isActive.Value));
+					}
+
+					if (updates.Count == 0)
+					{
+						return new { success = false, message = "No fields to update." };
+					}
+
+					cmd.CommandText = "UPDATE UiUser SET " + string.Join(", ", updates) + " WHERE UserId=@id";
+					cmd.Parameters.AddWithValue("@id", userId.Value);
+					foreach (var param in parameters)
+					{
+						cmd.Parameters.Add(param);
+					}
+
+					conn.Open();
+					cmd.ExecuteNonQuery();
+
+					return new { success = true, message = "User updated successfully." };
+				}
 			}
 			catch (Exception ex)
 			{
