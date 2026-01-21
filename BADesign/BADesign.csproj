@@ -241,6 +241,9 @@
     <Content Include="Pages\Builder.aspx" />
     <Content Include="Pages\Preview.aspx" />
     <Content Include="Pages\WordExport.aspx" />
+    <Content Include="Pages\ChangePassword.aspx" />
+    <Content Include="Pages\AccountSettings.aspx" />
+    <Content Include="Scripts\AddAvatarPathColumn.sql" />
     <Content Include="Scripts\ai.0.22.9-build00167.js" />
     <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
     <Content Include="Scripts\bootstrap.js" />
@@ -287,6 +290,8 @@
     <Content Include="Default.aspx" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
+    <Content Include="Handlers\UploadAvatar.ashx" />
+    <Content Include="Handlers\UploadAvatar.ashx" />
     <Content Include="Site.Master" />
     <Content Include="ViewSwitcher.ascx" />
     <Content Include="Web.config" />
@@ -410,6 +415,12 @@
     </Compile>
     <Compile Include="App_Code\UiBuilderModels.cs" />
     <Compile Include="App_Code\UiAuthHelper.cs" />
+    <Compile Include="Handlers\UploadAvatar.ashx.cs">
+      <DependentUpon>UploadAvatar.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="Handlers\UploadAvatar.ashx.cs">
+      <DependentUpon>UploadAvatar.ashx</DependentUpon>
+    </Compile>
     <Compile Include="App_Start\BundleConfig.cs" />
     <Compile Include="About.aspx.cs">
       <DependentUpon>About.aspx</DependentUpon>
@@ -476,6 +487,20 @@
     <Compile Include="Pages\WordExport.aspx.cs">
       <DependentUpon>WordExport.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\ChangePassword.aspx.cs">
+      <DependentUpon>ChangePassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\ChangePassword.aspx.designer.cs">
+      <DependentUpon>ChangePassword.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\AccountSettings.aspx.cs">
+      <DependentUpon>AccountSettings.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\AccountSettings.aspx.designer.cs">
+      <DependentUpon>AccountSettings.aspx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Site.Master.cs">

@@ -1072,12 +1072,18 @@
                     var tagText = cfg.defaultValue || "In Progress";
                     var tagBg = cfg.tagBackColor || "#0D9EFF";
                     var tagColor = cfg.tagTextColor || "#ffffff";
+                    
+                    // ✅ Escape HTML để tránh XSS và đảm bảo text được render đúng
+                    var escapedText = $('<div>').text(tagText || "In Progress").html();
+                    
                     $editor = $(`
 <div class="ess-tag">
   <span class="ess-tag-icon"><i class="bi bi-tag-fill"></i></span>
-  <span class="ess-tag-text"></span>
+  <span class="ess-tag-text">` + escapedText + `</span>
 </div>`);
-                    $editor.find(".ess-tag-text").text(tagText);
+                    // ✅ Set text trực tiếp vào HTML và đảm bảo nó không bị mất
+                    $editor.find(".ess-tag-text").html(escapedText);
+                    $editor.find(".ess-tag-text").text(tagText || "In Progress"); // Set cả text() để đảm bảo
                     $editor.css({
                         "background-color": tagBg,
                         "color": tagColor

@@ -1160,6 +1160,18 @@ body {
     transition: all 0.2s;
     color: #333;
 }
+/* ✅ Fix combobox text alignment */
+.ess-col-input select,
+.ess-action-input select,
+select.ess-col-input,
+select.ess-action-input {
+    padding-top: 4px !important; /* ✅ Điều chỉnh padding để text căn giữa */
+    padding-bottom: 4px !important;
+    line-height: 20px !important; /* ✅ Điều chỉnh line-height để text căn giữa */
+    height: 28px !important; /* ✅ Set height cố định */
+    vertical-align: middle !important;
+    box-sizing: border-box !important;
+}
 .ess-col-input:focus,
 .ess-action-input:focus {
     outline: none;

@@ -51,7 +51,13 @@
 
         /* Combobox ESS – chừa chỗ cho mũi tên */
         .page-field.ess-field .page-field-editor select {
-            padding-right: 18px;
+            padding-right: 18px !important;
+            padding-top: 3px !important; /* ✅ Điều chỉnh padding để text căn giữa */
+            padding-bottom: 3px !important;
+            line-height: 20px !important; /* ✅ Điều chỉnh line-height để text căn giữa */
+            height: 26px !important; /* ✅ Set height cố định */
+            vertical-align: middle !important;
+            box-sizing: border-box !important;
         }
 
         /* Date ESS – chừa rộng hơn cho icon lịch */
@@ -687,12 +693,19 @@
 
 /* combobox */
 .ess-grid-editor-combo {
-    appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, #4b5563 50%), linear-gradient(135deg, #4b5563 50%, transparent 50%);
-    background-position: calc(100% - 10px) 9px, calc(100% - 6px) 9px;
-    background-size: 4px 4px, 4px 4px;
-    background-repeat: no-repeat;
-    padding-right: 18px;
+    appearance: none !important;
+    background-image: linear-gradient(45deg, transparent 50%, #4b5563 50%), linear-gradient(135deg, #4b5563 50%, transparent 50%) !important;
+    background-position: calc(100% - 10px) center, calc(100% - 6px) center !important;
+    background-size: 4px 4px, 4px 4px !important;
+    background-repeat: no-repeat !important;
+    padding-right: 18px !important;
+    padding-top: 5px !important; /* ✅ Điều chỉnh padding để text căn giữa */
+    padding-bottom: 5px !important;
+    line-height: 25px !important; /* ✅ Điều chỉnh line-height để text căn giữa */
+    height: 35px !important; /* ✅ Set height cố định */
+    vertical-align: middle !important;
+    display: inline-block !important;
+    box-sizing: border-box !important;
 }
 
 /* view mode text */
@@ -858,13 +871,19 @@
 
 /* Combobox trong ESS Grid */
 .ess-grid-control select.ess-grid-editor-combo {
-    height: 35px;
-    padding-right: 20px;
-    appearance: none;
-    background-image: linear-gradient(45deg, transparent 50%, #4b5563 50%), linear-gradient(135deg, #4b5563 50%, transparent 50%);
-    background-position: calc(100% - 10px) 9px, calc(100% - 6px) 9px;
-    background-size: 4px 4px, 4px 4px;
-    background-repeat: no-repeat;
+    height: 35px !important;
+    padding-right: 20px !important;
+    padding-top: 5px !important; /* ✅ Điều chỉnh padding để text căn giữa */
+    padding-bottom: 5px !important;
+    appearance: none !important;
+    background-image: linear-gradient(45deg, transparent 50%, #4b5563 50%), linear-gradient(135deg, #4b5563 50%, transparent 50%) !important;
+    background-position: calc(100% - 10px) center, calc(100% - 6px) center !important;
+    background-size: 4px 4px, 4px 4px !important;
+    background-repeat: no-repeat !important;
+    line-height: 25px !important; /* ✅ Điều chỉnh line-height để text căn giữa */
+    vertical-align: middle !important;
+    display: inline-block !important;
+    box-sizing: border-box !important;
 }
 
 /* NUMERIC editor trong grid – dùng layout ess-number chuẩn (nút trên / dưới) */
@@ -971,6 +990,19 @@
 
     .ess-grid-control .ess-grid-tag .ess-tag-icon {
         margin-right: 4px;
+    }
+    
+    /* ✅ Đảm bảo tag text hiển thị đúng */
+    .ess-grid-control .ess-grid-tag .ess-tag-text,
+    .ess-tag .ess-tag-text,
+    .ess-grid-tag .ess-tag-text {
+        display: inline-block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        color: inherit !important;
+        font-size: 11px !important;
+        line-height: 18px !important;
+        white-space: nowrap !important;
     }
 
 /* PROGRESS – bar với text nằm trong progress bar */

@@ -3856,6 +3856,329 @@ var builder = {
     },
 
     // ✅ Xuất hình ảnh (dùng html2canvas) - Clone canvas giống preview để capture đầy đủ
+    // ✅ Xuất ảnh từ preview canvas đang hiển thị
+    exportImageFromPreview: function($previewCanvas) {
+        var self = this;
+        
+        if (!$previewCanvas || !$previewCanvas.length) {
+            this.showToast("Không tìm thấy preview canvas để xuất hình ảnh", "error");
+            return;
+        }
+
+        this.showToast("Đang xuất hình ảnh từ preview...", "info");
+        
+        // Lấy kích thước từ preview canvas
+        var finalWidth = parseInt($previewCanvas.css("width")) || $previewCanvas.width();
+        var finalHeight = parseInt($previewCanvas.css("height")) || $previewCanvas.height();
+        
+        // Đợi một chút để đảm bảo DOM đã render xong
+        setTimeout(function() {
+            // Force reflow để đảm bảo DOM được render đầy đủ
+            $previewCanvas[0].offsetHeight;
+            
+            // ✅ Đảm bảo text trong tag được render TRƯỚC KHI html2canvas capture
+            // Sync text từ canvas gốc vào preview canvas
+            var originalTags = $("#canvas").find(".ess-tag, .ess-grid-tag");
+            var previewTags = $previewCanvas.find(".ess-tag, .ess-grid-tag");
+            
+            originalTags.each(function(index) {
+                if (previewTags.length > index) {
+                    var $originalTag = $(this);
+                    var $originalText = $originalTag.find(".ess-tag-text");
+                    var originalText = $originalText.text() || $originalText.html() || "";
+                    
+                    if (originalText.trim() !== "") {
+                        var previewTagEl = previewTags[index];
+                        var originalBg = $originalTag.css("background-color") || "#0D9EFF";
+                        var originalColor = $originalText.css("color") || $originalTag.css("color") || "#ffffff";
+                        
+                        // ✅ Render lại toàn bộ innerHTML với text được đặt trực tiếp trong HTML string
+                        // ✅ Thử đổi display từ inline-flex sang inline-block để html2canvas render được text
+                        previewTagEl.innerHTML = '<span class="ess-tag-icon" style="margin-right:4px; display:inline-block; vertical-align:middle;"><i class="bi bi-tag-fill"></i></span><span class="ess-tag-text" style="display:inline-block; vertical-align:middle;">' + originalText + '</span>';
+                        
+                        // Set style cho parent tag - ✅ Đổi từ inline-flex sang inline-block
+                        previewTagEl.style.backgroundColor = originalBg;
+                        previewTagEl.style.color = originalColor;
+                        previewTagEl.style.display = "inline-block"; // ✅ Đổi từ inline-flex sang inline-block
+                        previewTagEl.style.verticalAlign = "middle";
+                        previewTagEl.style.padding = "2px 8px";
+                        previewTagEl.style.borderRadius = "999px";
+                        previewTagEl.style.fontSize = "11px";
+                        previewTagEl.style.fontWeight = "500";
+                        previewTagEl.style.whiteSpace = "nowrap";
+                        previewTagEl.style.lineHeight = "18px"; // ✅ Thêm line-height để căn giữa
+                        
+                        // Set style cho text element
+                        var previewTextEl = previewTagEl.querySelector(".ess-tag-text");
+                        if (previewTextEl) {
+                            previewTextEl.style.display = "inline-block";
+                            previewTextEl.style.visibility = "visible";
+                            previewTextEl.style.opacity = "1";
+                            previewTextEl.style.fontSize = "11px";
+                            previewTextEl.style.lineHeight = "18px";
+                            previewTextEl.style.whiteSpace = "nowrap";
+                            previewTextEl.style.color = originalColor;
+                            previewTextEl.style.verticalAlign = "middle";
+                            previewTextEl.textContent = originalText;
+                            previewTextEl.innerText = originalText;
+                        }
+                    }
+                }
+            });
+            
+            // Đợi thêm một chút để đảm bảo DOM đã render xong
+            setTimeout(function() {
+                // ✅ Sử dụng html2canvas để chụp preview canvas
+                html2canvas($previewCanvas[0], {
+                    backgroundColor: "#ffffff",
+                    scale: 2, // Tăng độ phân giải
+                    useCORS: true,
+                    logging: false,
+                    width: finalWidth,
+                    height: finalHeight,
+                    allowTaint: true,
+                    foreignObjectRendering: false,
+                    onclone: function(clonedDoc) {
+                        // ✅ Đảm bảo text trong tag được render trong cloned document
+                        var clonedTagElements = clonedDoc.querySelectorAll(".ess-tag, .ess-grid-tag");
+                        var originalTags = $("#canvas").find(".ess-tag, .ess-grid-tag");
+                        
+                        console.log("🎨 exportImageFromPreview onclone: Found", clonedTagElements.length, "tags");
+                        
+                        clonedTagElements.forEach(function(clonedTagEl, index) {
+                            if (originalTags.length > index) {
+                                var $originalTag = originalTags.eq(index);
+                                var $originalText = $originalTag.find(".ess-tag-text");
+                                var originalText = $originalText.text() || $originalText.html() || "";
+                                
+                                console.log("🎨 exportImageFromPreview onclone Tag " + index + " original text:", originalText);
+                                
+                                if (originalText.trim() !== "") {
+                                    var originalBg = $originalTag.css("background-color") || "#0D9EFF";
+                                    var originalColor = $originalText.css("color") || $originalTag.css("color") || "#ffffff";
+                                    
+                                    // ✅ Thử cách khác: Render text TRỰC TIẾP vào parent tag (không dùng nested span)
+                                    // Xóa tất cả children cũ
+                                    clonedTagEl.innerHTML = "";
+                                    
+                                    // Tạo icon
+                                    var iconSpan = clonedDoc.createElement("span");
+                                    iconSpan.className = "ess-tag-icon";
+                                    iconSpan.style.marginRight = "4px";
+                                    iconSpan.style.display = "inline-block";
+                                    var iconI = clonedDoc.createElement("i");
+                                    iconI.className = "bi bi-tag-fill";
+                                    iconSpan.appendChild(iconI);
+                                    
+                                    // ✅ Tạo text node TRỰC TIẾP và append vào parent tag (không dùng nested span)
+                                    var textNode = clonedDoc.createTextNode(originalText);
+                                    
+                                    // Append icon và text vào parent tag
+                                    clonedTagEl.appendChild(iconSpan);
+                                    clonedTagEl.appendChild(textNode);
+                                    
+                                    // Set style cho parent tag - ✅ Đổi từ inline-flex sang inline-block
+                                    clonedTagEl.style.backgroundColor = originalBg;
+                                    clonedTagEl.style.color = originalColor;
+                                    clonedTagEl.style.display = "inline-block"; // ✅ Đổi từ inline-flex sang inline-block
+                                    clonedTagEl.style.verticalAlign = "middle";
+                                    clonedTagEl.style.padding = "2px 8px";
+                                    clonedTagEl.style.borderRadius = "999px";
+                                    clonedTagEl.style.fontSize = "11px";
+                                    clonedTagEl.style.fontWeight = "500";
+                                    clonedTagEl.style.whiteSpace = "nowrap";
+                                    clonedTagEl.style.lineHeight = "18px"; // ✅ Thêm line-height để căn giữa
+                                    
+                                    // Set style cho icon
+                                    if (iconSpan) {
+                                        iconSpan.style.verticalAlign = "middle";
+                                    }
+                                    
+                                    console.log("🎨 exportImageFromPreview onclone Tag " + index + " re-rendered with text node:", originalText, "textContent:", clonedTagEl.textContent, "childNodes:", clonedTagEl.childNodes.length);
+                                    
+                                    console.log("🎨 exportImageFromPreview onclone Tag " + index + " re-rendered with text:", originalText);
+                                }
+                            }
+                        });
+                        
+                        // ✅ Chỉnh CSS cho combobox để text căn giữa đúng và đảm bảo mũi tên được render
+                        // Tìm TẤT CẢ select elements (không phân biệt class)
+                        var allSelects = clonedDoc.querySelectorAll("select");
+                        
+                        console.log("🔧 Found all select elements:", allSelects.length);
+                        
+                        allSelects.forEach(function(clonedCombo, index) {
+                            // ✅ Kiểm tra parent bằng cách traverse DOM thay vì dùng closest()
+                            var parent = clonedCombo.parentElement;
+                            var isGridCombo = false;
+                            var isPageFieldCombo = false;
+                            
+                            // ✅ Check class của chính select element trước
+                            var selectClass = clonedCombo.className || "";
+                            if (typeof selectClass === "string") {
+                                if (selectClass.indexOf("ess-grid-editor-combo") !== -1 || selectClass.indexOf("ess-grid-input") !== -1) {
+                                    isGridCombo = true;
+                                }
+                                // ✅ Bỏ qua zoom-select và các select không phải combobox
+                                if (selectClass.indexOf("zoom-select") !== -1) {
+                                    console.log("🔧 Skipping zoom-select:", index);
+                                    return;
+                                }
+                            }
+                            
+                            // ✅ Check parent class trực tiếp trước khi traverse
+                            var parentClass = parent ? (parent.className || "") : "";
+                            if (typeof parentClass === "string") {
+                                // ✅ Check page-field-editor trực tiếp
+                                if (parentClass.indexOf("page-field-editor") !== -1) {
+                                    isPageFieldCombo = true;
+                                }
+                                // ✅ Check ess-grid-control trực tiếp
+                                if (parentClass.indexOf("ess-grid-control") !== -1) {
+                                    isGridCombo = true;
+                                }
+                            }
+                            
+                            // Traverse lên để tìm parent có class nếu chưa tìm thấy
+                            var currentParent = parent;
+                            while (currentParent && currentParent !== clonedDoc.body && !isGridCombo && !isPageFieldCombo) {
+                                var currentClass = currentParent.className || "";
+                                if (typeof currentClass === "string") {
+                                    if (currentClass.indexOf("ess-grid-control") !== -1) {
+                                        isGridCombo = true;
+                                        break;
+                                    }
+                                    if (currentClass.indexOf("page-field") !== -1 && currentClass.indexOf("ess-field") !== -1) {
+                                        isPageFieldCombo = true;
+                                        break;
+                                    }
+                                    if (currentClass.indexOf("page-field-editor") !== -1) {
+                                        isPageFieldCombo = true;
+                                        break;
+                                    }
+                                }
+                                currentParent = currentParent.parentElement;
+                            }
+                            
+                            console.log("🔧 Select " + index + ":", {
+                                classes: clonedCombo.className,
+                                isGridCombo: isGridCombo,
+                                isPageFieldCombo: isPageFieldCombo,
+                                parentClasses: clonedCombo.parentElement ? clonedCombo.parentElement.className : "none"
+                            });
+                            
+                            if (isGridCombo) {
+                                // Combobox lớn (grid) - height 35px
+                                clonedCombo.style.setProperty("padding-top", "3px", "important");
+                                clonedCombo.style.setProperty("padding-bottom", "3px", "important");
+                                clonedCombo.style.setProperty("line-height", "29px", "important");
+                                clonedCombo.style.setProperty("height", "35px", "important");
+                                // ✅ Đảm bảo background image (mũi tên) được render với !important
+                                clonedCombo.style.setProperty("background-image", "linear-gradient(45deg, transparent 50%, #4b5563 50%), linear-gradient(135deg, #4b5563 50%, transparent 50%)", "important");
+                                clonedCombo.style.setProperty("background-position", "calc(100% - 10px) center, calc(100% - 6px) center", "important");
+                                clonedCombo.style.setProperty("background-size", "4px 4px, 4px 4px", "important");
+                                clonedCombo.style.setProperty("background-repeat", "no-repeat", "important");
+                                clonedCombo.style.setProperty("padding-right", "20px", "important");
+                                clonedCombo.style.setProperty("appearance", "none", "important");
+                            } else if (isPageFieldCombo) {
+                                // Combobox nhỏ (page-field) - height 26px
+                                clonedCombo.style.setProperty("padding-top", "2px", "important");
+                                clonedCombo.style.setProperty("padding-bottom", "2px", "important");
+                                clonedCombo.style.setProperty("line-height", "22px", "important");
+                                clonedCombo.style.setProperty("height", "26px", "important");
+                                clonedCombo.style.setProperty("padding-right", "18px", "important");
+                                clonedCombo.style.setProperty("appearance", "none", "important");
+                            }
+                            
+                            clonedCombo.style.setProperty("vertical-align", "middle", "important");
+                            clonedCombo.style.setProperty("box-sizing", "border-box", "important");
+                            clonedCombo.style.setProperty("display", "inline-block", "important");
+                            
+                            // ✅ Debug: Check computed style sau khi set
+                            var computedStyle = clonedDoc.defaultView ? clonedDoc.defaultView.getComputedStyle(clonedCombo) : null;
+                            console.log("🔧 Combobox " + index + " AFTER fix:", {
+                                paddingTop: clonedCombo.style.paddingTop || (computedStyle ? computedStyle.paddingTop : "N/A"),
+                                paddingBottom: clonedCombo.style.paddingBottom || (computedStyle ? computedStyle.paddingBottom : "N/A"),
+                                lineHeight: clonedCombo.style.lineHeight || (computedStyle ? computedStyle.lineHeight : "N/A"),
+                                height: clonedCombo.style.height || (computedStyle ? computedStyle.height : "N/A"),
+                                backgroundImage: clonedCombo.style.backgroundImage || (computedStyle ? computedStyle.backgroundImage : "N/A")
+                            });
+                        });
+                        
+                        // ✅ Đảm bảo icon của date picker được render
+                        // Tìm tất cả các date editor containers
+                        var clonedDateEditors = clonedDoc.querySelectorAll(".ess-grid-editor-date, .ess-date");
+                        
+                        console.log("🔧 Found date editors:", clonedDateEditors.length);
+                        
+                        clonedDateEditors.forEach(function(dateEditor, idx) {
+                            console.log("🔧 Date editor " + idx + ":", {
+                                classes: dateEditor.className,
+                                innerHTML: dateEditor.innerHTML.substring(0, 100)
+                            });
+                            
+                            // Tìm tất cả span bên trong date editor
+                            var iconSpans = dateEditor.querySelectorAll("span");
+                            console.log("🔧 Found spans in date editor " + idx + ":", iconSpans.length);
+                            
+                            iconSpans.forEach(function(iconSpan, spanIdx) {
+                                var iconClass = iconSpan.className || "";
+                                var hasIcon = iconSpan.querySelector("i");
+                                
+                                console.log("🔧 Span " + spanIdx + ":", {
+                                    classes: iconClass,
+                                    hasIcon: !!hasIcon,
+                                    innerHTML: iconSpan.innerHTML.substring(0, 50)
+                                });
+                                
+                                // ✅ Xử lý nếu có class date-icon/date-addon hoặc có icon bên trong
+                                if (iconClass.indexOf("date-icon") !== -1 || 
+                                    iconClass.indexOf("date-addon") !== -1 ||
+                                    hasIcon) {
+                                    
+                                    console.log("🔧 Processing date icon span:", iconClass);
+                                    
+                                    // Đảm bảo icon được hiển thị
+                                    iconSpan.style.setProperty("display", "flex", "important");
+                                    iconSpan.style.setProperty("visibility", "visible", "important");
+                                    iconSpan.style.setProperty("opacity", "1", "important");
+                                    iconSpan.style.setProperty("align-items", "center", "important");
+                                    iconSpan.style.setProperty("justify-content", "center", "important");
+                                    
+                                    // Đảm bảo icon bên trong được render
+                                    var iconElement = iconSpan.querySelector("i");
+                                    if (iconElement) {
+                                        iconElement.style.setProperty("display", "inline-block", "important");
+                                        iconElement.style.setProperty("visibility", "visible", "important");
+                                        iconElement.style.setProperty("opacity", "1", "important");
+                                        iconElement.style.setProperty("font-size", "14px", "important");
+                                        iconElement.style.setProperty("line-height", "1", "important");
+                                    }
+                                }
+                            });
+                        });
+                    }
+                }).then(function (canvas) {
+                    // Chuyển canvas thành blob và download
+                    canvas.toBlob(function (blob) {
+                        var a = document.createElement("a");
+                        a.href = URL.createObjectURL(blob);
+                        a.download = "ui-design-" + new Date().getTime() + ".png";
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(a.href);
+                        
+                        self.showToast("Đã xuất hình ảnh thành công từ preview!", "success");
+                    }, "image/png");
+                }).catch(function (error) {
+                    console.error("Export image error:", error);
+                    self.showToast("Lỗi khi xuất hình ảnh: " + error.message, "error");
+                });
+            }, 100); // Đợi thêm 100ms để đảm bảo DOM đã render xong
+        }, 300); // Đợi 300ms ban đầu
+    },
+
     exportImage: function () {
         var self = this;
         var $canvas = $("#canvas");
@@ -3865,100 +4188,193 @@ var builder = {
             return;
         }
 
-        this.showToast("Đang xuất hình ảnh...", "info");
-
-        // Tính toán kích thước thực tế của nội dung (giống preview)
-        var canvasElement = $canvas[0];
-        var scrollWidth = Math.max(canvasElement.scrollWidth, canvasElement.offsetWidth);
-        var scrollHeight = Math.max(canvasElement.scrollHeight, canvasElement.offsetHeight);
+        // ✅ Xuất trực tiếp từ canvas mà không cần mở preview
+        // Tạo preview canvas ẩn và xuất trực tiếp
+        var minLeft = Infinity;
+        var minTop = Infinity;
+        var maxRight = -Infinity;
+        var maxBottom = -Infinity;
         
-        // Tìm tất cả các element con để tính kích thước thực tế
-        var maxRight = 0;
-        var maxBottom = 0;
-        $canvas.find("*").each(function() {
+        var allControls = $canvas.find(".popup-design, .canvas-control, .page-field, .popup-field, .canvas-toolbar, .canvas-tabpage, .ess-grid-control");
+        
+        allControls.each(function() {
             var $el = $(this);
-            var rect = this.getBoundingClientRect();
-            var canvasRect = canvasElement.getBoundingClientRect();
+            var leftStr = $el.css("left");
+            var topStr = $el.css("top");
+            var left = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
+            var top = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
+            if (isNaN(left)) left = 0;
+            if (isNaN(top)) top = 0;
             
-            // Tính vị trí relative với canvas (bao gồm scroll)
-            var relativeLeft = rect.left - canvasRect.left + $canvas.scrollLeft();
-            var relativeTop = rect.top - canvasRect.top + $canvas.scrollTop();
-            var relativeRight = relativeLeft + rect.width;
-            var relativeBottom = relativeTop + rect.height;
+            var width = $el.outerWidth() || 0;
+            var height = $el.outerHeight() || 0;
             
-            maxRight = Math.max(maxRight, relativeRight);
-            maxBottom = Math.max(maxBottom, relativeBottom);
+            var $parentPopup = $el.closest(".popup-design");
+            if ($parentPopup.length) {
+                var popupLeftStr = $parentPopup.css("left");
+                var popupTopStr = $parentPopup.css("top");
+                var popupLeft = (popupLeftStr && popupLeftStr !== "auto" && popupLeftStr !== "none") ? parseFloat(popupLeftStr) : 0;
+                var popupTop = (popupTopStr && popupTopStr !== "auto" && popupTopStr !== "none") ? parseFloat(popupTopStr) : 0;
+                if (isNaN(popupLeft)) popupLeft = 0;
+                if (isNaN(popupTop)) popupTop = 0;
+                left += popupLeft;
+                top += popupTop;
+            }
+            
+            minLeft = Math.min(minLeft, left);
+            minTop = Math.min(minTop, top);
+            maxRight = Math.max(maxRight, left + width);
+            maxBottom = Math.max(maxBottom, top + height);
         });
         
-        var finalWidth = Math.max(scrollWidth, maxRight + 40);
-        var finalHeight = Math.max(scrollHeight, maxBottom + 40);
+        if (minLeft === Infinity) {
+            minLeft = 0;
+            minTop = 0;
+            maxRight = 800;
+            maxBottom = 600;
+        }
+        
+        if (minLeft < 0) {
+            var adjustNegative = -minLeft;
+            minLeft = 0;
+            maxRight += adjustNegative;
+        }
+        if (minTop < 0) {
+            var adjustNegative = -minTop;
+            minTop = 0;
+            maxBottom += adjustNegative;
+        }
+        
+        var paddingLeft = 80;
+        var paddingRight = 80;
+        var paddingTop = 40;
+        var paddingBottom = 40;
+        
+        var contentWidth = maxRight - minLeft;
+        var contentHeight = maxBottom - minTop;
+        var finalWidth = contentWidth + paddingLeft + paddingRight;
+        var finalHeight = contentHeight + paddingTop + paddingBottom;
+        
+        var offsetX = paddingLeft - minLeft;
+        var offsetY = paddingTop - minTop;
+        
+        if (minTop > paddingTop) {
+            var extraTopPadding = minTop - paddingTop;
+            paddingTop = minTop;
+            finalHeight += extraTopPadding;
+            offsetY = 0;
+        }
 
-        // Tạo container tạm thời để clone canvas (giống preview)
-        var $tempContainer = $('<div id="tempExportContainer" style="position: absolute; left: -9999px; top: 0; width: ' + finalWidth + 'px; min-height: ' + finalHeight + 'px; background: #ffffff; overflow: visible;"></div>');
-        $("body").append($tempContainer);
+        var $previewCanvas = $('<div id="previewCanvas" style="position: absolute; left: -9999px; top: 0;"></div>');
+        $previewCanvas.css({
+            position: "absolute",
+            left: "-9999px",
+            top: "0",
+            background: "#ffffff",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            padding: "0",
+            margin: "0",
+            overflow: "visible",
+            width: finalWidth + "px",
+            minHeight: finalHeight + "px"
+        });
+        
+        $("body").append($previewCanvas);
 
-        // Clone toàn bộ canvas (giống preview)
         var $canvasClone = $canvas.clone(false);
         
-        // Loại bỏ các class/attribute tương tác và badge group
+        $canvasClone.css({
+            position: "relative",
+            left: "0",
+            top: "0",
+            margin: "0",
+            padding: "0",
+            overflow: "visible"
+        });
+        
         $canvasClone.find("*").each(function() {
             var $el = $(this);
             $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
             $el.removeAttr("data-interact-id");
-            // ✅ Xóa badge group để không xuất hiện trong ảnh
             $el.find(".group-badge").remove();
+            if ($el.hasClass("canvas-control") || $el.hasClass("popup-design") || $el.hasClass("page-field") || $el.hasClass("popup-field")) {
+                $el.css("pointer-events", "none");
+            }
         });
         
-        // Set style cho canvas clone
-        $canvasClone.css({
-            "overflow": "visible",
-            "position": "relative",
-            "width": finalWidth + "px",
-            "minHeight": finalHeight + "px",
-            "margin": "0",
-            "padding": "0",
-            "transform": "none",
-            "background": "#ffffff"
-        });
+        $canvasClone.off();
+        $canvasClone.find("*").off();
         
-        $tempContainer.append($canvasClone);
-
-        // Đợi một chút để DOM render
-        setTimeout(function() {
-            // Sử dụng html2canvas để chụp container clone
-            html2canvas($tempContainer[0], {
-                backgroundColor: "#ffffff",
-                scale: 2, // Tăng độ phân giải
-                useCORS: true,
-                logging: false,
-                width: finalWidth,
-                height: finalHeight,
-                allowTaint: true,
-                foreignObjectRendering: false
-            }).then(function (canvas) {
-                // Xóa container tạm thời
-                $tempContainer.remove();
-
-                // Chuyển canvas thành blob và download
-                canvas.toBlob(function (blob) {
-                    var a = document.createElement("a");
-                    a.href = URL.createObjectURL(blob);
-                    a.download = "ui-design-" + new Date().getTime() + ".png";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(a.href);
-                    
-                    self.showToast("Đã xuất hình ảnh thành công!", "success");
-                }, "image/png");
-            }).catch(function (error) {
-                // Xóa container tạm thời nếu lỗi
-                $tempContainer.remove();
-                
-                console.error("Export image error:", error);
-                self.showToast("Lỗi khi xuất hình ảnh: " + error.message, "error");
+        var adjustPosition = function($el, offsetX, offsetY) {
+            var leftStr = $el.css("left");
+            var topStr = $el.css("top");
+            var currentLeft = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
+            var currentTop = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
+            if (isNaN(currentLeft)) currentLeft = 0;
+            if (isNaN(currentTop)) currentTop = 0;
+            
+            $el.css({
+                "left": (currentLeft + offsetX) + "px",
+                "top": (currentTop + offsetY) + "px"
             });
-        }, 200); // Đợi 200ms để DOM render đầy đủ
+        };
+        
+        $canvasClone.find(".popup-design").each(function() {
+            adjustPosition($(this), offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".canvas-control").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) return;
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".page-field").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) return;
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".canvas-toolbar").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) return;
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".canvas-tabpage").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) return;
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".ess-grid-control").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) return;
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $canvasClone.find(".popup-field").each(function() {
+            var $el = $(this);
+            if ($el.closest(".popup-body").length > 0) return;
+            adjustPosition($el, offsetX, offsetY);
+        });
+        
+        $previewCanvas.css({
+            width: finalWidth + "px",
+            height: finalHeight + "px",
+            minWidth: finalWidth + "px",
+            minHeight: finalHeight + "px"
+        });
+        
+        $previewCanvas.append($canvasClone);
+
+        setTimeout(function() {
+            $previewCanvas[0].offsetHeight;
+            
+            setTimeout(function() {
+                self.exportImageFromPreview($previewCanvas);
+            }, 100);
+        }, 100);
     },
 
     // ✅ Hiển thị Preview fullscreen
@@ -3973,16 +4389,41 @@ var builder = {
         // Tạo modal fullscreen
         var $modal = $('<div class="preview-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #ffffff; z-index: 100000; overflow: auto; display: flex; flex-direction: column;">');
         
-        // Header với nút đóng
+        // Header với nút đóng và nút xuất ảnh
         var $header = $('<div style="position: sticky; top: 0; background: #0078d4; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 100001; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">');
         $header.append('<h3 style="margin: 0; font-size: 18px; font-weight: 600;">👁️ Preview Design</h3>');
+        
+        // Nút xuất ảnh
+        var $exportBtn = $('<button style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; margin-right: 10px;" type="button"><i class="bi bi-download"></i> Xuất ảnh</button>');
+        $exportBtn.on("mouseenter", function() {
+            $(this).css("background", "rgba(255,255,255,0.3)");
+        }).on("mouseleave", function() {
+            $(this).css("background", "rgba(255,255,255,0.2)");
+        });
+        $exportBtn.on("click", function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            // ✅ Tìm preview canvas từ modal khi click (vì $previewCanvas chưa được khai báo ở đây)
+            var $previewCanvas = $modal.find("#previewCanvas");
+            if ($previewCanvas.length) {
+                self.exportImageFromPreview($previewCanvas);
+            } else {
+                self.showToast("Không tìm thấy preview canvas!", "error");
+            }
+        });
+        
+        // Nút đóng
         var $closeBtn = $('<button style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s;" type="button"><i class="bi bi-x-lg"></i> Đóng (ESC)</button>');
         $closeBtn.on("mouseenter", function() {
             $(this).css("background", "rgba(255,255,255,0.3)");
         }).on("mouseleave", function() {
             $(this).css("background", "rgba(255,255,255,0.2)");
         });
-        $header.append($closeBtn);
+        
+        var $headerButtons = $('<div style="display: flex; align-items: center;"></div>');
+        $headerButtons.append($exportBtn);
+        $headerButtons.append($closeBtn);
+        $header.append($headerButtons);
         $modal.append($header);
 
         // Content: Clone canvas content

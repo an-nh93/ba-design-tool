@@ -371,15 +371,23 @@ var controlGridEss = (function () {
             var text = v || col.tagText || "Pending";
             var back = col.tagBackColor || "#0D9EFF";
             var color = col.tagTextColor || "#ffffff";
+            
+            // ✅ Escape HTML để tránh XSS và đảm bảo text được render đúng
+            var escapedText = $('<div>').text(text || "Pending").html();
 
             var $tag = $(
                 '<div class="ess-tag ess-grid-tag">' +
                 '  <span class="ess-tag-icon"><i class="bi bi-tag-fill"></i></span>' +
-                '  <span class="ess-tag-text"></span>' +
+                '  <span class="ess-tag-text">' + escapedText + '</span>' +
                 '</div>'
             );
-            $tag.find(".ess-tag-text").text(text);
-            $tag.css({ "background-color": back, "color": color });
+            // ✅ Set text trực tiếp vào HTML và đảm bảo nó không bị mất
+            $tag.find(".ess-tag-text").html(escapedText);
+            $tag.find(".ess-tag-text").text(text || "Pending"); // Set cả text() để đảm bảo
+            $tag.css({ 
+                "background-color": back, 
+                "color": color 
+            });
             return $tag;
         }
 
@@ -412,16 +420,16 @@ var controlGridEss = (function () {
     function render(cfg, $parent) {
         cfg = ensureConfig(cfg);
 
-        // ✅ XÓA DOM element cũ trước khi render mới để tránh duplicate
-        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
-        if ($oldGrid.length) {
-            $oldGrid.remove();
-        }
-
         var $root = $("#" + cfg.id);
         var isNew = false;
-
-        if (!$root.length) {
+        
+        // ✅ Nếu element đã tồn tại, chỉ empty và update, không remove
+        if ($root.length) {
+            // Element đã tồn tại, chỉ cần empty và update
+            $root.empty();
+            isNew = false;
+        } else {
+            // Element chưa tồn tại, tạo mới
             isNew = true;
             $root = $("<div/>")
                 .attr("id", cfg.id)
@@ -433,15 +441,6 @@ var controlGridEss = (function () {
             if (cfg.parentId) {
                 var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
                 var $popupBody = $popup.find('.popup-body');
-                
-                // ✅ Kiểm tra xem có tìm thấy popup và popup-body không
-                // Comment debug logs
-                // if (!$popup.length) {
-                //     console.warn("ESS Grid: Popup not found:", cfg.parentId);
-                // }
-                // if (!$popupBody.length) {
-                //     console.warn("ESS Grid: Popup body not found for popup:", cfg.parentId);
-                // }
                 
                 if ($popupBody.length) {
                     // Append vào popup-body (grid sẽ là child của popup)
@@ -464,8 +463,6 @@ var controlGridEss = (function () {
                     });
                 } else if ($parent && $parent.length) {
                     // Fallback: append vào canvas
-                    // Comment debug logs
-                    // console.warn("ESS Grid: Fallback: appending to canvas instead of popup-body");
                     $parent.append($root);
                     $root.css({
                         position: "absolute",
@@ -484,8 +481,10 @@ var controlGridEss = (function () {
                     width: (cfg.width || 900) + "px"
                 });
             }
-        } else {
-            $root.empty();
+        }
+        
+        // ✅ Update CSS cho element đã tồn tại
+        if (!isNew) {
             $root.css({
                 left: (cfg.left || 20) + "px",
                 top: (cfg.top || 20) + "px",

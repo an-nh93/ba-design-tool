@@ -7,456 +7,1019 @@
     <title>UI Builder – My Designs</title>
 
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/datatables.min.css" rel="stylesheet" />
-
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
-    <script src="../Scripts/datatables.min.js"></script>
 
     <style>
         :root {
-            --ba-primary: #2563eb;
-            --ba-primary-soft: #e0edff;
-            --ba-border: #e5e7eb;
-            --ba-muted: #6b7280;
+            /* Dark theme (default) */
+            --primary: #0078d4;
+            --primary-hover: #006bb3;
+            --primary-light: #0D9EFF;
+            --primary-soft: rgba(0, 120, 212, 0.1);
+            --bg-main: #1e1e1e;
+            --bg-dark: #1e1e1e;
+            --bg-darker: #161616;
+            --bg-card: #2d2d30;
+            --bg-hover: #3e3e42;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #969696;
+            --border: #3e3e42;
+            --border-light: #464647;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        /* Light theme */
+        body.light-theme {
+            --bg-main: #ffffff;
+            --bg-dark: #f3f4f6;
+            --bg-darker: #f9fafb;
+            --bg-card: #ffffff;
+            --bg-hover: #f3f4f6;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --text-muted: #6b7280;
+            --border: #e5e7eb;
+            --border-light: #d1d5db;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background-color: #f3f4f6;
-            color: #111827;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
         }
 
-        /* ===== Top bar ===== */
-        .top-bar {
-            background: linear-gradient(90deg, #111827, #1f2937);
-            color: #f9fafb;
-            padding: .75rem 1.5rem;
-            box-shadow: 0 .25rem .75rem rgba(0, 0, 0, .25);
-        }
-
-        .top-bar h3 {
-            font-weight: 600;
-            font-size: 1.35rem;
-            margin: 0;
-        }
-
-        .top-bar small {
-            color: #9ca3af;
-        }
-
-        .top-bar .btn {
-            font-weight: 500;
+        /* Dark theme mặc định */
+        body {
+            background: var(--bg-main);
+            color: var(--text-primary);
         }
 
         /* ===== Layout ===== */
-        .page-wrapper {
-            padding: 1.5rem 1.25rem 2rem;
-        }
-
-        .page-title {
-            font-weight: 600;
-            font-size: 1.05rem;
-        }
-
-        .page-subtitle {
-            font-size: .85rem;
-            color: var(--ba-muted);
-        }
-
-        /* ===== Card ===== */
-        .ba-card {
-            border-radius: .75rem;
-            border: 1px solid #e5e7eb;
-            box-shadow: 0 .5rem 1.5rem rgba(15, 23, 42, .05);
-            background-color: #ffffff;
-            margin-bottom: 1.5rem;
-        }
-
-        .ba-card-header {
-            padding: .75rem 1rem;
-            border-bottom: 1px solid var(--ba-border);
+        .app-container {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #f9fafb;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        .ba-card-body {
-            padding: .75rem 1rem 1rem;
+        /* ===== Sidebar ===== */
+        .sidebar {
+            width: 240px;
+            background: var(--bg-darker);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
         }
 
-        .badge-public {
-            background-color: rgba(22, 163, 74, .1);
-            color: #15803d;
-            border-radius: 999px;
-            padding: .1rem .55rem;
-            font-size: .7rem;
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
             font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
         }
 
-        .badge-private {
-            background-color: rgba(234, 179, 8, .12);
-            color: #92400e;
-            border-radius: 999px;
-            padding: .1rem .55rem;
-            font-size: .7rem;
+        .sidebar-search {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-search input {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+
+        .sidebar-search input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .sidebar-search input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.5rem 0;
+        }
+
+        .nav-section {
+            padding: 0.5rem 0;
+        }
+
+        .nav-section-title {
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
             font-weight: 600;
-        }
-
-        .design-thumb {
-            width: 120px;
-            height: 80px;
-            object-fit: cover;
-            border-radius: .45rem;
-            border: 1px solid #d1d5db;
-            background-color: #f9fafb;
-            cursor: zoom-in;
-        }
-
-        .table {
-            margin-bottom: 0;
-        }
-
-        .table thead th {
-            background-color: #f9fafb;
-            border-bottom: 1px solid var(--ba-border);
-            white-space: nowrap;
-            font-size: .8rem;
-            font-weight: 600;
+            color: var(--text-muted);
             text-transform: uppercase;
-            letter-spacing: .03em;
+            letter-spacing: 0.05em;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .nav-item[data-filter] {
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .nav-item.active {
+            background: var(--primary-soft);
+            color: var(--primary-light);
+            border-left: 3px solid var(--primary);
+        }
+
+        .nav-item .icon {
+            margin-right: 0.5rem;
+            width: 16px;
             text-align: center;
         }
 
-        .table tbody td {
-            font-size: .85rem;
-            vertical-align: middle;
+        /* ===== Main Content ===== */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--bg-main);
         }
 
-        .table tbody tr:hover {
-            background-color: #f3f4ff;
+        /* ===== Top Bar ===== */
+        .top-bar {
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border);
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
         }
 
-        td.col-actions {
-            white-space: nowrap;
-        }
-
-        /* ===== DataTables tinh chỉnh ===== */
-        .dataTables_wrapper {
-            padding: .3rem .25rem .5rem;
-        }
-
-        .dataTables_wrapper .dataTables_filter {
-            text-align: right;
-        }
-
-        .dataTables_wrapper .dataTables_filter label {
-            font-size: .8rem;
-            color: var(--ba-muted);
-        }
-
-        .dataTables_wrapper .dataTables_filter input {
-            margin-left: .35rem;
-            border-radius: 999px;
-            border: 1px solid #d1d5db;
-            padding: .15rem .6rem;
-            font-size: .8rem;
-        }
-
-        .dataTables_wrapper .dataTables_info {
-            font-size: .75rem;
-            color: var(--ba-muted);
-        }
-
-        .dataTables_wrapper .dataTables_paginate {
-            font-size: .8rem;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button {
-            border-radius: 999px !important;
-            border: 0 !important;
-            padding: .15rem .5rem !important;
-            margin: 0 .05rem !important;
-            color: #4b5563 !important;
-        }
-
-        .dataTables_wrapper .dataTables_paginate .paginate_button.current {
-            background: var(--ba-primary-soft) !important;
-            color: #1d4ed8 !important;
+        .top-bar-title {
+            font-size: 1.125rem;
             font-weight: 600;
+            color: var(--text-primary);
         }
 
-        .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
-            background: #e5e7eb !important;
-            color: #111827 !important;
+        .top-bar-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
         }
 
-        /* Modal preview */
-        #previewModal .modal-header {
-            border-bottom: 1px solid #e5e7eb;
+        /* Theme switcher */
+        .theme-switcher {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
         }
 
-        #previewModal .modal-title {
+        .theme-switcher:hover {
+            background: var(--bg-hover);
+        }
+
+        .theme-switcher-icon {
             font-size: 1rem;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-menu-trigger {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .user-menu-trigger:hover {
+            background: var(--bg-hover);
+        }
+
+        .user-menu-trigger:focus {
+            outline: none;
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+        }
+        
+        .user-avatar:has(img) {
+            background: transparent !important;
+        }
+
+        .user-menu-dropdown {
+            position: absolute;
+            top: calc(100% + 0.5rem);
+            right: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+        }
+
+        .user-menu-dropdown.show {
+            display: block;
+        }
+
+        .user-menu-dropdown .menu-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .user-menu-dropdown .menu-item:last-child {
+            border-bottom: none;
+        }
+
+        .user-menu-dropdown .menu-item:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+
+        .btn-sm {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.8125rem;
+        }
+
+        /* ===== Content Area ===== */
+        .content-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .section {
+            margin-bottom: 3rem;
+        }
+
+        .section-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .section-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* ===== Card Grid ===== */
+        .designs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .design-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            overflow: hidden;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .design-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.2);
+        }
+
+        .design-card-thumb {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            background: var(--bg-darker);
+        }
+
+        .design-card-body {
+            padding: 1rem;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .design-card-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            text-decoration: none;
+        }
+
+        .design-card-title:hover {
+            color: var(--primary-light);
+        }
+
+        .design-card-meta {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+
+        .design-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-top: auto;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
             font-weight: 600;
         }
 
-        #previewModal #imgDesignPreview {
-            max-width: 100%;
-            max-height: calc(100vh - 170px);
-            object-fit: contain;
-            border-radius: .5rem;
-            box-shadow: 0 .5rem 1.5rem rgba(15, 23, 42, .35);
+        .badge-public {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
         }
 
-        .table thead th {
-            background-color: #f8f9fa;
-            border: 1px solid #dee2e6 !important;   /* thêm full viền */
-            border-bottom-width: 2px;               /* cho cảm giác header tách rõ body */
-            white-space: nowrap;
-            text-align: center;                     /* canh giữa chữ trong header */
+        .badge-private {
+            background: rgba(245, 158, 11, 0.2);
+            color: #f59e0b;
         }
 
-        /* Body vẫn canh trái như cũ */
-        .table tbody td {
-            text-align: left;
+        .btn-icon {
+            padding: 0.375rem;
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
-        /* ====== TABLE STYLE CHO 2 LƯỚI DESIGNER ====== */
 
-    /* Bản thân table phải collapse để border liền mạch */
-    #tblMyDesigns,
-    #tblPublicDesigns {
-        border-collapse: collapse !important;
-    }
+        .btn-icon:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-light);
+            color: var(--text-primary);
+        }
 
-    /* Header: nền xám nhạt, border đủ 4 cạnh, text canh giữa */
-    #tblMyDesigns thead th,
-    #tblPublicDesigns thead th {
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6 !important;
-        white-space: nowrap;
-        text-align: center;
-        vertical-align: middle;
+        .btn-danger {
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: transparent;
+            border: 1px solid var(--warning);
+            color: var(--warning);
+        }
+
+        .btn-warning:hover {
+            background: var(--warning);
+            color: white;
+        }
+
+        .btn-success {
+            background: transparent;
+            border: 1px solid var(--success);
+            color: var(--success);
+        }
+
+        .btn-success:hover {
+            background: var(--success);
+            color: white;
+        }
+
+        /* ===== Modal ===== */
+        .modal-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--border);
+        }
+
+        .modal-body {
+            background: var(--bg-dark);
+        }
+
+        /* ===== Account Settings Modal (Figma Style) ===== */
+        .account-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .account-modal.show {
+            display: flex;
+        }
+
+        .account-modal-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 640px;
+            max-height: 90vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: modalSlideIn 0.2s ease-out;
+        }
+
+        @keyframes modalSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .account-modal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .account-modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .account-modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .account-modal-close:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .account-modal-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            flex-shrink: 0;
+        }
+
+        .account-modal-tab {
+            padding: 1rem 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s ease;
+            position: relative;
+            top: 1px;
+        }
+
+        .account-modal-tab:hover {
+            color: var(--text-primary);
+        }
+
+        .account-modal-tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .account-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+
+        .account-section {
+            margin-bottom: 2rem;
+        }
+
+        .account-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .account-section-title {
+            font-size: 0.875rem;
         font-weight: 600;
-    }
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
 
-    /* Body: mỗi ô đều có border */
-    #tblMyDesigns tbody td,
-    #tblPublicDesigns tbody td {
-        border: 1px solid #dee2e6 !important;
-        vertical-align: middle;
-    }
+        .account-field {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
+        }
 
-    /* Đè lại style của DataTables để khỏi phá border */
-    table.dataTable.no-footer {
-        border-bottom: none !important;
-    }
+        .account-field:last-child {
+            border-bottom: none;
+        }
 
-    table.dataTable thead > tr > th,
-    table.dataTable thead > tr > td {
-        border-bottom: 1px solid #dee2e6 !important;
-    }
+        .account-field-label {
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            font-weight: 500;
+        }
 
-    .canvas-context-menu {
-        position: absolute;
-        z-index: 9999;
-        background: #ffffff;
-        border: 1px solid #ccc;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        font-size: 12px;
-        min-width: 160px;
-    }
-    .canvas-context-menu div {
-        padding: 4px 10px;
+        .account-field-value {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .account-field-action {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 0.875rem;
         cursor: pointer;
-    }
-    .canvas-context-menu div:hover {
-        background: #0078d7;
-        color: #fff;
-    }
-    .canvas-context-menu hr {
-        margin: 4px 0;
-        border: 0;
-        border-top: 1px solid #e0e0e0;
-    }
+            transition: color 0.2s ease;
+        }
 
+        .account-field-action:hover {
+            color: var(--primary-hover);
+        }
 
+        .account-avatar {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: var(--primary); /* Default: màu xanh khi không có avatar */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+            flex-shrink: 0;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        
+        /* Khi có avatar (background-image), làm nền trong suốt */
+        .account-avatar[style*="background-image"] {
+            background-color: transparent !important;
+        }
+
+        .account-profile-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .account-profile-info {
+            flex: 1;
+        }
+
+        .account-profile-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .account-form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .account-form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .account-form-input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .account-form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+        }
+
+        .account-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .account-badge-success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+        }
+
+        .account-badge-default {
+            background: rgba(107, 114, 128, 0.2);
+            color: var(--text-secondary);
+        }
+
+        .account-badge-danger {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        #imgDesignPreview {
+            max-width: 100%;
+            max-height: calc(100vh - 200px);
+            border-radius: 0.5rem;
+        }
+
+        /* ===== Empty State ===== */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* ===== Responsive ===== */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 60px;
+            }
+
+            .sidebar-header h1,
+            .sidebar-nav .nav-item span:not(.icon),
+            .sidebar-search {
+                display: none;
+            }
+
+            .designs-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 1rem;
+            }
+
+            .content-area {
+                padding: 1rem;
+            }
+        }
     </style>
 </head>
 <body>
     <form id="form1" runat="server">
-
-        <!-- ===== Top bar ===== -->
-        <div class="top-bar d-flex justify-content-between align-items-center">
-            <div>
-                <h3>UI Builder</h3>
-                <small>Welcome, <asp:Literal ID="litUserName" runat="server" /></small>
+        <div class="app-container">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <h1>UI Builder</h1>
+                </div>
+                
+                <div class="sidebar-search">
+                    <input type="text" placeholder="Q Search..." />
             </div>
-            <div class="d-flex gap-2">
-                <a runat="server"
-                   id="lnkNewPage2"
-                   class="btn btn-success btn-sm"
-                   href="~/Builder">
-                    + New empty page
+
+                <div class="sidebar-nav">
+                    <div class="nav-section">
+                        <div class="nav-item active" data-section="my-designs">
+                            <span class="icon">📁</span>
+                            <span>Recents</span>
+                        </div>
+                        <div class="nav-item" data-section="public-designs">
+                            <span class="icon">🌐</span>
+                            <span>Community</span>
+                        </div>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">Team</div>
+                        <div class="nav-item" data-filter="drafts">
+                            <span class="icon">📄</span>
+                            <span>Drafts</span>
+                        </div>
+                        <div class="nav-item" data-filter="all">
+                            <span class="icon">📂</span>
+                            <span>All projects</span>
+                        </div>
+                        <div class="nav-item" data-filter="starred">
+                            <span class="icon">⭐</span>
+                            <span>Starred</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="main-content">
+                <!-- Top Bar -->
+                <div class="top-bar">
+                    <div class="top-bar-title">Recents</div>
+                    <div class="top-bar-actions">
+                        <a href="~/Builder" class="btn btn-primary btn-sm" runat="server">
+                            <span>+</span> New empty page
                 </a>
 
                 <asp:HyperLink ID="lnkUserManagement" runat="server"
-                    CssClass="btn btn-outline-light btn-sm" NavigateUrl="~/Users"
-                    Visible="false">
+                            CssClass="btn btn-sm" NavigateUrl="~/Users"
+                            Visible="false"
+                            Style="background: transparent; border: 1px solid var(--border); color: var(--text-secondary);">
                     User management
                 </asp:HyperLink>
-            </div>
-        </div>
 
-        <div class="page-wrapper container-fluid">
+                        <button class="theme-switcher" id="themeSwitcher" onclick="toggleTheme(event)">
+                            <span class="theme-switcher-icon" id="themeIcon">🌙</span>
+                            <span id="themeText">Dark</span>
+                        </button>
 
-            <!-- My designs -->
-            <div class="ba-card">
-                <div class="ba-card-header">
-                    <div>
-                        <div class="page-title">My designs</div>
-                        <div class="page-subtitle">Double-click thumbnail to preview full size</div>
+                        <div class="user-menu">
+                            <button class="user-menu-trigger" type="button" id="userMenuTrigger" onclick="toggleUserMenu(event); return false;">
+                                <div class="user-avatar">
+                                    <asp:Literal ID="litUserInitial" runat="server" />
+                    </div>
+                                <asp:Literal ID="litUserName" runat="server" />
+                                <span>▼</span>
+                            </button>
+                            <div class="user-menu-dropdown" id="userMenuDropdown">
+                                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('security'); return false;">🔒 Change Password</a>
+                                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('account'); return false;">⚙️ Account Settings</a>
+                                <div class="menu-item" style="border-top: 1px solid var(--border); margin-top: 0.25rem; padding-top: 0.75rem;">
+                                    <a href="~/Login" runat="server" style="color: inherit; text-decoration: none;" onclick="closeUserMenu();">🚪 Logout</a>
+                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                <div class="ba-card-body">
-                    <div class="table-responsive">
-                        <table id="tblMyDesigns"
-                               class="table table-striped table-hover table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th style="width:140px">Preview</th>
-                                    <th>Name</th>
-                                    <th style="width:110px">Type</th>
-                                    <th style="width:150px">Updated</th>
-                                    <th style="width:220px">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <asp:Repeater ID="rpMyDesigns" runat="server"
-                                    OnItemCommand="rpMyDesigns_ItemCommand">
+
+                <!-- Content Area -->
+                <div class="content-area">
+                    <!-- My Designs Section -->
+                    <div class="section" id="my-designs-section">
+                        <div class="section-header">
+                            <div class="section-title">My designs</div>
+                            <div class="section-subtitle">Double-click thumbnail to preview full size</div>
+                        </div>
+                        <div class="designs-grid" id="my-designs-grid">
+                            <asp:Repeater ID="rpMyDesigns" runat="server" OnItemCommand="rpMyDesigns_ItemCommand">
                                     <ItemTemplate>
-                                        <tr>
-                                            <td class="text-center">
+                                    <div class="design-card" data-id='<%# Eval("ControlId") %>'>
                                                 <img src='<%# Eval("ThumbnailUrl") %>'
-                                                     class="design-thumb js-preview-thumb"
-                                                     alt="preview"
+                                             class="design-card-thumb js-preview-thumb" 
+                                             alt='<%# Eval("Name") %>'
                                                      data-full='<%# Eval("ThumbnailUrl") %>' />
-                                            </td>
-                                            <td>
-                                                <a href='<%# Eval("EditUrl") %>' class="fw-semibold text-decoration-none">
+                                        <div class="design-card-body">
+                                            <a href='<%# Eval("EditUrl") %>' class="design-card-title">
                                                     <%# Eval("Name") %>
-                                                </a><br />
-                                                <small class="text-muted">
+                                            </a>
+                                            <div class="design-card-meta">
                                                     <%# Eval("ControlType") %> ·
-                                                    <span class='<%# (bool)Eval("IsPublic") ? "badge-public" : "badge-private" %>'>
+                                                <span class='<%# (bool)Eval("IsPublic") ? "badge badge-public" : "badge badge-private" %>'>
                                                         <%# (bool)Eval("IsPublic") ? "Public" : "Private" %>
                                                     </span>
-                                                </small>
-                                            </td>
-                                            <td><%# Eval("ControlType") %></td>
-                                            <td><%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></td>
-                                            <td class="col-actions">
-                                                <div class="d-flex flex-wrap gap-1">
-                                                    <a href='<%# Eval("EditUrl") %>'
-                                                       class="btn btn-primary btn-sm">
+                                                <br />
+                                                <small>Updated: <%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></small>
+                                            </div>
+                                            <div class="design-card-actions">
+                                                <a href='<%# Eval("EditUrl") %>' class="btn btn-sm btn-primary" style="flex: 1;">
                                                         Edit
                                                     </a>
-
                                                     <asp:LinkButton ID="btnDelete" runat="server"
-                                                        CssClass="btn btn-outline-danger btn-sm"
+                                                    CssClass="btn btn-sm btn-danger"
                                                         CommandName="Delete"
                                                         CommandArgument='<%# Eval("ControlId") %>'
                                                         OnClientClick="return confirm('Delete this design?');">
-                                                        Delete
+                                                    🗑️
                                                     </asp:LinkButton>
-
                                                     <asp:PlaceHolder runat="server" Visible='<%# (bool)Eval("IsPublic") %>'>
                                                         <button type="button"
-                                                                class="btn btn-outline-warning btn-sm btn-toggle-public"
+                                                            class="btn btn-sm btn-warning btn-toggle-public"
                                                                 data-id='<%# Eval("ControlId") %>'
-                                                                data-next="false">
-                                                            Make private
+                                                            data-next="false"
+                                                            title="Make private">
+                                                        🔒
                                                         </button>
                                                     </asp:PlaceHolder>
-
                                                     <asp:PlaceHolder runat="server" Visible='<%# !(bool)Eval("IsPublic") %>'>
                                                         <button type="button"
-                                                                class="btn btn-outline-success btn-sm btn-toggle-public"
+                                                            class="btn btn-sm btn-success btn-toggle-public"
                                                                 data-id='<%# Eval("ControlId") %>'
-                                                                data-next="true">
-                                                            Make public
+                                                            data-next="true"
+                                                            title="Make public">
+                                                        🌐
                                                         </button>
                                                     </asp:PlaceHolder>
                                                 </div>
-                                            </td>
-                                        </tr>
+                                        </div>
+                                    </div>
                                     </ItemTemplate>
                                 </asp:Repeater>
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </div>
 
-            <!-- Public designs -->
-            <div class="ba-card">
-                <div class="ba-card-header">
-                    <div>
-                        <div class="page-title">Public designs</div>
-                        <div class="page-subtitle">(clone only)</div>
+                    <!-- Public Designs Section -->
+                    <div class="section" id="public-designs-section" style="display: none;">
+                        <div class="section-header">
+                            <div class="section-title">Public designs</div>
+                            <div class="section-subtitle">(clone only)</div>
                     </div>
-                </div>
-                <div class="ba-card-body">
-                    <div class="table-responsive">
-                        <table id="tblPublicDesigns"
-                               class="table table-striped table-hover table-sm align-middle">
-                            <thead>
-                                <tr>
-                                    <th style="width:140px">Preview</th>
-                                    <th>Name</th>
-                                    <th style="width:110px">Type</th>
-                                    <th style="width:140px">Owner</th>
-                                    <th style="width:150px">Updated</th>
-                                    <th style="width:120px">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
+                        <div class="designs-grid" id="public-designs-grid">
                                 <asp:Repeater ID="rpPublicDesigns" runat="server">
                                     <ItemTemplate>
-                                        <tr>
-                                            <td class="text-center">
-                                                <img src='<%# Eval("ThumbnailUrl") %>' alt="preview"
-                                                     class="design-thumb" />
-                                            </td>
-                                            <td><%# Eval("Name") %></td>
-                                            <td><%# Eval("ControlType") %></td>
-                                            <td><%# Eval("OwnerName") %></td>
-                                            <td><%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></td>
-                                            <td class="text-center col-actions">
-                                                <a href='<%# Eval("CloneUrl") %>'
-                                                   class="btn btn-outline-secondary btn-sm">
+                                    <div class="design-card">
+                                        <img src='<%# Eval("ThumbnailUrl") %>' 
+                                             class="design-card-thumb" 
+                                             alt='<%# Eval("Name") %>' />
+                                        <div class="design-card-body">
+                                            <div class="design-card-title" style="cursor: default;">
+                                                <%# Eval("Name") %>
+                                            </div>
+                                            <div class="design-card-meta">
+                                                <%# Eval("ControlType") %> · Owner: <%# Eval("OwnerName") %>
+                                                <br />
+                                                <small>Updated: <%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></small>
+                                            </div>
+                                            <div class="design-card-actions">
+                                                <a href='<%# Eval("CloneUrl") %>' class="btn btn-sm btn-primary" style="flex: 1;">
                                                     Clone
                                                 </a>
-                                            </td>
-                                        </tr>
+                                            </div>
+                                        </div>
+                                    </div>
                                     </ItemTemplate>
                                 </asp:Repeater>
-                            </tbody>
-                        </table>
                     </div>
                 </div>
             </div>
         </div>
-    </form>
+        </div>
 
-    <!-- Modal xem ảnh preview lớn -->
+        <!-- Modal Preview -->
     <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title mb-0">Design preview</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        <h5 class="modal-title">Design preview</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body text-center">
             <img id="imgDesignPreview" src="" alt="preview" />
@@ -465,37 +1028,569 @@
       </div>
     </div>
 
-    <script>
-        // DataTables
-        $(function () {
-            $('#tblMyDesigns').DataTable({
-                pageLength: 10,
-                lengthChange: false,
-                searching: true,
-                ordering: false
-            });
+    <!-- Account Settings Modal (Figma Style) -->
+    <div class="account-modal" id="accountModal">
+        <div class="account-modal-content">
+            <div class="account-modal-header">
+                <h3 class="account-modal-title">Account Settings</h3>
+                <button type="button" class="account-modal-close" onclick="hideAccountModal(); return false;">×</button>
+            </div>
+            <div class="account-modal-tabs">
+                <button class="account-modal-tab active" data-tab="account" onclick="switchAccountTab(event, 'account')">Account</button>
+                <button class="account-modal-tab" data-tab="security" onclick="switchAccountTab(event, 'security')">Security</button>
+            </div>
+            <div class="account-modal-body">
+                <!-- Account Tab -->
+                <div id="accountTabContent" class="account-tab-content">
+                    <div class="account-profile-header">
+                        <div class="account-avatar-container">
+                            <div class="account-avatar" id="accountAvatar">
+                                <img id="accountAvatarImg" src="" alt="Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
+                            </div>
+                            <label for="avatarUpload" class="account-avatar-upload-btn" title="Upload avatar">
+                                <input type="file" id="avatarUpload" accept="image/*" style="display: none;" />
+                                <span>📷</span>
+                            </label>
+                        </div>
+                        <div class="account-profile-info">
+                            <div class="account-profile-name" id="accountFullName"></div>
+                            <div class="account-field-value" id="accountEmail"></div>
+                        </div>
+                    </div>
 
-            $('#tblPublicDesigns').DataTable({
-                pageLength: 10,
-                lengthChange: false,
-                searching: true,
-                ordering: false
+                    <div class="account-section">
+                        <div class="account-section-title">Account Information</div>
+                        <div class="account-field">
+                            <span class="account-field-label">User ID</span>
+                            <span class="account-field-value" id="accountUserId"></span>
+                        </div>
+                        <div class="account-field">
+                            <span class="account-field-label">Username</span>
+                            <span class="account-field-value" id="accountUserName"></span>
+                        </div>
+                        <div class="account-field">
+                            <span class="account-field-label">Full Name</span>
+                            <span class="account-field-value" id="accountFullName2"></span>
+                        </div>
+                        <div class="account-field">
+                            <span class="account-field-label">Email</span>
+                            <span class="account-field-value" id="accountEmail2"></span>
+                        </div>
+                        <div class="account-field">
+                            <span class="account-field-label">Role</span>
+                            <span class="account-field-value" id="accountRole"></span>
+                        </div>
+                        <div class="account-field">
+                            <span class="account-field-label">Status</span>
+                            <span class="account-field-value" id="accountStatus"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Tab -->
+                <div id="securityTabContent" class="account-tab-content" style="display: none;">
+                    <div class="account-section">
+                        <div class="account-section-title">Change Password</div>
+                        <form id="changePasswordForm">
+                            <div class="account-form-group">
+                                <label class="account-form-label" for="txtModalCurrentPassword">Current Password</label>
+                                <input type="password" id="txtModalCurrentPassword" class="account-form-input" />
+                            </div>
+                            <div class="account-form-group">
+                                <label class="account-form-label" for="txtModalNewPassword">New Password</label>
+                                <input type="password" id="txtModalNewPassword" class="account-form-input" />
+                            </div>
+                            <div class="account-form-group">
+                                <label class="account-form-label" for="txtModalConfirmPassword">Confirm New Password</label>
+                                <input type="password" id="txtModalConfirmPassword" class="account-form-input" />
+                            </div>
+                            <div class="account-form-group">
+                                <button type="button" class="btn btn-primary" onclick="changePassword()">Change Password</button>
+                            </div>
+                            <div id="passwordMessage" style="margin-top: 1rem; display: none;"></div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </form>
+
+    <script>
+        // ===== Theme Switcher =====
+        function initTheme() {
+            var savedTheme = localStorage.getItem('theme') || 'light';
+            applyTheme(savedTheme);
+        }
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.add('dark-theme');
+                document.getElementById('themeIcon').textContent = '☀️';
+                document.getElementById('themeText').textContent = 'Light';
+            } else {
+                document.body.classList.remove('dark-theme');
+                document.getElementById('themeIcon').textContent = '🌙';
+                document.getElementById('themeText').textContent = 'Dark';
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        function toggleTheme(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            var currentTheme = localStorage.getItem('theme') || 'light';
+            var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(newTheme);
+            return false;
+        }
+
+        // ===== User Menu =====
+        function toggleUserMenu(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            var dropdown = document.getElementById('userMenuDropdown');
+            dropdown.classList.toggle('show');
+            return false;
+        }
+
+        function closeUserMenu() {
+            var dropdown = document.getElementById('userMenuDropdown');
+            dropdown.classList.remove('show');
+        }
+
+        // Close user menu when clicking outside
+        document.addEventListener('click', function(e) {
+            var dropdown = document.getElementById('userMenuDropdown');
+            var trigger = document.getElementById('userMenuTrigger');
+            if (trigger && dropdown && !trigger.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('show');
+            }
+        });
+
+        // ===== Navigation =====
+        document.addEventListener('DOMContentLoaded', function() {
+            // Section navigation (Recents, Community)
+            document.querySelectorAll('.nav-item[data-section]').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    var section = this.getAttribute('data-section');
+                    
+                    // Update active state
+                    document.querySelectorAll('.nav-item').forEach(function(nav) {
+                        nav.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Show/hide sections
+                    if (section === 'my-designs') {
+                        document.getElementById('my-designs-section').style.display = 'block';
+                        document.getElementById('public-designs-section').style.display = 'none';
+                        document.querySelector('.top-bar-title').textContent = 'Recents';
+                    } else if (section === 'public-designs') {
+                        document.getElementById('my-designs-section').style.display = 'none';
+                        document.getElementById('public-designs-section').style.display = 'block';
+                        document.querySelector('.top-bar-title').textContent = 'Community';
+                    }
             });
         });
 
-        // Modal preview (Bootstrap 5)
-        document.addEventListener('DOMContentLoaded', function () {
+            // Filter navigation (Drafts, All projects, Starred)
+            document.querySelectorAll('.nav-item[data-filter]').forEach(function(item) {
+                item.addEventListener('click', function() {
+                    var filter = this.getAttribute('data-filter');
+                    
+                    // Update active state - remove from section navs first
+                    document.querySelectorAll('.nav-item[data-section]').forEach(function(nav) {
+                        nav.classList.remove('active');
+                    });
+                    
+                    // Update active state for filter navs
+                    document.querySelectorAll('.nav-item[data-filter]').forEach(function(nav) {
+                        nav.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    
+                    // Update title
+                    var titles = {
+                        'drafts': 'Drafts',
+                        'all': 'All Projects',
+                        'starred': 'Starred'
+                    };
+                    document.querySelector('.top-bar-title').textContent = titles[filter] || 'My Designs';
+                    
+                    // For now, just show all designs (can be enhanced later with actual filtering)
+                    document.getElementById('my-designs-section').style.display = 'block';
+                    document.getElementById('public-designs-section').style.display = 'none';
+                    
+                    // TODO: Implement actual filtering logic
+                    console.log('Filter selected:', filter);
+                });
+            });
+        });
+
+        // Initialize theme on load - mặc định dark theme
+        function initTheme() {
+            var savedTheme = localStorage.getItem('theme') || 'dark';
+            applyTheme(savedTheme);
+        }
+
+        function applyTheme(theme) {
+            if (theme === 'dark') {
+                document.body.classList.remove('light-theme');
+                document.body.classList.add('dark-theme');
+                if (document.getElementById('themeIcon')) {
+                    document.getElementById('themeIcon').textContent = '☀️';
+                    document.getElementById('themeText').textContent = 'Light';
+                }
+            } else {
+                document.body.classList.remove('dark-theme');
+                document.body.classList.add('light-theme');
+                if (document.getElementById('themeIcon')) {
+                    document.getElementById('themeIcon').textContent = '🌙';
+                    document.getElementById('themeText').textContent = 'Dark';
+                }
+            }
+            localStorage.setItem('theme', theme);
+        }
+
+        function toggleTheme(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            var currentTheme = localStorage.getItem('theme') || 'dark';
+            var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            applyTheme(newTheme);
+            return false;
+        }
+
+        // Initialize theme on load
+        initTheme();
+
+        // Modal preview
+        document.addEventListener('DOMContentLoaded', function() {
             var previewModalEl = document.getElementById('previewModal');
             var previewModal = new bootstrap.Modal(previewModalEl);
 
-            $('#tblMyDesigns').on('dblclick', 'img.design-thumb', function () {
+            document.querySelectorAll('.js-preview-thumb').forEach(function(img) {
+                img.addEventListener('dblclick', function() {
                 document.getElementById('imgDesignPreview').src = this.src;
                 previewModal.show();
+                });
             });
         });
 
-        // Toggle Public / Private
-        $(document).on('click', '.btn-toggle-public', function (e) {
+        // Account Settings Modal
+        function showAccountModal(tab) {
+            var modal = document.getElementById('accountModal');
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+            
+            // Set default tab if not provided
+            if (!tab) {
+                tab = 'account';
+            }
+            
+            // Switch to the specified tab (this will also call loadAccountInfo if needed)
+            switchAccountTab(null, tab);
+        }
+
+        function loadAccountInfo(retryCount) {
+            // Check if modal is visible before loading
+            var modal = document.getElementById('accountModal');
+            if (!modal || !modal.classList.contains('show')) {
+                console.log('Modal not visible, skipping loadAccountInfo');
+                return;
+            }
+            
+            retryCount = retryCount || 0;
+            var maxRetries = 5;
+            
+            $.ajax({
+                url: '/Pages/DesignerHome.aspx/GetAccountInfo',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: '{}',
+                success: function(response) {
+                    if (response.d && response.d.success) {
+                        var data = response.d;
+                        var userName = data.userName || '';
+                        
+                        // Set avatar
+                        var avatarEl = document.getElementById('accountAvatar');
+                        
+                        // Check if element exists (modal might not be fully rendered yet)
+                        if (!avatarEl) {
+                            if (retryCount < maxRetries) {
+                                console.warn('Avatar element not found, retrying... (' + (retryCount + 1) + '/' + maxRetries + ')');
+                                setTimeout(function() {
+                                    loadAccountInfo(retryCount + 1);
+                                }, 100);
+                            } else {
+                                console.error('Avatar element not found after ' + maxRetries + ' retries');
+                            }
+                            return;
+                        }
+                        
+                        if (data.avatarPath) {
+                            // avatarPath đã là absolute path từ server (đã convert ~)
+                            var avatarUrl = data.avatarPath + '?t=' + new Date().getTime();
+                            // Set background-image cho div và làm nền trong suốt
+                            avatarEl.style.backgroundImage = 'url(' + avatarUrl + ')';
+                            avatarEl.style.backgroundSize = 'cover';
+                            avatarEl.style.backgroundPosition = 'center';
+                            avatarEl.style.backgroundRepeat = 'no-repeat';
+                            avatarEl.style.backgroundColor = 'transparent'; // Nền trong suốt khi có avatar
+                            avatarEl.textContent = '';
+                            // Hide img tag if exists
+                            var avatarImg = document.getElementById('accountAvatarImg');
+                            if (avatarImg) {
+                                avatarImg.style.display = 'none';
+                            }
+                        } else {
+                            // Clear background image và set lại màu xanh
+                            avatarEl.style.backgroundImage = '';
+                            avatarEl.style.backgroundColor = 'var(--primary)'; // Nền màu xanh khi không có avatar
+                            avatarEl.textContent = userName.length > 0 ? userName.substring(0, 1).toUpperCase() : '';
+                            // Hide img tag if exists
+                            var avatarImg = document.getElementById('accountAvatarImg');
+                            if (avatarImg) {
+                                avatarImg.style.display = 'none';
+                            }
+                        }
+                        
+                        // Set profile header
+                        var accountFullName = document.getElementById('accountFullName');
+                        var accountEmail = document.getElementById('accountEmail');
+                        if (accountFullName) accountFullName.textContent = data.fullName || data.userName || '';
+                        if (accountEmail) accountEmail.innerHTML = data.email || '<em>Not set</em>';
+                        
+                        // Set account fields
+                        var accountUserId = document.getElementById('accountUserId');
+                        var accountUserName = document.getElementById('accountUserName');
+                        var accountFullName2 = document.getElementById('accountFullName2');
+                        var accountEmail2 = document.getElementById('accountEmail2');
+                        if (accountUserId) accountUserId.textContent = data.userId || '';
+                        if (accountUserName) accountUserName.textContent = data.userName || '';
+                        if (accountFullName2) accountFullName2.innerHTML = data.fullName2 || '<em>Not set</em>';
+                        if (accountEmail2) accountEmail2.innerHTML = data.email || '<em>Not set</em>';
+                        
+                        var roleBadge = data.isSuperAdmin 
+                            ? '<span class="account-badge account-badge-success">Super Admin</span>' 
+                            : '<span class="account-badge account-badge-default">User</span>';
+                        var accountRole = document.getElementById('accountRole');
+                        if (accountRole) accountRole.innerHTML = roleBadge;
+                        
+                        var statusBadge = data.isActive 
+                            ? '<span class="account-badge account-badge-success">Active</span>' 
+                            : '<span class="account-badge account-badge-danger">Inactive</span>';
+                        var accountStatus = document.getElementById('accountStatus');
+                        if (accountStatus) accountStatus.innerHTML = statusBadge;
+                    }
+                },
+                error: function() {
+                    console.error('Failed to load account info');
+                }
+            });
+        }
+
+        function hideAccountModal(e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            var modal = document.getElementById('accountModal');
+            modal.classList.remove('show');
+            document.body.style.overflow = '';
+            return false;
+        }
+
+        function switchAccountTab(e, tab) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            
+            // Update tabs
+            document.querySelectorAll('.account-modal-tab').forEach(function(t) {
+                t.classList.remove('active');
+            });
+            document.querySelector('.account-modal-tab[data-tab="' + tab + '"]').classList.add('active');
+
+            // Update content
+            document.getElementById('accountTabContent').style.display = tab === 'account' ? 'block' : 'none';
+            document.getElementById('securityTabContent').style.display = tab === 'security' ? 'block' : 'none';
+            
+            if (tab === 'account') {
+                loadAccountInfo();
+            }
+            
+            return false;
+        }
+
+        // Close modal when clicking outside
+        document.getElementById('accountModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                hideAccountModal();
+            }
+        });
+
+        // Upload avatar
+        document.getElementById('avatarUpload').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file.');
+                return;
+            }
+
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image size must be less than 5MB.');
+                return;
+            }
+
+            var formData = new FormData();
+            formData.append('file', file);
+
+            $.ajax({
+                url: '/Handlers/UploadAvatar.ashx',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                dataType: 'json',
+                success: function(response) {
+                    if (response && response.success) {
+                        console.log('Upload success, avatarPath:', response.avatarPath);
+                        
+                        var avatarUrl = response.avatarPath + '?t=' + new Date().getTime();
+                        
+                        // Update avatar in modal if it's open
+                        var modal = document.getElementById('accountModal');
+                        if (modal && modal.classList.contains('show')) {
+                            var avatarEl = document.getElementById('accountAvatar');
+                            if (avatarEl) {
+                                // Set background-image cho div và làm nền trong suốt
+                                avatarEl.style.backgroundImage = 'url(' + avatarUrl + ')';
+                                avatarEl.style.backgroundSize = 'cover';
+                                avatarEl.style.backgroundPosition = 'center';
+                                avatarEl.style.backgroundRepeat = 'no-repeat';
+                                avatarEl.style.backgroundColor = 'transparent'; // Nền trong suốt khi có avatar
+                                avatarEl.textContent = '';
+                                // Hide img tag if exists
+                                var avatarImg = document.getElementById('accountAvatarImg');
+                                if (avatarImg) {
+                                    avatarImg.style.display = 'none';
+                                }
+                            }
+                            // Reload account info to ensure all data is fresh
+                            loadAccountInfo();
+                        }
+                        
+                        // Update avatar in top bar (user-avatar contains litUserInitial)
+                        // Find all .user-avatar elements
+                        var topBarAvatars = document.querySelectorAll('.user-avatar');
+                        topBarAvatars.forEach(function(avatarEl) {
+                            // Clear existing content and set new avatar
+                            avatarEl.innerHTML = '<img src="' + avatarUrl + '" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />';
+                        });
+                        
+                        // Also check if litUserInitial exists (server control)
+                        var litUserInitialEl = document.querySelector('#<%= litUserInitial.ClientID %>');
+                        if (litUserInitialEl) {
+                            var parentAvatar = litUserInitialEl.closest('.user-avatar');
+                            if (parentAvatar) {
+                                parentAvatar.innerHTML = '<img src="' + avatarUrl + '" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />';
+                            }
+                        }
+                    } else {
+                        alert(response && response.message ? response.message : 'Failed to upload avatar.');
+                    }
+                },
+                error: function(xhr) {
+                    var errorMsg = 'Failed to upload avatar.';
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.message) errorMsg = response.message;
+                    } catch(e) {
+                        if (xhr.responseText) {
+                            errorMsg += ' ' + xhr.responseText.substring(0, 200);
+                        }
+                    }
+                    alert(errorMsg);
+                }
+            });
+        });
+
+        // Change password
+        function changePassword() {
+            var currentPassword = document.getElementById('txtModalCurrentPassword').value;
+            var newPassword = document.getElementById('txtModalNewPassword').value;
+            var confirmPassword = document.getElementById('txtModalConfirmPassword').value;
+            var messageDiv = document.getElementById('passwordMessage');
+
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">Please fill in all fields.</div>';
+                messageDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">New password and confirmation do not match.</div>';
+                messageDiv.style.display = 'block';
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">Password must be at least 6 characters.</div>';
+                messageDiv.style.display = 'block';
+                return;
+            }
+
+            // Call server method
+            $.ajax({
+                url: '/Pages/DesignerHome.aspx/ChangePassword',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: JSON.stringify({
+                    currentPassword: currentPassword,
+                    newPassword: newPassword
+                }),
+                success: function(response) {
+                    if (response.d && response.d.success) {
+                        messageDiv.innerHTML = '<div style="color: #10b981; font-size: 0.875rem;">Password changed successfully!</div>';
+                        messageDiv.style.display = 'block';
+                        document.getElementById('txtModalCurrentPassword').value = '';
+                        document.getElementById('txtModalNewPassword').value = '';
+                        document.getElementById('txtModalConfirmPassword').value = '';
+                        setTimeout(function() {
+                            hideAccountModal();
+                        }, 1500);
+                    } else {
+                        messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">' + (response.d && response.d.message ? response.d.message : 'Failed to change password.') + '</div>';
+                        messageDiv.style.display = 'block';
+                    }
+                },
+                error: function(xhr) {
+                    var errorMsg = 'Failed to change password.';
+                    try {
+                        var response = JSON.parse(xhr.responseText);
+                        if (response.Message) errorMsg = response.Message;
+                        else if (response.d && response.d.message) errorMsg = response.d.message;
+                    } catch(e) {}
+                    messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">' + errorMsg + '</div>';
+                    messageDiv.style.display = 'block';
+                }
+            });
+        }
+
+        // Toggle Public/Private
+        $(document).on('click', '.btn-toggle-public', function(e) {
             e.preventDefault();
             var $btn = $(this);
             var id = parseInt($btn.data('id'), 10);
@@ -506,10 +1601,10 @@
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 data: JSON.stringify({ controlId: id, isPublic: next }),
-                success: function () {
+                success: function() {
                     window.location.reload();
                 },
-                error: function (xhr) {
+                error: function(xhr) {
                     alert('Lỗi cập nhật trạng thái Public: ' + xhr.responseText);
                 }
             });

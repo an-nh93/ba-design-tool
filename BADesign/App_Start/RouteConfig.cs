@@ -45,6 +45,32 @@ namespace BADesign
 				"Users",
 				"~/Pages/Users.aspx"
 			);
+
+			routes.MapPageRoute(
+				"ChangePasswordRoute",
+				"ChangePassword",
+				"~/Pages/ChangePassword.aspx"
+			);
+
+			routes.MapPageRoute(
+				"AccountSettingsRoute",
+				"AccountSettings",
+				"~/Pages/AccountSettings.aspx"
+			);
+
+			// Alias for Account/Manage
+			routes.MapPageRoute(
+				"AccountManageRoute",
+				"Account/Manage",
+				"~/Pages/AccountSettings.aspx"
+			);
+
+			// Alias for Account/ManagePassword
+			routes.MapPageRoute(
+				"AccountManagePasswordRoute",
+				"Account/ManagePassword",
+				"~/Pages/ChangePassword.aspx"
+			);
 		}
 	}
 }
