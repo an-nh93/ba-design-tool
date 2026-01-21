@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Data;
 using System.Data.SqlClient;
+using System.Web.Services;
+using System.Web.Script.Services;
 using System.Web.UI.WebControls;
 using BADesign;
 
@@ -34,8 +36,8 @@ namespace UiBuilderFull.Admin
 				{
 					var dt = new DataTable();
 					da.Fill(dt);
-					gvUsers.DataSource = dt;
-					gvUsers.DataBind();
+					rpUsers.DataSource = dt;
+					rpUsers.DataBind();
 				}
 			}
 		}
@@ -74,94 +76,108 @@ VALUES (@u, @p, @f, @e, @sa);";
 			BindUsers();
 		}
 
-		protected void gvUsers_RowCommand(object sender, GridViewCommandEventArgs e)
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object ChangePassword(int userId, string newPassword)
 		{
-			int index = Convert.ToInt32(e.CommandArgument);
-			int userId = (int)gvUsers.DataKeys[index].Value;
-
-			if (e.CommandName == "ChangePwd")
+			try
 			{
-				// lấy password từ textbox trong row
-				var row = gvUsers.Rows[index];
-				var txt = row.FindControl("txtRowNewPass") as TextBox;
-				var newPass = txt != null ? txt.Text : "";
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+				{
+					return new { success = false, message = "Unauthorized." };
+				}
 
-				ChangePassword(userId, newPass);
+				newPassword = newPassword ?? "";
+				if (newPassword.Trim().Length < 1)
+				{
+					return new { success = false, message = "Password mới phải >= 1 ký tự!" };
+				}
 
-				// clear textbox sau khi đổi
-				if (txt != null) txt.Text = "";
+				string hash = UiAuthHelper.HashPassword(newPassword);
+
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "UPDATE UiUser SET PasswordHash=@p WHERE UserId=@id";
+					cmd.Parameters.AddWithValue("@p", hash);
+					cmd.Parameters.AddWithValue("@id", userId);
+
+					conn.Open();
+					cmd.ExecuteNonQuery();
+				}
+
+				return new { success = true, message = $"Đã đổi password cho User {userId}." };
 			}
-			else if (e.CommandName == "ResetPwd")
+			catch (Exception ex)
 			{
-				ResetPassword(userId);
+				return new { success = false, message = ex.Message };
 			}
-			else if (e.CommandName == "ToggleActive")
-			{
-				ToggleActive(userId);
-			}
-
-			BindUsers();
 		}
 
-		private void ChangePassword(int userId, string newPass)
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object ResetPassword(int userId)
 		{
-			newPass = newPass ?? "";
-			if (newPass.Trim().Length < 1)
+			try
 			{
-				lblMsg.Text = "Password mới phải >= 1 ký tự!";
-				return;
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+				{
+					return new { success = false, message = "Unauthorized." };
+				}
+
+				// Reset về "123456"
+				string newPass = "123456";
+				string hash = UiAuthHelper.HashPassword(newPass);
+
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "UPDATE UiUser SET PasswordHash=@p WHERE UserId=@id";
+					cmd.Parameters.AddWithValue("@p", hash);
+					cmd.Parameters.AddWithValue("@id", userId);
+
+					conn.Open();
+					cmd.ExecuteNonQuery();
+				}
+
+				return new { success = true, message = $"User {userId} password reset = 123456" };
 			}
-
-
-			string hash = UiAuthHelper.HashPassword(newPass);
-
-			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-			using (var cmd = conn.CreateCommand())
+			catch (Exception ex)
 			{
-				cmd.CommandText = "UPDATE UiUser SET PasswordHash=@p WHERE UserId=@id";
-				cmd.Parameters.AddWithValue("@p", hash);
-				cmd.Parameters.AddWithValue("@id", userId);
-
-				conn.Open();
-				cmd.ExecuteNonQuery();
+				return new { success = false, message = ex.Message };
 			}
-
-			lblMsg.Text = $"Đã đổi password cho User {userId}.";
 		}
 
-
-
-		private void ResetPassword(int userId)
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object ToggleActive(int userId)
 		{
-			// Ở demo: reset về "123456"
-			string newPass = "123456";
-			string hash = UiAuthHelper.HashPassword(newPass);
-
-			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-			using (var cmd = conn.CreateCommand())
+			try
 			{
-				cmd.CommandText = "UPDATE UiUser SET PasswordHash=@p WHERE UserId=@id";
-				cmd.Parameters.AddWithValue("@p", hash);
-				cmd.Parameters.AddWithValue("@id", userId);
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+				{
+					return new { success = false, message = "Unauthorized." };
+				}
 
-				conn.Open();
-				cmd.ExecuteNonQuery();
-			}
-
-			lblMsg.Text = $"User {userId} password reset = 123456";
-		}
-
-		private void ToggleActive(int userId)
-		{
-			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-			using (var cmd = conn.CreateCommand())
-			{
-				cmd.CommandText = @"
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = @"
 UPDATE UiUser SET IsActive = CASE WHEN IsActive=1 THEN 0 ELSE 1 END
 WHERE UserId=@id";
-				cmd.Parameters.AddWithValue("@id", userId);
-				conn.Open();
-				cmd.ExecuteNonQuery();
+					cmd.Parameters.AddWithValue("@id", userId);
+					conn.Open();
+					cmd.ExecuteNonQuery();
+				}
+
+				return new { success = true, message = "User status updated successfully." };
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
 			}
 		}
 	}
