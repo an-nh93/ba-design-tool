@@ -1985,6 +1985,7 @@ body.ub-pan-active {
                         <div class="tool-item" data-control="field-button"  data-ui="core">Button</div>
                         <div class="tool-item" data-control="field-checkbox" data-ui="core">Checkbox</div>
                         <div class="tool-item" data-control="field-combo"   data-ui="core">Combobox</div>
+                        <div class="tool-item" data-control="field-multiselect" data-ui="core">Multi-select Dropdown</div>
                         <div class="tool-item" data-control="field-date"    data-ui="core">Date</div>
                         <div class="tool-item" data-control="field-groupbox"data-ui="core">Group box</div>
                         <div class="tool-item" data-control="field-label"   data-ui="core">Label</div>

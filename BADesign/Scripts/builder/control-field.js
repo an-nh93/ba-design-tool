@@ -392,6 +392,9 @@
             } else if (ftype === "combo") {
                 defWidth = 380;
                 defHeight = 40;
+            } else if (ftype === "multiselect") {
+                defWidth = 400;
+                defHeight = 40;
             } else if (ftype === "date") {      // ESS Date
                 defWidth = 380;   // rộng hơn 1 chút cho giống ESS
                 defHeight = 40;   // cao giống ô date ngoài trang ESS
@@ -434,6 +437,16 @@
             disabled: false,
             defaultValue: "",
             items: (ftype === "combo" ? ["Item 1", "Item 2"] : []),
+            // Multi-select specific config
+            multiselectColumns: (ftype === "multiselect" ? [
+                { name: "value", caption: "Value", width: 150 },
+                { name: "label", caption: "Label", width: 200 }
+            ] : []),
+            multiselectItems: (ftype === "multiselect" ? [
+                { value: "all", label: "All" },
+                { value: "month", label: "Month" }
+            ] : []),
+            multiselectSelectedValues: (ftype === "multiselect" ? [] : []),
             left: 20,
             top: 20 + idx * 35,
             width: defWidth,
@@ -929,6 +942,8 @@
             $inner = $field.find(".ess-progress");
         } else if (cfg.ftype === "image") {
             $inner = $field.find(".ess-image-drop");
+        } else if (cfg.ftype === "multiselect") {
+            $inner = $field.find(".core-multiselect-btn");
         } else {
             $inner = $field.find(".page-field-editor").find("input,select,textarea");
         }
@@ -938,7 +953,131 @@
         $inner.css("height", hInner + "px");
     }
 
-
+    // Render multi-select dropdown
+    function renderMultiSelect(cfg) {
+        var $wrapper = $('<div class="core-multiselect-wrapper"></div>');
+        var $button = $('<button type="button" class="core-multiselect-btn" tabindex="-1">' +
+            '<span class="core-multiselect-text">Select...</span>' +
+            '<span class="core-multiselect-arrow">▼</span>' +
+            '</button>');
+        var $dropdown = $('<div class="core-multiselect-dropdown" style="display: none;">' +
+            '<div class="core-multiselect-table-container">' +
+            '<table class="core-multiselect-table">' +
+            '<thead><tr></tr></thead>' +
+            '<tbody></tbody>' +
+            '</table>' +
+            '</div>' +
+            '</div>');
+        
+        $wrapper.append($button).append($dropdown);
+        
+        // Initialize dropdown content
+        updateMultiSelectDropdown(cfg, $dropdown);
+        
+        // Toggle dropdown
+        $button.on('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            var isOpen = $dropdown.is(':visible');
+            $('.core-multiselect-dropdown').hide(); // Close all other dropdowns
+            $dropdown.toggle(!isOpen);
+        });
+        
+        // Close when clicking outside
+        $(document).on('click.coreMultiselect', function(e) {
+            if (!$(e.target).closest('.core-multiselect-wrapper').length) {
+                $dropdown.hide();
+            }
+        });
+        
+        // Checkbox change handler
+        $dropdown.on('change', 'input[type="checkbox"]', function() {
+            var value = $(this).val();
+            var selected = cfg.multiselectSelectedValues || [];
+            if ($(this).is(':checked')) {
+                if (selected.indexOf(value) === -1) {
+                    selected.push(value);
+                }
+            } else {
+                var idx = selected.indexOf(value);
+                if (idx !== -1) {
+                    selected.splice(idx, 1);
+                }
+            }
+            cfg.multiselectSelectedValues = selected;
+            updateMultiSelectButton($button, cfg);
+            builder.refreshJson();
+        });
+        
+        // Update button text
+        updateMultiSelectButton($button, cfg);
+        
+        return $wrapper;
+    }
+    
+    function updateMultiSelectDropdown(cfg, $dropdown) {
+        var columns = cfg.multiselectColumns || [];
+        var items = cfg.multiselectItems || [];
+        var selectedValues = cfg.multiselectSelectedValues || [];
+        
+        // Build header
+        var $thead = $dropdown.find('thead tr');
+        $thead.empty();
+        $thead.append('<th style="width: 30px;"><input type="checkbox" class="core-multiselect-select-all" /></th>');
+        columns.forEach(function(col) {
+            $thead.append('<th style="width: ' + (col.width || 150) + 'px;">' + (col.caption || col.name) + '</th>');
+        });
+        
+        // Build body
+        var $tbody = $dropdown.find('tbody');
+        $tbody.empty();
+        items.forEach(function(item) {
+            var $row = $('<tr></tr>');
+            var value = item.value || item[columns[0]?.name] || '';
+            var isSelected = selectedValues.indexOf(value) !== -1;
+            
+            $row.append('<td><input type="checkbox" value="' + value + '" ' + (isSelected ? 'checked' : '') + ' /></td>');
+            columns.forEach(function(col) {
+                var cellValue = item[col.name] || '';
+                $row.append('<td>' + cellValue + '</td>');
+            });
+            $tbody.append($row);
+        });
+        
+        // Select all handler
+        $dropdown.find('.core-multiselect-select-all').off('change').on('change', function() {
+            var checked = $(this).is(':checked');
+            $dropdown.find('tbody input[type="checkbox"]').prop('checked', checked);
+            if (checked) {
+                cfg.multiselectSelectedValues = items.map(function(item) {
+                    return item.value || item[columns[0]?.name] || '';
+                });
+            } else {
+                cfg.multiselectSelectedValues = [];
+            }
+            updateMultiSelectButton($dropdown.closest('.core-multiselect-wrapper').find('.core-multiselect-btn'), cfg);
+            builder.refreshJson();
+        });
+    }
+    
+    function updateMultiSelectButton($button, cfg) {
+        var selectedValues = cfg.multiselectSelectedValues || [];
+        var items = cfg.multiselectItems || [];
+        var columns = cfg.multiselectColumns || [];
+        var displayColumn = columns[0]?.name || 'label';
+        
+        if (selectedValues.length === 0) {
+            $button.find('.core-multiselect-text').text('Select...');
+        } else if (selectedValues.length === 1) {
+            var item = items.find(function(it) {
+                return (it.value || it[columns[0]?.name] || '') === selectedValues[0];
+            });
+            var text = item ? (item[displayColumn] || item.value || selectedValues[0]) : selectedValues[0];
+            $button.find('.core-multiselect-text').text(text);
+        } else {
+            $button.find('.core-multiselect-text').text(selectedValues.length + ' items selected');
+        }
+    }
 
     function render(cfg) {
         var $canvas = $("#canvas");
@@ -1030,6 +1169,9 @@
                     (cfg.items || []).forEach(function (it) {
                         $("<option>").text(it).val(it).appendTo($editor);
                     });
+                    break;
+                case "multiselect":
+                    $editor = renderMultiSelect(cfg);
                     break;
                 case "memo":
                     $editor = $('<textarea rows="3"></textarea>');
@@ -1139,8 +1281,18 @@
                 } else {
                     $editor.val(cfg.defaultValue);
                 }
-            } else if (!["combo", "checkbox", "radio", "language", "label", "button", "tag", "image", "progress"].includes(cfg.ftype) && cfg.defaultValue) {
+            } else if (!["combo", "multiselect", "checkbox", "radio", "language", "label", "button", "tag", "image", "progress"].includes(cfg.ftype) && cfg.defaultValue) {
                 $editor.val(cfg.defaultValue);
+            }
+            
+            // Update multiselect dropdown if needed
+            if (cfg.ftype === "multiselect") {
+                var $wrapper = $editor;
+                var $dropdown = $wrapper.find('.core-multiselect-dropdown');
+                if ($dropdown.length) {
+                    updateMultiSelectDropdown(cfg, $dropdown);
+                    updateMultiSelectButton($wrapper.find('.core-multiselect-btn'), cfg);
+                }
             }
 
             // nếu load lại image từ JSON
@@ -1376,6 +1528,7 @@
 
         var isContainer = (cfg.ftype === "groupbox" || cfg.ftype === "section");
         var isCombo = cfg.ftype === "combo";
+        var isMultiSelect = cfg.ftype === "multiselect";
         var isCheckRadio = (cfg.ftype === "checkbox" || cfg.ftype === "radio");
         var isButton = (cfg.ftype === "button");
         var isTag = (cfg.ftype === "tag");
@@ -1672,6 +1825,109 @@
                 return typeof item === "string" ? item : (item.text || item.value || "");
             }).join("\n");
             html.push('<textarea id="pfItems" class="ess-col-input" style="min-height:80px; resize:vertical; font-family:monospace;">' + itemsText + '</textarea>');
+            html.push('</div>');
+            html.push('</div>');
+        }
+        
+        // Multi-select configuration - User-friendly form for BA
+        if (isMultiSelect) {
+            var columns = cfg.multiselectColumns || [];
+            var items = cfg.multiselectItems || [];
+            
+            // Ensure all columns have auto-generated names
+            columns.forEach(function(col, idx) {
+                if (!col.name || col.name === '') {
+                    // Find max number from existing names
+                    var maxNum = 0;
+                    columns.forEach(function(c) {
+                        if (c.name && c.name.startsWith('name-')) {
+                            var num = parseInt(c.name.replace('name-', ''), 10);
+                            if (!isNaN(num) && num > maxNum) {
+                                maxNum = num;
+                            }
+                        }
+                    });
+                    col.name = 'name-' + (maxNum + idx + 1);
+                }
+            });
+            
+            // Columns section with form inputs (only Caption and Width visible)
+            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+            html.push('<div class="ess-col-card-header" style="display:flex; justify-content:space-between; align-items:center;">');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📊 Columns</span>');
+            html.push('<button type="button" id="btnAddColumn" class="ess-btn-primary" style="padding:4px 12px; font-size:11px;">＋ Add Column</button>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            html.push('<div id="multiselectColumnsList" style="max-height:300px; overflow-y:auto;">');
+            columns.forEach(function(col, idx) {
+                html.push('<div class="multiselect-column-item" data-index="' + idx + '" style="border:1px solid #e0e0e0; border-radius:4px; padding:8px; margin-bottom:8px; background:#fafafa;">');
+                html.push('<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">');
+                html.push('<strong style="font-size:11px; color:#0078d4;">Column ' + (idx + 1) + '</strong>');
+                html.push('<button type="button" class="btnDeleteColumn" data-index="' + idx + '" style="background:#ff4444; color:white; border:none; padding:2px 8px; border-radius:3px; cursor:pointer; font-size:10px;">Delete</button>');
+                html.push('</div>');
+                html.push('<div class="ess-col-row" style="margin-bottom:6px;">');
+                html.push('<div class="ess-col-field" style="flex:1; margin-right:6px;">');
+                html.push('<label style="font-size:11px; color:#666;">Caption:</label>');
+                html.push('<input type="text" class="ess-col-input column-caption" data-index="' + idx + '" value="' + (col.caption || '').replace(/"/g, '&quot;') + '" placeholder="Column caption" style="font-size:11px; padding:4px;" />');
+                html.push('</div>');
+                html.push('<div class="ess-col-field" style="flex:0 0 100px;">');
+                html.push('<label style="font-size:11px; color:#666;">Width:</label>');
+                html.push('<input type="number" class="ess-col-input column-width" data-index="' + idx + '" value="' + (col.width || 150) + '" placeholder="150" style="font-size:11px; padding:4px;" />');
+                html.push('</div>');
+                html.push('</div>');
+                // Hidden field to store auto-generated name
+                html.push('<input type="hidden" class="column-name" data-index="' + idx + '" value="' + (col.name || '').replace(/"/g, '&quot;') + '" />');
+                html.push('</div>');
+            });
+            if (columns.length === 0) {
+                html.push('<div style="padding:12px; text-align:center; color:#999; font-size:11px;">No columns yet. Click "Add Column" to add one.</div>');
+            }
+            html.push('</div>');
+            html.push('</div>');
+            html.push('</div>');
+            
+            // Items section with form inputs
+            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
+            html.push('<div class="ess-col-card-header" style="display:flex; justify-content:space-between; align-items:center;">');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📋 Items</span>');
+            html.push('<button type="button" id="btnAddItem" class="ess-btn-primary" style="padding:4px 12px; font-size:11px;">＋ Add Item</button>');
+            html.push('</div>');
+            html.push('<div class="ess-col-card-body">');
+            html.push('<div id="multiselectItemsList" style="max-height:400px; overflow-y:auto;">');
+            items.forEach(function(item, idx) {
+                html.push('<div class="multiselect-item-item" data-index="' + idx + '" style="border:1px solid #e0e0e0; border-radius:4px; padding:8px; margin-bottom:8px; background:#fafafa;">');
+                html.push('<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">');
+                html.push('<strong style="font-size:11px; color:#0078d4;">Item ' + (idx + 1) + '</strong>');
+                html.push('<button type="button" class="btnDeleteItem" data-index="' + idx + '" style="background:#ff4444; color:white; border:none; padding:2px 8px; border-radius:3px; cursor:pointer; font-size:10px;">Delete</button>');
+                html.push('</div>');
+                // Dynamic fields based on columns
+                columns.forEach(function(col) {
+                    html.push('<div class="ess-col-row" style="margin-bottom:6px;">');
+                    html.push('<div class="ess-col-field ess-col-field-full">');
+                    html.push('<label style="font-size:11px; color:#666;">' + (col.caption || col.name) + ':</label>');
+                    html.push('<input type="text" class="ess-col-input item-field" data-index="' + idx + '" data-field="' + col.name + '" value="' + (item[col.name] || '') + '" placeholder="' + (col.caption || col.name) + '" style="font-size:11px; padding:4px;" />');
+                    html.push('</div>');
+                    html.push('</div>');
+                });
+                // If no columns, show default value and label fields
+                if (columns.length === 0) {
+                    html.push('<div class="ess-col-row" style="margin-bottom:6px;">');
+                    html.push('<div class="ess-col-field" style="flex:1; margin-right:6px;">');
+                    html.push('<label style="font-size:11px; color:#666;">Value:</label>');
+                    html.push('<input type="text" class="ess-col-input item-field" data-index="' + idx + '" data-field="value" value="' + (item.value || '') + '" placeholder="value" style="font-size:11px; padding:4px;" />');
+                    html.push('</div>');
+                    html.push('<div class="ess-col-field" style="flex:1;">');
+                    html.push('<label style="font-size:11px; color:#666;">Label:</label>');
+                    html.push('<input type="text" class="ess-col-input item-field" data-index="' + idx + '" data-field="label" value="' + (item.label || '') + '" placeholder="Label" style="font-size:11px; padding:4px;" />');
+                    html.push('</div>');
+                    html.push('</div>');
+                }
+                html.push('</div>');
+            });
+            if (items.length === 0) {
+                html.push('<div style="padding:12px; text-align:center; color:#999; font-size:11px;">No items yet. Click "Add Item" to add one.</div>');
+            }
+            html.push('</div>');
             html.push('</div>');
             html.push('</div>');
         }
@@ -1984,6 +2240,139 @@
             });
             builder.refreshJson();
         });
+        
+        // Multi-select columns and items - User-friendly form handlers
+        if (isMultiSelect) {
+            function updateMultiselectFromForm() {
+                // Update columns from form
+                var cols = [];
+                $('#multiselectColumnsList .multiselect-column-item').each(function() {
+                    var $item = $(this);
+                    var name = $item.find('.column-name').val().trim();
+                    var caption = $item.find('.column-caption').val().trim();
+                    var width = parseInt($item.find('.column-width').val() || '150', 10);
+                    if (name) {
+                        cols.push({
+                            name: name,
+                            caption: caption || name,
+                            width: width || 150
+                        });
+                    }
+                });
+                cfg.multiselectColumns = cols;
+                
+                // Update items from form
+                var items = [];
+                $('#multiselectItemsList .multiselect-item-item').each(function() {
+                    var $item = $(this);
+                    var itemData = {};
+                    var hasData = false;
+                    $item.find('.item-field').each(function() {
+                        var $field = $(this);
+                        var fieldName = $field.data('field');
+                        var fieldValue = $field.val().trim();
+                        if (fieldValue) {
+                            itemData[fieldName] = fieldValue;
+                            hasData = true;
+                        }
+                    });
+                    if (hasData) {
+                        items.push(itemData);
+                    }
+                });
+                cfg.multiselectItems = items;
+                
+                // Update dropdown
+                var $wrapper = $dom.find('.core-multiselect-wrapper');
+                if ($wrapper.length) {
+                    var $dropdown = $wrapper.find('.core-multiselect-dropdown');
+                    updateMultiSelectDropdown(cfg, $dropdown);
+                    updateMultiSelectButton($wrapper.find('.core-multiselect-btn'), cfg);
+                }
+                
+                builder.refreshJson();
+            }
+            
+            function generateColumnName(existingColumns) {
+                var maxNum = 0;
+                existingColumns.forEach(function(col) {
+                    if (col.name && col.name.startsWith('name-')) {
+                        var num = parseInt(col.name.replace('name-', ''), 10);
+                        if (!isNaN(num) && num > maxNum) {
+                            maxNum = num;
+                        }
+                    }
+                });
+                return 'name-' + (maxNum + 1);
+            }
+            
+            // Column input handlers (only caption and width, name is auto-generated)
+            $('#multiselectColumnsList').on('input', '.column-caption, .column-width', function() {
+                updateMultiselectFromForm();
+            });
+            
+            // Item input handlers
+            $('#multiselectItemsList').on('input', '.item-field', function() {
+                updateMultiselectFromForm();
+            });
+            
+            // Add Column button
+            $("#btnAddColumn").on("click", function() {
+                var cols = cfg.multiselectColumns || [];
+                var newName = generateColumnName(cols);
+                cols.push({ name: newName, caption: '', width: 150 });
+                cfg.multiselectColumns = cols;
+                showProperties(cfg);
+            });
+            
+            // Delete Column button
+            $('#multiselectColumnsList').on('click', '.btnDeleteColumn', function() {
+                var idx = parseInt($(this).data('index'), 10);
+                var cols = cfg.multiselectColumns || [];
+                var deletedCol = cols[idx];
+                cols.splice(idx, 1);
+                cfg.multiselectColumns = cols;
+                
+                // Remove corresponding fields from items
+                var items = cfg.multiselectItems || [];
+                items.forEach(function(item) {
+                    if (deletedCol && deletedCol.name && item[deletedCol.name] !== undefined) {
+                        delete item[deletedCol.name];
+                    }
+                });
+                cfg.multiselectItems = items;
+                
+                // Refresh properties panel to update UI
+                showProperties(cfg);
+            });
+            
+            // Add Item button
+            $("#btnAddItem").on("click", function() {
+                var items = cfg.multiselectItems || [];
+                var newItem = {};
+                var cols = cfg.multiselectColumns || [];
+                if (cols.length > 0) {
+                    cols.forEach(function(col) {
+                        newItem[col.name] = '';
+                    });
+                } else {
+                    newItem.value = '';
+                    newItem.label = '';
+                }
+                items.push(newItem);
+                cfg.multiselectItems = items;
+                showProperties(cfg);
+            });
+            
+            // Delete Item button
+            $('#multiselectItemsList').on('click', '.btnDeleteItem', function() {
+                var idx = parseInt($(this).data('index'), 10);
+                var items = cfg.multiselectItems || [];
+                items.splice(idx, 1);
+                cfg.multiselectItems = items;
+                updateMultiselectFromForm();
+            });
+        }
 
         if (isImage) {
             $("#pfImageMode").on("change", function () {

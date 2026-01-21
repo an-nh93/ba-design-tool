@@ -90,3 +90,116 @@
 .page-field.core-field .page-field-editor {
     vertical-align: top;
 }
+
+/* =========================================================
+   CORE FIELDS – MULTI-SELECT DROPDOWN
+   ========================================================= */
+
+.page-field.core-field .page-field-editor .core-multiselect-wrapper {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+}
+
+.core-multiselect-btn {
+    width: 100%;
+    height: 100%;
+    padding: 4px 24px 4px 8px;
+    border: 1px solid #c0c0c0;
+    background: #fff;
+    font-size: 12px;
+    text-align: left;
+    cursor: pointer;
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.core-multiselect-btn:hover {
+    border-color: #0078d4;
+}
+
+.core-multiselect-btn:focus {
+    outline: none;
+    border-color: #0078d4;
+    box-shadow: 0 0 3px rgba(0, 120, 212, 0.5);
+}
+
+.core-multiselect-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.core-multiselect-arrow {
+    position: absolute;
+    right: 8px;
+    font-size: 10px;
+    color: #666;
+    pointer-events: none;
+}
+
+.core-multiselect-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 2px;
+    background: #fff;
+    border: 1px solid #c0c0c0;
+    border-radius: 2px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    max-height: 300px;
+    display: flex;
+    flex-direction: column;
+}
+
+.core-multiselect-table-container {
+    overflow-y: auto;
+    max-height: 300px;
+}
+
+.core-multiselect-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.core-multiselect-table thead {
+    background: #f5f5f5;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.core-multiselect-table th {
+    padding: 6px 8px;
+    text-align: left;
+    font-weight: 600;
+    border-bottom: 1px solid #e0e0e0;
+    white-space: nowrap;
+}
+
+.core-multiselect-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.core-multiselect-table tbody tr:hover {
+    background: #f9f9f9;
+}
+
+.core-multiselect-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.core-multiselect-table input[type="checkbox"] {
+    margin: 0;
+    cursor: pointer;
+}
