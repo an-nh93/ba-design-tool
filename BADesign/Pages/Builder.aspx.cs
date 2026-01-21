@@ -378,6 +378,23 @@ ORDER BY p.Name;";
 			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 			using (var cmd = conn.CreateCommand())
 			{
+				conn.Open();
+				
+				// Check for duplicate project name (case-insensitive, same user, not deleted)
+				cmd.CommandText = @"
+SELECT COUNT(*) FROM dbo.UiProject 
+WHERE OwnerUserId = @uid AND LOWER(Name) = LOWER(@name) AND IsDeleted = 0;";
+				cmd.Parameters.AddWithValue("@uid", uid);
+				cmd.Parameters.AddWithValue("@name", name.Trim());
+				var duplicateCount = (int)cmd.ExecuteScalar();
+				
+				if (duplicateCount > 0)
+				{
+					return new { success = false, message = "Project name already exists. Please choose a different name." };
+				}
+
+				// Insert new project
+				cmd.Parameters.Clear();
 				cmd.CommandText = @"
 INSERT INTO dbo.UiProject (OwnerUserId, Name, Description)
 VALUES (@uid, @name, @desc);
@@ -386,7 +403,6 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 				cmd.Parameters.AddWithValue("@name", name.Trim());
 				cmd.Parameters.AddWithValue("@desc", string.IsNullOrWhiteSpace(description) ? (object)DBNull.Value : description.Trim());
 
-				conn.Open();
 				var projectId = (int)cmd.ExecuteScalar();
 
 				return new { success = true, projectId = projectId };
@@ -405,6 +421,39 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 			using (var cmd = conn.CreateCommand())
 			{
+				conn.Open();
+				
+				// Check if project exists and belongs to user
+				cmd.CommandText = @"
+SELECT Name FROM dbo.UiProject 
+WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
+				cmd.Parameters.AddWithValue("@pid", projectId);
+				cmd.Parameters.AddWithValue("@uid", uid);
+				var currentName = cmd.ExecuteScalar() as string;
+				
+				if (currentName == null)
+					return new { success = false, message = "Project không tồn tại hoặc không thuộc về bạn." };
+				
+				// If name changed, check for duplicate (excluding current project)
+				if (!currentName.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase))
+				{
+					cmd.Parameters.Clear();
+					cmd.CommandText = @"
+SELECT COUNT(*) FROM dbo.UiProject 
+WHERE OwnerUserId = @uid AND LOWER(Name) = LOWER(@name) AND ProjectId != @pid AND IsDeleted = 0;";
+					cmd.Parameters.AddWithValue("@uid", uid);
+					cmd.Parameters.AddWithValue("@name", name.Trim());
+					cmd.Parameters.AddWithValue("@pid", projectId);
+					var duplicateCount = (int)cmd.ExecuteScalar();
+					
+					if (duplicateCount > 0)
+					{
+						return new { success = false, message = "Project name already exists. Please choose a different name." };
+					}
+				}
+
+				// Update project
+				cmd.Parameters.Clear();
 				cmd.CommandText = @"
 UPDATE dbo.UiProject
 SET Name = @name, Description = @desc, UpdatedAt = SYSDATETIME()
@@ -414,7 +463,6 @@ WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
 				cmd.Parameters.AddWithValue("@name", name.Trim());
 				cmd.Parameters.AddWithValue("@desc", string.IsNullOrWhiteSpace(description) ? (object)DBNull.Value : description.Trim());
 
-				conn.Open();
 				int rows = cmd.ExecuteNonQuery();
 				if (rows == 0)
 					return new { success = false, message = "Project không tồn tại hoặc không thuộc về bạn." };
