@@ -374,11 +374,182 @@
             color: var(--text-muted);
         }
 
+        /* ===== Toolbar (Filter, Sort, View Toggle) ===== */
+        .section-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toolbar-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .toolbar-select {
+            padding: 0.375rem 0.75rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .toolbar-select:hover {
+            border-color: var(--primary);
+        }
+
+        .toolbar-select:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+
+        .toolbar-search {
+            padding: 0.375rem 0.75rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            outline: none;
+            transition: all 0.2s ease;
+            min-width: 200px;
+        }
+
+        .toolbar-search::placeholder {
+            color: var(--text-muted);
+        }
+
+        .toolbar-search:hover {
+            border-color: var(--primary);
+        }
+
+        .toolbar-search:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-soft);
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 0.25rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            padding: 0.25rem;
+        }
+
+        .view-toggle-btn {
+            padding: 0.375rem 0.5rem;
+            background: transparent;
+            border: none;
+            border-radius: 0.25rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .view-toggle-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .view-toggle-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
         /* ===== Card Grid ===== */
         .designs-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
             gap: 1.5rem;
+        }
+
+        .designs-grid.hidden {
+            display: none;
+        }
+
+        /* ===== Table View ===== */
+        .designs-table-container {
+            display: none;
+            overflow-x: auto;
+        }
+
+        .designs-table-container.show {
+            display: block;
+        }
+
+        .designs-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+        .designs-table thead {
+            background: var(--bg-darker);
+        }
+
+        .designs-table th {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .designs-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .designs-table tbody tr:hover {
+            background: var(--bg-hover);
+        }
+
+        .designs-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .table-thumb {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 0.375rem;
+            cursor: pointer;
+        }
+
+        .table-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        .table-name:hover {
+            color: var(--primary-light);
         }
 
         .design-card {
@@ -414,7 +585,7 @@
 
         .design-card-title {
             font-size: 0.9375rem;
-            font-weight: 600;
+        font-weight: 600;
             color: var(--text-primary);
             margin-bottom: 0.5rem;
             text-decoration: none;
@@ -462,7 +633,7 @@
             border-radius: 0.375rem;
             color: var(--text-secondary);
             font-size: 0.875rem;
-            cursor: pointer;
+        cursor: pointer;
             transition: all 0.2s ease;
             display: inline-flex;
             align-items: center;
@@ -908,21 +1079,65 @@
                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+            </div>
+        </div>
 
                 <!-- Content Area -->
                 <div class="content-area">
                     <!-- My Designs Section -->
                     <div class="section" id="my-designs-section">
                         <div class="section-header">
-                            <div class="section-title">My designs</div>
-                            <div class="section-subtitle">Double-click thumbnail to preview full size</div>
+                    <div>
+                                <div class="section-title">My designs</div>
+                                <div class="section-subtitle">Double-click thumbnail to preview full size</div>
+                    </div>
+                            <!-- Toolbar: Filter, Sort, View Toggle -->
+                            <div class="section-toolbar">
+                                <div class="toolbar-group">
+                                    <span class="toolbar-label">🔍 Search:</span>
+                                    <input type="text" class="toolbar-search" id="searchMyDesigns" placeholder="Search by name..." />
+                </div>
+                                <div class="toolbar-group">
+                                    <span class="toolbar-label">Filter:</span>
+                                    <select class="toolbar-select" id="filterMyDesigns">
+                                        <option value="all">All</option>
+                                        <option value="public">Public</option>
+                                        <option value="private">Private</option>
+                                    </select>
+                </div>
+                                <div class="toolbar-group">
+                                    <span class="toolbar-label">Sort by:</span>
+                                    <select class="toolbar-select" id="sortMyDesigns">
+                                        <option value="date-desc">Date (Newest)</option>
+                                        <option value="date-asc">Date (Oldest)</option>
+                                        <option value="name-asc">Name (A-Z)</option>
+                                        <option value="name-desc">Name (Z-A)</option>
+                                        <option value="type-asc">Type (A-Z)</option>
+                                    </select>
+                                </div>
+                                <div class="toolbar-group">
+                                    <div class="view-toggle">
+                                        <button type="button" class="view-toggle-btn active" data-view="grid" data-section="my-designs" title="Grid view">
+                                            <span>⊞</span>
+                                        </button>
+                                        <button type="button" class="view-toggle-btn" data-view="table" data-section="my-designs" title="Table view">
+                                            <span>☰</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
+                        <!-- Grid View -->
                         <div class="designs-grid" id="my-designs-grid">
                             <asp:Repeater ID="rpMyDesigns" runat="server" OnItemCommand="rpMyDesigns_ItemCommand">
                                     <ItemTemplate>
-                                    <div class="design-card" data-id='<%# Eval("ControlId") %>'>
+                                    <div class="design-card" 
+                                         data-id='<%# Eval("ControlId") %>'
+                                         data-name='<%# Eval("Name") %>'
+                                         data-type='<%# Eval("ControlType") %>'
+                                         data-public='<%# (bool)Eval("IsPublic") ? "true" : "false" %>'
+                                         data-date='<%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm:ss}") %>'
+                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'>
                                                 <img src='<%# Eval("ThumbnailUrl") %>'
                                              class="design-card-thumb js-preview-thumb" 
                                              alt='<%# Eval("Name") %>'
@@ -973,19 +1188,74 @@
                                     </div>
                                     </ItemTemplate>
                                 </asp:Repeater>
+                        </div>
+                        <!-- Table View -->
+                        <div class="designs-table-container" id="my-designs-table">
+                            <table class="designs-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 100px;">Preview</th>
+                                        <th>Name</th>
+                                        <th style="width: 120px;">Type</th>
+                                        <th style="width: 100px;">Status</th>
+                                        <th style="width: 150px;">Updated</th>
+                                        <th style="width: 200px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="my-designs-table-body">
+                                    <!-- Table rows will be generated by JavaScript -->
+                            </tbody>
+                        </table>
                 </div>
             </div>
 
                     <!-- Public Designs Section -->
                     <div class="section" id="public-designs-section" style="display: none;">
                         <div class="section-header">
-                            <div class="section-title">Public designs</div>
-                            <div class="section-subtitle">(clone only)</div>
+                    <div>
+                                <div class="section-title">Public designs</div>
+                                <div class="section-subtitle">(clone only)</div>
                     </div>
+                            <!-- Toolbar: Filter, Sort, View Toggle -->
+                            <div class="section-toolbar">
+                                <div class="toolbar-group">
+                                    <span class="toolbar-label">🔍 Search:</span>
+                                    <input type="text" class="toolbar-search" id="searchPublicDesigns" placeholder="Search by name..." />
+                </div>
+                                <div class="toolbar-group">
+                                    <span class="toolbar-label">Sort by:</span>
+                                    <select class="toolbar-select" id="sortPublicDesigns">
+                                        <option value="date-desc">Date (Newest)</option>
+                                        <option value="date-asc">Date (Oldest)</option>
+                                        <option value="name-asc">Name (A-Z)</option>
+                                        <option value="name-desc">Name (Z-A)</option>
+                                        <option value="type-asc">Type (A-Z)</option>
+                                        <option value="owner-asc">Owner (A-Z)</option>
+                                    </select>
+                </div>
+                                <div class="toolbar-group">
+                                    <div class="view-toggle">
+                                        <button type="button" class="view-toggle-btn active" data-view="grid" data-section="public-designs" title="Grid view">
+                                            <span>⊞</span>
+                                        </button>
+                                        <button type="button" class="view-toggle-btn" data-view="table" data-section="public-designs" title="Table view">
+                                            <span>☰</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Grid View -->
                         <div class="designs-grid" id="public-designs-grid">
                                 <asp:Repeater ID="rpPublicDesigns" runat="server">
                                     <ItemTemplate>
-                                    <div class="design-card">
+                                    <div class="design-card"
+                                         data-id='<%# Eval("ControlId") %>'
+                                         data-name='<%# Eval("Name") %>'
+                                         data-type='<%# Eval("ControlType") %>'
+                                         data-owner='<%# Eval("OwnerName") %>'
+                                         data-date='<%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm:ss}") %>'
+                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'>
                                         <img src='<%# Eval("ThumbnailUrl") %>' 
                                              class="design-card-thumb" 
                                              alt='<%# Eval("Name") %>' />
@@ -1007,9 +1277,28 @@
                                     </div>
                                     </ItemTemplate>
                                 </asp:Repeater>
+                        </div>
+                        <!-- Table View -->
+                        <div class="designs-table-container" id="public-designs-table">
+                            <table class="designs-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 100px;">Preview</th>
+                                        <th>Name</th>
+                                        <th style="width: 120px;">Type</th>
+                                        <th style="width: 120px;">Owner</th>
+                                        <th style="width: 150px;">Updated</th>
+                                        <th style="width: 120px;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="public-designs-table-body">
+                                    <!-- Table rows will be generated by JavaScript -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
+        </div>
         </div>
         </div>
 
@@ -1230,7 +1519,460 @@
                     console.log('Filter selected:', filter);
                 });
             });
+
+            // ===== Filter, Sort, and View Toggle =====
+            initDesignsView();
         });
+
+        // Initialize designs view (filter, sort, toggle)
+        function initDesignsView() {
+            // Load saved view preference
+            var savedView = localStorage.getItem('designs-view') || 'grid';
+            setViewMode('my-designs', savedView);
+            setViewMode('public-designs', savedView);
+
+            // View toggle buttons
+            document.querySelectorAll('.view-toggle-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var view = this.getAttribute('data-view');
+                    var section = this.getAttribute('data-section');
+                    setViewMode(section, view);
+                    localStorage.setItem('designs-view', view);
+                    return false;
+                });
+            });
+
+            // Search for My Designs
+            var searchMyDesigns = document.getElementById('searchMyDesigns');
+            if (searchMyDesigns) {
+                var searchTimeout;
+                searchMyDesigns.addEventListener('input', function() {
+                    clearTimeout(searchTimeout);
+                    searchTimeout = setTimeout(function() {
+                        applyFilterAndSort('my-designs');
+                    }, 300); // Debounce 300ms
+                });
+                // Prevent Enter key from triggering form submit or theme toggle
+                searchMyDesigns.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.keyCode === 13) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFilterAndSort('my-designs');
+                        return false;
+                    }
+                });
+            }
+
+            // Filter for My Designs
+            var filterMyDesigns = document.getElementById('filterMyDesigns');
+            if (filterMyDesigns) {
+                filterMyDesigns.addEventListener('change', function() {
+                    applyFilterAndSort('my-designs');
+                });
+            }
+
+            // Sort for My Designs
+            var sortMyDesigns = document.getElementById('sortMyDesigns');
+            if (sortMyDesigns) {
+                sortMyDesigns.addEventListener('change', function() {
+                    applyFilterAndSort('my-designs');
+                });
+            }
+
+            // Search for Public Designs
+            var searchPublicDesigns = document.getElementById('searchPublicDesigns');
+            if (searchPublicDesigns) {
+                var searchTimeoutPublic;
+                searchPublicDesigns.addEventListener('input', function() {
+                    clearTimeout(searchTimeoutPublic);
+                    searchTimeoutPublic = setTimeout(function() {
+                        applyFilterAndSort('public-designs');
+                    }, 300); // Debounce 300ms
+                });
+                // Prevent Enter key from triggering form submit or theme toggle
+                searchPublicDesigns.addEventListener('keydown', function(e) {
+                    if (e.key === 'Enter' || e.keyCode === 13) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        applyFilterAndSort('public-designs');
+                        return false;
+                    }
+                });
+            }
+
+            // Sort for Public Designs
+            var sortPublicDesigns = document.getElementById('sortPublicDesigns');
+            if (sortPublicDesigns) {
+                sortPublicDesigns.addEventListener('change', function() {
+                    applyFilterAndSort('public-designs');
+                });
+            }
+
+            // Initial render
+            setTimeout(function() {
+                applyFilterAndSort('my-designs');
+                applyFilterAndSort('public-designs');
+                
+                // Generate table rows if table view is active
+                var savedView = localStorage.getItem('designs-view') || 'grid';
+                if (savedView === 'table') {
+                    generateTableRows('my-designs');
+                    generateTableRows('public-designs');
+                }
+            }, 100);
+        }
+
+        // Set view mode (grid or table)
+        function setViewMode(section, view) {
+            var grid = document.getElementById(section + '-grid');
+            var table = document.getElementById(section + '-table');
+            var toggleBtns = document.querySelectorAll('.view-toggle-btn[data-section="' + section + '"]');
+
+            if (view === 'grid') {
+                if (grid) grid.classList.remove('hidden');
+                if (table) table.classList.remove('show');
+                toggleBtns.forEach(function(btn) {
+                    if (btn.getAttribute('data-view') === 'grid') {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            } else {
+                if (grid) grid.classList.add('hidden');
+                if (table) table.classList.add('show');
+                toggleBtns.forEach(function(btn) {
+                    if (btn.getAttribute('data-view') === 'table') {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+                // Generate table rows when switching to table view
+                setTimeout(function() {
+                    generateTableRows(section);
+                }, 100);
+            }
+        }
+
+        // Apply filter and sort
+        function applyFilterAndSort(section) {
+            var grid = document.getElementById(section + '-grid');
+            if (!grid) return;
+            
+            var cards = Array.from(grid.querySelectorAll('.design-card'));
+            var filterValue = section === 'my-designs' ? 
+                (document.getElementById('filterMyDesigns')?.value || 'all') : 'all';
+            var sortValue = section === 'my-designs' ?
+                (document.getElementById('sortMyDesigns')?.value || 'date-desc') :
+                (document.getElementById('sortPublicDesigns')?.value || 'date-desc');
+            var searchText = section === 'my-designs' ?
+                (document.getElementById('searchMyDesigns')?.value || '').toLowerCase().trim() :
+                (document.getElementById('searchPublicDesigns')?.value || '').toLowerCase().trim();
+            
+            // Filter
+            var filteredCards = Array.from(cards).filter(function(card) {
+                // Search filter
+                if (searchText) {
+                    var name = (card.getAttribute('data-name') || '').toLowerCase();
+                    var type = (card.getAttribute('data-type') || '').toLowerCase();
+                    
+                    // Get all text content from the card (including meta info like "page · Public")
+                    var cardText = (card.textContent || card.innerText || '').toLowerCase();
+                    
+                    // Normalize search text
+                    var normalizedSearch = searchText.toLowerCase().trim();
+                    
+                    // Search in name, type, and all card text
+                    var matchesSearch = name.includes(normalizedSearch) || 
+                                      type.includes(normalizedSearch) || 
+                                      cardText.includes(normalizedSearch);
+                    
+                    if (!matchesSearch) {
+                        return false;
+                    }
+                }
+                
+                // Public/Private filter (only for My Designs)
+                if (section === 'my-designs') {
+                    if (filterValue === 'all') return true;
+                    var isPublic = card.getAttribute('data-public') === 'true';
+                    if (filterValue === 'public') return isPublic;
+                    if (filterValue === 'private') return !isPublic;
+                }
+                
+                return true;
+            });
+
+            // Sort
+            filteredCards.sort(function(a, b) {
+                if (sortValue.startsWith('date-')) {
+                    var timestampA = parseInt(a.getAttribute('data-timestamp') || '0');
+                    var timestampB = parseInt(b.getAttribute('data-timestamp') || '0');
+                    return sortValue === 'date-desc' ? timestampB - timestampA : timestampA - timestampB;
+                } else if (sortValue.startsWith('name-')) {
+                    var nameA = (a.getAttribute('data-name') || '').toLowerCase();
+                    var nameB = (b.getAttribute('data-name') || '').toLowerCase();
+                    return sortValue === 'name-asc' ? 
+                        (nameA < nameB ? -1 : nameA > nameB ? 1 : 0) :
+                        (nameB < nameA ? -1 : nameB > nameA ? 1 : 0);
+                } else if (sortValue.startsWith('type-')) {
+                    var typeA = (a.getAttribute('data-type') || '').toLowerCase();
+                    var typeB = (b.getAttribute('data-type') || '').toLowerCase();
+                    return typeA < typeB ? -1 : typeA > typeB ? 1 : 0;
+                } else if (sortValue.startsWith('owner-')) {
+                    var ownerA = (a.getAttribute('data-owner') || '').toLowerCase();
+                    var ownerB = (b.getAttribute('data-owner') || '').toLowerCase();
+                    return ownerA < ownerB ? -1 : ownerA > ownerB ? 1 : 0;
+                }
+                return 0;
+            });
+
+            // Show/hide cards based on filter and reorder
+            if (grid) {
+                // First, reset all cards to visible
+                cards.forEach(function(card) {
+                    card.style.display = '';
+                });
+                
+                // Hide cards that don't match filter
+                cards.forEach(function(card) {
+                    var isFiltered = filteredCards.indexOf(card) !== -1;
+                    if (!isFiltered) {
+                        card.style.display = 'none';
+                    }
+                });
+                
+                // Reorder visible cards (only move filtered cards)
+                filteredCards.forEach(function(card) {
+                    grid.appendChild(card);
+                });
+            }
+
+            // Update table if visible
+            var table = document.getElementById(section + '-table');
+            if (table && table.classList.contains('show')) {
+                generateTableRows(section, filteredCards);
+            }
+        }
+
+        // Generate table rows from cards
+        function generateTableRows(section, cards) {
+            var tbody = document.getElementById(section + '-table-body');
+            if (!tbody) return;
+
+            if (!cards) {
+                var grid = document.getElementById(section + '-grid');
+                if (!grid) return;
+                cards = Array.from(grid.querySelectorAll('.design-card'));
+            }
+
+            // Apply filter
+            var filterValue = section === 'my-designs' ? 
+                (document.getElementById('filterMyDesigns')?.value || 'all') : 'all';
+            var searchText = section === 'my-designs' ?
+                (document.getElementById('searchMyDesigns')?.value || '').toLowerCase().trim() :
+                (document.getElementById('searchPublicDesigns')?.value || '').toLowerCase().trim();
+            cards = cards.filter(function(card) {
+                // Search filter
+                if (searchText) {
+                    var name = (card.getAttribute('data-name') || '').toLowerCase();
+                    var type = (card.getAttribute('data-type') || '').toLowerCase();
+                    
+                    // Get all text content from the card (including meta info like "page · Public")
+                    var cardText = (card.textContent || card.innerText || '').toLowerCase();
+                    
+                    // Normalize search text
+                    var normalizedSearch = searchText.toLowerCase().trim();
+                    
+                    // Search in name, type, and all card text
+                    var matchesSearch = name.includes(normalizedSearch) || 
+                                      type.includes(normalizedSearch) || 
+                                      cardText.includes(normalizedSearch);
+                    
+                    if (!matchesSearch) {
+                        return false;
+                    }
+                }
+                
+                // Public/Private filter (only for My Designs)
+                if (section === 'my-designs') {
+                    if (filterValue === 'all') return true;
+                    var isPublic = card.getAttribute('data-public') === 'true';
+                    if (filterValue === 'public') return isPublic;
+                    if (filterValue === 'private') return !isPublic;
+                }
+                
+                return true;
+            });
+
+            // Apply sort
+            var sortValue = section === 'my-designs' ?
+                (document.getElementById('sortMyDesigns')?.value || 'date-desc') :
+                (document.getElementById('sortPublicDesigns')?.value || 'date-desc');
+
+            cards.sort(function(a, b) {
+                if (sortValue.startsWith('date-')) {
+                    var timestampA = parseInt(a.getAttribute('data-timestamp') || '0');
+                    var timestampB = parseInt(b.getAttribute('data-timestamp') || '0');
+                    return sortValue === 'date-desc' ? timestampB - timestampA : timestampA - timestampB;
+                } else if (sortValue.startsWith('name-')) {
+                    var nameA = (a.getAttribute('data-name') || '').toLowerCase();
+                    var nameB = (b.getAttribute('data-name') || '').toLowerCase();
+                    return sortValue === 'name-asc' ? 
+                        (nameA < nameB ? -1 : nameA > nameB ? 1 : 0) :
+                        (nameB < nameA ? -1 : nameB > nameA ? 1 : 0);
+                } else if (sortValue.startsWith('type-')) {
+                    var typeA = (a.getAttribute('data-type') || '').toLowerCase();
+                    var typeB = (b.getAttribute('data-type') || '').toLowerCase();
+                    return typeA < typeB ? -1 : typeA > typeB ? 1 : 0;
+                } else if (sortValue.startsWith('owner-')) {
+                    var ownerA = (a.getAttribute('data-owner') || '').toLowerCase();
+                    var ownerB = (b.getAttribute('data-owner') || '').toLowerCase();
+                    return ownerA < ownerB ? -1 : ownerA > ownerB ? 1 : 0;
+                }
+                return 0;
+            });
+
+            tbody.innerHTML = '';
+            cards.forEach(function(card) {
+                var row = createTableRow(card, section);
+                tbody.appendChild(row);
+            });
+
+            // Re-attach preview event listeners for table thumbnails
+            attachPreviewListeners();
+        }
+
+        // Create table row from card
+        function createTableRow(card, section) {
+            var row = document.createElement('tr');
+            var id = card.getAttribute('data-id');
+            var name = card.getAttribute('data-name') || '';
+            var type = card.getAttribute('data-type') || '';
+            var isPublic = card.getAttribute('data-public') === 'true';
+            var date = card.getAttribute('data-date') || '';
+            var thumbImg = card.querySelector('.design-card-thumb');
+            var thumbSrc = thumbImg ? thumbImg.getAttribute('src') : '';
+            var editLink = card.querySelector('.design-card-title');
+            var editUrl = editLink ? editLink.getAttribute('href') : '';
+            var cloneLink = card.querySelector('a[href*="clone"], a[href*="Clone"]');
+            var cloneUrl = cloneLink ? cloneLink.getAttribute('href') : '';
+            var owner = card.getAttribute('data-owner') || '';
+            
+            // Extract URLs from card actions if not found
+            if (!editUrl && section === 'my-designs') {
+                var editBtn = card.querySelector('.design-card-actions a.btn-primary');
+                if (editBtn) editUrl = editBtn.getAttribute('href') || '';
+            }
+            if (!cloneUrl && section === 'public-designs') {
+                var cloneBtn = card.querySelector('.design-card-actions a');
+                if (cloneBtn) cloneUrl = cloneBtn.getAttribute('href') || '';
+            }
+
+            // Preview
+            var previewCell = document.createElement('td');
+            if (thumbSrc) {
+                var img = document.createElement('img');
+                img.src = thumbSrc;
+                img.className = 'table-thumb js-preview-thumb';
+                img.setAttribute('data-full', thumbSrc);
+                previewCell.appendChild(img);
+            }
+            row.appendChild(previewCell);
+
+            // Name
+            var nameCell = document.createElement('td');
+            var nameLink = document.createElement('a');
+            nameLink.href = editUrl || cloneUrl;
+            nameLink.className = 'table-name';
+            nameLink.textContent = name;
+            nameCell.appendChild(nameLink);
+            row.appendChild(nameCell);
+
+            // Type
+            var typeCell = document.createElement('td');
+            typeCell.textContent = type;
+            row.appendChild(typeCell);
+
+            // Status (for My Designs) or Owner (for Public Designs)
+            var statusCell = document.createElement('td');
+            if (section === 'my-designs') {
+                var badge = document.createElement('span');
+                badge.className = isPublic ? 'badge badge-public' : 'badge badge-private';
+                badge.textContent = isPublic ? 'Public' : 'Private';
+                statusCell.appendChild(badge);
+            } else {
+                statusCell.textContent = owner;
+            }
+            row.appendChild(statusCell);
+
+            // Updated
+            var dateCell = document.createElement('td');
+            dateCell.textContent = date ? date.substring(0, 16) : '';
+            row.appendChild(dateCell);
+
+            // Actions
+            var actionsCell = document.createElement('td');
+            actionsCell.className = 'design-card-actions';
+            if (section === 'my-designs') {
+                var editBtn = document.createElement('a');
+                editBtn.href = editUrl;
+                editBtn.className = 'btn btn-sm btn-primary';
+                editBtn.textContent = 'Edit';
+                actionsCell.appendChild(editBtn);
+
+                var deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.className = 'btn btn-sm btn-danger';
+                deleteBtn.textContent = '🗑️';
+                deleteBtn.title = 'Delete';
+                deleteBtn.onclick = function() {
+                    if (confirm('Delete this design?')) {
+                        // Find the original delete LinkButton from grid
+                        var grid = document.getElementById(section + '-grid');
+                        var originalCard = grid ? grid.querySelector('.design-card[data-id="' + id + '"]') : null;
+                        if (originalCard) {
+                            var deleteLink = originalCard.querySelector('[id*="btnDelete"]');
+                            if (deleteLink) {
+                                deleteLink.click();
+                            } else {
+                                // Fallback: use form postback
+                                var form = document.getElementById('form1');
+                                if (form) {
+                                    var hiddenInput = document.createElement('input');
+                                    hiddenInput.type = 'hidden';
+                                    hiddenInput.name = '__EVENTTARGET';
+                                    hiddenInput.value = 'rpMyDesigns';
+                                    form.appendChild(hiddenInput);
+                                    form.submit();
+                                }
+                            }
+                        }
+                    }
+                };
+                actionsCell.appendChild(deleteBtn);
+
+                var toggleBtn = document.createElement('button');
+                toggleBtn.className = 'btn btn-sm ' + (isPublic ? 'btn-warning' : 'btn-success') + ' btn-toggle-public';
+                toggleBtn.setAttribute('data-id', id);
+                toggleBtn.setAttribute('data-next', isPublic ? 'false' : 'true');
+                toggleBtn.textContent = isPublic ? '🔒' : '🌐';
+                toggleBtn.title = isPublic ? 'Make private' : 'Make public';
+                actionsCell.appendChild(toggleBtn);
+            } else {
+                var cloneBtn = document.createElement('a');
+                cloneBtn.href = cloneUrl;
+                cloneBtn.className = 'btn btn-sm btn-primary';
+                cloneBtn.textContent = 'Clone';
+                actionsCell.appendChild(cloneBtn);
+            }
+            row.appendChild(actionsCell);
+
+            return row;
+        }
 
         // Initialize theme on load - mặc định dark theme
         function initTheme() {
@@ -1272,16 +2014,30 @@
         initTheme();
 
         // Modal preview
-        document.addEventListener('DOMContentLoaded', function() {
+        var previewModal = null;
+        function attachPreviewListeners() {
+            if (!previewModal) {
             var previewModalEl = document.getElementById('previewModal');
-            var previewModal = new bootstrap.Modal(previewModalEl);
+                if (previewModalEl) {
+                    previewModal = new bootstrap.Modal(previewModalEl);
+                }
+            }
+            if (!previewModal) return;
 
             document.querySelectorAll('.js-preview-thumb').forEach(function(img) {
-                img.addEventListener('dblclick', function() {
-                document.getElementById('imgDesignPreview').src = this.src;
+                // Remove existing listeners to avoid duplicates
+                var newImg = img.cloneNode(true);
+                img.parentNode.replaceChild(newImg, img);
+                newImg.addEventListener('dblclick', function() {
+                    var src = this.getAttribute('data-full') || this.src;
+                    document.getElementById('imgDesignPreview').src = src;
                 previewModal.show();
-                });
             });
+        });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            attachPreviewListeners();
         });
 
         // Account Settings Modal
