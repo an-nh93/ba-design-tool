@@ -244,6 +244,7 @@
     <Content Include="Pages\ChangePassword.aspx" />
     <Content Include="Pages\AccountSettings.aspx" />
     <Content Include="Scripts\AddAvatarPathColumn.sql" />
+    <Content Include="Scripts\AddProjectSupport.sql" />
     <Content Include="Scripts\ai.0.22.9-build00167.js" />
     <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
     <Content Include="Scripts\bootstrap.js" />

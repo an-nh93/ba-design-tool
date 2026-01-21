@@ -11,18 +11,20 @@ namespace BADesign.Pages
 {
 	public partial class DesignerHome : Page
 	{
-		class DesignRow
-		{
-			public int ControlId { get; set; }
-			public string Name { get; set; }
-			public string ControlType { get; set; }
-			public bool IsPublic { get; set; }
-			public DateTime UpdatedAt { get; set; }
-			public string ThumbnailUrl { get; set; }
-			public string EditUrl { get; set; }
-			public string CloneUrl { get; set; }
-			public string OwnerName { get; set; }   // only for public
-		}
+	class DesignRow
+	{
+		public int ControlId { get; set; }
+		public string Name { get; set; }
+		public string ControlType { get; set; }
+		public bool IsPublic { get; set; }
+		public DateTime UpdatedAt { get; set; }
+		public string ThumbnailUrl { get; set; }
+		public string EditUrl { get; set; }
+		public string CloneUrl { get; set; }
+		public string OwnerName { get; set; }   // only for public
+		public int? ProjectId { get; set; }
+		public string ProjectName { get; set; }
+	}
 
 		protected void Page_Load(object sender, EventArgs e)
 		{
@@ -71,12 +73,14 @@ namespace BADesign.Pages
 			using (var cmd = conn.CreateCommand())
 			{
 				cmd.CommandText = @"
-SELECT ControlId, Name, ControlType, IsPublic,
-       ISNULL(UpdatedAt, CreatedAt) AS UpdatedAt,
-       ThumbnailPath
-FROM dbo.UiBuilderControl
-WHERE IsDeleted = 0 AND OwnerUserId = @uid
-ORDER BY ISNULL(UpdatedAt, CreatedAt) DESC, ControlId DESC;";
+SELECT c.ControlId, c.Name, c.ControlType, c.IsPublic,
+       ISNULL(c.UpdatedAt, c.CreatedAt) AS UpdatedAt,
+       c.ThumbnailPath, c.ProjectId,
+       ISNULL(p.Name, N'Uncategorized') AS ProjectName
+FROM dbo.UiBuilderControl c
+LEFT JOIN dbo.UiProject p ON c.ProjectId = p.ProjectId AND p.IsDeleted = 0
+WHERE c.IsDeleted = 0 AND c.OwnerUserId = @uid
+ORDER BY ISNULL(c.UpdatedAt, c.CreatedAt) DESC, c.ControlId DESC;";
 
 				cmd.Parameters.AddWithValue("@uid", uid);
 				conn.Open();
@@ -89,16 +93,18 @@ ORDER BY ISNULL(UpdatedAt, CreatedAt) DESC, ControlId DESC;";
 						if (string.IsNullOrEmpty(thumb))
 							thumb = ResolveUrl("~/Content/images/no-thumb.png");
 
-						list.Add(new DesignRow
-						{
-							ControlId = id,
-							Name = (string)rd["Name"],
-							ControlType = (string)rd["ControlType"],
-							IsPublic = (bool)rd["IsPublic"],
-							UpdatedAt = (DateTime)rd["UpdatedAt"],
-							ThumbnailUrl = thumb,
-							EditUrl = ResolveUrl("~/Builder?controlId=" + id)
-						});
+					list.Add(new DesignRow
+					{
+						ControlId = id,
+						Name = (string)rd["Name"],
+						ControlType = (string)rd["ControlType"],
+						IsPublic = (bool)rd["IsPublic"],
+						UpdatedAt = (DateTime)rd["UpdatedAt"],
+						ThumbnailUrl = thumb,
+						EditUrl = ResolveUrl("~/Builder?controlId=" + id),
+						ProjectId = rd["ProjectId"] != DBNull.Value ? (int?)rd["ProjectId"] : null,
+						ProjectName = rd["ProjectName"] as string ?? "Uncategorized"
+					});
 					}
 				}
 			}

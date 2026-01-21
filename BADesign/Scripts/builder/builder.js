@@ -3222,13 +3222,19 @@ var builder = {
         var nameLabel = options.nameLabel || "Name";
         var defaultName = options.defaultName || "";
         var defaultIsPublic = (options.defaultIsPublic !== false); // mặc định true
+        var defaultProjectId = options.defaultProjectId || null;
         var onOk = options.onOk || function () { };
+        var self = this;
 
         var $overlay = $('<div class="ub-modal-backdrop"></div>');
         var html =
-            '<div class="ub-modal">' +
+            '<div class="ub-modal" style="min-width: 420px;">' +
             '  <div class="ub-modal-header">' + title + '</div>' +
             '  <div class="ub-modal-body">' +
+            '    <label>Project:</label>' +
+            '    <select class="ub-input-project" style="width:100%; padding:4px 6px; margin-bottom:8px; box-sizing:border-box;">' +
+            '      <option value="">Loading...</option>' +
+            '    </select>' +
             '    <label>' + nameLabel + ':</label>' +
             '    <input type="text" class="ub-input-name" />' +
             '    <div style="margin-top:6px;">' +
@@ -3246,8 +3252,32 @@ var builder = {
         $overlay.append($dlg);
         $("body").append($overlay);
 
-        $dlg.find(".ub-input-name").val(defaultName).focus().select();
-        $dlg.find(".ub-input-public").prop("checked", !!defaultIsPublic);
+        var $projectSelect = $dlg.find(".ub-input-project");
+        var $nameInput = $dlg.find(".ub-input-name");
+        var $publicCheckbox = $dlg.find(".ub-input-public");
+
+        // Load projects
+        $.ajax({
+            url: builderServiceUrl + "/GetProjects",
+            method: "POST",
+            contentType: "application/json; charset=utf-8",
+            data: "{}",
+            success: function (res) {
+                var projects = res.d || [];
+                $projectSelect.empty();
+                $projectSelect.append('<option value="">-- Select Project --</option>');
+                projects.forEach(function (p) {
+                    var selected = (defaultProjectId && p.projectId === defaultProjectId) ? ' selected' : '';
+                    $projectSelect.append('<option value="' + p.projectId + '"' + selected + '>' + p.name + '</option>');
+                });
+            },
+            error: function () {
+                $projectSelect.html('<option value="">Error loading projects</option>');
+            }
+        });
+
+        $nameInput.val(defaultName).focus().select();
+        $publicCheckbox.prop("checked", !!defaultIsPublic);
 
         function closeDialog() {
             $(document).off("keydown.ubSaveDlg");
@@ -3260,17 +3290,19 @@ var builder = {
         }
 
         function handleOk() {
-            var name = $.trim($dlg.find(".ub-input-name").val() || "");
-            var isPublic = $dlg.find(".ub-input-public").is(":checked");
+            var name = $.trim($nameInput.val() || "");
+            var isPublic = $publicCheckbox.is(":checked");
+            var projectId = $projectSelect.val() || null;
+            if (projectId) projectId = parseInt(projectId, 10);
 
             if (!name) {
                 showError("Name is required.");
-                $dlg.find(".ub-input-name").focus();
+                $nameInput.focus();
                 return;
             }
 
             closeDialog();
-            onOk({ name: name, isPublic: isPublic });
+            onOk({ name: name, isPublic: isPublic, projectId: projectId });
         }
 
         $dlg.find(".ub-btn-ok").on("click", handleOk);
@@ -3533,7 +3565,8 @@ var builder = {
                             controlType: "page",
                             jsonConfig: json,
                             isPublic: isPublic,
-                            thumbnailData: thumbDataUrl
+                            thumbnailData: thumbDataUrl,
+                            projectId: result.projectId || null
                         }),
                         success: function (res) {
                             var newId = res.d;

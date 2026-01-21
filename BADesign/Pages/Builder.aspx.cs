@@ -103,13 +103,13 @@ namespace BADesign
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
 		public static int SaveDesign(int? controlId, string pageName, string controlName,
 									 string controlType, string jsonConfig,
-									 bool isPublic, string thumbnailData)
+									 bool isPublic, string thumbnailData, int? projectId = null)
 		{
 			// Tên hiển thị: ưu tiên pageName
 			var name = string.IsNullOrWhiteSpace(pageName) ? controlName : pageName;
 
 			// Page luôn controlType = 'page'
-			return SaveControl(controlId, name, "page", jsonConfig, isPublic, thumbnailData);
+			return SaveControl(controlId, name, "page", jsonConfig, isPublic, thumbnailData, projectId);
 		}
 
 
@@ -243,9 +243,25 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
 		public static int SaveControl(int? controlId, string name,
 					  string controlType, string jsonConfig,
-					  bool isPublic, string thumbnailData)
+					  bool isPublic, string thumbnailData, int? projectId = null)
 		{
 			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+
+			// Validate projectId belongs to user
+			if (projectId.HasValue && projectId.Value > 0)
+			{
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "SELECT ProjectId FROM dbo.UiProject WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0";
+					cmd.Parameters.AddWithValue("@pid", projectId.Value);
+					cmd.Parameters.AddWithValue("@uid", uid);
+					conn.Open();
+					var validProjectId = cmd.ExecuteScalar();
+					if (validProjectId == null)
+						throw new Exception("Project không tồn tại hoặc không thuộc về bạn.");
+				}
+			}
 
 			string thumbPath = null;
 			if (!string.IsNullOrEmpty(thumbnailData))
@@ -267,6 +283,7 @@ SET Name = @name,
     JsonConfig = @json,
     IsPublic = @pub,
     ThumbnailPath = @thumb,
+    ProjectId = @projectId,
     UpdatedAt = SYSDATETIME()
 WHERE ControlId = @id AND OwnerUserId = @uid AND IsDeleted = 0;";
 
@@ -277,8 +294,8 @@ WHERE ControlId = @id AND OwnerUserId = @uid AND IsDeleted = 0;";
 				{
 					cmd.CommandText = @"
 INSERT INTO dbo.UiBuilderControl
-    (OwnerUserId, Name, ControlType, JsonConfig, IsPublic, ThumbnailPath)
-VALUES (@uid, @name, @type, @json, @pub, @thumb);
+    (OwnerUserId, Name, ControlType, JsonConfig, IsPublic, ThumbnailPath, ProjectId)
+VALUES (@uid, @name, @type, @json, @pub, @thumb, @projectId);
 SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
 					cmd.Parameters.AddWithValue("@uid", uid);
@@ -290,6 +307,8 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 				cmd.Parameters.AddWithValue("@pub", isPublic);
 				cmd.Parameters.AddWithValue("@thumb",
 					string.IsNullOrEmpty(thumbPath) ? (object)DBNull.Value : thumbPath);
+				cmd.Parameters.AddWithValue("@projectId",
+					projectId.HasValue && projectId.Value > 0 ? (object)projectId.Value : DBNull.Value);
 
 				if (controlId.HasValue)
 				{
@@ -302,6 +321,163 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 				{
 					var newId = (int)cmd.ExecuteScalar();
 					return newId;
+				}
+			}
+		}
+
+		// ========= Project Management =========
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object GetProjects()
+		{
+			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+			var list = new List<object>();
+
+			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+			using (var cmd = conn.CreateCommand())
+			{
+				cmd.CommandText = @"
+SELECT p.ProjectId, p.Name, p.Description, p.CreatedAt, p.UpdatedAt,
+       COUNT(c.ControlId) AS DesignCount
+FROM dbo.UiProject p
+LEFT JOIN dbo.UiBuilderControl c ON p.ProjectId = c.ProjectId AND c.IsDeleted = 0
+WHERE p.OwnerUserId = @uid AND p.IsDeleted = 0
+GROUP BY p.ProjectId, p.Name, p.Description, p.CreatedAt, p.UpdatedAt
+ORDER BY p.Name;";
+				cmd.Parameters.AddWithValue("@uid", uid);
+				conn.Open();
+				using (var rd = cmd.ExecuteReader())
+				{
+					while (rd.Read())
+					{
+						list.Add(new
+						{
+							projectId = (int)rd["ProjectId"],
+							name = (string)rd["Name"],
+							description = rd["Description"] as string ?? "",
+							designCount = (int)rd["DesignCount"],
+							createdAt = ((DateTime)rd["CreatedAt"]).ToString("yyyy-MM-dd HH:mm:ss"),
+							updatedAt = rd["UpdatedAt"] != DBNull.Value ? ((DateTime)rd["UpdatedAt"]).ToString("yyyy-MM-dd HH:mm:ss") : null
+						});
+					}
+				}
+			}
+
+			return list;
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object CreateProject(string name, string description = null)
+		{
+			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+
+			if (string.IsNullOrWhiteSpace(name))
+				return new { success = false, message = "Project name is required." };
+
+			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+			using (var cmd = conn.CreateCommand())
+			{
+				cmd.CommandText = @"
+INSERT INTO dbo.UiProject (OwnerUserId, Name, Description)
+VALUES (@uid, @name, @desc);
+SELECT CAST(SCOPE_IDENTITY() AS INT);";
+				cmd.Parameters.AddWithValue("@uid", uid);
+				cmd.Parameters.AddWithValue("@name", name.Trim());
+				cmd.Parameters.AddWithValue("@desc", string.IsNullOrWhiteSpace(description) ? (object)DBNull.Value : description.Trim());
+
+				conn.Open();
+				var projectId = (int)cmd.ExecuteScalar();
+
+				return new { success = true, projectId = projectId };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object UpdateProject(int projectId, string name, string description = null)
+		{
+			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+
+			if (string.IsNullOrWhiteSpace(name))
+				return new { success = false, message = "Project name is required." };
+
+			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+			using (var cmd = conn.CreateCommand())
+			{
+				cmd.CommandText = @"
+UPDATE dbo.UiProject
+SET Name = @name, Description = @desc, UpdatedAt = SYSDATETIME()
+WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
+				cmd.Parameters.AddWithValue("@pid", projectId);
+				cmd.Parameters.AddWithValue("@uid", uid);
+				cmd.Parameters.AddWithValue("@name", name.Trim());
+				cmd.Parameters.AddWithValue("@desc", string.IsNullOrWhiteSpace(description) ? (object)DBNull.Value : description.Trim());
+
+				conn.Open();
+				int rows = cmd.ExecuteNonQuery();
+				if (rows == 0)
+					return new { success = false, message = "Project không tồn tại hoặc không thuộc về bạn." };
+
+				return new { success = true };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object DeleteProject(int projectId)
+		{
+			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+
+			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+			using (var cmd = conn.CreateCommand())
+			{
+				conn.Open();
+				using (var tran = conn.BeginTransaction())
+				{
+					try
+					{
+						cmd.Transaction = tran;
+
+						// Check if project exists and belongs to user
+						cmd.CommandText = "SELECT ProjectId FROM dbo.UiProject WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0";
+						cmd.Parameters.AddWithValue("@pid", projectId);
+						cmd.Parameters.AddWithValue("@uid", uid);
+						var exists = cmd.ExecuteScalar();
+						if (exists == null)
+						{
+							tran.Rollback();
+							return new { success = false, message = "Project không tồn tại hoặc không thuộc về bạn." };
+						}
+
+						// Move designs to "Uncategorized" project
+						cmd.Parameters.Clear();
+						cmd.CommandText = @"
+DECLARE @uncatId INT;
+SELECT @uncatId = ProjectId FROM dbo.UiProject WHERE OwnerUserId = @uid AND Name = N'Uncategorized' AND IsDeleted = 0;
+
+UPDATE dbo.UiBuilderControl
+SET ProjectId = @uncatId
+WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
+						cmd.Parameters.AddWithValue("@pid", projectId);
+						cmd.Parameters.AddWithValue("@uid", uid);
+						cmd.ExecuteNonQuery();
+
+						// Delete project (soft delete)
+						cmd.Parameters.Clear();
+						cmd.CommandText = "UPDATE dbo.UiProject SET IsDeleted = 1, UpdatedAt = SYSDATETIME() WHERE ProjectId = @pid AND OwnerUserId = @uid";
+						cmd.Parameters.AddWithValue("@pid", projectId);
+						cmd.Parameters.AddWithValue("@uid", uid);
+						cmd.ExecuteNonQuery();
+
+						tran.Commit();
+						return new { success = true };
+					}
+					catch (Exception ex)
+					{
+						tran.Rollback();
+						return new { success = false, message = ex.Message };
+					}
 				}
 			}
 		}

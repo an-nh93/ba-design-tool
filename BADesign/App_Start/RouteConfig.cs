@@ -34,6 +34,7 @@ namespace BADesign
 			);
 
 			// /Builder => ~/Pages/Builder.aspx   (query string giữ nguyên)
+			// Lưu ý: Route này chỉ áp dụng cho /Builder, không chặn /Pages/Builder.aspx
 			routes.MapPageRoute(
 				"BuilderRoute",
 				"Builder",

@@ -172,6 +172,32 @@
             text-align: center;
         }
 
+        .project-item {
+            position: relative;
+        }
+
+        .project-name {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .project-delete {
+            opacity: 0;
+            cursor: pointer;
+            font-size: 0.875rem;
+            padding: 0.25rem;
+            transition: opacity 0.2s ease;
+            margin-left: 0.5rem;
+        }
+
+        .project-item:hover .project-delete {
+            opacity: 1;
+        }
+
+        .project-delete:hover {
+            transform: scale(1.1);
+        }
+
         /* ===== Main Content ===== */
         .main-content {
             flex: 1;
@@ -707,10 +733,17 @@
             justify-content: center;
             background: rgba(0, 0, 0, 0.6);
             backdrop-filter: blur(4px);
+            overflow-y: auto;
+            padding: 2rem;
+            box-sizing: border-box;
         }
 
         .account-modal.show {
             display: flex;
+        }
+        
+        .account-modal[style*="display: block"] {
+            display: flex !important;
         }
 
         .account-modal-content {
@@ -807,6 +840,207 @@
             flex: 1;
             overflow-y: auto;
             padding: 2rem;
+        }
+
+        .account-modal-footer {
+            padding: 1.5rem 2rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        /* ===== Confirmation Modal ===== */
+        .confirm-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10001;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+
+        .confirm-modal.show {
+            display: flex;
+        }
+
+        .confirm-modal-content {
+            background: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 480px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            animation: modalSlideIn 0.2s ease-out;
+        }
+
+        .confirm-modal-header {
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .confirm-modal-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .confirm-modal-body {
+            padding: 1.5rem 2rem;
+            flex: 1;
+        }
+
+        .confirm-modal-body p {
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 0.9375rem;
+            line-height: 1.6;
+            white-space: pre-line;
+        }
+
+        .confirm-modal-footer {
+            padding: 1.5rem 2rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        /* ===== Toast Message ===== */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 10002;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem 0.25rem 1rem;
+            min-width: 280px;
+            max-width: 360px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toast.hide {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+
+        .toast-header {
+            display: flex !important;
+            align-items: center;
+            gap: 0.625rem;
+            margin-bottom: 0.375rem;
+            background: transparent !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+
+        .toast-icon {
+            font-size: 1rem;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        .toast.success .toast-icon {
+            color: var(--success);
+        }
+
+        .toast.error .toast-icon {
+            color: var(--danger);
+        }
+
+        .toast.info .toast-icon {
+            color: var(--primary);
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-primary);
+            margin-bottom: 0.125rem;
+            line-height: 1.3;
+        }
+
+        .toast-message {
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .toast-progress {
+            height: 2px;
+            margin-top: 0.5rem;
+            background: rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            border-radius: 0 0 6px 6px;
+            margin-left: -1rem;
+            margin-right: -1rem;
+            margin-bottom: -0.25rem;
+        }
+
+        .toast-progress-bar {
+            height: 100%;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.25);
+            transform-origin: left center;
+            transform: scaleX(1);
+            transition: transform linear;
+        }
+
+        .toast-close {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 1rem;
+            padding: 0;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: color 0.2s ease;
+            line-height: 1;
+        }
+
+        .toast-close:hover {
+            color: var(--text-primary);
         }
 
         .account-section {
@@ -1024,14 +1258,25 @@
                     </div>
 
                     <div class="nav-section">
+                        <div class="nav-section-title">Projects</div>
+                        <div class="nav-item nav-item-new-project" onclick="showNewProjectModal(); return false;" style="color: var(--primary-light); font-weight: 600;">
+                            <span class="icon">➕</span>
+                            <span>New Project</span>
+                        </div>
+                        <div class="nav-item" data-project="all" data-filter="all" onclick="selectProject('all'); return false;">
+                            <span class="icon">📂</span>
+                            <span>All Projects</span>
+                        </div>
+                        <div id="projectsList">
+                            <!-- Projects will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div class="nav-section">
                         <div class="nav-section-title">Team</div>
                         <div class="nav-item" data-filter="drafts">
                             <span class="icon">📄</span>
                             <span>Drafts</span>
-                        </div>
-                        <div class="nav-item" data-filter="all">
-                            <span class="icon">📂</span>
-                            <span>All projects</span>
                         </div>
                         <div class="nav-item" data-filter="starred">
                             <span class="icon">⭐</span>
@@ -1137,7 +1382,9 @@
                                          data-type='<%# Eval("ControlType") %>'
                                          data-public='<%# (bool)Eval("IsPublic") ? "true" : "false" %>'
                                          data-date='<%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm:ss}") %>'
-                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'>
+                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'
+                                         data-project-id='<%# Eval("ProjectId") != DBNull.Value ? Eval("ProjectId") : "" %>'
+                                         data-project-name='<%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %>'>
                                                 <img src='<%# Eval("ThumbnailUrl") %>'
                                              class="design-card-thumb js-preview-thumb" 
                                              alt='<%# Eval("Name") %>'
@@ -1405,7 +1652,357 @@
     </div>
     </form>
 
+    <!-- New Project Modal -->
+    <div id="newProjectModal" class="account-modal" style="display: none;">
+        <div class="account-modal-content" style="max-width: 500px;">
+            <div class="account-modal-header">
+                <h2 style="font-size: 1.25rem;">New Project</h2>
+                <button type="button" class="account-modal-close" onclick="hideNewProjectModal()">&times;</button>
+            </div>
+            <div class="account-modal-body">
+                <div class="account-form-group">
+                    <label class="account-form-label" for="txtProjectName">Project Name *</label>
+                    <input type="text" id="txtProjectName" class="account-form-input" placeholder="Enter project name..." />
+                </div>
+                <div class="account-form-group">
+                    <label class="account-form-label" for="txtProjectDescription">Description</label>
+                    <textarea id="txtProjectDescription" class="account-form-input" rows="5" style="min-height: 120px; resize: vertical;" placeholder="Optional description..."></textarea>
+                </div>
+                <div id="projectMessage" style="margin-top: 1rem; display: none;"></div>
+            </div>
+            <div class="account-modal-footer" style="justify-content: center; gap: 0.75rem;">
+                <button type="button" class="btn btn-primary" onclick="createProject()">Create Project</button>
+                <button type="button" class="btn btn-secondary" onclick="hideNewProjectModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="confirm-modal" style="display: none;">
+        <div class="confirm-modal-content">
+            <div class="confirm-modal-header">
+                <h3 id="confirmModalTitle">Confirm</h3>
+            </div>
+            <div class="confirm-modal-body">
+                <p id="confirmModalMessage"></p>
+            </div>
+            <div class="confirm-modal-footer">
+                <button type="button" class="btn btn-secondary" id="confirmModalCancel">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirmModalOk">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <script>
+        // ===== Project Management =====
+        var currentProjectId = null; // null = all projects
+
+        function loadProjects() {
+            $.ajax({
+                url: '/Pages/Builder.aspx/GetProjects',
+                method: "POST",
+                contentType: "application/json; charset=utf-8",
+                data: "{}",
+                success: function(res) {
+                    var projects = res.d || [];
+                    var $projectsList = $('#projectsList');
+                    $projectsList.empty();
+                    
+                    projects.forEach(function(p) {
+                        var $item = $('<div class="nav-item project-item" data-project="' + p.projectId + '" data-project-id="' + p.projectId + '" data-design-count="' + p.designCount + '">' +
+                            '<span class="icon">📁</span>' +
+                            '<span class="project-name" onclick="selectProject(' + p.projectId + '); return false;">' + p.name + '</span>' +
+                            '<span class="project-count">' + p.designCount + '</span>' +
+                            '<span class="project-delete" onclick="deleteProject(' + p.projectId + ', ' + p.designCount + ', \'' + p.name.replace(/'/g, "\\'") + '\'); return false;" title="Delete project">🗑️</span>' +
+                            '</div>');
+                        $projectsList.append($item);
+                    });
+                },
+                error: function() {
+                    console.error('Error loading projects');
+                }
+            });
+        }
+
+        function showNewProjectModal() {
+            $('#newProjectModal').css('display', 'flex');
+            $('#txtProjectName').val('').focus();
+            $('#txtProjectDescription').val('');
+            $('#projectMessage').hide();
+        }
+
+        function hideNewProjectModal() {
+            $('#newProjectModal').css('display', 'none');
+        }
+
+        function createProject() {
+            var name = $('#txtProjectName').val().trim();
+            var description = $('#txtProjectDescription').val().trim();
+            
+            if (!name) {
+                showProjectMessage('Project name is required.', 'error');
+                return;
+            }
+
+            $.ajax({
+                url: '/Pages/Builder.aspx/CreateProject',
+                method: "POST",
+                contentType: "application/json; charset=utf-8",
+                data: JSON.stringify({ name: name, description: description }),
+                success: function(res) {
+                    var result = res.d;
+                    if (result && result.success) {
+                        hideNewProjectModal();
+                        loadProjects();
+                        showToast('Project created successfully!', 'success');
+                        setTimeout(function() {
+                            if (result.projectId) {
+                                selectProject(result.projectId);
+                            }
+                        }, 300);
+                    } else {
+                        showProjectMessage(result && result.message ? result.message : 'Error creating project.', 'error');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Create project error:', xhr.responseText);
+                    var errorMsg = 'Error creating project.';
+                    try {
+                        var errorResponse = JSON.parse(xhr.responseText);
+                        if (errorResponse && errorResponse.Message) {
+                            errorMsg = errorResponse.Message;
+                        }
+                    } catch(e) {}
+                    showProjectMessage(errorMsg, 'error');
+                }
+            });
+        }
+
+        function showProjectMessage(msg, type) {
+            var $msg = $('#projectMessage');
+            $msg.removeClass('success error').addClass(type);
+            $msg.text(msg).show();
+        }
+
+        function selectProject(projectId) {
+            // Update active state - remove active from ALL nav items (including all project items)
+            $('.nav-item').removeClass('active');
+            $('.project-item').removeClass('active');
+            
+            // Normalize projectId
+            if (projectId === 'all' || projectId === null || projectId === undefined) {
+                // Select "All Projects"
+                $('.nav-item[data-project="all"]').addClass('active');
+                currentProjectId = null;
+            } else {
+                // Select specific project - ensure projectId is a number
+                var pid = parseInt(projectId);
+                if (!isNaN(pid)) {
+                    $('.nav-item[data-project="' + pid + '"]').addClass('active');
+                    currentProjectId = pid;
+                } else {
+                    // Invalid projectId, default to "All Projects"
+                    $('.nav-item[data-project="all"]').addClass('active');
+                    currentProjectId = null;
+                }
+            }
+            
+            // Update top bar title
+            var projectName = (currentProjectId === null) ? 'All Projects' : 
+                $('.nav-item[data-project="' + currentProjectId + '"] .project-name').text();
+            $('.top-bar-title').text(projectName);
+            
+            // Apply filter
+            applyFilterAndSort('my-designs');
+        }
+
+        // ===== Confirmation Modal Functions =====
+        function showConfirmModal(title, message, onConfirm, onCancel) {
+            $('#confirmModalTitle').text(title || 'Confirm');
+            $('#confirmModalMessage').text(message);
+            $('#confirmModal').addClass('show').css('display', 'flex');
+            $('#confirmModalCancel').show();
+            $('#confirmModalOk').text('OK');
+            
+            // Remove old event listeners
+            $('#confirmModalOk').off('click');
+            $('#confirmModalCancel').off('click');
+            
+            // Add new event listeners
+            $('#confirmModalOk').on('click', function() {
+                hideConfirmModal();
+                if (onConfirm) onConfirm();
+            });
+            
+            $('#confirmModalCancel').on('click', function() {
+                hideConfirmModal();
+                if (onCancel) onCancel();
+            });
+        }
+
+        function hideConfirmModal() {
+            $('#confirmModal').removeClass('show').css('display', 'none');
+        }
+
+        function showAlertModal(title, message, onOk) {
+            $('#confirmModalTitle').text(title || 'Alert');
+            $('#confirmModalMessage').text(message);
+            $('#confirmModal').addClass('show').css('display', 'flex');
+            $('#confirmModalCancel').hide();
+            $('#confirmModalOk').text('OK');
+            
+            // Remove old event listeners
+            $('#confirmModalOk').off('click');
+            
+            // Add new event listener
+            $('#confirmModalOk').on('click', function() {
+                hideConfirmModal();
+                $('#confirmModalCancel').show();
+                if (onOk) onOk();
+            });
+        }
+
+        function deleteProject(projectId, designCount, projectName) {
+            var confirmMessage = 'Are you sure you want to delete project "' + projectName + '"?';
+            
+            if (designCount > 0) {
+                confirmMessage = 'Project "' + projectName + '" contains ' + designCount + ' design(s).\n\n' +
+                    'Are you sure you want to delete this project?\n\n' +
+                    'All designs in this project will be moved to "Uncategorized".';
+            }
+            
+            showConfirmModal(
+                'Delete Project',
+                confirmMessage,
+                function() {
+                    // User confirmed deletion
+                    $.ajax({
+                        url: '/Pages/Builder.aspx/DeleteProject',
+                        method: "POST",
+                        contentType: "application/json; charset=utf-8",
+                        data: JSON.stringify({ projectId: projectId }),
+                        success: function(res) {
+                            var result = res.d;
+                            if (result && result.success) {
+                                // Reload projects list
+                                loadProjects();
+                                // Reset to "All Projects" view
+                                selectProject('all');
+                                // Show success toast message
+                                showToast('Project deleted successfully.', 'success');
+                            } else {
+                                showAlertModal('Error', result && result.message ? result.message : 'Error deleting project.');
+                            }
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Delete project error:', xhr.responseText);
+                            var errorMsg = 'Error deleting project.';
+                            try {
+                                var errorResponse = JSON.parse(xhr.responseText);
+                                if (errorResponse && errorResponse.Message) {
+                                    errorMsg = errorResponse.Message;
+                                }
+                            } catch(e) {}
+                            showAlertModal('Error', errorMsg);
+                        }
+                    });
+                },
+                function() {
+                    // User cancelled - do nothing
+                }
+            );
+        }
+
+        // Close confirmation modal when clicking outside
+        $(document).on('click', '#confirmModal', function(e) {
+            if (e.target.id === 'confirmModal') {
+                hideConfirmModal();
+            }
+        });
+
+        // ===== Toast Message Functions =====
+        function showToast(message, type) {
+            type = type || 'info';
+            var icons = {
+                success: '✓',
+                error: '✕',
+                info: 'ℹ'
+            };
+            var titles = {
+                success: 'Success',
+                error: 'Error',
+                info: 'Info'
+            };
+            
+            var timeout = 5000; // 5 seconds
+            var secsTotal = Math.ceil(timeout / 1000);
+            
+            var $toast = $('<div class="toast ' + type + '">' +
+                '<div class="toast-header">' +
+                '<span class="toast-icon">' + (icons[type] || icons.info) + '</span>' +
+                '<div class="toast-content">' +
+                '<div class="toast-title">' + (titles[type] || titles.info) + '</div>' +
+                '<div class="toast-message">' + message + '</div>' +
+                '</div>' +
+                '<button type="button" class="toast-close">&times;</button>' +
+                '</div>' +
+                '<div class="toast-progress"><div class="toast-progress-bar"></div></div>' +
+                '</div>');
+            
+            var $bar = $toast.find('.toast-progress-bar');
+            var $close = $toast.find('.toast-close');
+            
+            $('#toastContainer').append($toast);
+            
+            // Trigger reflow to ensure initial state
+            $toast[0].offsetHeight;
+            
+            // Show toast with animation
+            setTimeout(function() {
+                $toast.addClass('show');
+            }, 10);
+            
+            // Start progress bar animation
+            setTimeout(function() {
+                $bar.css('transition', 'transform ' + timeout + 'ms linear');
+                $bar.css('transform', 'scaleX(0)');
+            }, 100);
+            
+            // Remove toast function
+            function removeToast() {
+                $toast.removeClass('show').addClass('hide');
+                setTimeout(function() {
+                    $toast.remove();
+                }, 300);
+            }
+            
+            // Close button click
+            $close.on('click', removeToast);
+            
+            // Auto remove after timeout
+            var autoHide = setTimeout(removeToast, timeout);
+            
+            // Pause on hover
+            $toast.on('mouseenter', function() {
+                clearTimeout(autoHide);
+                var remaining = $bar[0].getBoundingClientRect().width / $bar.parent().width() * timeout;
+                $bar.css('transition', 'none');
+                $bar.css('transform', 'scaleX(' + ($bar[0].getBoundingClientRect().width / $bar.parent().width()) + ')');
+            });
+            
+            $toast.on('mouseleave', function() {
+                var remaining = $bar[0].getBoundingClientRect().width / $bar.parent().width() * timeout;
+                $bar.css('transition', 'transform ' + remaining + 'ms linear');
+                $bar.css('transform', 'scaleX(0)');
+                autoHide = setTimeout(removeToast, remaining);
+            });
+        }
+
+        // Removed: Close modal when clicking outside (user requested only Cancel/X button should close)
+
         // ===== Theme Switcher =====
         function initTheme() {
             var savedTheme = localStorage.getItem('theme') || 'light';
@@ -1463,6 +2060,9 @@
 
         // ===== Navigation =====
         document.addEventListener('DOMContentLoaded', function() {
+            // Load projects when page loads
+            loadProjects();
+            
             // Section navigation (Recents, Community)
             document.querySelectorAll('.nav-item[data-section]').forEach(function(item) {
                 item.addEventListener('click', function() {
@@ -1674,6 +2274,20 @@
             
             // Filter
             var filteredCards = Array.from(cards).filter(function(card) {
+                // Project filter (only for My Designs)
+                if (section === 'my-designs') {
+                    // Only filter if currentProjectId is a valid number (not null, not undefined, not 'all')
+                    if (currentProjectId !== null && currentProjectId !== undefined && currentProjectId !== 'all') {
+                        // Filter by specific project
+                        var cardProjectId = card.getAttribute('data-project-id') || '';
+                        // Compare as strings - empty string means null project
+                        if (cardProjectId !== String(currentProjectId)) {
+                            return false;
+                        }
+                    }
+                    // If currentProjectId is null/undefined/'all', show all cards (including null/empty projectId)
+                }
+                
                 // Search filter
                 if (searchText) {
                     var name = (card.getAttribute('data-name') || '').toLowerCase();
