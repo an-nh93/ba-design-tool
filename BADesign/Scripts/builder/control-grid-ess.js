@@ -422,7 +422,7 @@ var controlGridEss = (function () {
 
         var $root = $("#" + cfg.id);
         var isNew = false;
-        
+
         // ✅ Nếu element đã tồn tại, chỉ empty và update, không remove
         if ($root.length) {
             // Element đã tồn tại, chỉ cần empty và update
@@ -464,12 +464,12 @@ var controlGridEss = (function () {
                 } else if ($parent && $parent.length) {
                     // Fallback: append vào canvas
                     $parent.append($root);
-                    $root.css({
-                        position: "absolute",
-                        left: (cfg.left || 20) + "px",
-                        top: (cfg.top || 20) + "px",
-                        width: (cfg.width || 900) + "px"
-                    });
+            $root.css({
+                position: "absolute",
+                left: (cfg.left || 20) + "px",
+                top: (cfg.top || 20) + "px",
+                width: (cfg.width || 900) + "px"
+            });
                 }
             } else if ($parent && $parent.length) {
                 // Không có parentId → append vào canvas
@@ -579,10 +579,40 @@ var controlGridEss = (function () {
                         $wrapIcon.addClass("ess-grid-icon-disabled");
                     }
 
-                    var $img = $('<img class="ess-grid-action-icon" />')
-                        .attr("src", act.icon || "/Content/images/grid-view.png")
-                        .attr("title", act.caption || act.key || "");
-                    $wrapIcon.append($img);
+                    // Support both menu icons (img) and glyphicons (span)
+                    var iconType = act.iconType || "menu";
+                    var iconSrc = act.icon || "/Content/images/grid-view.png";
+                    
+                    var $icon;
+                    if (iconType === "glyphicon" && iconSrc) {
+                        // Bootstrap Glyphicon
+                        var iconColor = act.iconColor || "#333333";
+                        $icon = $("<span>")
+                            .addClass(iconSrc)
+                            .addClass("ess-grid-action-icon")
+                            .css({
+                                "font-size": "16px",
+                                "color": iconColor,
+                                "cursor": "pointer"
+                            });
+                    } else {
+                        // Menu icon (image)
+                        $icon = $("<img>")
+                            .attr("src", iconSrc)
+                            .addClass("ess-grid-action-icon");
+                    }
+                    
+                    if (act.caption || act.key) {
+                        $icon.attr("title", act.caption || act.key || "");
+                    }
+                    
+                    if (mode === "disabled") {
+                        if (iconType === "glyphicon") {
+                            $icon.css("opacity", "0.5");
+                        }
+                    }
+                    
+                    $wrapIcon.append($icon);
                     $actTd.append($wrapIcon);
                 });
                 $row.append($actTd);
@@ -875,6 +905,7 @@ var controlGridEss = (function () {
 
         var html = [];
 
+        html.push('<div class="ess-grid-props-wrapper">');
         html.push('<div class="ess-grid-props-header">');
         html.push('<h3 style="margin:0 0 8px 0; font-size:14px; font-weight:600;">ESS Grid</h3>');
         html.push('<div class="ess-grid-props-tabs">');
@@ -889,6 +920,7 @@ var controlGridEss = (function () {
         }
         html.push('</div>');
         html.push('</div>');
+        html.push('<div class="ess-grid-props-content">');
 
         // GENERAL TAB
         var generalTabActive = currentTab === 'general' ? ' ess-prop-tab-active' : '';
@@ -1047,7 +1079,7 @@ var controlGridEss = (function () {
         html.push('</div>');
         html.push('<div class="ess-actions-list-wrapper">');
         html.push('<div class="ess-actions-list">');
-        
+
         var iconOptionsHtml = (window.MENU_ICON_LIST || []).map(function (ic) {
             return '<option value="' + ic.value + '">' + ic.text + '</option>';
         }).join("");
@@ -1066,11 +1098,69 @@ var controlGridEss = (function () {
             html.push('<label>Key</label>');
             html.push('<input type="text" class="ess-col-input" data-act-prop="key" value="' + (act.key || "") + '" placeholder="e.g. view"/>');
             html.push('</div>');
-            html.push('<div class="ess-col-field ess-action-field-icon">');
-            html.push('<label>Icon</label>');
-            html.push('<select class="ess-col-input" data-act-prop="icon"><option value="">-- None --</option>' + iconOptionsHtml + '</select>');
+            html.push('</div>'); // Close ess-col-row for Key
+            
+            // Icon section - separate row
+            html.push('<div class="ess-col-row">');
+            html.push('<div class="ess-col-field ess-col-field-full">');
+            html.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
+            // Icon picker UI (similar to button icon picker, but without Remove button)
+            var currentIcon = act.icon || "";
+            var iconType = act.iconType || ""; // "menu" or "glyphicon" or ""
+            var iconPreview = "";
+            var iconTypeText = "";
+            var iconName = "";
+            
+            if (currentIcon && iconType) {
+                if (iconType === "glyphicon") {
+                    var iconColor = act.iconColor || "#333333";
+                    iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
+                    iconTypeText = "Bootstrap Glyphicon";
+                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                        return icon.class === currentIcon;
+                    });
+                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
+                } else if (iconType === "menu") {
+                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                    iconTypeText = "Menu Icons";
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === currentIcon;
+                    });
+                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                }
+            } else if (currentIcon) {
+                // Legacy: if icon exists but no iconType, assume it's menu icon
+                iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                iconTypeText = "Menu Icons";
+                var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                    return icon.value === currentIcon;
+                });
+                iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+            }
+            
+            var iconColor = act.iconColor || "#333333";
+            html.push('<div class="ess-action-icon-picker-wrapper" data-act-id="' + act.id + '" style="display:flex; align-items:center; gap:8px;">');
+            html.push('<div class="ess-action-icon-preview" style="flex:1; padding:6px 8px; background:#f5f5f5; border-radius:4px; min-height:32px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:8px;">');
+            html.push(iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>');
+            html.push(iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : '');
             html.push('</div>');
+            html.push('<button type="button" class="ess-btn-primary ess-action-browse-icon" data-act-id="' + act.id + '" style="padding:6px 12px; white-space:nowrap; flex-shrink:0;">Browse...</button>');
             html.push('</div>');
+            html.push('</div>'); // Close ess-col-field
+            html.push('</div>'); // Close ess-col-row for Icon
+            
+            // Color picker for Glyphicon (only show when iconType is glyphicon) - separate row
+            if (iconType === "glyphicon" && currentIcon) {
+                html.push('<div class="ess-col-row">');
+                html.push('<div class="ess-col-field ess-col-field-full">');
+                html.push('<label><span style="color:#0078d4;">🎨</span><strong>Icon Color:</strong></label>');
+                html.push('<div style="display:flex; align-items:center; gap:8px;">');
+                html.push('<input type="color" class="ess-action-icon-color-picker" data-act-id="' + act.id + '" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + iconColor + '">');
+                html.push('<input type="text" class="ess-action-icon-color-text ess-col-input" data-act-id="' + act.id + '" style="flex:1;" value="' + iconColor + '">');
+                html.push('</div>');
+                html.push('</div>');
+                html.push('</div>');
+            }
             var modeSample = act.modeSample || "normal";
             html.push('<div class="ess-col-row">');
             html.push('<div class="ess-col-field ess-col-field-full">');
@@ -1089,6 +1179,9 @@ var controlGridEss = (function () {
         html.push('</div>'); // ess-actions-list
         html.push('</div>'); // ess-actions-list-wrapper
         html.push('</div>'); // ess-prop-tab-content
+        
+        html.push('</div>'); // Close ess-grid-props-content
+        html.push('</div>'); // Close ess-grid-props-wrapper
 
         $panel.html(html.join(""));
 
@@ -1114,12 +1207,160 @@ var controlGridEss = (function () {
             });
         });
 
-        // Set icon values for actions
-        $panel.find(".ess-action-card select[data-act-prop='icon']").each(function () {
-            var $sel = $(this);
-            var actId = $sel.closest(".ess-action-card").data("act-id");
+        // Wire up icon picker for actions (using shared icon picker from control-field)
+        // Use event delegation on #propPanel to ensure it works even if elements are re-rendered
+        $("#propPanel").off("click.essGridActionIcon", ".ess-action-browse-icon").on("click.essGridActionIcon", ".ess-action-browse-icon", function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            console.log("ESS GridView: Browse icon clicked");
+            var actId = $(this).data("act-id");
             var act = findActionById(cfg, actId);
-            if (act && act.icon) $sel.val(act.icon);
+            if (!act) {
+                console.warn("ESS GridView: Action not found for ID:", actId);
+                return;
+            }
+            
+            // Use the icon picker from control-field.js
+            if (window.controlField && typeof controlField.showIconPicker === "function") {
+                // Save current tab to restore after icon selection
+                var $panel = $("#propPanel");
+                var currentTab = $panel.find('.ess-prop-tab.ess-prop-tab-active').data('tab') || 'actions';
+                console.log("ESS GridView: Opening icon picker, currentTab:", currentTab);
+                controlField.showIconPicker(act.iconType || "menu", function(selectedIcon, selectedIconType) {
+                    console.log("ESS GridView: Icon selected:", selectedIcon, selectedIconType);
+                    if (selectedIcon && selectedIconType) {
+                        act.icon = selectedIcon;
+                        act.iconType = selectedIconType;
+                        // Update preview
+                        updateActionIconPreview(actId, act);
+                        render(cfg);
+                        if (window.builder) builder.refreshJson();
+                        // Re-show properties to update preview, but keep the same tab
+                        showProperties(cfg, currentTab);
+                    }
+                });
+            } else {
+                console.error("ESS GridView: controlField.showIconPicker is not available");
+            }
+        });
+        
+        // Update icon previews on load
+        function updateActionIconPreview(actId, act) {
+            var $wrapper = $("#propPanel").find('.ess-action-icon-picker-wrapper[data-act-id="' + actId + '"]');
+            if (!$wrapper.length) return;
+            
+            var currentIcon = act.icon || "";
+            var iconType = act.iconType || "";
+            var iconPreview = "";
+            var iconTypeText = "";
+            var iconName = "";
+            
+            if (currentIcon && iconType) {
+                if (iconType === "glyphicon") {
+                    var iconColor = act.iconColor || "#333333";
+                    iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
+                    iconTypeText = "Bootstrap Glyphicon";
+                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                        return icon.class === currentIcon;
+                    });
+                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
+                } else if (iconType === "menu") {
+                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                    iconTypeText = "Menu Icons";
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === currentIcon;
+                    });
+                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                }
+            } else if (currentIcon) {
+                // Legacy: if icon exists but no iconType, assume it's menu icon
+                iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                iconTypeText = "Menu Icons";
+                var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                    return icon.value === currentIcon;
+                });
+                iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+            }
+            
+            var $preview = $wrapper.find('.ess-action-icon-preview');
+            
+            if (iconPreview) {
+                $preview.html(iconPreview + (iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : ''));
+            } else {
+                $preview.html('<span style="color:#999; font-size:11px;">No icon selected</span>');
+            }
+        }
+        
+        // Initialize icon previews for all actions
+        (cfg.rowActions || []).forEach(function(act) {
+            updateActionIconPreview(act.id, act);
+        });
+        
+        // Color picker handlers for ESS GridView actions
+        function bindEssActionColorPair(pickerSel, textSel, actId) {
+            var $picker = $(pickerSel);
+            var $text = $(textSel);
+            
+            function normalizeColor(val) {
+                if (!val) return "#333333";
+                val = $.trim(val);
+                if (/^[0-9a-f]{3}$/i.test(val)) {
+                    var r = val[0], g = val[1], b = val[2];
+                    return ("#" + r + r + g + g + b + b).toUpperCase();
+                }
+                if (/^[0-9a-f]{6}$/i.test(val)) {
+                    return ("#" + val).toUpperCase();
+                }
+                if (/^#[0-9a-f]{3}$/i.test(val)) {
+                    var r2 = val[1], g2 = val[2], b2 = val[3];
+                    return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
+                }
+                if (/^#[0-9a-f]{6}$/i.test(val)) {
+                    return val.toUpperCase();
+                }
+                return val;
+            }
+            
+            if ($text.length) {
+                $text.off("change.essGridActionColor blur.essGridActionColor").on("change.essGridActionColor blur.essGridActionColor", function () {
+                    var v = normalizeColor($(this).val());
+            var act = findActionById(cfg, actId);
+                    if (act && act.iconType === "glyphicon") {
+                        act.iconColor = v;
+                        if ($picker.length && /^#[0-9a-f]{6}$/i.test(v)) {
+                            $picker.val(v);
+                        }
+                        updateActionIconPreview(actId, act);
+                        render(cfg);
+                        if (window.builder) builder.refreshJson();
+                    }
+                });
+            }
+            
+            if ($picker.length) {
+                $picker.off("input.essGridActionColor change.essGridActionColor").on("input.essGridActionColor change.essGridActionColor", function () {
+                    var v = normalizeColor($(this).val());
+                    var act = findActionById(cfg, actId);
+                    if (act && act.iconType === "glyphicon") {
+                        act.iconColor = v;
+                        if ($text.length) $text.val(v);
+                        updateActionIconPreview(actId, act);
+                        render(cfg);
+                        if (window.builder) builder.refreshJson();
+                    }
+                });
+            }
+        }
+        
+        // Wire color pickers for all actions
+        (cfg.rowActions || []).forEach(function(act) {
+            if (act.iconType === "glyphicon" && act.icon) {
+                bindEssActionColorPair(
+                    ".ess-action-icon-color-picker[data-act-id='" + act.id + "']",
+                    ".ess-action-icon-color-text[data-act-id='" + act.id + "']",
+                    act.id
+                );
+            }
         });
 
         wirePropertyEvents(cfg);
@@ -1212,7 +1453,8 @@ var controlGridEss = (function () {
             if (prop === "key" || prop === "caption") {
                 act[prop] = $(this).val();
             } else if (prop === "icon") {
-                act.icon = $(this).val();
+                // Icon is now handled by icon picker, skip select dropdown
+                // act.icon = $(this).val();
             } else if (prop === "modeSample") {
                 act.modeSample = $(this).val();
             }
@@ -1273,7 +1515,7 @@ var controlGridEss = (function () {
                 
                 // Sử dụng requestAnimationFrame để đảm bảo UI update mượt mà
                 requestAnimationFrame(function() {
-                    ensureConfig(cfg);
+                ensureConfig(cfg);
                     showProperties(cfg, 'columns');
                     
                     // Restore scroll position và focus lại card đang edit sau khi render xong
@@ -1471,7 +1713,7 @@ var controlGridEss = (function () {
                 builder.selectedControlType = "ess-grid";
             }
             // Không preventDefault để contextmenu event vẫn bubble lên document
-        });
+            });
 
         enableMoveAndResize($root, cfg);
     }
@@ -1561,8 +1803,8 @@ var controlGridEss = (function () {
                         render(cfg, $canvas);
                         wireSelectEvents(cfg);
                         if (typeof builder.refreshJson === "function") {
-                            builder.refreshJson();
-                        }
+            builder.refreshJson();
+        }
                     } else {
                         // Comment debug logs
                         // console.log("ESS Grid: ❌ No popup found after render");

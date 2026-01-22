@@ -2,13 +2,54 @@
     var multiSelectedIds = [];
 
     // Icon Picker Modal Function
-    function showIconPicker(initialType) {
+    // callback: function(selectedIcon, selectedIconType) - called when OK is clicked
+    function showIconPicker(initialType, callback) {
+        // Create modal if it doesn't exist (for use by all controls, not just ess-button)
+        if (!$("#iconPickerModal").length) {
+            var modalHtml = '<div id="iconPickerModal" class="ess-modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000;">' +
+                '<div class="ess-modal-content" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; border-radius:4px; max-width:700px; width:90%; height:600px; display:flex; flex-direction:column; box-shadow:0 4px 20px rgba(0,0,0,0.3);">' +
+                '<div class="ess-modal-header" style="padding:16px; border-bottom:1px solid #e0e0e0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">' +
+                '<h3 style="margin:0; font-size:16px; font-weight:600;">Chọn Icon</h3>' +
+                '<button type="button" class="ess-modal-close" id="iconPickerClose" style="background:none; border:none; font-size:24px; cursor:pointer; color:#666; padding:0; width:30px; height:30px; display:flex; align-items:center; justify-content:center;">&times;</button>' +
+                '</div>' +
+                '<div style="padding:16px; border-bottom:1px solid #e0e0e0; flex-shrink:0;">' +
+                '<div style="margin-bottom:12px; padding:12px; background:#f5f5f5; border-radius:4px;">' +
+                '<div style="display:flex; gap:16px; align-items:center;">' +
+                '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
+                '<input type="radio" name="iconPickerType" value="menu" checked style="cursor:pointer;" />' +
+                '<span>Icon Cadena (Menu Icons)</span>' +
+                '</label>' +
+                '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
+                '<input type="radio" name="iconPickerType" value="glyphicon" style="cursor:pointer;" />' +
+                '<span>Icon Glyphicon</span>' +
+                '</label>' +
+                '</div>' +
+                '</div>' +
+                '<div>' +
+                '<input type="text" id="iconPickerSearchInput" class="ess-col-input" placeholder="Search icon by name or class (e.g., add, delete, search)..." style="width:100%; padding:8px;" />' +
+                '</div>' +
+                '</div>' +
+                '<div id="iconPickerIconList" style="flex:1; overflow-y:auto; display:grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap:8px; padding:16px; border:1px solid #e0e0e0; border-radius:4px; background:#fafafa; min-height:0; align-items:start;">' +
+                '</div>' +
+                '<style>' +
+                '.icon-picker-item { height: auto !important; min-height: 70px !important; max-height: 70px !important; }' +
+                '</style>' +
+                '<div class="ess-modal-footer" style="padding:12px 16px; border-top:1px solid #e0e0e0; display:flex; justify-content:flex-end; gap:8px; flex-shrink:0;">' +
+                '<button type="button" id="iconPickerCancel" class="ess-btn-secondary" style="padding:6px 16px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px;">Cancel</button>' +
+                '<button type="button" id="iconPickerOk" class="ess-btn-primary" style="padding:6px 16px; background:#0078d4; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px;">OK</button>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+            $("body").append(modalHtml);
+        }
+        
         var $modal = $("#iconPickerModal");
         var $iconList = $("#iconPickerIconList");
         var $searchInput = $("#iconPickerSearchInput");
         var selectedIcon = null;
         var selectedIconType = null; // "menu" or "glyphicon"
         var currentIconType = initialType || "menu"; // Default to menu (Icon Cadena) when opened from Browse button
+        var onIconSelected = callback || null; // Callback function
         
         // IMPORTANT: Save current control ID and type IMMEDIATELY when opening popup
         // This prevents losing focus when clicking on icons
@@ -189,7 +230,20 @@
             var currentCfg = savedCfg;
             
             if (selectedIcon !== null && selectedIcon !== undefined && selectedIconType) {
-                if (currentCfg && currentCfg.uiMode === "ess" && currentCfg.ftype === "button") {
+                // If callback provided, call it instead of default button handling
+                if (onIconSelected && typeof onIconSelected === "function") {
+                    // Call callback first
+                    onIconSelected(selectedIcon, selectedIconType);
+                    // Don't call showProperties for callback-based usage - let the callback handle it
+                    // Remove document-level event handler
+                    $(document).off("mousedown.iconPickerPrevent");
+                    // Hide modal FIRST - must be done synchronously
+                    $modal.hide();
+                    selectedIcon = null;
+                    selectedIconType = null;
+                    return; // Exit early - callback will handle the rest
+                } else if (currentCfg && currentCfg.uiMode === "ess" && currentCfg.ftype === "button") {
+                    // Default behavior: update button icon
                     currentCfg.btnIcon = selectedIcon;
                     currentCfg.btnIconType = selectedIconType;
                     
@@ -1598,9 +1652,12 @@
                     if (cfg.uiMode === "ess" && cfg.btnIcon && cfg.btnIconType && cfg.btnIconType !== "none") {
                         if (cfg.btnIconType === "glyphicon") {
                             var $icon = $('<span class="' + cfg.btnIcon + '"></span>');
+                            // Set color for Glyphicon icon to match button border color
+                            var iconColor = cfg.btnBorderColor || "#0A75BA";
                             $icon.css({
                                 "font-size": "14px",
-                                "margin-right": "4px"
+                                "margin-right": "4px",
+                                "color": iconColor
                             });
                             $editor.append($icon);
                         } else if (cfg.btnIconType === "menu" && cfg.btnIcon) {
@@ -2450,45 +2507,6 @@
         
         html.push('</div>'); // Close ess-prop-tab-content
         
-        // Icon Picker Modal (append to body if ESS button and not exists)
-        if (isEssButton && !$("#iconPickerModal").length) {
-            var modalHtml = '<div id="iconPickerModal" class="ess-modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000;">' +
-                '<div class="ess-modal-content" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; border-radius:4px; max-width:700px; width:90%; height:600px; display:flex; flex-direction:column; box-shadow:0 4px 20px rgba(0,0,0,0.3);">' +
-                '<div class="ess-modal-header" style="padding:16px; border-bottom:1px solid #e0e0e0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">' +
-                '<h3 style="margin:0; font-size:16px; font-weight:600;">Chọn Icon</h3>' +
-                '<button type="button" class="ess-modal-close" id="iconPickerClose" style="background:none; border:none; font-size:24px; cursor:pointer; color:#666; padding:0; width:30px; height:30px; display:flex; align-items:center; justify-content:center;">&times;</button>' +
-                '</div>' +
-                '<div style="padding:16px; border-bottom:1px solid #e0e0e0; flex-shrink:0;">' +
-                '<div style="margin-bottom:12px; padding:12px; background:#f5f5f5; border-radius:4px;">' +
-                '<div style="display:flex; gap:16px; align-items:center;">' +
-                '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
-                '<input type="radio" name="iconPickerType" value="menu" checked style="cursor:pointer;" />' +
-                '<span>Icon Cadena (Menu Icons)</span>' +
-                '</label>' +
-                '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
-                '<input type="radio" name="iconPickerType" value="glyphicon" style="cursor:pointer;" />' +
-                '<span>Icon Glyphicon</span>' +
-                '</label>' +
-                '</div>' +
-                '</div>' +
-                '<div>' +
-                '<input type="text" id="iconPickerSearchInput" class="ess-col-input" placeholder="Search icon by name or class (e.g., add, delete, search)..." style="width:100%; padding:8px;" />' +
-                '</div>' +
-                '</div>' +
-                '<div id="iconPickerIconList" style="flex:1; overflow-y:auto; display:grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap:8px; padding:16px; border:1px solid #e0e0e0; border-radius:4px; background:#fafafa; min-height:0; align-items:start;">' +
-                '</div>' +
-                '<style>' +
-                '.icon-picker-item { height: auto !important; min-height: 70px !important; max-height: 70px !important; }' +
-                '</style>' +
-                '<div class="ess-modal-footer" style="padding:12px 16px; border-top:1px solid #e0e0e0; display:flex; justify-content:flex-end; gap:8px; flex-shrink:0;">' +
-                '<button type="button" id="iconPickerCancel" class="ess-btn-secondary" style="padding:6px 16px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px;">Cancel</button>' +
-                '<button type="button" id="iconPickerOk" class="ess-btn-primary" style="padding:6px 16px; background:#0078d4; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px;">OK</button>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
-            $("body").append(modalHtml);
-        }
-        
         var htmlStr = html.join('');
 
         $("#propPanel").html(htmlStr);
@@ -2509,6 +2527,20 @@
                     "color": tc,
                     "border-color": bc
                 });
+                
+                // Update Glyphicon icon color to match border color
+                if (cfg.btnIconType === "glyphicon" && cfg.btnIcon) {
+                    // Find icon by matching any of its classes
+                    var iconClasses = cfg.btnIcon.split(" ").filter(function(c) { return c.length > 0; });
+                    var $icon = null;
+                    for (var i = 0; i < iconClasses.length; i++) {
+                        $icon = $btn.find("span." + iconClasses[i]);
+                        if ($icon.length) break;
+                    }
+                    if ($icon && $icon.length) {
+                        $icon.css("color", bc);
+                    }
+                }
             }
 
             function bindColorPair(txtSel, pickSel, cfgKey) {
@@ -2584,9 +2616,12 @@
                 if (iconValue && iconType) {
                     if (iconType === "glyphicon") {
                         var $icon = $('<span class="' + iconValue + '"></span>');
+                        // Set color for Glyphicon icon to match button border color
+                        var iconColor = cfg.btnBorderColor || "#0A75BA";
                         $icon.css({
                             "font-size": "14px",
-                            "margin-right": "4px"
+                            "margin-right": "4px",
+                            "color": iconColor
                         });
                         $btn.prepend($icon);
                     } else if (iconType === "menu" && iconValue) {
@@ -3103,6 +3138,14 @@
             if (!$dom.length) return;
 
             applyLayout($dom, cfg);
-        }
+        },
+        
+        // Expose icon picker for use by other controls
+        showIconPicker: showIconPicker
     };
 })();
+
+// Expose controlField globally so other controls can access it
+if (typeof window !== 'undefined') {
+    window.controlField = controlField;
+}

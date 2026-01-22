@@ -159,7 +159,21 @@
             cfg.toolbarItems.forEach(function (it) {
                 var btn = $("<button type='button' class='grid-toolbar-btn'>");
                 if (it.icon) {
+                    var iconType = it.iconType || "menu";
+                    if (iconType === "glyphicon") {
+                        // Bootstrap Glyphicon
+                        var iconColor = it.iconColor || "#333333";
+                        var $icon = $("<span>").addClass(it.icon);
+                        $icon.css({
+                            "font-size": "14px",
+                            "margin-right": "4px",
+                            "color": iconColor
+                        });
+                        $icon.appendTo(btn);
+                    } else {
+                        // Menu icon (image)
                     $("<img>").attr("src", it.icon).appendTo(btn);
+                    }
                 }
                 $("<span>").text(it.text || "").appendTo(btn);
                 toolbarSpan.append(btn);
@@ -215,29 +229,51 @@
                     var state = self.getButtonState(cfg, rowIndex, act.key);
                     if (state === "hidden") return;
 
-                    var $img = $("<img>")
-                        .attr("src", act.icon || "/Content/images/grid-view.png")
+                    // Support both menu icons (img) and glyphicons (span)
+                    var iconType = act.iconType || "menu";
+                    var iconSrc = act.icon || "/Content/images/grid-view.png";
+                    
+                    var $icon;
+                    if (iconType === "glyphicon" && iconSrc) {
+                        // Bootstrap Glyphicon
+                        var iconColor = act.iconColor || "#333333";
+                        $icon = $("<span>")
+                            .addClass(iconSrc)
+                            .addClass("grid-icon-" + act.key)
+                            .css({
+                                "font-size": "16px",
+                                "color": iconColor,
+                                "cursor": "pointer"
+                            });
+                    } else {
+                        // Menu icon (image)
+                        $icon = $("<img>")
+                            .attr("src", iconSrc)
                         .addClass("grid-icon-" + act.key);
+                    }
 
                     if (state === "disabled") {
-                        $img.addClass("grid-icon-disabled");
+                        $icon.addClass("grid-icon-disabled");
+                        if (iconType === "glyphicon") {
+                            $icon.css("opacity", "0.5");
+                        }
                     } else {
                         if (act.key === "edit") {
-                            $img.on("click", function () {
+                            $icon.on("click", function () {
                                 options.component.editRow(rowIndex);
                             });
                         } else if (act.key === "delete") {
-                            $img.on("click", function () {
+                            $icon.on("click", function () {
                                 options.component.deleteRow(rowIndex);
                             });
                         }
                     }
 
                     if (act.tooltip) {
-                        $img.attr("title", act.tooltip);
+                        $icon.attr("title", act.tooltip);
                     }
 
-                    $img.appendTo(container);
+                    $icon.appendTo(container);
                 }
             });
         });
@@ -635,6 +671,7 @@
         }
 
         var html = [];
+        html.push('<div class="ess-grid-props-wrapper">');
         html.push('<div class="ess-grid-props-header">');
         html.push('<h3 style="margin:0 0 8px 0; font-size:14px; font-weight:600;">Core GridView</h3>');
         html.push('<div class="ess-grid-props-tabs">');
@@ -650,6 +687,7 @@
         html.push('<button type="button" class="ess-prop-tab' + permissionsActive + '" data-tab="permissions">🔐 Permissions</button>');
         html.push('</div>');
         html.push('</div>');
+        html.push('<div class="ess-grid-props-content">');
 
         // GENERAL TAB
         var generalTabActive = currentTab === 'general' ? ' ess-prop-tab-active' : '';
@@ -681,9 +719,6 @@
         html.push('</div>');
         html.push('<div class="mt-1">');
         html.push('<label><input type="checkbox" id="chkShowDeleteCol" ' + (getActVisible("delete", cfg.showDeleteColumn) ? "checked" : "") + '/> Show Delete column</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkAllowGrouping" ' + ((cfg.allowGrouping !== false) ? "checked" : "") + '/> Allow Grouping</label>');
         html.push('</div>');
         html.push('</div>'); // Close grid container
         html.push('<div class="mt-1">');
@@ -794,7 +829,7 @@
             html.push('<div class="ess-action-card-header">');
             html.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
             html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
-            html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔧 Menu:</span>');
+            //html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔧 Menu:</span>');
             html.push('<input type="text" class="ess-action-caption" data-toolbar-field="text" data-toolbar-index="' + idx + '" value="' + (item.text || "") + '" placeholder="Menu text"/>');
             html.push('<span class="toolbar-icon-preview" data-toolbar-index="' + idx + '">' + preview + '</span>');
             html.push('</div>');
@@ -803,11 +838,64 @@
             html.push('</div>');
             html.push('<div class="ess-action-card-body">');
             html.push('<div class="ess-action-row">');
-            html.push('<div class="ess-action-field ess-action-field-icon">');
+            html.push('<div class="ess-action-field ess-action-field-icon ess-action-field-full">');
             html.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
-            html.push('<select class="ess-action-input toolbar-icon-select" data-toolbar-field="icon" data-toolbar-index="' + idx + '">' + iconOptionsHtml + '</select>');
+            // Icon picker UI for toolbar items in gridview title
+            var currentIcon = item.icon || "";
+            var iconType = item.iconType || ""; // "menu" or "glyphicon" or ""
+            var iconPreview = "";
+            var iconTypeText = "";
+            var iconName = "";
+            
+            if (currentIcon && iconType) {
+                if (iconType === "glyphicon") {
+                    var iconColor = item.iconColor || "#333333";
+                    iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
+                    iconTypeText = "Bootstrap Glyphicon";
+                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                        return icon.class === currentIcon;
+                    });
+                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
+                } else if (iconType === "menu") {
+                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                    iconTypeText = "Menu Icons";
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === currentIcon;
+                    });
+                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                }
+            } else if (currentIcon) {
+                // Legacy: if icon exists but no iconType, assume it's menu icon
+                iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                iconTypeText = "Menu Icons";
+                var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                    return icon.value === currentIcon;
+                });
+                iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+            }
+            
+            var iconColor = item.iconColor || "#333333";
+            html.push('<div class="toolbar-icon-picker-wrapper" data-toolbar-index="' + idx + '" style="display:flex; align-items:center; gap:8px;">');
+            html.push('<div class="toolbar-icon-preview-full" style="flex:1; padding:6px 8px; background:#f5f5f5; border-radius:4px; min-height:32px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:8px;">');
+            html.push(iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>');
+            html.push(iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : '');
             html.push('</div>');
+            html.push('<button type="button" class="ess-btn-primary toolbar-browse-icon" data-toolbar-index="' + idx + '" style="padding:6px 12px; white-space:nowrap; flex-shrink:0;">Browse...</button>');
             html.push('</div>');
+            html.push('</div>'); // Close ess-action-field
+            html.push('</div>'); // Close ess-action-row for Icon
+            // Color picker for Glyphicon (only show when iconType is glyphicon) - separate row
+            if (iconType === "glyphicon" && currentIcon) {
+                html.push('<div class="ess-action-row" style="margin-top:8px;">');
+                html.push('<div class="ess-action-field ess-action-field-full" style="flex:1;">');
+                html.push('<label><span style="color:#0078d4;">🎨</span><strong>Icon Color:</strong></label>');
+                html.push('<div style="display:flex; align-items:center; gap:8px;">');
+                html.push('<input type="color" class="toolbar-icon-color-picker" data-toolbar-index="' + idx + '" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + iconColor + '">');
+                html.push('<input type="text" class="toolbar-icon-color-text ess-col-input" data-toolbar-index="' + idx + '" style="flex:1;" value="' + iconColor + '">');
+                html.push('</div>');
+                html.push('</div>');
+                html.push('</div>');
+            }
             html.push('</div>'); // ess-action-card-body
             html.push('</div>'); // ess-action-card
         });
@@ -832,7 +920,7 @@
             html.push('<div class="ess-action-card-header">');
             html.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
             html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
-            html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔘 Action:</span>');
+            //html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔘 Action:</span>');
             html.push('<input type="text" class="ess-action-caption" data-action-field="text" data-action-index="' + idx + '" value="' + (ac.text || "") + '" placeholder="Action text"/>');
             html.push('<span class="rowact-icon-preview" data-action-index="' + idx + '">' + preview + '</span>');
             html.push('</div>');
@@ -851,11 +939,65 @@
             html.push('</div>');
             html.push('</div>');
             html.push('<div class="ess-action-row">');
-            html.push('<div class="ess-action-field ess-action-field-icon">');
+            html.push('<div class="ess-action-field ess-action-field-icon ess-action-field-full">');
             html.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
-            html.push('<select class="ess-action-input rowact-icon-select" data-action-field="icon" data-action-index="' + idx + '">' + iconOptionsHtml + '</select>');
+            // Icon picker UI (similar to button icon picker, but without Remove button for action columns)
+            var currentIcon = ac.icon || "";
+            var iconType = ac.iconType || ""; // "menu" or "glyphicon" or ""
+            var iconPreview = "";
+            var iconTypeText = "";
+            var iconName = "";
+            
+            if (currentIcon && iconType) {
+                if (iconType === "glyphicon") {
+                    var iconColor = ac.iconColor || "#333333";
+                    iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
+                    iconTypeText = "Bootstrap Glyphicon";
+                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                        return icon.class === currentIcon;
+                    });
+                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
+                } else if (iconType === "menu") {
+                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                    iconTypeText = "Menu Icons";
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === currentIcon;
+                    });
+                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                }
+            } else if (currentIcon) {
+                // Legacy: if icon exists but no iconType, assume it's menu icon
+                iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                iconTypeText = "Menu Icons";
+                var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                    return icon.value === currentIcon;
+                });
+                iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+            }
+            
+            var iconColor = ac.iconColor || "#333333";
+            html.push('<div class="rowact-icon-picker-wrapper" data-action-index="' + idx + '" style="display:flex; align-items:center; gap:8px;">');
+            html.push('<div class="rowact-icon-preview-full" style="flex:1; padding:6px 8px; background:#f5f5f5; border-radius:4px; min-height:32px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:8px;">');
+            html.push(iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>');
+            html.push(iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : '');
             html.push('</div>');
+            html.push('<button type="button" class="ess-btn-primary rowact-browse-icon" data-action-index="' + idx + '" style="padding:6px 12px; white-space:nowrap; flex-shrink:0;">Browse...</button>');
             html.push('</div>');
+            html.push('</div>'); // Close ess-action-field
+            html.push('</div>'); // Close ess-action-row for Icon
+            
+            // Color picker for Glyphicon (only show when iconType is glyphicon) - separate row
+            if (iconType === "glyphicon" && currentIcon) {
+                html.push('<div class="ess-action-row" style="margin-top:8px;">');
+                html.push('<div class="ess-action-field ess-action-field-full" style="flex:1;">');
+                html.push('<label><span style="color:#0078d4;">🎨</span><strong>Icon Color:</strong></label>');
+                html.push('<div style="display:flex; align-items:center; gap:8px;">');
+                html.push('<input type="color" class="rowact-icon-color-picker" data-action-index="' + idx + '" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + iconColor + '">');
+                html.push('<input type="text" class="rowact-icon-color-text ess-col-input" data-action-index="' + idx + '" style="flex:1;" value="' + iconColor + '">');
+                html.push('</div>');
+                html.push('</div>');
+                html.push('</div>');
+            }
             html.push('<div class="ess-action-row">');
             html.push('<div class="ess-action-field">');
             html.push('<label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-action-field="visible" data-action-index="' + idx + '" ' + ((ac.visible !== false) ? "checked" : "") + '/><span style="color:#0078d4;">👁️</span><strong>Show</strong></label>');
@@ -883,6 +1025,8 @@
         html.push('</div>');
         html.push('</div>');
         html.push('</div>'); // ess-prop-tab-content permissions
+        html.push('</div>'); // ess-grid-props-content
+        html.push('</div>'); // ess-grid-props-wrapper
 
         var htmlStr = html.join('');
 
@@ -919,10 +1063,6 @@
         });
         $("#chkShowCheckbox").on("change", function () {
             cfg.showCheckbox = this.checked;
-            self.refreshGrid(cfg);
-        });
-        $("#chkAllowGrouping").on("change", function () {
-            cfg.allowGrouping = this.checked;
             self.refreshGrid(cfg);
         });
         $("#chkShowViewCol").on("change", function () {
@@ -994,12 +1134,6 @@
         function renderToolbarItems() {
             // Card view đã được render trong HTML, chỉ cần wire events
             // Set giá trị icon cho các select đã render
-            $("#toolbarItemsPanel .toolbar-icon-select").each(function () {
-                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-index'), 10);
-                var icon = (cfg.toolbarItems[idx] && cfg.toolbarItems[idx].icon) || "";
-                $(this).val(icon);
-            });
-
             // Wire events cho toolbar items
             $("#toolbarItemsPanel input[data-toolbar-field='text']").off("change.coreGridToolbar").on("change.coreGridToolbar", function () {
                 var idx = parseInt($(this).data('toolbar-index'), 10);
@@ -1007,18 +1141,179 @@
                 self.refreshGrid(cfg);
             });
 
-            $("#toolbarItemsPanel .toolbar-icon-select").off("change.coreGridToolbar").on("change.coreGridToolbar", function () {
-                var idx = parseInt($(this).closest('.ess-action-card').data('toolbar-index'), 10);
-                var val = $(this).val();
-                cfg.toolbarItems[idx].icon = val;
-
-                var $preview = $("#toolbarItemsPanel .toolbar-icon-preview[data-toolbar-index='" + idx + "']");
-                if (val) {
-                    $preview.html("<img src='" + val + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
-                } else {
-                    $preview.empty();
+            // Wire up icon picker for toolbar items in gridview title
+            // Use event delegation on #propPanel to ensure it works even if elements are re-rendered
+            $("#propPanel").off("click.coreGridToolbarIcon", ".toolbar-browse-icon").on("click.coreGridToolbarIcon", ".toolbar-browse-icon", function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log("Core GridView Toolbar: Browse icon clicked");
+                var idx = parseInt($(this).data("toolbar-index"), 10);
+                var item = cfg.toolbarItems[idx];
+                if (!item) {
+                    console.warn("Core GridView Toolbar: Item not found for index:", idx);
+                    return;
                 }
-                self.refreshGrid(cfg);
+                
+                // Use the icon picker from control-field.js
+                if (window.controlField && typeof controlField.showIconPicker === "function") {
+                    // Save current tab to restore after icon selection
+                    var $panel = $("#propPanel");
+                    var currentTab = $panel.find('.ess-prop-tab.ess-prop-tab-active').data('tab') || 'toolbar';
+                    console.log("Core GridView Toolbar: Opening icon picker, currentTab:", currentTab);
+                    controlField.showIconPicker(item.iconType || "menu", function(selectedIcon, selectedIconType) {
+                        console.log("Core GridView Toolbar: Icon selected:", selectedIcon, selectedIconType);
+                        if (selectedIcon && selectedIconType) {
+                            item.icon = selectedIcon;
+                            item.iconType = selectedIconType;
+                            // Set default color for Glyphicon if not set
+                            if (selectedIconType === "glyphicon" && !item.iconColor) {
+                                item.iconColor = "#333333";
+                            }
+                            // Update preview
+                            updateToolbarIconPreview(idx, item);
+                            self.refreshGrid(cfg);
+                            // Re-show properties to update preview, but keep the same tab
+                            self.showProperties(cfg.id, currentTab);
+                        }
+                    });
+                } else {
+                    console.error("Core GridView Toolbar: controlField.showIconPicker is not available");
+                }
+            });
+            
+            // Update icon previews on load
+            function updateToolbarIconPreview(idx, item) {
+                var $wrapper = $("#toolbarItemsPanel .toolbar-icon-picker-wrapper[data-toolbar-index='" + idx + "']");
+                if (!$wrapper.length) return;
+                
+                var currentIcon = item.icon || "";
+                var iconType = item.iconType || "";
+                var iconPreview = "";
+                var iconTypeText = "";
+                var iconName = "";
+                
+                if (currentIcon && iconType) {
+                    if (iconType === "glyphicon") {
+                        var iconColor = item.iconColor || "#333333";
+                        iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
+                        iconTypeText = "Bootstrap Glyphicon";
+                        var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                            return icon.class === currentIcon;
+                        });
+                        iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
+                    } else if (iconType === "menu") {
+                        iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                        iconTypeText = "Menu Icons";
+                        var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                            return icon.value === currentIcon;
+                        });
+                        iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                    }
+                } else if (currentIcon) {
+                    // Legacy: if icon exists but no iconType, assume it's menu icon
+                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                    iconTypeText = "Menu Icons";
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === currentIcon;
+                    });
+                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                }
+                
+                var $preview = $wrapper.find('.toolbar-icon-preview-full');
+                var $headerPreview = $("#toolbarItemsPanel .toolbar-icon-preview[data-toolbar-index='" + idx + "']");
+                
+                if (iconPreview) {
+                    $preview.html(iconPreview + (iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : ''));
+                    // Update header preview too
+                    if ($headerPreview.length) {
+                        if (iconType === "glyphicon") {
+                            var iconColor = item.iconColor || "#333333";
+                            $headerPreview.html('<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>');
+                } else {
+                            $headerPreview.html("<img src='" + currentIcon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
+                        }
+                    }
+                } else {
+                    $preview.html('<span style="color:#999; font-size:11px;">No icon selected</span>');
+                    if ($typeLabel.length) {
+                        $typeLabel.hide();
+                    }
+                    if ($headerPreview.length) {
+                        $headerPreview.empty();
+                    }
+                }
+            }
+            
+            // Initialize icon previews for all toolbar items
+            (cfg.toolbarItems || []).forEach(function(item, idx) {
+                updateToolbarIconPreview(idx, item);
+            });
+            
+            // Color picker handlers for toolbar items
+            function bindToolbarColorPair(pickerSel, textSel, idx) {
+                var $picker = $(pickerSel);
+                var $text = $(textSel);
+                
+                function normalizeColor(val) {
+                    if (!val) return "#333333";
+                    val = $.trim(val);
+                    if (/^[0-9a-f]{3}$/i.test(val)) {
+                        var r = val[0], g = val[1], b = val[2];
+                        return ("#" + r + r + g + g + b + b).toUpperCase();
+                    }
+                    if (/^[0-9a-f]{6}$/i.test(val)) {
+                        return ("#" + val).toUpperCase();
+                    }
+                    if (/^#[0-9a-f]{3}$/i.test(val)) {
+                        var r2 = val[1], g2 = val[2], b2 = val[3];
+                        return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
+                    }
+                    if (/^#[0-9a-f]{6}$/i.test(val)) {
+                        return val.toUpperCase();
+                    }
+                    return val;
+                }
+                
+                if ($text.length) {
+                    $text.off("change.coreGridToolbarColor blur.coreGridToolbarColor").on("change.coreGridToolbarColor blur.coreGridToolbarColor", function () {
+                        var v = normalizeColor($(this).val());
+                        var item = cfg.toolbarItems[idx];
+                        if (item && item.iconType === "glyphicon") {
+                            item.iconColor = v;
+                            if ($picker.length && /^#[0-9a-f]{6}$/i.test(v)) {
+                                $picker.val(v);
+                            }
+                            updateToolbarIconPreview(idx, item);
+                            self.refreshGrid(cfg);
+                            builder.refreshJson();
+                        }
+                    });
+                }
+                
+                if ($picker.length) {
+                    $picker.off("input.coreGridToolbarColor change.coreGridToolbarColor").on("input.coreGridToolbarColor change.coreGridToolbarColor", function () {
+                        var v = normalizeColor($(this).val());
+                        var item = cfg.toolbarItems[idx];
+                        if (item && item.iconType === "glyphicon") {
+                            item.iconColor = v;
+                            if ($text.length) $text.val(v);
+                            updateToolbarIconPreview(idx, item);
+                            self.refreshGrid(cfg);
+                            builder.refreshJson();
+                        }
+                    });
+                }
+            }
+            
+            // Wire color pickers for all toolbar items
+            (cfg.toolbarItems || []).forEach(function(item, idx) {
+                if (item.iconType === "glyphicon" && item.icon) {
+                    bindToolbarColorPair(
+                        ".toolbar-icon-color-picker[data-toolbar-index='" + idx + "']",
+                        ".toolbar-icon-color-text[data-toolbar-index='" + idx + "']",
+                        idx
+                    );
+                }
             });
 
             $("#toolbarItemsPanel .btnDelToolbar").off("click.coreGridToolbar").on("click.coreGridToolbar", function () {
@@ -1131,12 +1426,12 @@
 
         function renderRowActionCols() {
             // Card view đã được render trong HTML, chỉ cần wire events
-            // Set giá trị icon cho các select đã render
-            $("#rowActionColsPanel .rowact-icon-select").each(function () {
-                var idx = parseInt($(this).closest('.ess-action-card').data('action-index'), 10);
-                var icon = (cfg.rowActionColumns[idx] && cfg.rowActionColumns[idx].icon) || "";
-                $(this).val(icon);
-            });
+            // Icon picker is now used instead of select dropdown, so this is no longer needed
+            // $("#rowActionColsPanel .rowact-icon-select").each(function () {
+            //     var idx = parseInt($(this).closest('.ess-action-card').data('action-index'), 10);
+            //     var icon = (cfg.rowActionColumns[idx] && cfg.rowActionColumns[idx].icon) || "";
+            //     $(this).val(icon);
+            // });
 
             // Wire events cho row action columns
             $("#rowActionColsPanel input[data-action-field!='visible']").off("change.coreGridAction").on("change.coreGridAction", function () {
@@ -1159,19 +1454,180 @@
                 renderRowPerm();
             });
 
-            $("#rowActionColsPanel .rowact-icon-select").off("change.coreGridAction").on("change.coreGridAction", function () {
-                var idx = parseInt($(this).closest('.ess-action-card').data('action-index'), 10);
-                var val = $(this).val();
-                cfg.rowActionColumns[idx].icon = val;
-                
-                var $preview = $("#rowActionColsPanel .rowact-icon-preview[data-action-index='" + idx + "']");
-                if (val) {
-                    $preview.html("<img src='" + val + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
-                } else {
-                    $preview.empty();
+            // Wire up icon picker for core gridview action columns
+            // Use event delegation on #propPanel to ensure it works even if elements are re-rendered
+            $("#propPanel").off("click.coreGridActionIcon", ".rowact-browse-icon").on("click.coreGridActionIcon", ".rowact-browse-icon", function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                console.log("Core GridView Action: Browse icon clicked");
+                var idx = parseInt($(this).data("action-index"), 10);
+                var ac = cfg.rowActionColumns[idx];
+                if (!ac) {
+                    console.warn("Core GridView: Action column not found for index:", idx);
+                    return;
                 }
-                self.refreshGrid(cfg);
-                renderRowPerm();
+                
+                // Use the icon picker from control-field.js
+                if (window.controlField && typeof controlField.showIconPicker === "function") {
+                    // Save current tab to restore after icon selection
+                    var $panel = $("#propPanel");
+                    var currentTab = $panel.find('.ess-prop-tab.ess-prop-tab-active').data('tab') || 'actions';
+                    console.log("Core GridView Action: Opening icon picker, currentTab:", currentTab);
+                    controlField.showIconPicker(ac.iconType || "menu", function(selectedIcon, selectedIconType) {
+                        console.log("Core GridView Action: Icon selected:", selectedIcon, selectedIconType);
+                        if (selectedIcon && selectedIconType) {
+                            ac.icon = selectedIcon;
+                            ac.iconType = selectedIconType;
+                            // Set default color for Glyphicon if not set
+                            if (selectedIconType === "glyphicon" && !ac.iconColor) {
+                                ac.iconColor = "#333333";
+                            }
+                            // Update preview
+                            updateCoreGridActionIconPreview(idx, ac);
+                            self.refreshGrid(cfg);
+            renderRowPerm();
+                            // Re-show properties to update preview, but keep the same tab
+                            self.showProperties(cfg.id, currentTab);
+                        }
+                    });
+                } else {
+                    console.error("Core GridView: controlField.showIconPicker is not available");
+                }
+            });
+            
+            // Update icon previews on load
+            function updateCoreGridActionIconPreview(idx, ac) {
+                var $wrapper = $("#rowActionColsPanel .rowact-icon-picker-wrapper[data-action-index='" + idx + "']");
+                if (!$wrapper.length) return;
+                
+                var currentIcon = ac.icon || "";
+                var iconType = ac.iconType || "";
+                var iconPreview = "";
+                var iconTypeText = "";
+                var iconName = "";
+                
+                if (currentIcon && iconType) {
+                    if (iconType === "glyphicon") {
+                        var iconColor = ac.iconColor || "#333333";
+                        iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
+                        iconTypeText = "Bootstrap Glyphicon";
+                        var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                            return icon.class === currentIcon;
+                        });
+                        iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
+                    } else if (iconType === "menu") {
+                        iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                        iconTypeText = "Menu Icons";
+                        var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                            return icon.value === currentIcon;
+                        });
+                        iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                    }
+                } else if (currentIcon) {
+                    // Legacy: if icon exists but no iconType, assume it's menu icon
+                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
+                    iconTypeText = "Menu Icons";
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === currentIcon;
+                    });
+                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                }
+                
+                var $preview = $wrapper.find('.rowact-icon-preview-full');
+                var $headerPreview = $("#rowActionColsPanel .rowact-icon-preview[data-action-index='" + idx + "']");
+                
+                if (iconPreview) {
+                    $preview.html(iconPreview + (iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : ''));
+                    // Update header preview too
+                    if ($headerPreview.length) {
+                        if (iconType === "glyphicon") {
+                            var iconColor = ac.iconColor || "#333333";
+                            $headerPreview.html('<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>');
+                } else {
+                            $headerPreview.html("<img src='" + currentIcon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
+                        }
+                    }
+                } else {
+                    $preview.html('<span style="color:#999; font-size:11px;">No icon selected</span>');
+                    if ($typeLabel.length) {
+                        $typeLabel.hide();
+                    }
+                    if ($headerPreview.length) {
+                        $headerPreview.empty();
+                    }
+                }
+            }
+            
+            // Initialize icon previews for all action columns
+            (cfg.rowActionColumns || []).forEach(function(ac, idx) {
+                updateCoreGridActionIconPreview(idx, ac);
+            });
+            
+            // Color picker handlers for action columns
+            function bindActionColorPair(pickerSel, textSel, idx) {
+                var $picker = $(pickerSel);
+                var $text = $(textSel);
+                
+                function normalizeColor(val) {
+                    if (!val) return "#333333";
+                    val = $.trim(val);
+                    if (/^[0-9a-f]{3}$/i.test(val)) {
+                        var r = val[0], g = val[1], b = val[2];
+                        return ("#" + r + r + g + g + b + b).toUpperCase();
+                    }
+                    if (/^[0-9a-f]{6}$/i.test(val)) {
+                        return ("#" + val).toUpperCase();
+                    }
+                    if (/^#[0-9a-f]{3}$/i.test(val)) {
+                        var r2 = val[1], g2 = val[2], b2 = val[3];
+                        return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
+                    }
+                    if (/^#[0-9a-f]{6}$/i.test(val)) {
+                        return val.toUpperCase();
+                    }
+                    return val;
+                }
+                
+                if ($text.length) {
+                    $text.off("change.coreGridActionColor blur.coreGridActionColor").on("change.coreGridActionColor blur.coreGridActionColor", function () {
+                        var v = normalizeColor($(this).val());
+                        var ac = cfg.rowActionColumns[idx];
+                        if (ac && ac.iconType === "glyphicon") {
+                            ac.iconColor = v;
+                            if ($picker.length && /^#[0-9a-f]{6}$/i.test(v)) {
+                                $picker.val(v);
+                            }
+                            updateCoreGridActionIconPreview(idx, ac);
+                            self.refreshGrid(cfg);
+                            builder.refreshJson();
+                        }
+                    });
+                }
+                
+                if ($picker.length) {
+                    $picker.off("input.coreGridActionColor change.coreGridActionColor").on("input.coreGridActionColor change.coreGridActionColor", function () {
+                        var v = normalizeColor($(this).val());
+                        var ac = cfg.rowActionColumns[idx];
+                        if (ac && ac.iconType === "glyphicon") {
+                            ac.iconColor = v;
+                            if ($text.length) $text.val(v);
+                            updateCoreGridActionIconPreview(idx, ac);
+                            self.refreshGrid(cfg);
+                            builder.refreshJson();
+                        }
+                    });
+                }
+            }
+            
+            // Wire color pickers for all action columns
+            (cfg.rowActionColumns || []).forEach(function(ac, idx) {
+                if (ac.iconType === "glyphicon" && ac.icon) {
+                    bindActionColorPair(
+                        ".rowact-icon-color-picker[data-action-index='" + idx + "']",
+                        ".rowact-icon-color-text[data-action-index='" + idx + "']",
+                        idx
+                    );
+                }
             });
 
             $("#rowActionColsPanel .btnDelRowAction").off("click.coreGridAction").on("click.coreGridAction", function () {

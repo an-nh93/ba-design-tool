@@ -146,7 +146,7 @@ body {
 
 /* Properties panel - resizable width */
 .builder-wrapper > .prop-shell {
-    width: 320px;
+    width: 370px;
     flex-shrink: 0;
     position: relative;
 }
@@ -820,9 +820,30 @@ body {
     display: flex;
     gap: 4px;
     margin-top: 8px;
+    flex-wrap: wrap; /* Cho phép wrap khi quá nhiều tab */
+    overflow-x: auto; /* Cho phép scroll ngang nếu cần */
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #c1c1c1 #f1f1f1;
+}
+.ess-grid-props-tabs::-webkit-scrollbar {
+    height: 6px;
+}
+.ess-grid-props-tabs::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+.ess-grid-props-tabs::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+.ess-grid-props-tabs::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 .ess-prop-tab {
-    flex: 1;
+    flex: 0 0 auto; /* Không shrink, không grow, tự động width */
+    min-width: 80px; /* Min width để tab không quá nhỏ */
     padding: 6px 8px;
     border: 1px solid #ddd;
     background: #f5f5f5;
@@ -832,6 +853,7 @@ body {
     text-align: center;
     transition: all 0.2s;
     border-bottom: none;
+    white-space: nowrap; /* Không wrap text trong tab */
 }
 .ess-prop-tab:hover {
     background: #ebebeb;
@@ -847,15 +869,20 @@ body {
 }
 .ess-prop-tab-content {
     display: none;
+    flex: 1 1 auto; /* Chiếm không gian còn lại */
+    flex-direction: column; /* Layout dọc */
     width: 100%;
     overflow-x: hidden; /* Không scroll ngang ở level này */
-    overflow-y: visible; /* Để các list con tự scroll */
+    overflow-y: hidden; /* Không scroll ở level này, để wrapper scroll */
     min-width: 0;
+    min-height: 0; /* Quan trọng: cho phép flexbox shrink */
+    padding: 12px 8px 12px 12px; /* Padding để tránh che scrollbar */
+    box-sizing: border-box;
     color: #000; /* Text màu đen cho General tab */
     position: relative; /* Cho loading overlay */
 }
 .ess-prop-tab-content.ess-prop-tab-active {
-    display: block;
+    display: flex; /* Phải là flex để flexbox hoạt động */
 }
 /* Bỏ font-weight bold cho General tab */
 .ess-prop-tab-content[data-tab-content="general"] label,
@@ -888,27 +915,29 @@ body {
 /* Wrapper cho scroll ngang */
 .ess-columns-list-wrapper,
 .ess-actions-list-wrapper {
-    overflow-x: auto !important;
-    overflow-y: hidden;
+    overflow-x: hidden !important;
+    overflow-y: scroll !important; /* Luôn hiển thị scrollbar dọc */
     width: 100%;
-    padding-bottom: 4px;
-    margin-bottom: 8px;
+    flex: 1 1 auto; /* Chiếm không gian còn lại */
+    min-height: 0; /* Quan trọng: cho phép flexbox shrink */
+    scrollbar-gutter: stable; /* Luôn dành chỗ cho scrollbar */
     min-width: 0; /* Cho phép shrink */
     max-width: 100%;
+    box-sizing: border-box;
 }
 .ess-columns-list-wrapper::-webkit-scrollbar,
 .ess-actions-list-wrapper::-webkit-scrollbar {
-    height: 6px;
+    width: 8px; /* Scrollbar dọc */
 }
 .ess-columns-list-wrapper::-webkit-scrollbar-track,
 .ess-actions-list-wrapper::-webkit-scrollbar-track {
     background: #f1f1f1;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 .ess-columns-list-wrapper::-webkit-scrollbar-thumb,
 .ess-actions-list-wrapper::-webkit-scrollbar-thumb {
     background: #c1c1c1;
-    border-radius: 3px;
+    border-radius: 4px;
 }
 .ess-columns-list-wrapper::-webkit-scrollbar-thumb:hover,
 .ess-actions-list-wrapper::-webkit-scrollbar-thumb:hover {
@@ -920,13 +949,12 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: calc(100vh - 350px);
-    overflow-y: auto;
-    overflow-x: visible; /* Cho phép wrapper scroll ngang */
-    padding-right: 4px;
-    min-width: fit-content; /* Cho phép list rộng hơn wrapper */
-    width: auto; /* Tự điều chỉnh theo content */
+    padding-bottom: 20px; /* Thêm padding-bottom để không mất nội dung ở dưới */
+    width: 100%;
+    max-width: 100%;
     box-sizing: border-box;
+    min-width: 0; /* Cho phép shrink */
+    overflow: visible; /* Không tạo scrollbar riêng, để wrapper scroll */
 }
 .ess-columns-list::-webkit-scrollbar,
 .ess-actions-list::-webkit-scrollbar {
@@ -953,12 +981,13 @@ body {
     background: #fff;
     padding: 12px;
     transition: all 0.2s;
-    min-width: 420px; /* Giảm min-width xuống để card nhỏ gọn hơn */
-    flex-shrink: 0;
-    width: auto; /* Cho phép card tự điều chỉnh width */
-    max-width: none;
+    min-width: 200px; /* Min-width hợp lý nhưng vẫn cho phép shrink khi panel nhỏ */
+    flex-shrink: 1; /* Cho phép shrink */
+    width: 100%; /* Card chiếm full width của container */
+    max-width: 100%; /* Không vượt quá container */
     box-sizing: border-box;
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom: 8px; /* Thêm margin-bottom để có khoảng cách giữa các cards */
 }
 .ess-col-card:hover,
 .ess-action-card:hover {
@@ -1131,6 +1160,13 @@ body {
     max-width: 150px;
     min-width: 150px;
 }
+/* Override khi icon field là full width */
+.ess-action-field-icon.ess-action-field-full {
+    flex: 1 1 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    width: 100%;
+}
 .ess-col-field label,
 .ess-action-field label {
     font-size: 11px;
@@ -1218,7 +1254,10 @@ select.ess-action-input {
     background: #005a9e;
 }
 .ess-col-header {
+    flex-shrink: 0; /* Không shrink, giữ nguyên kích thước */
     margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
 }
 .prop-section hr {
     margin: 12px 0;

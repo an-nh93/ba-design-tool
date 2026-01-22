@@ -1088,3 +1088,212 @@
 .ess-grid-control .ess-grid-cell-inner > .ess-grid-progress {
     width: auto;
 }
+
+/* ===== ESS GRID PROPERTIES PANEL - Fixed Header and Tabs ===== */
+#propPanel {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+}
+
+.ess-grid-props-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    flex: 1;
+    min-height: 0;
+}
+
+.ess-grid-props-header {
+    flex-shrink: 0;
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.ess-grid-props-tabs {
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+}
+
+.ess-prop-tab {
+    padding: 6px 12px;
+    border: 1px solid #d1d5db;
+    background: #f9fafb;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+
+.ess-prop-tab:hover {
+    background: #f3f4f6;
+}
+
+.ess-prop-tab.ess-prop-tab-active {
+    background: #fff;
+    border-bottom-color: #fff;
+    color: #0078d4;
+    font-weight: 600;
+}
+
+.ess-grid-props-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Bỏ scrollbar của ess-prop-tab-content - chỉ scroll bên trong ess-actions-list-wrapper */
+.ess-prop-tab-content {
+    display: none !important;
+    flex: 1 1 auto; /* Chiếm không gian còn lại */
+    overflow: hidden !important;
+    flex-direction: column;
+    padding: 12px 8px 12px 12px; /* Padding phải nhỏ hơn để tránh che scrollbar */
+    min-height: 0; /* Quan trọng: cho phép flexbox shrink */
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    height: 100%; /* Đảm bảo có height để flexbox hoạt động */
+}
+
+.ess-prop-tab-content.ess-prop-tab-active {
+    display: flex !important;
+}
+
+/* Ensure Add Action/Add Column buttons are fixed */
+.ess-col-header {
+    flex-shrink: 0;
+    background: #fff;
+    padding: 0 0 12px 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid #e5e7eb;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding-right: 8px; /* Tránh che scrollbar */
+}
+
+/* Chỉ scrollbar của ess-actions-list-wrapper - luôn hiển thị scrollbar */
+.ess-actions-list-wrapper,
+.ess-columns-list-wrapper {
+    flex: 1 1 auto; /* Chiếm không gian còn lại */
+    overflow-y: scroll !important; /* Dùng scroll thay vì auto để luôn hiển thị scrollbar và cho phép scroll */
+    overflow-x: hidden !important;
+    min-height: 0; /* Quan trọng: cho phép flexbox shrink */
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding-right: 4px; /* Thêm padding để scrollbar không che nội dung */
+    scrollbar-gutter: stable; /* Luôn dành chỗ cho scrollbar */
+    position: relative; /* Đảm bảo scroll hoạt động */
+}
+
+/* Ensure inner lists don't create additional scrollbars */
+.ess-actions-list,
+.ess-columns-list {
+    overflow: visible;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    min-width: 0; /* Quan trọng: cho phép shrink */
+    padding-bottom: 16px; /* Thêm padding-bottom để không mất nội dung ở dưới (card cuối có margin-bottom: 8px) */
+}
+
+/* Prevent action cards from creating horizontal scrollbar */
+.ess-action-card,
+.ess-col-card {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0; /* Quan trọng: cho phép shrink khi panel nhỏ */
+    box-sizing: border-box;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.ess-action-card-header {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+
+.ess-action-card-body,
+.ess-col-card-body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    padding: 8px;
+}
+
+.ess-action-row,
+.ess-col-row {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.ess-action-field,
+.ess-col-field {
+    min-width: 0 !important; /* Quan trọng: override mọi min-width khác */
+    max-width: 100%;
+    box-sizing: border-box;
+    flex: 1 1 auto;
+}
+
+.ess-action-field.ess-action-field-full,
+.ess-col-field.ess-col-field-full {
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.ess-action-input,
+.ess-col-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important; /* Quan trọng: override min-width từ form-control hoặc bootstrap */
+    box-sizing: border-box !important;
+}
+
+/* Đảm bảo select và input trong cards không có min-width cố định */
+.ess-col-card select,
+.ess-col-card input[type="text"],
+.ess-col-card input[type="number"],
+.ess-col-card textarea,
+.ess-action-card select,
+.ess-action-card input[type="text"],
+.ess-action-card input[type="number"],
+.ess-action-card textarea {
+    min-width: 0 !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* General tab content should also scroll if needed */
+.ess-prop-tab-content[data-tab-content="general"] {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
+    min-height: 0;
+    flex: 1 1 auto;
+}
