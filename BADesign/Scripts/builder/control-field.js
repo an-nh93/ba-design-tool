@@ -1,6 +1,406 @@
 ﻿var controlField = (function () {
     var multiSelectedIds = [];
 
+    // Icon Picker Modal Function
+    function showIconPicker(initialType) {
+        var $modal = $("#iconPickerModal");
+        var $iconList = $("#iconPickerIconList");
+        var $searchInput = $("#iconPickerSearchInput");
+        var selectedIcon = null;
+        var selectedIconType = null; // "menu" or "glyphicon"
+        var currentIconType = initialType || "menu"; // Default to menu (Icon Cadena) when opened from Browse button
+        
+        // IMPORTANT: Save current control ID and type IMMEDIATELY when opening popup
+        // This prevents losing focus when clicking on icons
+        var savedControlId = builder.selectedControlId;
+        var savedControlType = builder.selectedControlType;
+        var savedCfg = savedControlId ? builder.getControlConfig(savedControlId) : null;
+        
+        // Render icons based on type
+        function renderIcons(iconType, filterText) {
+            $iconList.empty();
+            var icons = [];
+            
+            if (iconType === "menu") {
+                icons = window.MENU_ICON_LIST || [];
+            } else if (iconType === "glyphicon") {
+                icons = window.BOOTSTRAP_GLYPHICON_LIST || [];
+            }
+            
+            var filteredIcons = icons;
+            if (filterText) {
+                var searchLower = filterText.toLowerCase();
+                if (iconType === "menu") {
+                    filteredIcons = icons.filter(function(icon) {
+                        return icon.text.toLowerCase().indexOf(searchLower) !== -1 ||
+                               icon.value.toLowerCase().indexOf(searchLower) !== -1;
+                    });
+                } else if (iconType === "glyphicon") {
+                    filteredIcons = icons.filter(function(icon) {
+                        return icon.class.toLowerCase().indexOf(searchLower) !== -1 ||
+                               icon.description.toLowerCase().indexOf(searchLower) !== -1;
+                    });
+                }
+            }
+            
+            if (filteredIcons.length === 0) {
+                $iconList.html('<div style="grid-column:1/-1; text-align:center; padding:20px; color:#999;">No icons found</div>');
+                return;
+            }
+            
+            filteredIcons.forEach(function(icon) {
+                var $item;
+                if (iconType === "menu") {
+                    var iconHtml = icon.value ? '<img src="' + icon.value + '" style="width:20px;height:20px;" />' : '<span style="font-size:11px; color:#999;">(No icon)</span>';
+                    $item = $('<div class="icon-picker-item" data-type="menu" data-value="' + (icon.value || "") + '" style="padding:8px; border:1px solid #ddd; border-radius:4px; text-align:center; cursor:pointer; background:#fff; transition:all 0.2s; display:flex; flex-direction:column; min-height:70px; max-height:70px; height:70px;">' +
+                        '<div style="margin-bottom:4px; min-height:28px; max-height:28px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' + iconHtml + '</div>' +
+                        '<span style="font-size:9px; color:#666; display:block; word-break:break-word; line-height:1.2; height:32px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; flex-shrink:0;">' + icon.text + '</span>' +
+                        '</div>');
+                } else if (iconType === "glyphicon") {
+                    // Ensure Bootstrap Glyphicon CSS is available - use inline style for icon
+                    $item = $('<div class="icon-picker-item" data-type="glyphicon" data-class="' + icon.class + '" style="padding:8px; border:1px solid #ddd; border-radius:4px; text-align:center; cursor:pointer; background:#fff; transition:all 0.2s; display:flex; flex-direction:column; min-height:70px; max-height:70px; height:70px;">' +
+                        '<span class="' + icon.class + '" style="font-size:28px; display:block; margin-bottom:4px; line-height:1; color:#333; flex-shrink:0;"></span>' +
+                        '<span style="font-size:9px; color:#666; display:block; word-break:break-word; line-height:1.2; height:32px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; flex-shrink:0;">' + icon.description + '</span>' +
+                        '</div>');
+                }
+                
+                if ($item) {
+                    $item.on("click", function(e) {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        // Prevent losing focus on canvas button
+                        e.stopImmediatePropagation();
+                        
+                        // Restore saved control selection to prevent losing focus
+                        if (savedControlId && savedControlType) {
+                            builder.selectedControlId = savedControlId;
+                            builder.selectedControlType = savedControlType;
+                            // Immediately highlight to maintain visual focus
+                            builder.highlightOutlineSelection();
+                        }
+                        
+                        $(".icon-picker-item").removeClass("selected").css({
+                            "border-color": "#ddd",
+                            "background": "#fff"
+                        });
+                        $(this).addClass("selected").css({
+                            "border-color": "#0078d4",
+                            "background": "#e6f2ff"
+                        });
+                        selectedIconType = $(this).data("type");
+                        if (selectedIconType === "menu") {
+                            selectedIcon = $(this).data("value") || "";
+                        } else if (selectedIconType === "glyphicon") {
+                            selectedIcon = $(this).data("class") || "";
+                        }
+                        // Debug log
+                        console.log("Icon selected:", selectedIcon, "Type:", selectedIconType);
+                    });
+                    
+                    $item.on("mouseenter", function() {
+                        if (!$(this).hasClass("selected")) {
+                            $(this).css({
+                                "border-color": "#0078d4",
+                                "background": "#f0f7ff"
+                            });
+                        }
+                    });
+                    
+                    $item.on("mouseleave", function() {
+                        if (!$(this).hasClass("selected")) {
+                            $(this).css({
+                                "border-color": "#ddd",
+                                "background": "#fff"
+                            });
+                        }
+                    });
+                    
+                    $iconList.append($item);
+                }
+            });
+        }
+        
+        // Set radio button based on initialType (default to menu/Icon Cadena)
+        if (currentIconType === "menu") {
+            $("input[name='iconPickerType'][value='menu']").prop("checked", true);
+        } else {
+            $("input[name='iconPickerType'][value='glyphicon']").prop("checked", true);
+        }
+        
+        // Radio button change handler
+        $("input[name='iconPickerType']").off("change").on("change", function() {
+            currentIconType = $(this).val();
+            $searchInput.val("");
+            renderIcons(currentIconType, "");
+        });
+        
+        // Search handler
+        $searchInput.off("input").on("input", function() {
+            renderIcons(currentIconType, $(this).val());
+        });
+        
+        // Close handlers
+        $("#iconPickerClose, #iconPickerCancel").off("click").on("click", function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            
+            // Remove document-level event handler
+            $(document).off("mousedown.iconPickerPrevent");
+            
+            // Use saved values (saved when popup opened)
+            var currentControlId = savedControlId;
+            var currentControlType = savedControlType;
+            var cfg = savedCfg;
+            
+            $modal.hide();
+            selectedIcon = null;
+            selectedIconType = null;
+            
+            // Restore focus after modal closes
+            setTimeout(function() {
+                if (currentControlId && currentControlType) {
+                    builder.selectedControlId = currentControlId;
+                    builder.selectedControlType = currentControlType;
+                    var $control = $('.canvas-control[data-id="' + currentControlId + '"]');
+                    if ($control.length) {
+                        builder.highlightOutlineSelection();
+                        if (cfg) {
+                            showProperties(cfg);
+                        }
+                    }
+                }
+            }, 100);
+        });
+        
+        // OK handler
+        $("#iconPickerOk").off("click").on("click", function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            
+            // Debug log
+            console.log("OK clicked - selectedIcon:", selectedIcon, "selectedIconType:", selectedIconType);
+            console.log("Saved control ID:", savedControlId, "Type:", savedControlType);
+            
+            // Use SAVED control ID (saved when popup opened), not current selection
+            // This ensures we update the correct button even if focus was lost
+            var currentControlId = savedControlId;
+            var currentControlType = savedControlType;
+            var currentCfg = savedCfg;
+            
+            if (selectedIcon !== null && selectedIcon !== undefined && selectedIconType) {
+                if (currentCfg && currentCfg.uiMode === "ess" && currentCfg.ftype === "button") {
+                    currentCfg.btnIcon = selectedIcon;
+                    currentCfg.btnIconType = selectedIconType;
+                    
+                    // Update preview
+                    var $preview = $("#btnIconPreview");
+                    var $iconTypeLabel = $("#btnIconTypeLabel");
+                    var iconHtml = "";
+                    var iconTypeText = "";
+                    var iconName = "";
+                    
+                    if (selectedIconType === "glyphicon") {
+                        iconHtml = '<span class="' + selectedIcon + '" style="font-size:24px;"></span>';
+                        iconTypeText = "Bootstrap Glyphicon";
+                        // Find icon name from BOOTSTRAP_GLYPHICON_LIST
+                        var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                            return icon.class === selectedIcon;
+                        });
+                        iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : selectedIcon;
+                    } else if (selectedIconType === "menu" && selectedIcon) {
+                        iconHtml = '<img src="' + selectedIcon + '" style="width:24px;height:24px;" />';
+                        iconTypeText = "Menu Icons";
+                        // Find icon name from MENU_ICON_LIST
+                        var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                            return icon.value === selectedIcon;
+                        });
+                        iconName = menuItem ? menuItem.text : (selectedIcon.split('/').pop() || selectedIcon);
+                    } else {
+                        iconHtml = '<span style="color:#999; font-size:11px;">No icon selected</span>';
+                    }
+                    
+                    // Update icon type label
+                    if ($iconTypeLabel.length) {
+                        $iconTypeLabel.text(iconTypeText).show();
+                    }
+                    
+                    $preview.html(iconHtml + (iconName ? '<span style="font-size:10px; color:#666; margin-top:4px; text-align:center;">' + iconName + '</span>' : ''));
+                    
+                    // Show Remove button
+                    var $removeBtn = $("#btnRemoveIcon");
+                    if (!$removeBtn.length) {
+                        // Add Remove button if not exists
+                        $("#btnBrowseIcon").after('<button type="button" id="btnRemoveIcon" class="ess-btn-secondary" style="padding:6px 12px; background:#ff4444; color:#fff; border:none;">Remove</button>');
+                    } else {
+                        $removeBtn.show();
+                    }
+                    
+                    // Update button icon
+                    var $btn = $(".canvas-control[data-id='" + currentCfg.id + "']").find(".page-field-editor button");
+                    $btn.find("img, span.glyphicon").remove();
+                    if (selectedIcon && selectedIconType) {
+                        if (selectedIconType === "glyphicon") {
+                            var $icon = $('<span class="' + selectedIcon + '"></span>');
+                            $icon.css({
+                                "font-size": "14px",
+                                "margin-right": "4px"
+                            });
+                            $btn.prepend($icon);
+                        } else if (selectedIconType === "menu" && selectedIcon) {
+                            var $icon = $('<img src="' + selectedIcon + '" />');
+                            $icon.css({
+                                "width": "16px",
+                                "height": "16px",
+                                "vertical-align": "middle",
+                                "margin-right": "4px"
+                            });
+                            $btn.prepend($icon);
+                        }
+                    }
+                    
+                    builder.refreshJson();
+                }
+            } else {
+                console.warn("No icon selected or invalid selection");
+            }
+            
+            // Remove document-level event handler
+            $(document).off("mousedown.iconPickerPrevent");
+            
+            // Hide modal FIRST - must be done synchronously
+            $modal.hide();
+            selectedIcon = null;
+            selectedIconType = null;
+            
+            // Restore focus after modal closes
+            setTimeout(function() {
+                if (currentControlId && currentControlType) {
+                    builder.selectedControlId = currentControlId;
+                    builder.selectedControlType = currentControlType;
+                    var $control = $('.canvas-control[data-id="' + currentControlId + '"]');
+                    if ($control.length) {
+                        builder.highlightOutlineSelection();
+                        if (currentCfg) {
+                            showProperties(currentCfg);
+                        }
+                    }
+                }
+            }, 100);
+        });
+        
+        // CRITICAL: Prevent ALL clicks inside modal from bubbling to canvas
+        // This prevents losing focus when clicking anywhere in the popup
+        $modal.off("click.iconPicker").on("click.iconPicker", function(e) {
+            // Only allow overlay clicks to close modal
+            if ($(e.target).hasClass("ess-modal-overlay")) {
+                // Store current selection before closing
+                var currentControlId = savedControlId;
+                var currentControlType = savedControlType;
+                var cfg = savedCfg;
+                
+                $modal.hide();
+                selectedIcon = null;
+                selectedIconType = null;
+                
+                // Restore focus after modal closes
+                setTimeout(function() {
+                    if (currentControlId && currentControlType) {
+                        builder.selectedControlId = currentControlId;
+                        builder.selectedControlType = currentControlType;
+                        var $control = $('.canvas-control[data-id="' + currentControlId + '"]');
+                        if ($control.length) {
+                            builder.highlightOutlineSelection();
+                            if (cfg) {
+                                showProperties(cfg);
+                            }
+                        }
+                    }
+                }, 100);
+            } else {
+                // Prevent all other clicks from bubbling
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        });
+        
+        // CRITICAL: Prevent ALL events inside modal from reaching canvas
+        // Use mousedown (fires before click) to catch events earlier
+        $modal.find(".ess-modal-content").off("mousedown.iconPickerContent click.iconPickerContent").on("mousedown.iconPickerContent click.iconPickerContent", function(e) {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            // Restore saved control selection immediately to maintain focus
+            if (savedControlId && savedControlType) {
+                builder.selectedControlId = savedControlId;
+                builder.selectedControlType = savedControlType;
+                builder.highlightOutlineSelection();
+            }
+            // Don't prevent default to allow normal form interactions
+        });
+        
+        // Prevent clicks on all interactive elements from bubbling
+        $modal.find("input, button, .icon-picker-item, label").off("mousedown.iconPickerItem click.iconPickerItem").on("mousedown.iconPickerItem click.iconPickerItem", function(e) {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            // Restore saved control selection immediately to maintain focus
+            if (savedControlId && savedControlType) {
+                builder.selectedControlId = savedControlId;
+                builder.selectedControlType = savedControlType;
+                builder.highlightOutlineSelection();
+            }
+            // Don't prevent default for form elements to allow normal interaction
+            if (!$(this).is("input[type='text']") && !$(this).is("input[type='radio']") && !$(this).is("button")) {
+                e.preventDefault();
+            }
+        });
+        
+        // CRITICAL: Prevent document-level mousedown events from deselecting control
+        // This must be done BEFORE showing modal to catch events early
+        var preventCanvasDeselect = function(e) {
+            // If click is inside modal, prevent it from reaching canvas
+            if ($(e.target).closest("#iconPickerModal").length) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                // Restore saved control selection immediately
+                if (savedControlId && savedControlType) {
+                    builder.selectedControlId = savedControlId;
+                    builder.selectedControlType = savedControlType;
+                    builder.highlightOutlineSelection();
+                }
+            }
+        };
+        
+        // Attach to document with capture phase (runs before other handlers)
+        $(document).off("mousedown.iconPickerPrevent").on("mousedown.iconPickerPrevent", preventCanvasDeselect);
+        
+        // Initial render
+        renderIcons(currentIconType, "");
+        $searchInput.val("");
+        
+        // Ensure control remains focused/highlighted when opening popup
+        if (savedControlId && savedControlType) {
+            builder.selectedControlId = savedControlId;
+            builder.selectedControlType = savedControlType;
+            builder.highlightOutlineSelection();
+        }
+        
+        $modal.show();
+        setTimeout(function() {
+            $searchInput.focus();
+        }, 100);
+        
+        // Clean up event handler when modal closes
+        var originalCloseHandlers = $("#iconPickerClose, #iconPickerCancel");
+        originalCloseHandlers.off("click.iconPickerCleanup").on("click.iconPickerCleanup", function() {
+            $(document).off("mousedown.iconPickerPrevent");
+        });
+        
+        // Also clean up when OK is clicked
+        $("#iconPickerOk").off("click.iconPickerCleanup").on("click.iconPickerCleanup", function() {
+            $(document).off("mousedown.iconPickerPrevent");
+        });
+    }
+
     // ==== IMAGE helpers ====
     var IMAGE_MODES = ["fit", "fill", "stretch", "center"];
 
@@ -1193,7 +1593,29 @@
                 case "button":
                     var btnCls = "page-field-button-editor" + (cfg.uiMode === "ess" ? " ess-button" : "");
                     $editor = $('<button type="button" class="' + btnCls + '"></button>');
-                    $editor.text(cfg.defaultValue || cfg.caption || "Button");
+                    
+                    // Add icon if exists
+                    if (cfg.uiMode === "ess" && cfg.btnIcon && cfg.btnIconType && cfg.btnIconType !== "none") {
+                        if (cfg.btnIconType === "glyphicon") {
+                            var $icon = $('<span class="' + cfg.btnIcon + '"></span>');
+                            $icon.css({
+                                "font-size": "14px",
+                                "margin-right": "4px"
+                            });
+                            $editor.append($icon);
+                        } else if (cfg.btnIconType === "menu" && cfg.btnIcon) {
+                            var $icon = $('<img src="' + cfg.btnIcon + '" />');
+                            $icon.css({
+                                "width": "16px",
+                                "height": "16px",
+                                "vertical-align": "middle",
+                                "margin-right": "4px"
+                            });
+                            $editor.append($icon);
+                        }
+                    }
+                    
+                    $editor.append(document.createTextNode(cfg.defaultValue || cfg.caption || "Button"));
                     if (cfg.disabled) $editor.prop("disabled", true);
 
                     // Áp màu cho ESS button
@@ -1811,9 +2233,61 @@
             html.push('</div>');
         }
         
+        // ESS Button Icon Selection
+        var buttonIconHtml = "";
+        if (isEssButton) {
+            var currentIcon = cfg.btnIcon || "";
+            var iconType = cfg.btnIconType || ""; // "menu" or "glyphicon" or ""
+            var iconPreview = "";
+            var iconTypeText = "";
+            var iconName = ""; // Original icon name
+            
+            if (currentIcon && iconType) {
+                if (iconType === "glyphicon") {
+                    iconPreview = '<span class="' + currentIcon + '" style="font-size:24px;"></span>';
+                    iconTypeText = "Bootstrap Glyphicon";
+                    // Find icon name from BOOTSTRAP_GLYPHICON_LIST
+                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                        return icon.class === currentIcon;
+                    });
+                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
+                } else if (iconType === "menu") {
+                    iconPreview = '<img src="' + currentIcon + '" style="width:24px;height:24px;" />';
+                    iconTypeText = "Menu Icons";
+                    // Find icon name from MENU_ICON_LIST
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === currentIcon;
+                    });
+                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
+                }
+            }
+            
+            buttonIconHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
+                '<div class="ess-col-card-header">' +
+                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🖼️ Button Icon</span>' +
+                '</div>' +
+                '<div class="ess-col-card-body">' +
+                '<div class="ess-col-row">' +
+                '<div class="ess-col-field ess-col-field-full">' +
+                (iconTypeText ? '<div id="btnIconTypeLabel" style="margin-bottom:6px; font-size:11px; color:#0078d4; font-weight:600;">' + iconTypeText + '</div>' : '<div id="btnIconTypeLabel" style="margin-bottom:6px; font-size:11px; color:#0078d4; font-weight:600; display:none;"></div>') +
+                '<div id="btnIconPreview" style="margin-bottom:8px; padding:12px; background:#f5f5f5; border-radius:4px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;">' +
+                (iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>') +
+                (iconName ? '<span style="font-size:10px; color:#666; margin-top:4px; text-align:center;">' + iconName + '</span>' : '') +
+                '</div>' +
+                '<div style="display:flex; gap:8px;">' +
+                '<button type="button" id="btnBrowseIcon" class="ess-btn-primary" style="flex:1; padding:6px 12px;">Browse...</button>' +
+                (currentIcon ? '<button type="button" id="btnRemoveIcon" class="ess-btn-secondary" style="padding:6px 12px; background:#ff4444; color:#fff; border:none;">Remove</button>' : '') +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+        }
+        
         // Image Mode, Progress, Items
         if (imageModeHtml) html.push(imageModeHtml);
         if (progressHtml) html.push(progressHtml);
+        if (buttonIconHtml) html.push(buttonIconHtml);
         if (isCombo) {
             html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
             html.push('<div class="ess-col-card-header">');
@@ -1976,6 +2450,45 @@
         
         html.push('</div>'); // Close ess-prop-tab-content
         
+        // Icon Picker Modal (append to body if ESS button and not exists)
+        if (isEssButton && !$("#iconPickerModal").length) {
+            var modalHtml = '<div id="iconPickerModal" class="ess-modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:10000;">' +
+                '<div class="ess-modal-content" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); background:#fff; border-radius:4px; max-width:700px; width:90%; height:600px; display:flex; flex-direction:column; box-shadow:0 4px 20px rgba(0,0,0,0.3);">' +
+                '<div class="ess-modal-header" style="padding:16px; border-bottom:1px solid #e0e0e0; display:flex; justify-content:space-between; align-items:center; flex-shrink:0;">' +
+                '<h3 style="margin:0; font-size:16px; font-weight:600;">Chọn Icon</h3>' +
+                '<button type="button" class="ess-modal-close" id="iconPickerClose" style="background:none; border:none; font-size:24px; cursor:pointer; color:#666; padding:0; width:30px; height:30px; display:flex; align-items:center; justify-content:center;">&times;</button>' +
+                '</div>' +
+                '<div style="padding:16px; border-bottom:1px solid #e0e0e0; flex-shrink:0;">' +
+                '<div style="margin-bottom:12px; padding:12px; background:#f5f5f5; border-radius:4px;">' +
+                '<div style="display:flex; gap:16px; align-items:center;">' +
+                '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
+                '<input type="radio" name="iconPickerType" value="menu" checked style="cursor:pointer;" />' +
+                '<span>Icon Cadena (Menu Icons)</span>' +
+                '</label>' +
+                '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
+                '<input type="radio" name="iconPickerType" value="glyphicon" style="cursor:pointer;" />' +
+                '<span>Icon Glyphicon</span>' +
+                '</label>' +
+                '</div>' +
+                '</div>' +
+                '<div>' +
+                '<input type="text" id="iconPickerSearchInput" class="ess-col-input" placeholder="Search icon by name or class (e.g., add, delete, search)..." style="width:100%; padding:8px;" />' +
+                '</div>' +
+                '</div>' +
+                '<div id="iconPickerIconList" style="flex:1; overflow-y:auto; display:grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap:8px; padding:16px; border:1px solid #e0e0e0; border-radius:4px; background:#fafafa; min-height:0; align-items:start;">' +
+                '</div>' +
+                '<style>' +
+                '.icon-picker-item { height: auto !important; min-height: 70px !important; max-height: 70px !important; }' +
+                '</style>' +
+                '<div class="ess-modal-footer" style="padding:12px 16px; border-top:1px solid #e0e0e0; display:flex; justify-content:flex-end; gap:8px; flex-shrink:0;">' +
+                '<button type="button" id="iconPickerCancel" class="ess-btn-secondary" style="padding:6px 16px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px;">Cancel</button>' +
+                '<button type="button" id="iconPickerOk" class="ess-btn-primary" style="padding:6px 16px; background:#0078d4; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px;">OK</button>' +
+                '</div>' +
+                '</div>' +
+                '</div>';
+            $("body").append(modalHtml);
+        }
+        
         var htmlStr = html.join('');
 
         $("#propPanel").html(htmlStr);
@@ -2058,6 +2571,112 @@
 
             // áp màu lần đầu
             applyEssBtnColors();
+            
+            // ====== ESS BUTTON ICON BINDING ======
+            function updateButtonIcon() {
+                var iconType = cfg.btnIconType || "";
+                var iconValue = cfg.btnIcon || "";
+                var $btn = $dom.find(".page-field-editor button");
+                
+                // Remove existing icon
+                $btn.find("img, span.glyphicon").remove();
+                
+                if (iconValue && iconType) {
+                    if (iconType === "glyphicon") {
+                        var $icon = $('<span class="' + iconValue + '"></span>');
+                        $icon.css({
+                            "font-size": "14px",
+                            "margin-right": "4px"
+                        });
+                        $btn.prepend($icon);
+                    } else if (iconType === "menu" && iconValue) {
+                        var $icon = $('<img src="' + iconValue + '" />');
+                        $icon.css({
+                            "width": "16px",
+                            "height": "16px",
+                            "vertical-align": "middle",
+                            "margin-right": "4px"
+                        });
+                        $btn.prepend($icon);
+                    }
+                }
+                builder.refreshJson();
+            }
+            
+            function updateIconPreview() {
+                var iconType = cfg.btnIconType || "";
+                var iconValue = cfg.btnIcon || "";
+                var $preview = $("#btnIconPreview");
+                var $iconTypeLabel = $("#btnIconTypeLabel");
+                
+                if (!iconValue || !iconType) {
+                    $preview.html('<span style="color:#999; font-size:11px;">No icon selected</span>');
+                    if ($iconTypeLabel.length) {
+                        $iconTypeLabel.hide();
+                    }
+                    // Hide Remove button if no icon
+                    $("#btnRemoveIcon").hide();
+                    return;
+                }
+                
+                var iconHtml = "";
+                var iconTypeText = "";
+                var iconName = "";
+                
+                if (iconType === "glyphicon") {
+                    iconHtml = '<span class="' + iconValue + '" style="font-size:24px;"></span>';
+                    iconTypeText = "Bootstrap Glyphicon";
+                    // Find icon name from BOOTSTRAP_GLYPHICON_LIST
+                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
+                        return icon.class === iconValue;
+                    });
+                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : iconValue;
+                } else if (iconType === "menu" && iconValue) {
+                    iconHtml = '<img src="' + iconValue + '" style="width:24px;height:24px;" />';
+                    iconTypeText = "Menu Icons";
+                    // Find icon name from MENU_ICON_LIST
+                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
+                        return icon.value === iconValue;
+                    });
+                    iconName = menuItem ? menuItem.text : (iconValue.split('/').pop() || iconValue);
+                }
+                
+                // Update icon type label
+                if ($iconTypeLabel.length) {
+                    $iconTypeLabel.text(iconTypeText).show();
+                }
+                
+                $preview.html(iconHtml + (iconName ? '<span style="font-size:10px; color:#666; margin-top:4px; text-align:center;">' + iconName + '</span>' : ''));
+                // Show Remove button if has icon
+                $("#btnRemoveIcon").show();
+            }
+            
+            // Browse Icon button
+            $("#btnBrowseIcon").off("click").on("click", function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                showIconPicker();
+            });
+            
+            // Remove Icon button
+            $("#btnRemoveIcon").off("click").on("click", function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+                cfg.btnIcon = "";
+                cfg.btnIconType = "";
+                
+                // Hide icon type label when removing icon
+                var $iconTypeLabel = $("#btnIconTypeLabel");
+                if ($iconTypeLabel.length) {
+                    $iconTypeLabel.hide();
+                }
+                
+                updateIconPreview();
+                updateButtonIcon();
+            });
+            
+            // Update preview on load
+            updateIconPreview();
         }
 
         // ====== ESS TAG COLOR BINDING ======

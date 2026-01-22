@@ -216,6 +216,7 @@
     <Content Include="Content\images\icon-menu\menu-add.png" />
     <Content Include="Content\images\icon-menu\menu-approve.png" />
     <Content Include="Content\images\icon-menu\menu-auto-assign.png" />
+    <Content Include="Content\images\icon-menu\menu-browse.png" />
     <Content Include="Content\images\icon-menu\menu-cancel.png" />
     <Content Include="Content\images\icon-menu\menu-deactive.png" />
     <Content Include="Content\images\icon-menu\menu-delete.png" />
