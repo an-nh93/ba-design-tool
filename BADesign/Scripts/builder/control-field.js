@@ -180,25 +180,53 @@
             renderIcons(currentIconType, $(this).val());
         });
         
-        // Close handlers
-        $("#iconPickerClose, #iconPickerCancel").off("click").on("click", function(e) {
+        // Close handlers - restore focus immediately to prevent losing focus
+        // Use mousedown (fires before click) to restore focus EARLY
+        $("#iconPickerClose, #iconPickerCancel").off("mousedown.iconPickerClose click.iconPickerClose").on("mousedown.iconPickerClose", function(e) {
             e.stopPropagation();
+            e.stopImmediatePropagation();
             e.preventDefault();
             
-            // Remove document-level event handler
-            $(document).off("mousedown.iconPickerPrevent");
+            // CRITICAL: Restore focus IMMEDIATELY in mousedown (before click event)
+            // Use saved values (saved when popup opened)
+            var currentControlId = savedControlId;
+            var currentControlType = savedControlType;
+            var cfg = savedCfg;
+            
+            // Restore focus IMMEDIATELY (before any other handlers run)
+            if (currentControlId && currentControlType) {
+                builder.selectedControlId = currentControlId;
+                builder.selectedControlType = currentControlType;
+                builder.highlightOutlineSelection();
+            }
+        }).on("click.iconPickerClose", function(e) {
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+            e.preventDefault();
             
             // Use saved values (saved when popup opened)
             var currentControlId = savedControlId;
             var currentControlType = savedControlType;
             var cfg = savedCfg;
             
+            // Restore focus again in click handler (double-check)
+            if (currentControlId && currentControlType) {
+                builder.selectedControlId = currentControlId;
+                builder.selectedControlType = currentControlType;
+                builder.highlightOutlineSelection();
+            }
+            
+            // Hide modal FIRST
             $modal.hide();
             selectedIcon = null;
             selectedIconType = null;
             
-            // Restore focus after modal closes
+            // Delay removing document-level handler to ensure it still prevents clearSelection
             setTimeout(function() {
+                // Remove document-level event handler AFTER modal is hidden
+                $(document).off("mousedown.iconPickerPrevent");
+                
+                // Restore properties panel after modal closes
                 if (currentControlId && currentControlType) {
                     builder.selectedControlId = currentControlId;
                     builder.selectedControlType = currentControlType;
@@ -206,15 +234,30 @@
                     if ($control.length) {
                         builder.highlightOutlineSelection();
                         if (cfg) {
-                            showProperties(cfg);
+                            // Call showProperties based on control type
+                            if (currentControlType === "grid") {
+                                if (window.controlGrid && typeof controlGrid.showProperties === "function") {
+                                    controlGrid.showProperties(currentControlId);
+                                }
+                            } else if (currentControlType === "ess-grid") {
+                                if (window.controlGridEss && typeof controlGridEss.showProperties === "function") {
+                                    controlGridEss.showProperties(cfg);
+                                }
+                            } else if (currentControlType === "toolbar") {
+                                if (window.controlToolbar && typeof controlToolbar.showProperties === "function") {
+                                    controlToolbar.showProperties(cfg);
+                                }
+                            } else if (cfg) {
+                                showProperties(cfg);
+                            }
                         }
                     }
                 }
             }, 100);
         });
         
-        // OK handler
-        $("#iconPickerOk").off("click").on("click", function(e) {
+        // OK handler - restore focus immediately to prevent losing focus
+        $("#iconPickerOk").off("mousedown.iconPickerOk click.iconPickerOk").on("mousedown.iconPickerOk click.iconPickerOk", function(e) {
             e.stopPropagation();
             e.preventDefault();
             e.stopImmediatePropagation();
@@ -229,18 +272,36 @@
             var currentControlType = savedControlType;
             var currentCfg = savedCfg;
             
+            // CRITICAL: Restore focus IMMEDIATELY before processing icon selection
+            if (currentControlId && currentControlType) {
+                builder.selectedControlId = currentControlId;
+                builder.selectedControlType = currentControlType;
+                builder.highlightOutlineSelection();
+            }
+            
             if (selectedIcon !== null && selectedIcon !== undefined && selectedIconType) {
                 // If callback provided, call it instead of default button handling
                 if (onIconSelected && typeof onIconSelected === "function") {
+                    // CRITICAL: Restore focus BEFORE calling callback
+                    if (currentControlId && currentControlType) {
+                        builder.selectedControlId = currentControlId;
+                        builder.selectedControlType = currentControlType;
+                        builder.highlightOutlineSelection();
+                    }
                     // Call callback first
                     onIconSelected(selectedIcon, selectedIconType);
                     // Don't call showProperties for callback-based usage - let the callback handle it
-                    // Remove document-level event handler
-                    $(document).off("mousedown.iconPickerPrevent");
                     // Hide modal FIRST - must be done synchronously
                     $modal.hide();
                     selectedIcon = null;
                     selectedIconType = null;
+                    
+                    // Delay removing document-level handler to ensure it still prevents clearSelection
+                    setTimeout(function() {
+                        // Remove document-level event handler AFTER modal is hidden
+                        $(document).off("mousedown.iconPickerPrevent");
+                    }, 100);
+                    
                     return; // Exit early - callback will handle the rest
                 } else if (currentCfg && currentCfg.uiMode === "ess" && currentCfg.ftype === "button") {
                     // Default behavior: update button icon
@@ -319,16 +380,17 @@
                 console.warn("No icon selected or invalid selection");
             }
             
-            // Remove document-level event handler
-            $(document).off("mousedown.iconPickerPrevent");
-            
             // Hide modal FIRST - must be done synchronously
             $modal.hide();
             selectedIcon = null;
             selectedIconType = null;
             
-            // Restore focus after modal closes
+            // Delay removing document-level handler to ensure it still prevents clearSelection
             setTimeout(function() {
+                // Remove document-level event handler AFTER modal is hidden
+                $(document).off("mousedown.iconPickerPrevent");
+                
+                // Restore focus and properties panel after modal closes
                 if (currentControlId && currentControlType) {
                     builder.selectedControlId = currentControlId;
                     builder.selectedControlType = currentControlType;
@@ -336,7 +398,22 @@
                     if ($control.length) {
                         builder.highlightOutlineSelection();
                         if (currentCfg) {
-                            showProperties(currentCfg);
+                            // Call showProperties based on control type
+                            if (currentControlType === "grid") {
+                                if (window.controlGrid && typeof controlGrid.showProperties === "function") {
+                                    controlGrid.showProperties(currentControlId);
+                                }
+                            } else if (currentControlType === "ess-grid") {
+                                if (window.controlGridEss && typeof controlGridEss.showProperties === "function") {
+                                    controlGridEss.showProperties(currentCfg);
+                                }
+                            } else if (currentControlType === "toolbar") {
+                                if (window.controlToolbar && typeof controlToolbar.showProperties === "function") {
+                                    controlToolbar.showProperties(currentCfg);
+                                }
+                            } else if (currentCfg) {
+                                showProperties(currentCfg);
+                            }
                         }
                     }
                 }
@@ -345,37 +422,25 @@
         
         // CRITICAL: Prevent ALL clicks inside modal from bubbling to canvas
         // This prevents losing focus when clicking anywhere in the popup
+        // NOTE: Clicking outside (on overlay) will NOT close modal - only X and Cancel buttons can close
         $modal.off("click.iconPicker").on("click.iconPicker", function(e) {
-            // Only allow overlay clicks to close modal
+            // If click is on overlay (outside modal content), prevent closing but maintain focus
             if ($(e.target).hasClass("ess-modal-overlay")) {
-                // Store current selection before closing
-                var currentControlId = savedControlId;
-                var currentControlType = savedControlType;
-                var cfg = savedCfg;
-                
-                $modal.hide();
-                selectedIcon = null;
-                selectedIconType = null;
-                
-                // Restore focus after modal closes
-                setTimeout(function() {
-                    if (currentControlId && currentControlType) {
-                        builder.selectedControlId = currentControlId;
-                        builder.selectedControlType = currentControlType;
-                        var $control = $('.canvas-control[data-id="' + currentControlId + '"]');
-                        if ($control.length) {
-                            builder.highlightOutlineSelection();
-                            if (cfg) {
-                                showProperties(cfg);
-                            }
-                        }
-                    }
-                }, 100);
-            } else {
-                // Prevent all other clicks from bubbling
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 e.preventDefault();
+                // Restore saved control selection immediately to maintain focus
+                if (savedControlId && savedControlType) {
+                    builder.selectedControlId = savedControlId;
+                    builder.selectedControlType = savedControlType;
+                    builder.highlightOutlineSelection();
+                }
+                // Don't close modal - user must use X or Cancel button
+                return;
             }
+            // Prevent all other clicks from bubbling
+            e.stopPropagation();
+            e.preventDefault();
         });
         
         // CRITICAL: Prevent ALL events inside modal from reaching canvas
@@ -390,6 +455,24 @@
                 builder.highlightOutlineSelection();
             }
             // Don't prevent default to allow normal form interactions
+        });
+        
+        // CRITICAL: Also handle mousedown on overlay to maintain focus when clicking outside
+        $modal.off("mousedown.iconPickerOverlay").on("mousedown.iconPickerOverlay", function(e) {
+            // If click is on overlay (outside modal content), prevent losing focus
+            if ($(e.target).hasClass("ess-modal-overlay")) {
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                e.preventDefault();
+                // Restore saved control selection immediately to maintain focus
+                if (savedControlId && savedControlType) {
+                    builder.selectedControlId = savedControlId;
+                    builder.selectedControlType = savedControlType;
+                    builder.highlightOutlineSelection();
+                }
+                // Don't close modal - user must use X or Cancel button
+                return;
+            }
         });
         
         // Prevent clicks on all interactive elements from bubbling
@@ -411,8 +494,12 @@
         // CRITICAL: Prevent document-level mousedown events from deselecting control
         // This must be done BEFORE showing modal to catch events early
         var preventCanvasDeselect = function(e) {
-            // If click is inside modal, prevent it from reaching canvas
-            if ($(e.target).closest("#iconPickerModal").length) {
+            // If click is inside modal (including overlay, close buttons, cancel/ok buttons), prevent it from reaching canvas
+            var $target = $(e.target);
+            if ($target.closest("#iconPickerModal").length || 
+                $target.hasClass("ess-modal-overlay") ||
+                $target.is("#iconPickerClose, #iconPickerCancel, #iconPickerOk") ||
+                $target.closest("#iconPickerClose, #iconPickerCancel, #iconPickerOk").length) {
                 e.stopPropagation();
                 e.stopImmediatePropagation();
                 // Restore saved control selection immediately
