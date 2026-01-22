@@ -720,6 +720,9 @@
         html.push('<div class="mt-1">');
         html.push('<label><input type="checkbox" id="chkShowDeleteCol" ' + (getActVisible("delete", cfg.showDeleteColumn) ? "checked" : "") + '/> Show Delete column</label>');
         html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkAllowGroup" ' + ((cfg.allowGrouping !== false) ? "checked" : "") + '/> Allow Group</label>');
+        html.push('</div>');
         html.push('</div>'); // Close grid container
         html.push('<div class="mt-1">');
         html.push('<label>Grid width (px):</label><br/>');
@@ -1081,6 +1084,10 @@
             cfg.showDeleteColumn = this.checked;
             var a = (cfg.rowActionColumns || []).find(function (x) { return x.key === "delete"; });
             if (a) a.visible = this.checked;
+            self.refreshGrid(cfg);
+        });
+        $("#chkAllowGroup").on("change", function () {
+            cfg.allowGrouping = this.checked;
             self.refreshGrid(cfg);
         });
         $("#txtGridWidth").on("change blur", function () {
