@@ -15,6 +15,7 @@
             filterRow: true,
             allowAdd: true,
             allowEdit: true,
+            allowGrouping: true,
 
             showCheckbox: true,
             showViewColumn: true,
@@ -436,6 +437,10 @@
                 visible: cfg.showSearchBox !== false,
                 placeholder: "Search..."
             },
+            groupPanel: {
+                visible: cfg.allowGrouping !== false,
+                allowColumnDragging: true
+            },
             editing: {
                 mode: "row",
                 allowAdding: cfg.allowAdd === true,
@@ -677,6 +682,9 @@
         html.push('<div class="mt-1">');
         html.push('<label><input type="checkbox" id="chkShowDeleteCol" ' + (getActVisible("delete", cfg.showDeleteColumn) ? "checked" : "") + '/> Show Delete column</label>');
         html.push('</div>');
+        html.push('<div class="mt-1">');
+        html.push('<label><input type="checkbox" id="chkAllowGrouping" ' + ((cfg.allowGrouping !== false) ? "checked" : "") + '/> Allow Grouping</label>');
+        html.push('</div>');
         html.push('</div>'); // Close grid container
         html.push('<div class="mt-1">');
         html.push('<label>Grid width (px):</label><br/>');
@@ -911,6 +919,10 @@
         });
         $("#chkShowCheckbox").on("change", function () {
             cfg.showCheckbox = this.checked;
+            self.refreshGrid(cfg);
+        });
+        $("#chkAllowGrouping").on("change", function () {
+            cfg.allowGrouping = this.checked;
             self.refreshGrid(cfg);
         });
         $("#chkShowViewCol").on("change", function () {
@@ -1243,6 +1255,7 @@
             columns: dxColumns,
             selection: selectionOpt,
             'filterRow.visible': cfg.filterRow === true,
+            'groupPanel.visible': cfg.allowGrouping !== false,
             'editing.allowAdding': cfg.allowAdd === true,
             'editing.allowUpdating': cfg.allowEdit === true,
             'editing.allowDeleting': cfg.showDeleteColumn !== false,
