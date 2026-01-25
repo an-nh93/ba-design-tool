@@ -1050,15 +1050,16 @@
     }
 
 
-    // Lấy danh sách id mọi field là con/cháu/chắt của rootId
+    // Lấy danh sách id mọi control là con/cháu/chắt của rootId (bao gồm field, grid, ess-grid, toolbar, collapsible-section)
     function getDescendantFieldIds(rootId, includeRoot) {
         var result = [];
-        var fields = (builder.controls || []).filter(function (c) {
-            return c && c.type === "field";
+        // Lấy tất cả controls (không chỉ field) để support collapsible-section và các control khác
+        var allControls = (builder.controls || []).filter(function (c) {
+            return c && (c.type === "field" || c.type === "collapsible-section" || c.type === "grid" || c.type === "ess-grid" || c.type === "toolbar");
         });
 
         var map = {};
-        fields.forEach(function (f) {
+        allControls.forEach(function (f) {
             map[f.id] = f.parentId || null;
         });
 
@@ -1071,7 +1072,7 @@
             return false;
         }
 
-        fields.forEach(function (f) {
+        allControls.forEach(function (f) {
             if (includeRoot && f.id === rootId) {
                 result.push(f.id);
             } else if (isDescendant(f.id)) {
@@ -1095,7 +1096,21 @@
             if (!childCfg) return;
 
             childCfg.zIndex = baseZ;
-            $('.canvas-control.page-field[data-id="' + cid + '"]').css("z-index", baseZ);
+            var $child = $('.canvas-control[data-id="' + cid + '"]');
+            if ($child.length) {
+                $child.css("z-index", baseZ);
+            }
+        });
+        
+        // Cũng cập nhật z-index cho các control con khác
+        (builder.controls || []).forEach(function (c) {
+            if (c && c.parentId === rootId && c.type !== "field") {
+                c.zIndex = baseZ;
+                var $child = $('.canvas-control[data-id="' + c.id + '"]');
+                if ($child.length) {
+                    $child.css("z-index", baseZ);
+                }
+            }
         });
     }
 
@@ -1109,7 +1124,9 @@
             var c = builder.controls.find(function (x) { return x.id === id; });
             if (!c) return;
 
-            var $dom = $('.canvas-control.page-field[data-id="' + id + '"]');
+            var $dom = $('.canvas-control[data-id="' + id + '"]');
+            if (!$dom.length) return;
+            
             var curL = parseFloat($dom.css("left")) || c.left || 0;
             var curT = parseFloat($dom.css("top")) || c.top || 0;
             var nl = curL + dx;
@@ -1118,6 +1135,23 @@
             $dom.css({ left: nl, top: nt });
             c.left = nl;
             c.top = nt;
+        });
+        
+        // Cũng di chuyển các control con khác (grid, ess-grid, toolbar, collapsible-section, v.v.)
+        (builder.controls || []).forEach(function (c) {
+            if (c && c.parentId === rootId && c.type !== "field") {
+                c.left = (c.left || 0) + dx;
+                c.top = (c.top || 0) + dy;
+                var $child = $('.canvas-control[data-id="' + c.id + '"]');
+                if ($child.length) {
+                    var curL = parseFloat($child.css("left")) || c.left || 0;
+                    var curT = parseFloat($child.css("top")) || c.top || 0;
+                    $child.css({
+                        left: (curL + dx) + "px",
+                        top: (curT + dy) + "px"
+                    });
+                }
+            }
         });
     }
 
@@ -1151,18 +1185,45 @@
 
             var isFieldContainer = (c.type === "field" &&
                 (c.ftype === "groupbox" || c.ftype === "section"));
+            var isCollapsibleSection = (c.type === "collapsible-section");
             var isTabPage = (c.type === "tabpage");
             var isPopup = (c.type === "popup");
 
-            if (!isFieldContainer && !isTabPage && !isPopup) return;
+            if (!isFieldContainer && !isCollapsibleSection && !isTabPage && !isPopup) return;
 
             var cRight = c.left + c.width;
             var cBottom = c.top + c.height;
 
+            // Đối với collapsible-section, chỉ check content area (không tính header)
+            if (isCollapsibleSection) {
+                var $section = $('.ess-collapsible-section[data-id="' + c.id + '"]');
+                if ($section.length) {
+                    var $content = $section.find(".ess-collapsible-content");
+                    if ($content.length && $content.is(":visible")) {
+                        var contentRect = $content[0].getBoundingClientRect();
+                        var sectionRect = $section[0].getBoundingClientRect();
+                        // Convert content rect to canvas coordinates
+                        var contentLeft = c.left;
+                        var contentTop = c.top + 50; // 50 = header height
+                        var contentRight = contentLeft + c.width;
+                        var contentBottom = contentTop + (c.height - 50);
+                        
+                        // Check nếu field nằm trong content area
+                        if (left >= contentLeft && top >= contentTop && right <= contentRight && bottom <= contentBottom) {
+                            if (!best || (c.left >= best.left && c.top >= best.top &&
+                                c.width <= best.width && c.height <= best.height)) {
+                                best = c;
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Logic cũ cho groupbox/section/popup/tabpage
             if (left >= c.left && top >= c.top && right <= cRight && bottom <= cBottom) {
                 if (!best || (c.left >= best.left && c.top >= best.top &&
                     c.width <= best.width && c.height <= best.height)) {
                     best = c;
+                    }
                 }
             }
         });
@@ -1171,6 +1232,9 @@
     }
 
     function updateFieldParent(fieldCfg) {
+        // Lưu lại parent cũ để biết khi nào field vừa được đưa vào container mới
+        var oldParentId = fieldCfg.parentId || null;
+
         var pid = findParentContainerFor(fieldCfg);
         fieldCfg.parentId = pid || null;
 
@@ -1211,6 +1275,52 @@
             // nếu bản thân fieldCfg cũng là container -> nâng luôn con của nó
             if (fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section") {
                 updateDescendantsZIndex(fieldCfg.id, childZ + 1);
+            }
+        } else if (parentCfg.type === "collapsible-section") {
+            // Field là con của collapsible section (giống groupbox/section)
+            var $parent = $('.ess-collapsible-section[data-id="' + parentCfg.id + '"]');
+            if ($parent.length && $dom.length) {
+                // Đưa DOM field vào content area của collapsible section
+                var $content = $parent.find(".ess-collapsible-content");
+                if ($content.length) {
+                    $dom.appendTo($content);
+
+                    // Chỉ convert từ canvas → relative NẾU field vừa được đưa vào section lần đầu
+                    if (oldParentId !== parentCfg.id) {
+                        var parentLeft = parentCfg.left || 0;
+                        var parentTop = parentCfg.top || 0;
+                        var headerHeight = 50; // Header height
+                        var contentPadding = parentCfg.contentPadding || 12;
+
+                        // Convert từ canvas absolute position sang relative với content
+                        var relativeLeft = fieldCfg.left - parentLeft - contentPadding;
+                        var relativeTop = fieldCfg.top - parentTop - headerHeight - contentPadding;
+
+                        // Đảm bảo không âm
+                        fieldCfg.left = Math.max(0, relativeLeft);
+                        fieldCfg.top = Math.max(0, relativeTop);
+                    }
+
+                    // Update DOM position (relative với content)
+                    $dom.css({
+                        position: "absolute",
+                        left: fieldCfg.left + "px",
+                        top: fieldCfg.top + "px"
+                    });
+                }
+
+                // ✅ FIX Z-INDEX: con phải nằm trên parent container
+                var pz = parseInt(parentCfg.zIndex || "0", 10);
+                if (isNaN(pz)) pz = 0;
+
+                var childZ = pz + 1;
+                fieldCfg.zIndex = childZ;
+                $dom.css("z-index", childZ);
+
+                // nếu bản thân fieldCfg cũng là container -> nâng luôn con của nó
+                if (fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section") {
+                    updateDescendantsZIndex(fieldCfg.id, childZ + 1);
+                }
             }
         } else if (parentCfg.type === "popup") {
             // Field là con của popup
@@ -1871,18 +1981,59 @@
             $field.find(".page-field-editor").append($editor);
         }
 
-        $canvas.append($field);
+        // ✅ FIX: Nếu field nằm trong collapsible-section, append vào content area
+        var $container = $canvas;
+        if (cfg.parentId) {
+            var parentCfg = (builder.controls || []).find(function(c) { return c.id === cfg.parentId; });
+            if (parentCfg && parentCfg.type === "collapsible-section") {
+                var $parent = $('.ess-collapsible-section[data-id="' + cfg.parentId + '"]');
+                if ($parent.length) {
+                    var $content = $parent.find(".ess-collapsible-content");
+                    if ($content.length) {
+                        $container = $content;
+                        // Position relative với content area
+                        $field.css({
+                            position: "absolute",
+                            left: cfg.left + "px",
+                            top: cfg.top + "px",
+                            width: cfg.width + "px",
+                            height: cfg.height + "px"
+                        });
+                    }
+                }
+            } else {
+                // Logic cũ cho popup/tabpage
+                if (parentCfg && parentCfg.type === "popup") {
+                    var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
+                    if ($popup.length) {
+                        $container = $popup.find(".popup-body").first();
+                        if (!$container.length) $container = $canvas;
+                    }
+                } else if (parentCfg && parentCfg.type === "tabpage") {
+                    var $tabpage = $('.canvas-tabpage[data-id="' + cfg.parentId + '"]');
+                    if ($tabpage.length) {
+                        $container = $tabpage.find(".tabpage-body").first();
+                        if (!$container.length) $container = $canvas;
+                    }
+                }
+            }
+        }
+        
+        if ($container === $canvas) {
+            // Position absolute với canvas (logic cũ)
+            $field.css({
+                left: cfg.left,
+                top: cfg.top,
+                width: cfg.width,
+                height: cfg.height
+            });
+        }
+        
+        $container.append($field);
 
         if (cfg.ftype === "image") {
             initEssImageDrop($field, cfg);
         }
-
-        $field.css({
-            left: cfg.left,
-            top: cfg.top,
-            width: cfg.width,
-            height: cfg.height
-        });
 
         // ESS: đồng bộ chiều cao input/memo/button với height field
         applyEssInnerHeight($field, cfg);
@@ -3185,11 +3336,50 @@
     }
 
     return {
-        addNew: function (ftype, uiMode) {
+        addNew: function (ftype, uiMode, parentId, dropPoint) {
             if (!ftype) ftype = "text";
             uiMode = uiMode || "core";
 
             var cfg = newConfig(ftype, uiMode);
+            
+            // ✅ Nếu có dropPoint, convert về tọa độ canvas và set vị trí
+            if (dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
+                if (window.builder && typeof builder.clientToCanvasPoint === "function") {
+                    var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
+                    cfg.left = canvasPoint.x;
+                    cfg.top = canvasPoint.y;
+                }
+            }
+            
+            // ✅ Nếu drop vào collapsible-section → gán parentId và điều chỉnh vị trí
+            if (parentId) {
+                var parentCfg = (builder.controls || []).find(function(c) { return c.id === parentId; });
+                if (parentCfg && parentCfg.type === "collapsible-section" && dropPoint) {
+                    cfg.parentId = parentId;
+                    
+                    // Tính vị trí relative với collapsible section content area
+                    var headerHeight = 50;
+                    var contentPadding = parentCfg.contentPadding || 12;
+                    
+                    if (window.builder && typeof builder.clientToCanvasPoint === "function") {
+                        var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
+                        var relativeX = canvasPoint.x - (parentCfg.left || 0) - contentPadding;
+                        var relativeY = canvasPoint.y - (parentCfg.top || 0) - headerHeight - contentPadding;
+                        
+                        cfg.left = Math.max(0, relativeX);
+                        cfg.top = Math.max(0, relativeY);
+                    }
+                } else if (parentCfg && parentCfg.type === "popup" && dropPoint) {
+                    // Popup handling (giữ logic cũ)
+                    cfg.parentId = parentId;
+                    var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
+                    var relativeX = canvasPoint.x - (parentCfg.left || 0);
+                    var relativeY = canvasPoint.y - (parentCfg.top || 0);
+                    cfg.left = Math.max(10, relativeX);
+                    cfg.top = Math.max(50, relativeY);
+                }
+            }
+            
             render(cfg);
             builder.registerControl(cfg);
 

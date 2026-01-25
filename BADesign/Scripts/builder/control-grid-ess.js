@@ -437,39 +437,78 @@ var controlGridEss = (function () {
                 .addClass("canvas-control ess-grid-control")
                 .attr("data-type", "ess-grid");
 
-            // ✅ Nếu có parentId (popup) → append vào popup-body
+            // ✅ Nếu có parentId (popup hoặc collapsible-section) → append vào đúng container
             if (cfg.parentId) {
-                var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
-                var $popupBody = $popup.find('.popup-body');
+                var parentCfg = (window.builder && builder.controls) ? 
+                    builder.controls.find(function(c) { return c.id === cfg.parentId; }) : null;
                 
-                if ($popupBody.length) {
-                    // Append vào popup-body (grid sẽ là child của popup)
-                    $popupBody.append($root);
+                if (parentCfg && parentCfg.type === "collapsible-section") {
+                    // Append vào collapsible section content area
+                    var $section = $('.ess-collapsible-section[data-id="' + cfg.parentId + '"]');
+                    var $content = $section.find('.ess-collapsible-content');
                     
-                    // Position relative với popup-body (không cần cộng popup offset)
-                    var finalLeft = cfg.left || 20;
-                    var finalTop = cfg.top || 50; // Tránh header
+                    if ($content.length) {
+                        $content.append($root);
+                        
+                        // Position relative với content area
+                        var finalLeft = cfg.left || 0;
+                        var finalTop = cfg.top || 0;
+                        
+                        // Set z-index
+                        var sectionZ = parseInt(parentCfg.zIndex || "0", 10);
+                        if (isNaN(sectionZ)) sectionZ = 0;
+                        $root.css("z-index", sectionZ + 1);
+                        
+                        $root.css({
+                            position: "absolute",
+                            left: finalLeft + "px",
+                            top: finalTop + "px",
+                            width: (cfg.width || 900) + "px"
+                        });
+                    } else if ($parent && $parent.length) {
+                        // Fallback: append vào canvas
+                        $parent.append($root);
+                        $root.css({
+                            position: "absolute",
+                            left: (cfg.left || 20) + "px",
+                            top: (cfg.top || 20) + "px",
+                            width: (cfg.width || 900) + "px"
+                        });
+                    }
+                } else {
+                    // Logic cũ cho popup
+                    var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
+                    var $popupBody = $popup.find('.popup-body');
                     
-                    // Set z-index cao hơn để hiển thị trên popup
-                    var popupZ = parseInt($popup.css("z-index") || "0", 10);
-                    if (isNaN(popupZ)) popupZ = 0;
-                    $root.css("z-index", popupZ + 10);
-                    
-                    $root.css({
-                        position: "absolute",
-                        left: finalLeft + "px",
-                        top: finalTop + "px",
-                        width: (cfg.width || 900) + "px"
-                    });
-                } else if ($parent && $parent.length) {
-                    // Fallback: append vào canvas
-                    $parent.append($root);
-            $root.css({
-                position: "absolute",
-                left: (cfg.left || 20) + "px",
-                top: (cfg.top || 20) + "px",
-                width: (cfg.width || 900) + "px"
-            });
+                    if ($popupBody.length) {
+                        // Append vào popup-body (grid sẽ là child của popup)
+                        $popupBody.append($root);
+                        
+                        // Position relative với popup-body (không cần cộng popup offset)
+                        var finalLeft = cfg.left || 20;
+                        var finalTop = cfg.top || 50; // Tránh header
+                        
+                        // Set z-index cao hơn để hiển thị trên popup
+                        var popupZ = parseInt($popup.css("z-index") || "0", 10);
+                        if (isNaN(popupZ)) popupZ = 0;
+                        $root.css("z-index", popupZ + 10);
+                        
+                        $root.css({
+                            position: "absolute",
+                            left: finalLeft + "px",
+                            top: finalTop + "px",
+                            width: (cfg.width || 900) + "px"
+                        });
+                    } else if ($parent && $parent.length) {
+                        // Fallback: append vào canvas
+                        $parent.append($root);
+                        $root.css({
+                            position: "absolute",
+                            left: (cfg.left || 20) + "px",
+                            top: (cfg.top || 20) + "px",
+                            width: (cfg.width || 900) + "px"
+                        });
+                    }
                 }
             } else if ($parent && $parent.length) {
                 // Không có parentId → append vào canvas
@@ -1732,43 +1771,43 @@ var controlGridEss = (function () {
             }
         }
 
-        // ✅ Nếu drop vào popup → gán parentId và điều chỉnh vị trí
+        // ✅ Nếu drop vào popup hoặc collapsible-section → gán parentId và điều chỉnh vị trí
         if (popupId && dropPoint) {
-            // Comment debug logs
-            // console.log("ESS Grid: Drop vào popup:", popupId, dropPoint);
             cfg.parentId = popupId;
             
-            // Tìm popup config để lấy tọa độ canvas
-            var popupCfg = (window.builder && builder.controls) ? 
-                builder.controls.find(function(c) { return c.id === popupId && c.type === "popup"; }) : null;
+            // Tìm parent config (có thể là popup hoặc collapsible-section)
+            var parentCfg = (window.builder && builder.controls) ? 
+                builder.controls.find(function(c) { return c.id === popupId; }) : null;
             
-            if (popupCfg && window.builder && typeof builder.clientToCanvasPoint === "function") {
+            if (parentCfg && window.builder && typeof builder.clientToCanvasPoint === "function") {
                 // Convert drop point về tọa độ canvas
                 var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
                 
-                // Tính vị trí relative với popup (cả popup và drop point đều là canvas coordinates)
-                var relativeX = canvasPoint.x - (popupCfg.left || 0);
-                var relativeY = canvasPoint.y - (popupCfg.top || 0);
-                
-                // Lưu relative position (relative với popup body, trừ header ~50px)
-                cfg.left = Math.max(10, relativeX);
-                cfg.top = Math.max(50, relativeY); // Tránh header
-                
-                // Đảm bảo nằm trong popup
-                var popupWidth = popupCfg.width || 800;
-                var popupHeight = popupCfg.height || 600;
-                if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
-                if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
-                
-                // Comment debug logs
-                // console.log("ESS Grid: Set parentId=" + cfg.parentId + ", left=" + cfg.left + ", top=" + cfg.top);
-            } else {
-                // Comment debug logs
-                // console.warn("ESS Grid: Popup config not found or builder not available:", popupId);
+                if (parentCfg.type === "popup") {
+                    // Tính vị trí relative với popup (cả popup và drop point đều là canvas coordinates)
+                    var relativeX = canvasPoint.x - (parentCfg.left || 0);
+                    var relativeY = canvasPoint.y - (parentCfg.top || 0);
+                    
+                    // Lưu relative position (relative với popup body, trừ header ~50px)
+                    cfg.left = Math.max(10, relativeX);
+                    cfg.top = Math.max(50, relativeY); // Tránh header
+                    
+                    // Đảm bảo nằm trong popup
+                    var popupWidth = parentCfg.width || 800;
+                    var popupHeight = parentCfg.height || 600;
+                    if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
+                    if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
+                } else if (parentCfg.type === "collapsible-section") {
+                    // Tính vị trí relative với collapsible section content area
+                    var headerHeight = 50;
+                    var contentPadding = parentCfg.contentPadding || 12;
+                    var relativeX = canvasPoint.x - (parentCfg.left || 0) - contentPadding;
+                    var relativeY = canvasPoint.y - (parentCfg.top || 0) - headerHeight - contentPadding;
+                    
+                    cfg.left = Math.max(0, relativeX);
+                    cfg.top = Math.max(0, relativeY);
+                }
             }
-        } else {
-            // Comment debug logs
-            // console.log("ESS Grid: Không drop vào popup, popupId=", popupId, "dropPoint=", dropPoint);
         }
 
         var $canvas = $("#canvas");

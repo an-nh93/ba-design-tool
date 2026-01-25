@@ -60,31 +60,42 @@
             }
         }
 
-        // ✅ Nếu drop vào popup → gán parentId và điều chỉnh vị trí
+        // ✅ Nếu drop vào popup hoặc collapsible-section → gán parentId và điều chỉnh vị trí
         if (popupId && dropPoint) {
             cfg.parentId = popupId;
             
-            // Tìm popup config để lấy tọa độ canvas
-            var popupCfg = (builder.controls || []).find(function(c) { return c.id === popupId && c.type === "popup"; });
-            if (popupCfg) {
+            // Check xem là popup hay collapsible-section
+            var parentCfg = (builder.controls || []).find(function(c) { return c.id === popupId; });
+            if (parentCfg) {
                 // Convert drop point về tọa độ canvas
                 var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
                 
-                // Tính vị trí relative với popup (cả popup và drop point đều là canvas coordinates)
-                var relativeX = canvasPoint.x - (popupCfg.left || 0);
-                var relativeY = canvasPoint.y - (popupCfg.top || 0);
+                if (parentCfg.type === "popup") {
+                    // Tính vị trí relative với popup (cả popup và drop point đều là canvas coordinates)
+                    var relativeX = canvasPoint.x - (parentCfg.left || 0);
+                    var relativeY = canvasPoint.y - (parentCfg.top || 0);
+                    
+                    // Lưu relative position (relative với popup body, trừ header ~50px)
+                    cfg.left = Math.max(10, relativeX);
+                    cfg.top = Math.max(50, relativeY); // Tránh header
+                    
+                    // Đảm bảo nằm trong popup
+                    var popupWidth = parentCfg.width || 800;
+                    var popupHeight = parentCfg.height || 600;
+                    if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
+                    if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
+                } else if (parentCfg.type === "collapsible-section") {
+                    // Tính vị trí relative với collapsible section content area
+                    var headerHeight = 50;
+                    var contentPadding = parentCfg.contentPadding || 12;
+                    var relativeX = canvasPoint.x - (parentCfg.left || 0) - contentPadding;
+                    var relativeY = canvasPoint.y - (parentCfg.top || 0) - headerHeight - contentPadding;
+                    
+                    cfg.left = Math.max(0, relativeX);
+                    cfg.top = Math.max(0, relativeY);
+                }
                 
-                // Lưu relative position (relative với popup body, trừ header ~50px)
-                cfg.left = Math.max(10, relativeX);
-                cfg.top = Math.max(50, relativeY); // Tránh header
-                
-                // Đảm bảo nằm trong popup
-                var popupWidth = popupCfg.width || 800;
-                var popupHeight = popupCfg.height || 600;
-                if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
-                if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
-                
-                console.log("Grid: Set parentId=" + cfg.parentId + ", left=" + cfg.left + ", top=" + cfg.top);
+                console.log("Grid: Set parentId=" + cfg.parentId + ", type=" + parentCfg.type + ", left=" + cfg.left + ", top=" + cfg.top);
             }
         }
 
@@ -328,56 +339,87 @@
             cfg.width = w;
         }
 
-        // ✅ Nếu có parentId (popup) → append vào popup-body, không phải canvas
+        // ✅ Nếu có parentId (popup hoặc collapsible-section) → append vào đúng container
         var $root;
         if (cfg.parentId) {
-            var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
-            var $popupBody = $popup.find('.popup-body');
+            var parentCfg = (builder.controls || []).find(function(c) { return c.id === cfg.parentId; });
             
-            // Debug: kiểm tra xem có tìm thấy popup và popup-body không
-            if (!$popup.length) {
-                console.warn("Popup not found:", cfg.parentId);
-            }
-            if (!$popupBody.length) {
-                console.warn("Popup body not found for popup:", cfg.parentId);
-            }
-            
-            if ($popupBody.length) {
-                // Append vào popup-body
-                $popupBody.append(html);
-                $root = $popupBody.find(".canvas-control[data-id='" + cfg.id + "']");
+            if (parentCfg && parentCfg.type === "collapsible-section") {
+                // Append vào collapsible section content area
+                var $section = $('.ess-collapsible-section[data-id="' + cfg.parentId + '"]');
+                var $content = $section.find('.ess-collapsible-content');
                 
-                if (!$root.length) {
-                    // Fallback: tìm trong toàn bộ DOM
+                if ($content.length) {
+                    $content.append(html);
+                    $root = $content.find(".canvas-control[data-id='" + cfg.id + "']");
+                    
+                    // Position relative với content area
+                    var finalLeft = cfg.left != null ? cfg.left : 0;
+                    var finalTop = cfg.top != null ? cfg.top : 0;
+                    
+                    // Set z-index
+                    var sectionZ = parseInt(parentCfg.zIndex || "0", 10);
+                    if (isNaN(sectionZ)) sectionZ = 0;
+                    $root.css("z-index", sectionZ + 1);
+                    
+                    $root.css({
+                        position: "absolute",
+                        left: finalLeft + "px",
+                        top: finalTop + "px",
+                        width: cfg.width + "px"
+                    });
+                } else {
+                    // Fallback: append vào canvas
+                    $("#canvas").append(html);
                     $root = $(".canvas-control[data-id='" + cfg.id + "']");
+                    $root.css({
+                        position: "absolute",
+                        left: cfg.left || 10,
+                        top: cfg.top || 10,
+                        width: cfg.width + "px"
+                    });
                 }
-                
-                // Position relative với popup-body (không cần cộng popup offset)
-                var finalLeft = cfg.left != null ? cfg.left : 10;
-                var finalTop = cfg.top != null ? cfg.top : 50; // Tránh header
-                
-                // Set z-index cao hơn để hiển thị trên popup
-                var popupZ = parseInt($popup.css("z-index") || "0", 10);
-                if (isNaN(popupZ)) popupZ = 0;
-                $root.css("z-index", popupZ + 10);
-                
-        $root.css({
-            position: "absolute",
-                    left: finalLeft + "px",
-                    top: finalTop + "px",
-            width: cfg.width + "px"
-        });
             } else {
-                // Fallback: append vào canvas
-                console.warn("Fallback: appending to canvas instead of popup-body");
-                $("#canvas").append(html);
-                $root = $(".canvas-control[data-id='" + cfg.id + "']");
-                $root.css({
-                    position: "absolute",
-                    left: (cfg.left != null ? cfg.left : 10) + "px",
-                    top: (cfg.top != null ? cfg.top : 10) + "px",
-                    width: cfg.width + "px"
-                });
+                // Logic cũ cho popup
+                var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
+                var $popupBody = $popup.find('.popup-body');
+                
+                if ($popupBody.length) {
+                    // Append vào popup-body
+                    $popupBody.append(html);
+                    $root = $popupBody.find(".canvas-control[data-id='" + cfg.id + "']");
+                    
+                    if (!$root.length) {
+                        // Fallback: tìm trong toàn bộ DOM
+                        $root = $(".canvas-control[data-id='" + cfg.id + "']");
+                    }
+                    
+                    // Position relative với popup-body (không cần cộng popup offset)
+                    var finalLeft = cfg.left != null ? cfg.left : 10;
+                    var finalTop = cfg.top != null ? cfg.top : 50; // Tránh header
+                    
+                    // Set z-index cao hơn để hiển thị trên popup
+                    var popupZ = parseInt($popup.css("z-index") || "0", 10);
+                    if (isNaN(popupZ)) popupZ = 0;
+                    $root.css("z-index", popupZ + 10);
+                    
+                    $root.css({
+                        position: "absolute",
+                        left: finalLeft + "px",
+                        top: finalTop + "px",
+                        width: cfg.width + "px"
+                    });
+                } else {
+                    // Fallback: append vào canvas
+                    $("#canvas").append(html);
+                    $root = $(".canvas-control[data-id='" + cfg.id + "']");
+                    $root.css({
+                        position: "absolute",
+                        left: (cfg.left != null ? cfg.left : 10) + "px",
+                        top: (cfg.top != null ? cfg.top : 10) + "px",
+                        width: cfg.width + "px"
+                    });
+                }
             }
         } else {
             // Không có parentId → append vào canvas
@@ -415,15 +457,12 @@
                         builder.moveGroupControls(cfg.groupId, event.dx, event.dy);
                     }
 
+                    if (window.builder && typeof builder.updateSelectionSizeHint === "function") {
+                        builder.updateSelectionSizeHint();
+                    }
                     builder.refreshJson();
                 }
-            },
-            modifiers: [
-                interact.modifiers.restrictRect({
-                    restriction: document.getElementById("canvas"),
-                    endOnly: true
-                })
-            ]
+            }
         });
 
 

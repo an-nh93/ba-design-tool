@@ -46,6 +46,10 @@ var builder = {
 
     isGridColumnResizing: false,
 
+    // Canvas logical size (px) - dùng cho control dưới toolbar
+    canvasWidth: 1600,
+    canvasHeight: 900,
+
     // Ưu tiên dán control nếu vừa copy control trong app (TTL = 20s)
     lastCopyKind: null,         // 'control' | null
     lastCopyAt: 0,
@@ -906,6 +910,8 @@ var builder = {
                 controlTabPage.renderExisting(cfg);
             } else if (cfg.type === "toolbar" && window.controlToolbar && typeof controlToolbar.renderExisting === "function") {
                 controlToolbar.renderExisting(cfg);
+            } else if (cfg.type === "collapsible-section" && window.controlCollapsibleSection && typeof controlCollapsibleSection.renderExisting === "function") {
+                controlCollapsibleSection.renderExisting(cfg);
             }
             self.controls.push(cfg);
         });
@@ -1510,29 +1516,51 @@ var builder = {
             var st = self._dragSelectionStart[id];
             if (!cfg || !st) return;
 
-            cfg.left = st.left + totalDx;
-            cfg.top = st.top + totalDy;
+            // ✅ FIX: Nếu field nằm trong collapsible-section, position là relative với content
+            var isInCollapsibleSection = false;
+            var parentCfg = null;
+            if (cfg.parentId) {
+                parentCfg = self.getControlConfig(cfg.parentId);
+                if (parentCfg && parentCfg.type === "collapsible-section") {
+                    isInCollapsibleSection = true;
+                }
+            }
 
-            if (self.snapEnabled) {
-                cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
-                cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
+            if (isInCollapsibleSection && parentCfg) {
+                // Position relative với content area
+                cfg.left = st.left + totalDx;
+                cfg.top = st.top + totalDy;
+                
+                // Đảm bảo không âm
+                cfg.left = Math.max(0, cfg.left);
+                cfg.top = Math.max(0, cfg.top);
+            } else {
+                // Position absolute với canvas (logic cũ)
+                cfg.left = st.left + totalDx;
+                cfg.top = st.top + totalDy;
+
+                if (self.snapEnabled) {
+                    cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
+                    cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
+                }
             }
 
             // ✅ Cập nhật DOM cho tất cả loại controls
             var $el = $('[data-id="' + id + '"], #' + id);
             if ($el.length) {
                 $el.css({
-                left: cfg.left,
-                top: cfg.top
-            });
+                    left: cfg.left + "px",
+                    top: cfg.top + "px"
+                });
             }
 
-            // ✅ Di chuyển descendants nếu là field container (groupbox, section)
-            if (cfg.type === "field" &&
-                (cfg.ftype === "groupbox" || cfg.ftype === "section") &&
-                window.controlField &&
-                typeof controlField.moveDescendants === "function") {
-                controlField.moveDescendants(cfg.id, dx, dy, false);
+            // ✅ Di chuyển descendants nếu là field container (groupbox, section, collapsible-section)
+            if ((cfg.type === "field" &&
+                (cfg.ftype === "groupbox" || cfg.ftype === "section")) ||
+                cfg.type === "collapsible-section") {
+                if (window.controlField && typeof controlField.moveDescendants === "function") {
+                    controlField.moveDescendants(cfg.id, dx, dy, false);
+                }
             }
         });
 
@@ -2424,6 +2452,8 @@ var builder = {
 
         } else if (cfg.type === "field" && window.controlField && typeof controlField.renderExisting === "function") {
             controlField.renderExisting(cfg);
+        } else if (cfg.type === "collapsible-section" && window.controlCollapsibleSection && typeof controlCollapsibleSection.renderExisting === "function") {
+            controlCollapsibleSection.renderExisting(cfg);
         }
     },
 
@@ -2695,62 +2725,27 @@ var builder = {
             }
         }
         
-        // ✅ GridView menu: Xóa tất cả menu items cũ liên quan đến popup
-        // Xóa từ cuối lên để tránh ảnh hưởng đến index
-        var $allItems = $menu.find("ul li");
-        $allItems.each(function() {
+        // ✅ GridView menu: Xóa tất cả menu items cũ liên quan đến di chuyển Grid
+        // (các item có data-cmd bắt đầu bằng move-grid-)
+        $menu.find("li").each(function () {
             var $item = $(this);
-            if ($item.attr("data-cmd") && ($item.attr("data-cmd").indexOf("move-to-popup-") === 0 || $item.attr("data-cmd") === "move-out-popup")) {
+            var cmd = $item.attr("data-cmd") || "";
+            if (cmd.indexOf("move-grid-") === 0) {
                 $item.remove();
             }
-            if ($item.hasClass("cm-label")) {
+            if ($item.hasClass("cm-label-grid")) {
                 $item.remove();
             }
         });
-        // Xóa separator cuối cùng nếu không có item nào sau nó
-        var $lastSep = $menu.find("ul li.cm-sep").last();
-        if ($lastSep.length) {
-            var hasItemsAfter = false;
-            $lastSep.nextAll().each(function() {
-                if (!$(this).hasClass("cm-sep")) {
-                    hasItemsAfter = true;
-                    return false;
-                }
-            });
-            if (!hasItemsAfter) {
-                $lastSep.remove();
-            }
-        }
-        
+
         if (isGrid) {
-            var $moveToPopupLi = $('<li class="cm-sep"></li>');
-            $menu.find("ul").append($moveToPopupLi);
-            
-            if (isInPopup) {
-                // Đang trong popup → hiện menu "Di chuyển khỏi popup"
-                var $moveOut = $('<li data-cmd="move-out-popup">📤 Di chuyển khỏi popup</li>');
-                $menu.find("ul").append($moveOut);
-            } else {
-                // Không trong popup → hiện danh sách popup để chọn
-                var $moveToLabel = $('<li class="cm-label" style="padding: 4px 12px; font-weight: 600; color: #0078d4; font-size: 11px; cursor: default;">📥 Di chuyển vào popup:</li>');
-                $menu.find("ul").append($moveToLabel);
-                
-                var $popups = $(".popup-design");
-                if ($popups.length > 0) {
-                    $popups.each(function() {
-                        var $popup = $(this);
-                        var popupId = $popup.attr("data-id");
-                        var popupCfg = builder.getControlConfig(popupId);
-                        var popupTitle = (popupCfg && popupCfg.headerText) ? popupCfg.headerText : (popupCfg && popupCfg.titleText) ? popupCfg.titleText : "Popup " + popupId;
-                        
-                        var $popupItem = $('<li data-cmd="move-to-popup-' + popupId + '" style="padding-left: 24px;">  ' + popupTitle + '</li>');
-                        $menu.find("ul").append($popupItem);
-                    });
-                } else {
-                    var $noPopup = $('<li class="cm-disabled" style="padding-left: 24px;">(Không có popup)</li>');
-                    $menu.find("ul").append($noPopup);
-                }
-            }
+            // Thêm separator riêng cho menu Grid
+            var $sep = $('<li class="cm-sep" data-cmd="move-grid-sep"></li>');
+            $menu.find("ul").append($sep);
+
+            // Menu chung: mở dialog chọn Popup / ESS Collapsible Section
+            var $moveItem = $('<li data-cmd="move-grid-to-container">📥 Đưa vào Popup / ESS Section...</li>');
+            $menu.find("ul").append($moveItem);
         }
 
         $menu.css({
@@ -2803,15 +2798,177 @@ var builder = {
                 this.ungroupSelection();
                 break;
             default:
-                // ✅ Xử lý menu GridView: move-to-popup-{popupId} hoặc move-out-popup
-                if (cmd && cmd.indexOf("move-to-popup-") === 0) {
-                    var popupId = cmd.substring("move-to-popup-".length);
-                    this.moveGridToPopup(popupId);
-                } else if (cmd === "move-out-popup") {
-                    this.moveGridOutOfPopup();
+                // ✅ Xử lý menu GridView: mở dialog chọn container
+                if (cmd === "move-grid-to-container") {
+                    this.showMoveGridToContainerDialog();
                 }
                 break;
         }
+    },
+
+    // ✅ Mở dialog chọn Popup / ESS Collapsible Section để chứa Grid
+    showMoveGridToContainerDialog: function () {
+        if (!this.selectedControlId) return;
+
+        var cfg = this.getControlConfig(this.selectedControlId);
+        if (!cfg || (cfg.type !== "grid" && cfg.type !== "ess-grid")) {
+            this.showToast("Chỉ áp dụng cho GridView", "warning");
+            return;
+        }
+
+        var popups = (this.controls || []).filter(function (c) { return c && c.type === "popup"; });
+        var sections = (this.controls || []).filter(function (c) { return c && c.type === "collapsible-section"; });
+
+        if (!popups.length && !sections.length) {
+            this.showToast("Không tìm thấy Popup hoặc ESS Collapsible Section nào.", "warning");
+            return;
+        }
+
+        var $overlay = $('<div class="ub-modal-backdrop"></div>');
+        var html =
+            '<div class="ub-modal" style="min-width: 360px;">' +
+            '  <div class="ub-modal-header">Đưa GridView vào Popup / ESS Section</div>' +
+            '  <div class="ub-modal-body">' +
+            '    <div style="margin-bottom:8px; font-size:12px;">Chọn container muốn chứa GridView "' + (cfg.title || cfg.caption || cfg.id) + '"</div>' +
+            '    <select class="ub-input-container" style="width:100%; padding:4px 6px; margin-bottom:8px; box-sizing:border-box;">' +
+            '    </select>' +
+            '  </div>' +
+            '  <div class="ub-modal-footer">' +
+            '    <button type="button" class="ub-btn ub-btn-secondary ub-btn-cancel">Cancel</button>' +
+            '    <button type="button" class="ub-btn ub-btn-primary ub-btn-ok">OK</button>' +
+            '  </div>' +
+            '</div>';
+
+        var $dlg = $(html);
+        $overlay.append($dlg);
+        $("body").append($overlay);
+
+        var $select = $dlg.find(".ub-input-container");
+
+        // Thêm option cho Popup
+        if (popups.length) {
+            $select.append('<optgroup label="Popup"></optgroup>');
+            var $popupGroup = $select.find('optgroup[label="Popup"]');
+            popups.forEach(function (p) {
+                var text = p.headerText || p.titleText || ("Popup " + p.id);
+                $popupGroup.append('<option value="popup:' + p.id + '">' + text + '</option>');
+            });
+        }
+
+        // Thêm option cho ESS Collapsible Section
+        if (sections.length) {
+            $select.append('<optgroup label="ESS Collapsible Section"></optgroup>');
+            var $secGroup = $select.find('optgroup[label="ESS Collapsible Section"]');
+            sections.forEach(function (s) {
+                var text = s.caption || s.title || ("Section " + s.id);
+                $secGroup.append('<option value="section:' + s.id + '">' + text + '</option>');
+            });
+        }
+
+        if ($select.find("option").length) {
+            $select.prop("selectedIndex", 0);
+        }
+
+        var self = this;
+
+        function closeDialog() {
+            $(document).off("keydown.ubMoveGridDlg");
+            $overlay.remove();
+        }
+
+        function handleOk() {
+            var val = $select.val() || "";
+            if (!val) {
+                self.showToast("Vui lòng chọn container.", "warning");
+                return;
+            }
+
+            closeDialog();
+
+            var parts = val.split(":");
+            var kind = parts[0];
+            var id = parts[1];
+            self.moveGridToContainer(id, kind);
+        }
+
+        $dlg.find(".ub-btn-ok").on("click", handleOk);
+        $dlg.find(".ub-btn-cancel").on("click", function () {
+            closeDialog();
+        });
+
+        $(document).on("keydown.ubMoveGridDlg", function (e) {
+            if (e.key === "Escape") closeDialog();
+            else if (e.key === "Enter") handleOk();
+        });
+    },
+
+    // ✅ Di chuyển GridView vào container (Popup hoặc ESS Collapsible Section)
+    moveGridToContainer: function (containerId, kind) {
+        if (!this.selectedControlId) return;
+
+        var cfg = this.getControlConfig(this.selectedControlId);
+        if (!cfg || (cfg.type !== "grid" && cfg.type !== "ess-grid")) {
+            this.showToast("Chỉ áp dụng cho GridView", "warning");
+            return;
+        }
+
+        var targetCfg = this.getControlConfig(containerId);
+        if (!targetCfg || (targetCfg.type !== "popup" && targetCfg.type !== "collapsible-section")) {
+            this.showToast("Container không hợp lệ.", "error");
+            return;
+        }
+
+        // Nếu là popup → dùng logic cũ
+        if (targetCfg.type === "popup") {
+            this.moveGridToPopup(containerId);
+            return;
+        }
+
+        // Từ đây là ESS Collapsible Section
+        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
+        if ($oldGrid.length) {
+            $oldGrid.remove();
+        }
+
+        var oldParentId = cfg.parentId || null;
+        var absLeft = cfg.left || 0;
+        var absTop = cfg.top || 0;
+
+        // Nếu đang ở trong popup khác hoặc section khác → convert về absolute canvas
+        if (oldParentId) {
+            var oldParentCfg = this.getControlConfig(oldParentId);
+            if (oldParentCfg) {
+                if (oldParentCfg.type === "popup") {
+                    absLeft = (cfg.left || 0) + (oldParentCfg.left || 0);
+                    absTop = (cfg.top || 0) + (oldParentCfg.top || 0);
+                } else if (oldParentCfg.type === "collapsible-section") {
+                    var headerH = 50;
+                    var pad = oldParentCfg.contentPadding || 12;
+                    absLeft = (cfg.left || 0) + (oldParentCfg.left || 0) + pad;
+                    absTop = (cfg.top || 0) + (oldParentCfg.top || 0) + headerH + pad;
+                }
+            }
+        }
+
+        // Tính vị trí relative với ESS Collapsible Section mới
+        var headerHeight = 50;
+        var padding = targetCfg.contentPadding || 12;
+
+        cfg.parentId = containerId;
+        cfg.left = Math.max(0, absLeft - (targetCfg.left || 0) - padding);
+        cfg.top = Math.max(0, absTop - (targetCfg.top || 0) - headerHeight - padding);
+
+        // Render lại grid trong section
+        if (cfg.type === "grid" && window.controlGrid && typeof controlGrid.renderExisting === "function") {
+            controlGrid.renderExisting(cfg);
+        } else if (cfg.type === "ess-grid" && window.controlGridEss && typeof controlGridEss.renderExisting === "function") {
+            controlGridEss.renderExisting(cfg);
+        }
+
+        this.selectedControlId = cfg.id;
+        this.selectedControlType = cfg.type;
+        this.refreshJson();
+        this.showToast("Đã đưa GridView vào ESS Collapsible Section: " + (targetCfg.caption || targetCfg.title || targetCfg.id), "success");
     },
 
     // ✅ Di chuyển GridView vào popup
@@ -3006,7 +3163,119 @@ var builder = {
             });
         }
 
+        // ✅ Khởi tạo control chỉnh kích thước canvas (luôn hiển thị dưới toolbar)
+        self.initCanvasSizeControls();
+
         // ✅ Snap checkbox đã được loại bỏ khỏi toolbar (không cần thiết cho design tool)
+    },
+
+    // Tự động cập nhật canvasWidth / canvasHeight & ô W/H dưới toolbar
+    // dựa trên nội dung thực tế (scrollWidth / scrollHeight) của #canvas.
+    // Chỉ cập nhật giá trị HIỂN THỊ, KHÔNG động vào CSS min-width/min-height
+    // để tránh sinh thêm scrollbar thứ 2.
+    updateCanvasSizeFromContent: function () {
+        var $canvas = $("#canvas");
+        if (!$canvas.length) return;
+
+        // Tính toán kích thước thực tế dựa trên tất cả controls trên canvas
+        var maxRight = 0;
+        var maxBottom = 0;
+        var padding = 50; // Padding để không bị sát mép
+
+        // Tìm tất cả controls trên canvas (bao gồm cả controls trong popup)
+        var allControls = $canvas.find(".canvas-control, .page-field, .popup-field, .popup-design, .canvas-toolbar, .canvas-tabpage, .ess-grid-control");
+        
+        var canvasOffset = $canvas.offset();
+        
+        allControls.each(function() {
+            var $el = $(this);
+            var elOffset = $el.offset();
+            
+            // Tính vị trí absolute trên canvas (không phải relative)
+            var left = (elOffset.left - canvasOffset.left) || 0;
+            var top = (elOffset.top - canvasOffset.top) || 0;
+            var width = $el.outerWidth() || 0;
+            var height = $el.outerHeight() || 0;
+            
+            var right = left + width;
+            var bottom = top + height;
+            
+            if (right > maxRight) maxRight = right;
+            if (bottom > maxBottom) maxBottom = bottom;
+        });
+
+        // Đảm bảo không nhỏ hơn giá trị mặc định
+        var minW = Math.max(maxRight + padding, 1600);
+        var minH = Math.max(maxBottom + padding, 900);
+
+        // Cập nhật min-width và min-height của canvas để scrollbar tự động mở rộng
+        $canvas.css({
+            "min-width": minW + "px",
+            "min-height": minH + "px"
+        });
+
+        // Cập nhật giá trị hiển thị trong input (nếu có)
+        var $wInput = $("#canvasWidthInput");
+        var $hInput = $("#canvasHeightInput");
+        if ($wInput.length) {
+            this.canvasWidth = minW;
+            $wInput.val(minW);
+        }
+        if ($hInput.length) {
+            this.canvasHeight = minH;
+            $hInput.val(minH);
+        }
+
+        return true;
+    },
+
+    // Khởi tạo và bind sự kiện cho input canvasWidthInput / canvasHeightInput
+    initCanvasSizeControls: function () {
+        var self = this;
+        var $w = $("#canvasWidthInput");
+        var $h = $("#canvasHeightInput");
+        if (!$w.length || !$h.length) return;
+
+        var $canvas = $("#canvas");
+        if (!$canvas.length) return;
+
+        // Lấy kích thước hiện tại của canvas (ưu tiên scrollWidth/scrollHeight để không nhỏ hơn nội dung)
+        var currentW = $canvas[0].scrollWidth || $canvas.outerWidth() || 1600;
+        var currentH = $canvas[0].scrollHeight || $canvas.outerHeight() || 900;
+
+        // Nếu đã từng lưu trong builder.canvasWidth/Height thì ưu tiên dùng
+        if (self.canvasWidth && self.canvasWidth > 0) currentW = self.canvasWidth;
+        if (self.canvasHeight && self.canvasHeight > 0) currentH = self.canvasHeight;
+
+        self.canvasWidth = currentW;
+        self.canvasHeight = currentH;
+
+        $w.val(currentW);
+        $h.val(currentH);
+
+        // Áp dụng dưới dạng min-width/min-height để không ép control, chỉ mở rộng vùng scroll
+        $canvas.css({
+            "min-width": currentW + "px",
+            "min-height": currentH + "px"
+        });
+
+        $w.off("change.canvasSize blur.canvasSize").on("change.canvasSize blur.canvasSize", function () {
+            var v = parseInt(this.value || "0", 10);
+            if (isNaN(v) || v < 800) v = 800;
+            if (v > 10000) v = 10000;
+            self.canvasWidth = v;
+            $(this).val(v);
+            $canvas.css("min-width", v + "px");
+        });
+
+        $h.off("change.canvasSize blur.canvasSize").on("change.canvasSize blur.canvasSize", function () {
+            var v = parseInt(this.value || "0", 10);
+            if (isNaN(v) || v < 600) v = 600;
+            if (v > 10000) v = 10000;
+            self.canvasHeight = v;
+            $(this).val(v);
+            $canvas.css("min-height", v + "px");
+        });
     },
 
     // ========= Common helpers =========
@@ -3199,6 +3468,7 @@ var builder = {
             controlPopup.clearSelection();
         }
 
+        // Reset panel về thông báo mặc định
         $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
 
         // Không còn selectedControlId nên highlightOutlineSelection sẽ không tô gì nữa
@@ -3217,6 +3487,7 @@ var builder = {
     },
 
     // ========= Save dialog / Confirm / Toast (giữ nguyên logic cũ) =========
+
     showSaveDialog: function (options) {
         var title = options.title || "Save";
         var nameLabel = options.nameLabel || "Name";
@@ -3781,13 +4052,41 @@ var builder = {
             console.log("Builder.addControl: No dropPoint or missing coordinates");
         }
 
+        // ✅ Detect drop vào collapsible-section (giống groupbox/section)
+        // Detect cho tất cả control types (field, grid, ess-grid, toolbar, v.v.)
+        var collapsibleSectionId = null;
+        if (type !== "collapsible-section" && dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
+            var $sections = $(".ess-collapsible-section");
+            $sections.each(function() {
+                var $section = $(this);
+                var sid = $section.attr("data-id");
+                if (!sid) return;
+                
+                var $content = $section.find(".ess-collapsible-content");
+                if (!$content.length || !$content.is(":visible")) return; // Chỉ check nếu expanded
+                
+                var contentRect = $content[0].getBoundingClientRect();
+                var inside = (dropPoint.clientX >= contentRect.left && 
+                             dropPoint.clientX <= contentRect.right && 
+                             dropPoint.clientY >= contentRect.top && 
+                             dropPoint.clientY <= contentRect.bottom);
+                
+                if (inside) {
+                    collapsibleSectionId = sid;
+                    return false; // Break
+                }
+            });
+        }
+
         if (type === "grid") {
-            controlGrid.addNew(popupId, dropPoint);
+            // Pass collapsible section ID nếu drop vào đó (ưu tiên hơn popup)
+            controlGrid.addNew(collapsibleSectionId || popupId, dropPoint);
 
         } else if (type === "ess-grid") {
             // NEW: ESS HTML grid
             if (window.controlGridEss && typeof controlGridEss.addNew === "function") {
-                controlGridEss.addNew(uiMode, popupId, dropPoint);
+                // Pass collapsible section ID nếu drop vào đó (ưu tiên hơn popup)
+                controlGridEss.addNew(uiMode, collapsibleSectionId || popupId, dropPoint);
             }
 
         } else if (type === "popup") {
@@ -3797,13 +4096,19 @@ var builder = {
             var ftype = type.substring("field-".length);
 
             if (window.controlField && typeof controlField.addNew === "function") {
-                controlField.addNew(ftype, uiMode, popupId, dropPoint);
+                // Pass collapsible section ID nếu drop vào đó
+                controlField.addNew(ftype, uiMode, popupId || collapsibleSectionId, dropPoint);
             }
 
         } else if (type === "toolbar") {
+            // Toolbar có thể drop vào collapsible section, nhưng cần xử lý riêng
             controlToolbar.addNew(dropPoint);
         } else if (type === "tabpage") {
             controlTabPage.addNew();
+        } else if (type === "collapsible-section") {
+            if (window.controlCollapsibleSection && typeof controlCollapsibleSection.addNew === "function") {
+                controlCollapsibleSection.addNew(dropPoint);
+            }
         }
 
         this.refreshJson();
@@ -3821,6 +4126,9 @@ var builder = {
     refreshJson: function (opt) {
         var json = JSON.stringify(this.controls, null, 4);
         $("#txtJson").val(json);
+
+        // Sau khi có thay đổi layout, cập nhật lại Canvas W/H theo nội dung thực tế
+        this.updateCanvasSizeFromContent();
 
         if (!opt || !opt.skipHistory) {
             this.pushHistory();

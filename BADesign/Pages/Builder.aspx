@@ -40,12 +40,17 @@
     <script src="../Scripts/builder/control-toolbar.js"></script>
     <script src="../Scripts/builder/control-tabpage.js"></script>
     <script src="../Scripts/builder/control-grid-ess.js"></script>
+    <script src="../Scripts/builder/control-collapsible-section.js"></script>
     <style>
 /* ========== GLOBAL ========== */
+html, body {
+    height: 100%;
+}
 body {
     margin: 0;
-    padding-bottom: 56px; /* tránh footer che nội dung */
+    padding: 0; /* tránh làm tăng chiều cao trang gây scrollbar ngoài */
     font-family: Segoe UI, Tahoma, Arial, sans-serif;
+    overflow: hidden; /* Chỉ cho phép khu vực builder scroll, không scroll cả page */
 }
 
 /* ========== HEADER ========== */
@@ -313,19 +318,21 @@ body {
     position: relative;
     flex: 1 1 auto;
     background: #ffffff;
-    overflow: hidden;
+    /* QUAN TRỌNG: Cho phép scroll khi canvas lớn hơn vùng nhìn thấy */
+    overflow: auto;
 }
 
 /* Canvas thật (id="canvas") */
 .canvas-area {
-    position: absolute;
-    left: 20px;
-    top: 20px;
-    right: 0;
-    bottom: 0;
+    position: relative;
+    margin: 20px 0 0 20px; /* chừa chỗ cho thước đo */
     padding: 8px;
-    overflow: auto;
     background: #ffffff;
+    /* Tự động mở rộng theo nội dung thực tế (không fix kích thước cố định) */
+    display: inline-block;
+    min-width: 1600px; /* Giá trị mặc định, sẽ được JS cập nhật */
+    min-height: 900px; /* Giá trị mặc định, sẽ được JS cập nhật */
+    box-sizing: border-box;
 }
 
 /* Rulers */
@@ -1804,6 +1811,33 @@ select.ess-action-input {
 }
 .canvas-bottom-toolbar .zoom-select option { color: #000; }
 
+/* Canvas size controls in bottom toolbar */
+.canvas-bottom-toolbar .canvas-size-group {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    margin-left: 4px;
+}
+.canvas-bottom-toolbar .canvas-size-group label {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+.canvas-bottom-toolbar .canvas-size-input {
+    width: 70px;
+    padding: 2px 4px;
+    border-radius: 6px;
+    border: none;
+    outline: none;
+    font-size: 11px;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+}
+.canvas-bottom-toolbar .canvas-size-input:focus {
+    outline: 1px solid rgba(255,255,255,0.6);
+}
+
 /* Context menu chuột phải */
 .builder-context-menu {
     position: absolute;
@@ -2058,6 +2092,7 @@ body.ub-pan-active {
                         <div class="tool-item" data-control="field-tag"      data-ui="ess">Tag</div>
                         <div class="tool-item" data-control="field-progress" data-ui="ess">Progress</div>
                         <div class="tool-item" data-control="field-image"    data-ui="ess">Image</div>
+                        <div class="tool-item tool-ess" data-control="collapsible-section" data-ui="ess">ESS Collapsible Section</div>
                     </div>
                 </div>
 
@@ -2186,6 +2221,19 @@ body.ub-pan-active {
             <!-- Duplicate / Delete -->
             <button type="button" title="Duplicate (Ctrl+D)" data-cmd="duplicate">⧉</button>
             <button type="button" title="Delete (Del)" data-cmd="delete">⌫</button>
+
+            <span class="tb-sep"></span>
+
+            <!-- Canvas size -->
+            <div class="canvas-size-group" title="Canvas size (px)">
+                <span>Canvas</span>
+                <label>W
+                    <input type="number" id="canvasWidthInput" class="canvas-size-input" min="800" max="10000" />
+                </label>
+                <label>H
+                    <input type="number" id="canvasHeightInput" class="canvas-size-input" min="600" max="10000" />
+                </label>
+            </div>
         </div>
 
         <!-- Footer buttons -->
