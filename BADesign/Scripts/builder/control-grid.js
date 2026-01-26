@@ -1,4 +1,4 @@
-﻿var controlGrid = {
+var controlGrid = {
 
     // Tạo grid mới khi kéo từ toolbox
     addNew: function (popupId, dropPoint) {
@@ -362,15 +362,14 @@
                     if (isNaN(sectionZ)) sectionZ = 0;
                     $root.css("z-index", sectionZ + 1);
                     
-                    $root.css({
-                        position: "absolute",
+        $root.css({
+            position: "absolute",
                         left: finalLeft + "px",
                         top: finalTop + "px",
-                        width: cfg.width + "px"
-                    });
+            width: cfg.width + "px"
+        });
                 } else {
-                    // Fallback: append vào canvas
-                    $("#canvas").append(html);
+                    $("#canvas-zoom-inner").append(html);
                     $root = $(".canvas-control[data-id='" + cfg.id + "']");
                     $root.css({
                         position: "absolute",
@@ -380,25 +379,20 @@
                     });
                 }
             } else {
-                // Logic cũ cho popup
                 var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
                 var $popupBody = $popup.find('.popup-body');
                 
                 if ($popupBody.length) {
-                    // Append vào popup-body
                     $popupBody.append(html);
                     $root = $popupBody.find(".canvas-control[data-id='" + cfg.id + "']");
                     
                     if (!$root.length) {
-                        // Fallback: tìm trong toàn bộ DOM
                         $root = $(".canvas-control[data-id='" + cfg.id + "']");
                     }
                     
-                    // Position relative với popup-body (không cần cộng popup offset)
                     var finalLeft = cfg.left != null ? cfg.left : 10;
-                    var finalTop = cfg.top != null ? cfg.top : 50; // Tránh header
+                    var finalTop = cfg.top != null ? cfg.top : 50;
                     
-                    // Set z-index cao hơn để hiển thị trên popup
                     var popupZ = parseInt($popup.css("z-index") || "0", 10);
                     if (isNaN(popupZ)) popupZ = 0;
                     $root.css("z-index", popupZ + 10);
@@ -410,8 +404,7 @@
                         width: cfg.width + "px"
                     });
                 } else {
-                    // Fallback: append vào canvas
-                    $("#canvas").append(html);
+                    $("#canvas-zoom-inner").append(html);
                     $root = $(".canvas-control[data-id='" + cfg.id + "']");
                     $root.css({
                         position: "absolute",
@@ -422,8 +415,7 @@
                 }
             }
         } else {
-            // Không có parentId → append vào canvas
-            $("#canvas").append(html);
+            $("#canvas-zoom-inner").append(html);
             $root = $(".canvas-control[data-id='" + cfg.id + "']");
             $root.css({
                 position: "absolute",
@@ -447,6 +439,12 @@
 
                     var newLeft = curLeft + event.dx;
                     var newTop = curTop + event.dy;
+
+                    // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
+                    var rulerLeft = 20;
+                    var rulerTop = 20;
+                    if (newLeft < rulerLeft) newLeft = rulerLeft;
+                    if (newTop < rulerTop) newTop = rulerTop;
 
                     $root.css({ left: newLeft, top: newTop });
                     cfg.left = newLeft;

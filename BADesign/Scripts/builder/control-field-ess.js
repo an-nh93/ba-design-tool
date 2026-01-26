@@ -1,4 +1,4 @@
-﻿// ../Scripts/builder/control-field-ess.js
+// ../Scripts/builder/control-field-ess.js
 // Phiên bản ESS – field HTML styled giống trang ESS Leave
 
 (function (global, $) {
@@ -319,8 +319,8 @@
         renderExisting: function (cfg) {
             ensureEssCss();
 
-            // Xác định container: popup body / tabpage body / canvas
-            var $container = $("#canvas");
+            // Xác định container: popup body / tabpage body / canvas (zoom-inner)
+            var $container = $("#canvas-zoom-inner");
             if (cfg.parentId) {
                 var $parent = $('[data-id="' + cfg.parentId + '"], #' + cfg.parentId);
                 if ($parent.hasClass("popup-design")) {

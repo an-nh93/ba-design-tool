@@ -252,6 +252,7 @@
     <Content Include="Scripts\bootstrap.min.js" />
     <Content Include="Scripts\builder\common.js" />
     <Content Include="Scripts\builder\builder.js" />
+    <Content Include="Scripts\builder\control-collapsible-section.js" />
     <Content Include="Scripts\builder\control-field-ess.js" />
     <Content Include="Scripts\builder\control-field.js" />
     <Content Include="Scripts\builder\control-grid-ess.js" />

@@ -1,4 +1,4 @@
-﻿/* ==========================================================
+/* ==========================================================
    ESS HTML GRID CONTROL (v3.1 – fix CSS / progress / resize)
 ========================================================== */
 
@@ -468,12 +468,12 @@ var controlGridEss = (function () {
                     } else if ($parent && $parent.length) {
                         // Fallback: append vào canvas
                         $parent.append($root);
-                        $root.css({
-                            position: "absolute",
-                            left: (cfg.left || 20) + "px",
-                            top: (cfg.top || 20) + "px",
-                            width: (cfg.width || 900) + "px"
-                        });
+            $root.css({
+                position: "absolute",
+                left: (cfg.left || 20) + "px",
+                top: (cfg.top || 20) + "px",
+                width: (cfg.width || 900) + "px"
+            });
                     }
                 } else {
                     // Logic cũ cho popup
@@ -501,7 +501,7 @@ var controlGridEss = (function () {
                         });
                     } else if ($parent && $parent.length) {
                         // Fallback: append vào canvas
-                        $parent.append($root);
+                $parent.append($root);
                         $root.css({
                             position: "absolute",
                             left: (cfg.left || 20) + "px",
@@ -513,7 +513,7 @@ var controlGridEss = (function () {
             } else if ($parent && $parent.length) {
                 // Không có parentId → append vào canvas
                 $parent.append($root);
-                $root.css({
+            $root.css({
                     position: "absolute",
                     left: (cfg.left || 20) + "px",
                     top: (cfg.top || 20) + "px",
@@ -894,6 +894,13 @@ var controlGridEss = (function () {
                     var curTop = parseFloat($root.css("top")) || cfg.top || 0;
                     var newLeft = curLeft + event.dx;
                     var newTop = curTop + event.dy;
+
+                    // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
+                    var rulerLeft = 20;
+                    var rulerTop = 20;
+                    if (newLeft < rulerLeft) newLeft = rulerLeft;
+                    if (newTop < rulerTop) newTop = rulerTop;
+
                     $root.css({ left: newLeft, top: newTop });
                     cfg.left = newLeft;
                     cfg.top = newTop;
@@ -1182,7 +1189,7 @@ var controlGridEss = (function () {
             html.push('<div class="ess-action-icon-preview" style="flex:1; padding:6px 8px; background:#f5f5f5; border-radius:4px; min-height:32px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:8px;">');
             html.push(iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>');
             html.push(iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : '');
-            html.push('</div>');
+        html.push('</div>');
             html.push('<button type="button" class="ess-btn-primary ess-action-browse-icon" data-act-id="' + act.id + '" style="padding:6px 12px; white-space:nowrap; flex-shrink:0;">Browse...</button>');
             html.push('</div>');
             html.push('</div>'); // Close ess-col-field
@@ -1810,8 +1817,8 @@ var controlGridEss = (function () {
             }
         }
 
-        var $canvas = $("#canvas");
-        render(cfg, $canvas);
+        var $canvasInner = $("#canvas-zoom-inner");
+        render(cfg, $canvasInner);
         wireSelectEvents(cfg);
 
         if (window.builder) {
@@ -1826,20 +1833,12 @@ var controlGridEss = (function () {
                 builder.updateSelectionSizeHint();
             }
             
-            // ✅ LUÔN LUÔN check popup sau khi render (giống field controls)
-            // Vì tọa độ clientX/clientY có thể không chính xác do drag hint
-            // Đợi một chút để DOM được render xong
             setTimeout(function() {
                 if (!cfg.parentId && typeof builder.findParentPopupForControl === "function") {
-                    // Comment debug logs
-                    // console.log("ESS Grid: Checking for popup after render, cfg.left=" + cfg.left + ", cfg.top=" + cfg.top);
                     var foundPopupId = builder.findParentPopupForControl(cfg);
                     if (foundPopupId) {
                         cfg.parentId = foundPopupId;
-                        // Comment debug logs
-                        // console.log("ESS Grid: ✅ Detected popup after render:", foundPopupId, "- Re-rendering...");
-                        // Re-render với parentId mới
-                        render(cfg, $canvas);
+                        render(cfg, $canvasInner);
                         wireSelectEvents(cfg);
                         if (typeof builder.refreshJson === "function") {
             builder.refreshJson();
@@ -1860,8 +1859,7 @@ var controlGridEss = (function () {
         if (typeof cfg.left === "undefined") cfg.left = 40;
         if (typeof cfg.top === "undefined") cfg.top = 40;
 
-        var $canvas = $("#canvas");
-        render(cfg, $canvas);
+        render(cfg, $("#canvas-zoom-inner"));
         wireSelectEvents(cfg);
     }
 

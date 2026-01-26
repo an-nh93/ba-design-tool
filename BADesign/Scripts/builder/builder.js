@@ -47,8 +47,8 @@ var builder = {
     isGridColumnResizing: false,
 
     // Canvas logical size (px) - dùng cho control dưới toolbar
-    canvasWidth: 1600,
-    canvasHeight: 900,
+    canvasWidth: null, // Sẽ được tính toán dựa trên viewport khi khởi tạo
+    canvasHeight: null, // Sẽ được tính toán dựa trên viewport khi khởi tạo
 
     // Ưu tiên dán control nếu vừa copy control trong app (TTL = 20s)
     lastCopyKind: null,         // 'control' | null
@@ -404,7 +404,7 @@ var builder = {
 
         if (cid > 0) {
             self.controls = [];
-            $("#canvas").empty();
+            self._clearCanvasContent();
             $("#propPanel").html(
                 "<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>"
             );
@@ -778,17 +778,16 @@ var builder = {
     },
 
     // ========= Zoom / Pan =========
-    // Zoom: dùng CSS zoom để cả khung + scrollbar cùng thay đổi
-    // Pan: Space + drag sẽ kéo scrollbar thay vì dịch transform
+    // Zoom: CHỈ zoom nội dung (#canvas-zoom-inner), KHÔNG zoom vùng chứa (#canvas, rulers).
+    // Pan: Space + drag sẽ kéo scrollbar của canvas-shell.
     applyCanvasTransform: function () {
-        var $canvas = $("#canvas");
+        var $inner = $("#canvas-zoom-inner");
+        if (!$inner.length) return;
 
-        // scale toàn bộ vùng canvas (frame, lưới, control, scrollbar,…)
-        $canvas.css("zoom", this.viewScale);
-
-        // không dùng scale trong transform nữa, chỉ để trống
-        $canvas.css("transform-origin", "0 0");
-        $canvas.css("transform", "");
+        // Chỉ scale nội dung (controls), không scale container
+        $inner.css("zoom", this.viewScale);
+        $inner.css("transform-origin", "0 0");
+        $inner.css("transform", "");
     },
 
     setZoom: function (scale) {
@@ -798,6 +797,12 @@ var builder = {
         this.viewScale = scale;
         this.applyCanvasTransform();
         this.updateZoomLabel();
+        // Cập nhật ruler khi zoom thay đổi - delay nhỏ để layout ổn định sau khi zoom
+        var self = this;
+        this.updateRulers();
+        setTimeout(function() {
+            self.updateRulers();
+        }, 50);
     },
 
     beginPan: function (x, y) {
@@ -805,10 +810,9 @@ var builder = {
         this.panStartX = x;
         this.panStartY = y;
 
-        var $c = $("#canvas");
-        // lưu lại vị trí scroll hiện tại để cộng trừ
-        this.panStartScrollLeft = $c.scrollLeft();
-        this.panStartScrollTop = $c.scrollTop();
+        var $shell = $(".canvas-shell");
+        this.panStartScrollLeft = $shell.scrollLeft();
+        this.panStartScrollTop = $shell.scrollTop();
 
         document.body.classList.add("ub-pan-active");
     },
@@ -819,11 +823,9 @@ var builder = {
         var dx = x - this.panStartX;
         var dy = y - this.panStartY;
 
-        var $c = $("#canvas");
-        // kéo chuột sang phải → muốn nhìn phần bên phải → scrollLeft tăng
-        // nên dùng dấu trừ cho cảm giác giống Figma
-        $c.scrollLeft(this.panStartScrollLeft - dx);
-        $c.scrollTop(this.panStartScrollTop - dy);
+        var $shell = $(".canvas-shell");
+        $shell.scrollLeft(this.panStartScrollLeft - dx);
+        $shell.scrollTop(this.panStartScrollTop - dy);
     },
 
     endPan: function () {
@@ -886,12 +888,19 @@ var builder = {
         this.historyIndex = this.history.length - 1;
     },
 
+    _clearCanvasContent: function () {
+        var $inner = $("#canvas-zoom-inner");
+        if (!$inner.length) return;
+        $inner.empty();
+    },
+
     restoreFromJson: function (json) {
         var arr = [];
         try { arr = JSON.parse(json || "[]"); } catch (e) { console.error(e); }
 
         this.controls = [];
-        $("#canvas").empty();
+        var $inner = $("#canvas-zoom-inner");
+        $inner.empty();
         $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
         this.hideSizeHint();
 
@@ -940,19 +949,20 @@ var builder = {
         this.isMarquee = true;
 
         var $canvas = $("#canvas");
+        var $shell = $(".canvas-shell");
         var canvasEl = $canvas[0];
         var canvasRect = canvasEl.getBoundingClientRect();
-        
-        // ✅ Tính toán vị trí chính xác: clientX/Y - canvas viewport + scroll offset
-        // Không cần chia cho zoom vì CSS zoom đã scale cả canvas rồi
-        var x = e.clientX - canvasRect.left + $canvas.scrollLeft();
-        var y = e.clientY - canvasRect.top + $canvas.scrollTop();
+        var scrollLeft = $shell.length ? $shell.scrollLeft() : 0;
+        var scrollTop = $shell.length ? $shell.scrollTop() : 0;
+
+        var x = e.clientX - canvasRect.left + scrollLeft;
+        var y = e.clientY - canvasRect.top + scrollTop;
 
         this.marqueeStartX = x;
         this.marqueeStartY = y;
 
         if (!this.marqueeRectEl) {
-            this.marqueeRectEl = $('<div class="builder-selection-rect"></div>').appendTo("#canvas");
+            this.marqueeRectEl = $('<div class="builder-selection-rect"></div>').appendTo("#canvas-zoom-inner");
         }
         this.marqueeRectEl
             .show()
@@ -961,15 +971,16 @@ var builder = {
 
     updateMarquee: function (e) {
         if (!this.isMarquee || !this.marqueeRectEl) return;
-        
+
         var $canvas = $("#canvas");
+        var $shell = $(".canvas-shell");
         var canvasEl = $canvas[0];
         var canvasRect = canvasEl.getBoundingClientRect();
-        
-        // ✅ Tính toán vị trí chính xác: clientX/Y - canvas viewport + scroll offset
-        // Không cần chia cho zoom vì CSS zoom đã scale cả canvas rồi
-        var x = e.clientX - canvasRect.left + $canvas.scrollLeft();
-        var y = e.clientY - canvasRect.top + $canvas.scrollTop();
+        var scrollLeft = $shell.length ? $shell.scrollLeft() : 0;
+        var scrollTop = $shell.length ? $shell.scrollTop() : 0;
+
+        var x = e.clientX - canvasRect.left + scrollLeft;
+        var y = e.clientY - canvasRect.top + scrollTop;
 
         var left = Math.min(this.marqueeStartX, x);
         var top = Math.min(this.marqueeStartY, y);
@@ -1158,10 +1169,11 @@ var builder = {
     // ======== SMART GUIDES (giống Figma) ========
     ensureSmartGuideEls: function () {
         if (this.smartGuideVEl) return;
-        var $c = $("#canvas");
-        this.smartGuideVEl = $('<div class="builder-guide-line builder-guide-v"></div>').appendTo($c).hide();
-        this.smartGuideHEl = $('<div class="builder-guide-line builder-guide-h"></div>').appendTo($c).hide();
-        this.smartGuideLabelEl = $('<div class="builder-guide-label"></div>').appendTo($c).hide();
+        var $inner = $("#canvas-zoom-inner");
+        if (!$inner.length) return;
+        this.smartGuideVEl = $('<div class="builder-guide-line builder-guide-v"></div>').appendTo($inner).hide();
+        this.smartGuideHEl = $('<div class="builder-guide-line builder-guide-h"></div>').appendTo($inner).hide();
+        this.smartGuideLabelEl = $('<div class="builder-guide-label"></div>').appendTo($inner).hide();
     },
 
     hideSmartGuides: function () {
@@ -1528,20 +1540,26 @@ var builder = {
 
             if (isInCollapsibleSection && parentCfg) {
                 // Position relative với content area
-                cfg.left = st.left + totalDx;
-                cfg.top = st.top + totalDy;
+            cfg.left = st.left + totalDx;
+            cfg.top = st.top + totalDy;
                 
                 // Đảm bảo không âm
                 cfg.left = Math.max(0, cfg.left);
                 cfg.top = Math.max(0, cfg.top);
             } else {
                 // Position absolute với canvas (logic cũ)
-                cfg.left = st.left + totalDx;
-                cfg.top = st.top + totalDy;
+            cfg.left = st.left + totalDx;
+            cfg.top = st.top + totalDy;
 
-                if (self.snapEnabled) {
-                    cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
-                    cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
+            // Ruler boundary: 20px (theo margin của canvas)
+            var rulerLeft = 20;
+            var rulerTop = 20;
+            if (cfg.left < rulerLeft) cfg.left = rulerLeft;
+            if (cfg.top < rulerTop) cfg.top = rulerTop;
+
+            if (self.snapEnabled) {
+                cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
+                cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
                 }
             }
 
@@ -1559,7 +1577,7 @@ var builder = {
                 (cfg.ftype === "groupbox" || cfg.ftype === "section")) ||
                 cfg.type === "collapsible-section") {
                 if (window.controlField && typeof controlField.moveDescendants === "function") {
-                    controlField.moveDescendants(cfg.id, dx, dy, false);
+                controlField.moveDescendants(cfg.id, dx, dy, false);
                 }
             }
         });
@@ -3166,6 +3184,9 @@ var builder = {
         // ✅ Khởi tạo control chỉnh kích thước canvas (luôn hiển thị dưới toolbar)
         self.initCanvasSizeControls();
 
+        // ✅ Khởi tạo và cập nhật ruler
+        self.initRulers();
+
         // ✅ Snap checkbox đã được loại bỏ khỏi toolbar (không cần thiết cho design tool)
     },
 
@@ -3208,11 +3229,9 @@ var builder = {
         var minW = Math.max(maxRight + padding, 1600);
         var minH = Math.max(maxBottom + padding, 900);
 
-        // Cập nhật min-width và min-height của canvas để scrollbar tự động mở rộng
-        $canvas.css({
-            "min-width": minW + "px",
-            "min-height": minH + "px"
-        });
+        // Cập nhật min-width và min-height của canvas và inner (zoom container)
+        $canvas.css({ "min-width": minW + "px", "min-height": minH + "px" });
+        $("#canvas-zoom-inner").css({ "min-width": minW + "px", "min-height": minH + "px" });
 
         // Cập nhật giá trị hiển thị trong input (nếu có)
         var $wInput = $("#canvasWidthInput");
@@ -3225,6 +3244,9 @@ var builder = {
             this.canvasHeight = minH;
             $hInput.val(minH);
         }
+
+        // Cập nhật ruler khi canvas size thay đổi
+        this.updateRulers();
 
         return true;
     },
@@ -3239,13 +3261,57 @@ var builder = {
         var $canvas = $("#canvas");
         if (!$canvas.length) return;
 
-        // Lấy kích thước hiện tại của canvas (ưu tiên scrollWidth/scrollHeight để không nhỏ hơn nội dung)
-        var currentW = $canvas[0].scrollWidth || $canvas.outerWidth() || 1600;
-        var currentH = $canvas[0].scrollHeight || $canvas.outerHeight() || 900;
+        // Tính toán kích thước mặc định dựa trên viewport size
+        var getDefaultCanvasSize = function() {
+            var viewportW = window.innerWidth || 1920;
+            var viewportH = window.innerHeight || 1080;
+            
+            // Trừ đi các phần UI: toolbox (220px) + properties (320px - đã được user sửa) + margins (40px)
+            var availableW = viewportW - 220 - 320 - 40;
+            // Trừ đi: header (50px) + footer (56px) + margins (40px)
+            var availableH = viewportH - 50 - 56 - 40;
+            
+            // Đảm bảo không nhỏ hơn giá trị tối thiểu
+            var defaultW = Math.max(availableW, 1600);
+            var defaultH = Math.max(availableH, 900);
+            
+            // Làm tròn đến 100px gần nhất
+            defaultW = Math.ceil(defaultW / 100) * 100;
+            defaultH = Math.ceil(defaultH / 100) * 100;
+            
+            return { width: defaultW, height: defaultH };
+        };
 
+        // Tính toán kích thước mặc định dựa trên viewport (luôn tính lại khi khởi tạo)
+        var defaultSize = getDefaultCanvasSize();
+        
         // Nếu đã từng lưu trong builder.canvasWidth/Height thì ưu tiên dùng
-        if (self.canvasWidth && self.canvasWidth > 0) currentW = self.canvasWidth;
-        if (self.canvasHeight && self.canvasHeight > 0) currentH = self.canvasHeight;
+        // Nhưng nếu là lần đầu (null hoặc undefined) thì dùng kích thước mặc định theo viewport
+        var currentW, currentH;
+        
+        // Kiểm tra xem có giá trị đã lưu trong input không (từ lần load trước)
+        var savedW = parseInt($w.val(), 10);
+        var savedH = parseInt($h.val(), 10);
+        
+        if (self.canvasWidth && self.canvasWidth > 0) {
+            currentW = self.canvasWidth;
+        } else if (savedW && savedW >= 800 && savedW <= 10000) {
+            // Nếu input đã có giá trị hợp lệ từ trước, dùng giá trị đó
+            currentW = savedW;
+        } else {
+            // Lần đầu hoặc chưa có → dùng kích thước mặc định theo viewport
+            currentW = defaultSize.width;
+        }
+
+        if (self.canvasHeight && self.canvasHeight > 0) {
+            currentH = self.canvasHeight;
+        } else if (savedH && savedH >= 600 && savedH <= 10000) {
+            // Nếu input đã có giá trị hợp lệ từ trước, dùng giá trị đó
+            currentH = savedH;
+        } else {
+            // Lần đầu hoặc chưa có → dùng kích thước mặc định theo viewport
+            currentH = defaultSize.height;
+        }
 
         self.canvasWidth = currentW;
         self.canvasHeight = currentH;
@@ -3253,29 +3319,358 @@ var builder = {
         $w.val(currentW);
         $h.val(currentH);
 
-        // Áp dụng dưới dạng min-width/min-height để không ép control, chỉ mở rộng vùng scroll
-        $canvas.css({
-            "min-width": currentW + "px",
-            "min-height": currentH + "px"
-        });
+        // Áp dụng cho cả canvas và inner (zoom container)
+        $canvas.css({ "min-width": currentW + "px", "min-height": currentH + "px" });
+        $("#canvas-zoom-inner").css({ "min-width": currentW + "px", "min-height": currentH + "px" });
 
-        $w.off("change.canvasSize blur.canvasSize").on("change.canvasSize blur.canvasSize", function () {
+        // Áp dụng zoom cho nội dung (inner) ngay khi init
+        if (typeof self.applyCanvasTransform === "function") {
+            self.applyCanvasTransform();
+        }
+        setTimeout(function() {
+            if (self.updateRulers && typeof self.updateRulers === "function") {
+                self.updateRulers();
+            }
+        }, 50);
+
+        // Bind event cho width input - cho phép select all và replace
+        $w.off("change.canvasSize blur.canvasSize input.canvasSize keydown.canvasSize").on("change.canvasSize blur.canvasSize", function () {
             var v = parseInt(this.value || "0", 10);
             if (isNaN(v) || v < 800) v = 800;
             if (v > 10000) v = 10000;
             self.canvasWidth = v;
             $(this).val(v);
             $canvas.css("min-width", v + "px");
+            $("#canvas-zoom-inner").css("min-width", v + "px");
+            setTimeout(function() { self.updateRulers(); }, 10);
+        }).on("input.canvasSize", function() {
+            var val = this.value;
+            var v = parseInt(val, 10);
+            if (!isNaN(v) && v >= 800 && v <= 10000) {
+                $canvas.css("min-width", v + "px");
+                $("#canvas-zoom-inner").css("min-width", v + "px");
+            }
+        }).on("keydown.canvasSize", function(e) {
+            // Cho phép các phím điều hướng, delete, backspace, v.v.
+            // Không chặn gì cả, để user có thể select all và nhập lại
+            if (e.key === "Enter") {
+                $(this).blur(); // Trigger change event
+            }
         });
 
-        $h.off("change.canvasSize blur.canvasSize").on("change.canvasSize blur.canvasSize", function () {
+        // Bind event cho height input - cho phép select all và replace
+        $h.off("change.canvasSize blur.canvasSize input.canvasSize keydown.canvasSize").on("change.canvasSize blur.canvasSize", function () {
             var v = parseInt(this.value || "0", 10);
             if (isNaN(v) || v < 600) v = 600;
             if (v > 10000) v = 10000;
             self.canvasHeight = v;
             $(this).val(v);
             $canvas.css("min-height", v + "px");
+            $("#canvas-zoom-inner").css("min-height", v + "px");
+            setTimeout(function() { self.updateRulers(); }, 10);
+        }).on("input.canvasSize", function() {
+            var val = this.value;
+            var v = parseInt(val, 10);
+            if (!isNaN(v) && v >= 600 && v <= 10000) {
+                $canvas.css("min-height", v + "px");
+                $("#canvas-zoom-inner").css("min-height", v + "px");
+            }
+        }).on("keydown.canvasSize", function(e) {
+            // Cho phép các phím điều hướng, delete, backspace, v.v.
+            // Không chặn gì cả, để user có thể select all và nhập lại
+            if (e.key === "Enter") {
+                $(this).blur(); // Trigger change event
+            }
         });
+    },
+
+    // Khởi tạo ruler
+    initRulers: function () {
+        var self = this;
+        var $canvas = $("#canvas");
+        var $canvasShell = $(".canvas-shell");
+        if (!$canvas.length || !$canvasShell.length) return;
+
+        // Debounce function để tránh vẽ lại quá thường xuyên
+        var updateRulersTimeout = null;
+        var updateRulersDebounced = function() {
+            if (updateRulersTimeout) clearTimeout(updateRulersTimeout);
+            updateRulersTimeout = setTimeout(function() {
+                self.updateRulers();
+            }, 10); // 10ms debounce
+        };
+
+        // Đồng bộ scroll position của canvas với ruler
+        $canvasShell.on("scroll", function () {
+            // Vẽ lại tick marks khi scroll để hiển thị đúng vị trí (với debounce)
+            updateRulersDebounced();
+        });
+
+        // Cập nhật ruler ngay để tránh lệch/hở khi mới vào trang
+        self.updateRulers();
+        // Gọi lại sau khi layout ổn định (DOM, canvas size, v.v.)
+        setTimeout(function() {
+            self.updateRulers();
+            setTimeout(function() { self.updateRulers(); }, 200);
+        }, 150);
+
+        // Cập nhật ruler khi window resize
+        $(window).on("resize", function () {
+            updateRulersDebounced();
+        });
+    },
+
+    // Cập nhật kích thước và vẽ tick marks cho ruler
+    updateRulers: function () {
+        var self = this;
+        var $canvas = $("#canvas");
+        var $canvasShell = $(".canvas-shell");
+        var $rulerH = $(".canvas-ruler-h");
+        var $rulerV = $(".canvas-ruler-v");
+
+        if (!$canvas.length || !$rulerH.length || !$rulerV.length) return;
+
+        // Lấy kích thước canvas - ưu tiên min-width/min-height của canvas
+        var canvasMinW = parseFloat($canvas.css("min-width")) || 0;
+        var canvasMinH = parseFloat($canvas.css("min-height")) || 0;
+        
+        // Nếu min-width/min-height chưa có, lấy từ input hoặc scrollWidth/scrollHeight
+        var $wInput = $("#canvasWidthInput");
+        var $hInput = $("#canvasHeightInput");
+        var inputW = $wInput.length ? parseInt($wInput.val(), 10) : null;
+        var inputH = $hInput.length ? parseInt($hInput.val(), 10) : null;
+        
+        // Ưu tiên: min-width/min-height > input > scrollWidth/scrollHeight > default
+        var canvasW = canvasMinW || inputW || self.canvasWidth || $canvas[0].scrollWidth || 1600;
+        var canvasH = canvasMinH || inputH || self.canvasHeight || $canvas[0].scrollHeight || 900;
+
+        // Lấy vị trí và kích thước thực tế của canvas-shell (viewport của canvas)
+        var shellRect = $canvasShell[0].getBoundingClientRect();
+        var shellEl = $canvasShell[0];
+        var rulerHHeight = 24;
+        var rulerVWidth = 24;
+
+        // Tính toán scrollbar width chính xác (clientWidth/Height vs offsetWidth/Height)
+        var scrollbarWidth = shellEl.offsetWidth - shellEl.clientWidth;
+        var scrollbarHeight = shellEl.offsetHeight - shellEl.clientHeight;
+        // Fallback nếu không tính được (thường là 17px trên Windows, có thể khác trên Mac/Linux)
+        if (scrollbarWidth <= 0) scrollbarWidth = 17;
+        if (scrollbarHeight <= 0) scrollbarHeight = 17;
+
+        // Kiểm tra scrollbar của canvas-shell
+        var hasVerticalScrollbar = shellEl.scrollHeight > shellEl.clientHeight;
+        var hasHorizontalScrollbar = shellEl.scrollWidth > shellEl.clientWidth;
+
+        // Ruler ngang: căn đúng theo shell, fill hết bề ngang viewport (trừ ruler dọc + scrollbar dọc nếu có)
+        // Dùng clientWidth để lấy kích thước viewport (không tính scrollbar)
+        var rulerHWidth = shellEl.clientWidth - rulerVWidth;
+        if (hasVerticalScrollbar) {
+            rulerHWidth -= scrollbarWidth;
+        }
+        // Đảm bảo không âm và làm tròn lên để tránh gap 1px
+        rulerHWidth = Math.max(0, Math.ceil(rulerHWidth));
+
+        var rulerHLeft = Math.round(shellRect.left + rulerVWidth);
+        var rulerHTop = Math.round(shellRect.top);
+
+        $rulerH.css({
+            "width": rulerHWidth + "px",
+            "left": rulerHLeft + "px",
+            "top": rulerHTop + "px",
+            "transform": "none"
+        });
+
+        // Ruler dọc: căn sát trái shell (không hở), fill hết chiều cao viewport (trừ ruler ngang + scrollbar ngang nếu có)
+        // Dùng clientHeight để lấy kích thước viewport (không tính scrollbar)
+        var rulerVHeight = shellEl.clientHeight - rulerHHeight;
+        if (hasHorizontalScrollbar) {
+            rulerVHeight -= scrollbarHeight;
+        }
+        // Đảm bảo không âm và làm tròn lên để tránh gap 1px
+        rulerVHeight = Math.max(0, Math.ceil(rulerVHeight));
+
+        var rulerVLeft = Math.round(shellRect.left);
+        var rulerVTop = Math.round(shellRect.top + rulerHHeight);
+
+        $rulerV.css({
+            "height": rulerVHeight + "px",
+            "left": rulerVLeft + "px",
+            "top": rulerVTop + "px"
+        });
+
+        // Vẽ tick marks cho ruler ngang (truyền scrollLeft để vẽ đúng vị trí)
+        var scrollLeft = $canvasShell.scrollLeft();
+        self.drawRulerH($rulerH, canvasW, scrollLeft);
+
+        // Vẽ tick marks cho ruler dọc (truyền scrollTop để vẽ đúng vị trí)
+        var scrollTop = $canvasShell.scrollTop();
+        self.drawRulerV($rulerV, canvasH, scrollTop);
+
+        // Đồng bộ scroll position (chỉ cần cho ruler dọc)
+        self.syncRulersWithScroll();
+    },
+
+    // Vẽ tick marks cho ruler ngang
+    drawRulerH: function ($ruler, width, scrollLeft) {
+        $ruler.empty();
+        scrollLeft = scrollLeft || 0;
+        width = width || 1600; // Đảm bảo có giá trị mặc định
+
+        var step = 10; // Mỗi 10px một tick nhỏ
+        var majorStep = 50; // Mỗi 50px một tick lớn
+        var labelStep = 100; // Mỗi 100px một số
+        var canvasMarginLeft = 20; // Canvas có margin-left: 20px
+
+        // Tính toán vùng hiển thị: vẽ TẤT CẢ từ 0 đến width của canvas
+        var rulerWidth = $ruler.width() || 1000;
+        
+        // Vẽ từ 0 đến width của canvas (không giới hạn bởi viewport)
+        // Nhưng chỉ hiển thị những tick nằm trong viewport của ruler
+        var startX = 0;
+        var endX = width;
+
+        for (var x = startX; x <= endX; x += step) {
+            var isMajor = (x % majorStep === 0);
+            var showLabel = (x % labelStep === 0 && x >= 0);
+
+            // Vị trí tick trên ruler = x - scrollLeft + canvasMarginLeft
+            // Canvas bắt đầu ở vị trí 20px từ biên trái của ruler, nên tick 0 phải ở vị trí 20px
+            var tickPos = x - scrollLeft + canvasMarginLeft;
+            
+            // Đảm bảo số cuối cùng (endX) luôn được hiển thị, ngay cả khi hơi ngoài viewport
+            var isLastNumber = (x === endX && showLabel);
+            var margin = isLastNumber ? 50 : step; // Cho phép margin lớn hơn cho số cuối
+            
+            // Chỉ vẽ tick nếu nằm trong viewport của ruler (cho phép margin để vẽ đủ)
+            if (tickPos < -step || tickPos > rulerWidth + margin) continue;
+
+            var $tick = $("<div>").addClass("ruler-tick");
+            if (isMajor) {
+                $tick.addClass("major");
+            } else {
+                $tick.addClass("minor");
+            }
+            $tick.css("left", tickPos + "px");
+
+            $ruler.append($tick);
+
+            // Thêm số cho tick lớn
+            if (showLabel) {
+                var $label = $("<div>").addClass("ruler-label").text(x);
+                $label.css("left", (tickPos + 2) + "px");
+                $ruler.append($label);
+            }
+        }
+        
+        // ✅ Đảm bảo số cuối cùng (endX) luôn được hiển thị nếu chưa có trong vòng lặp
+        // Kiểm tra xem số cuối cùng đã được vẽ chưa
+        var hasLastLabel = false;
+        $ruler.find(".ruler-label").each(function() {
+            if ($(this).text() == endX) {
+                hasLastLabel = true;
+                return false; // break
+            }
+        });
+        
+        if (!hasLastLabel && endX > 0) {
+            // Nếu số cuối cùng chưa được hiển thị, vẽ nó (ngay cả khi hơi ngoài viewport)
+            var finalTickPos = endX - scrollLeft + canvasMarginLeft;
+            // Cho phép hiển thị nếu nằm trong khoảng hợp lý (có thể hơi ngoài viewport)
+            if (finalTickPos > -100 && finalTickPos < rulerWidth + 100) {
+                var $finalLabel = $("<div>").addClass("ruler-label").text(endX);
+                $finalLabel.css("left", (finalTickPos + 2) + "px");
+                $ruler.append($finalLabel);
+                
+                // Thêm tick major cho số cuối
+                var $finalTick = $("<div>").addClass("ruler-tick major");
+                $finalTick.css("left", finalTickPos + "px");
+                $ruler.append($finalTick);
+            }
+        }
+    },
+
+    // Vẽ tick marks cho ruler dọc
+    drawRulerV: function ($ruler, height, scrollTop) {
+        $ruler.empty();
+        scrollTop = scrollTop || 0;
+        height = height || 900; // Đảm bảo có giá trị mặc định
+
+        var step = 10; // Mỗi 10px một tick nhỏ
+        var majorStep = 50; // Mỗi 50px một tick lớn
+        var labelStep = 100; // Mỗi 100px một số
+        var canvasMarginTop = 20; // Canvas có margin-top: 20px
+
+        // Tính toán vùng hiển thị: vẽ TẤT CẢ từ 0 đến height của canvas
+        var rulerHeight = $ruler.height() || 800;
+        
+        // Vẽ từ 0 đến height của canvas (không giới hạn bởi viewport)
+        // Nhưng chỉ hiển thị những tick nằm trong viewport của ruler
+        var startY = 0;
+        var endY = height;
+
+        for (var y = startY; y <= endY; y += step) {
+            var isMajor = (y % majorStep === 0);
+            var showLabel = (y % labelStep === 0 && y >= 0);
+
+            // Vị trí tick trên ruler = y - scrollTop + canvasMarginTop
+            // Canvas bắt đầu ở vị trí 20px từ biên trên của ruler, nên tick 0 phải ở vị trí 20px
+            var tickPos = y - scrollTop + canvasMarginTop;
+            
+            // Đảm bảo số cuối cùng (endY) luôn được hiển thị, ngay cả khi hơi ngoài viewport
+            var isLastNumber = (y === endY && showLabel);
+            var margin = isLastNumber ? 50 : step; // Cho phép margin lớn hơn cho số cuối
+            
+            // Chỉ vẽ tick nếu nằm trong viewport của ruler (cho phép margin để vẽ đủ)
+            if (tickPos < -step || tickPos > rulerHeight + margin) continue;
+
+            var $tick = $("<div>").addClass("ruler-tick");
+            if (isMajor) {
+                $tick.addClass("major");
+            } else {
+                $tick.addClass("minor");
+            }
+            $tick.css("top", tickPos + "px");
+
+            $ruler.append($tick);
+
+            // Thêm số cho tick lớn
+            if (showLabel) {
+                var $label = $("<div>").addClass("ruler-label").text(y);
+                $label.css("top", tickPos + "px");
+                $ruler.append($label);
+            }
+        }
+        
+        // ✅ Đảm bảo số cuối cùng (endY) luôn được hiển thị nếu chưa có trong vòng lặp
+        var hasLastLabel = false;
+        $ruler.find(".ruler-label").each(function() {
+            if ($(this).text() == endY) {
+                hasLastLabel = true;
+                return false; // break
+            }
+        });
+        
+        if (!hasLastLabel && endY > 0) {
+            // Nếu số cuối cùng chưa được hiển thị, vẽ nó (ngay cả khi hơi ngoài viewport)
+            var finalTickPos = endY - scrollTop + canvasMarginTop;
+            // Cho phép hiển thị nếu nằm trong khoảng hợp lý (có thể hơi ngoài viewport)
+            if (finalTickPos > -100 && finalTickPos < rulerHeight + 100) {
+                var $finalLabel = $("<div>").addClass("ruler-label").text(endY);
+                $finalLabel.css("top", finalTickPos + "px");
+                $ruler.append($finalLabel);
+                
+                // Thêm tick major cho số cuối
+                var $finalTick = $("<div>").addClass("ruler-tick major");
+                $finalTick.css("top", finalTickPos + "px");
+                $ruler.append($finalTick);
+            }
+        }
+    },
+
+    // Đồng bộ scroll position của canvas với ruler (không còn cần thiết vì đã vẽ lại tick marks)
+    syncRulersWithScroll: function () {
+        // Không cần translate nữa vì tick marks đã được vẽ với offset đúng
+        // Giữ hàm này để tương thích với code cũ
     },
 
     // ========= Common helpers =========
@@ -3975,7 +4370,7 @@ var builder = {
 
                     var arr = Array.isArray(cfg) ? cfg : [];
                     builder.controls = [];
-                    $("#canvas").empty();
+                    $("#canvas-zoom-inner").empty();
                     $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
 
                     arr.forEach(function (c) {
@@ -4166,7 +4561,7 @@ var builder = {
                 var arr = [];
                 try { arr = JSON.parse(json); } catch (e) { console.warn(e); }
                 self.controls = [];
-                $("#canvas").empty();
+                $("#canvas-zoom-inner").empty();
                 $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
 
                 arr.forEach(function (cfg) {

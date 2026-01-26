@@ -1,11 +1,13 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Builder.aspx.cs" Inherits="BADesign.Builder" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Builder.aspx.cs" Inherits="BADesign.Builder" ResponseEncoding="utf-8" %>
 
 <!DOCTYPE html>
 <html>
 <head runat="server">
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <title>UI Builder Demo - For BA</title>
 
-    <script src="../Scripts/html2canvas.min.js"></script>
+    <script src="../Scripts/html2canvas.min.js" charset="utf-8"></script>
 
     <!-- DevExtreme CDN -->
     <link rel="stylesheet" href="https://cdn3.devexpress.com/jslib/23.2.5/css/dx.light.css" />
@@ -31,26 +33,35 @@
     <!-- Drag-drop library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/interact.js/1.10.11/interact.min.js"></script>
 
-    <!-- Builder scripts -->
-    <script src="../Scripts/builder/builder.js"></script>
-    <script src="../Scripts/builder/common.js"></script>
-    <script src="../Scripts/builder/control-grid.js"></script>
-    <script src="../Scripts/builder/control-popup.js"></script>
-    <script src="../Scripts/builder/control-field.js"></script>
-    <script src="../Scripts/builder/control-toolbar.js"></script>
-    <script src="../Scripts/builder/control-tabpage.js"></script>
-    <script src="../Scripts/builder/control-grid-ess.js"></script>
-    <script src="../Scripts/builder/control-collapsible-section.js"></script>
+    <!-- Builder scripts (charset=utf-8 để hiển thị đúng tiếng Việt có dấu) -->
+    <script src="../Scripts/builder/builder.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/common.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-grid.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-popup.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-field.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-toolbar.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-tabpage.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-grid-ess.js" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-collapsible-section.js" charset="utf-8"></script>
     <style>
 /* ========== GLOBAL ========== */
-html, body {
+html {
     height: 100%;
+    overflow-x: hidden; /* Ngăn scrollbar ngang ở page level */
+    overflow-y: hidden;
 }
 body {
     margin: 0;
     padding: 0; /* tránh làm tăng chiều cao trang gây scrollbar ngoài */
     font-family: Segoe UI, Tahoma, Arial, sans-serif;
     overflow: hidden; /* Chỉ cho phép khu vực builder scroll, không scroll cả page */
+    width: 100%;
+    max-width: 100vw; /* Đảm bảo không vượt quá viewport width */
+}
+form {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
 }
 
 /* ========== HEADER ========== */
@@ -74,6 +85,10 @@ body {
     gap: 0;
     /* trừ header (~50px) + footer (~50px) */
     height: calc(100vh - 100px);
+    width: 100%;
+    max-width: 100vw; /* Đảm bảo không vượt quá viewport width */
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    overflow-y: hidden;
 }
 
 /* Toolbox - fixed width với toggle */
@@ -146,7 +161,9 @@ body {
 .builder-wrapper > .center-pane {
     flex: 1 1 auto;
     min-width: 0;
+    max-width: 100%; /* Đảm bảo không vượt quá container */
     position: relative;
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
 }
 
 /* Properties panel - resizable width */
@@ -322,48 +339,107 @@ body {
     overflow: auto;
 }
 
-/* Canvas thật (id="canvas") */
+/* Canvas container (id="canvas") - vùng chứa, KHÔNG zoom. Luôn giữ kích thước cố định. */
 .canvas-area {
     position: relative;
     margin: 20px 0 0 20px; /* chừa chỗ cho thước đo */
     padding: 8px;
     background: #ffffff;
-    /* Tự động mở rộng theo nội dung thực tế (không fix kích thước cố định) */
-    display: inline-block;
+    display: block;
     min-width: 1600px; /* Giá trị mặc định, sẽ được JS cập nhật */
     min-height: 900px; /* Giá trị mặc định, sẽ được JS cập nhật */
     box-sizing: border-box;
 }
 
-/* Rulers */
+/* Nội dung zoom được (controls) - CHỈ phần này zoom, không zoom container */
+.canvas-zoom-inner {
+    position: relative;
+    display: inline-block;
+    min-width: 1600px;
+    min-height: 900px;
+    box-sizing: border-box;
+    transform-origin: 0 0;
+}
+
+/* Rulers - Fixed position, không bị scroll mất. left/top/width/height được JS set theo canvas-shell */
 .canvas-ruler-h,
 .canvas-ruler-v {
-    position: absolute;
-    background: #f3f3f3;
+    position: fixed;
+    box-sizing: border-box;
+    background: #f8f8f8;
     border-color: #d4d4d4;
-    z-index: 200;
+    z-index: 300;
     font-size: 10px;
-    color: #666;
-    font-family: Consolas, monospace;
+    color: #333;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
     pointer-events: none;
+    user-select: none;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 .canvas-ruler-h {
-    left: 20px;
-    right: 0;
+    left: 0;
     top: 0;
-    height: 20px;
-    border-bottom: 1px solid #d4d4d4;
-    background-image: linear-gradient(to right, #d4d4d4 1px, transparent 1px);
-    background-size: 10px 100%;
+    height: 24px;
+    border-bottom: 2px solid #d4d4d4;
+    overflow: hidden;
 }
 .canvas-ruler-v {
     left: 0;
-    top: 20px;
+    top: 24px;
+    width: 24px;
+    border-right: 2px solid #d4d4d4;
+    overflow: hidden;
+}
+/* Ruler tick marks và số */
+.canvas-ruler-h .ruler-tick {
+    position: absolute;
     bottom: 0;
-    width: 20px;
-    border-right: 1px solid #d4d4d4;
-    background-image: linear-gradient(to bottom, #d4d4d4 1px, transparent 1px);
-    background-size: 100% 10px;
+    width: 1px;
+    height: 100%;
+    background: #999;
+}
+.canvas-ruler-h .ruler-tick.major {
+    height: 60%;
+    background: #666;
+}
+.canvas-ruler-h .ruler-tick.minor {
+    height: 40%;
+    background: #bbb;
+}
+.canvas-ruler-h .ruler-label {
+    position: absolute;
+    bottom: 2px;
+    left: 2px;
+    font-size: 9px;
+    color: #333;
+    font-weight: 500;
+    white-space: nowrap;
+}
+.canvas-ruler-v .ruler-tick {
+    position: absolute;
+    right: 0;
+    width: 100%;
+    height: 1px;
+    background: #999;
+}
+.canvas-ruler-v .ruler-tick.major {
+    width: 60%;
+    background: #666;
+}
+.canvas-ruler-v .ruler-tick.minor {
+    width: 40%;
+    background: #bbb;
+}
+.canvas-ruler-v .ruler-label {
+    position: absolute;
+    right: 2px;
+    top: 0;
+    font-size: 9px;
+    color: #333;
+    font-weight: 500;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    white-space: nowrap;
 }
 
 /* Không cho select text trên canvas */
@@ -2092,7 +2168,7 @@ body.ub-pan-active {
                         <div class="tool-item" data-control="field-tag"      data-ui="ess">Tag</div>
                         <div class="tool-item" data-control="field-progress" data-ui="ess">Progress</div>
                         <div class="tool-item" data-control="field-image"    data-ui="ess">Image</div>
-                        <div class="tool-item tool-ess" data-control="collapsible-section" data-ui="ess">ESS Collapsible Section</div>
+                        <div class="tool-item tool-ess" data-control="collapsible-section" data-ui="ess">ESS Section</div>
                     </div>
                 </div>
 
@@ -2137,7 +2213,8 @@ body.ub-pan-active {
                     <div class="canvas-ruler-v"></div>
 
                     <div id="canvas" class="canvas-area">
-                        <p class="placeholder">Kéo control vào đây để bắt đầu thiết kế…</p>
+                        <div id="canvas-zoom-inner" class="canvas-zoom-inner">
+                        </div>
                     </div>
                 </section>
 
@@ -2390,6 +2467,12 @@ body.ub-pan-active {
         // Toggle JSON - mặc định đóng (json-collapsed)
         $("#jsonToggle").on("click", function () {
             $center.toggleClass("json-collapsed");
+            // Cập nhật ruler sau khi layout thay đổi
+            if (window.builder && typeof window.builder.updateRulers === "function") {
+                setTimeout(function() {
+                    window.builder.updateRulers();
+                }, 100);
+            }
 
             var $icon = $(this).find(".jt-icon");
             if ($center.hasClass("json-collapsed")) {

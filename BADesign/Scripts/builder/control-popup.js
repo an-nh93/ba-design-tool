@@ -1,4 +1,4 @@
-﻿var controlPopup = (function () {
+var controlPopup = (function () {
     let idSeed = 1;
     let selectedPopupId = null;
     let selectedFieldId = null;
@@ -108,7 +108,7 @@
         // ✅ apply header/title style ngay khi render
         applyPopupHeaderStyle(cfg, $popup);
 
-        $canvas.append($popup);
+        $("#canvas-zoom-inner").append($popup);
 
         // ================== drag / resize (mượt) ==================
         try { interact($popup[0]).unset(); } catch (e) { }
@@ -130,8 +130,11 @@
                         let newLeft = curLeft + event.dx;
                         let newTop = curTop + event.dy;
 
-                        if (newLeft < 0) newLeft = 0;
-                        if (newTop < 0) newTop = 0;
+                        // Ruler boundary: 20px (theo margin của canvas)
+                        var rulerLeft = 20;
+                        var rulerTop = 20;
+                        if (newLeft < rulerLeft) newLeft = rulerLeft;
+                        if (newTop < rulerTop) newTop = rulerTop;
 
                         dragPending = { newLeft, newTop, dx: event.dx, dy: event.dy };
 

@@ -1,4 +1,4 @@
-﻿var controlField = (function () {
+var controlField = (function () {
     var multiSelectedIds = [];
 
     // Icon Picker Modal Function
@@ -1731,7 +1731,7 @@
     }
 
     function render(cfg) {
-        var $canvas = $("#canvas");
+        var $canvas = $("#canvas-zoom-inner");
 
         if ((cfg.ftype === "checkbox" || cfg.ftype === "radio") && !cfg.captionPosition) {
             cfg.captionPosition = "left";
@@ -2098,7 +2098,7 @@
                     var dx = ev.dx;
                     var dy = ev.dy;
 
-                    // --- NEW: không cho kéo ra ngoài top/left của canvas ---
+                    // --- Không cho kéo ra ngoài top/left của canvas (ruler boundary) ---
                     var $sel = $("#canvas .page-field.page-field-selected");
                     if ($sel.length) {
                         var minLeft = Infinity;
@@ -2111,8 +2111,19 @@
                             if (t < minTop) minTop = t;
                         });
 
-                        if (minLeft + dx < 0) dx = -minLeft; // không cho < 0
-                        if (minTop + dy < 0) dy = -minTop;
+                        // Ruler boundary: left >= 20px, top >= 20px (theo margin của canvas)
+                        var rulerLeft = 20;
+                        var rulerTop = 20;
+                        if (minLeft + dx < rulerLeft) dx = rulerLeft - minLeft;
+                        if (minTop + dy < rulerTop) dy = rulerTop - minTop;
+                    } else {
+                        // Nếu không có selection, restrict cho field hiện tại
+                        var curLeft = parseFloat($field.css("left")) || cfg.left || 0;
+                        var curTop = parseFloat($field.css("top")) || cfg.top || 0;
+                        var rulerLeft = 20;
+                        var rulerTop = 20;
+                        if (curLeft + dx < rulerLeft) dx = rulerLeft - curLeft;
+                        if (curTop + dy < rulerTop) dy = rulerTop - curTop;
                     }
                     // --------------------------------------------------------
 

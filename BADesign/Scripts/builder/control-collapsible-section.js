@@ -16,7 +16,7 @@ var controlCollapsibleSection = (function () {
             expanded: true,
             left: 40,
             top: 40,
-            width: 1200,   // Kích thước mặc định lớn cho layout ESS
+            width: 1024,   // Kích thước mặc định lớn cho layout ESS
             height: 600,
             backgroundColor: "#f5f5f5",
             borderColor: "#e0e0e0",
@@ -31,7 +31,7 @@ var controlCollapsibleSection = (function () {
         cfg = cfg || createDefaultConfig();
         cfg.caption = cfg.caption || "General Information";
         cfg.expanded = cfg.expanded !== false;
-        cfg.width = cfg.width || 1200;
+        cfg.width = cfg.width || 1024;
         cfg.height = cfg.height || 600;
         cfg.backgroundColor = cfg.backgroundColor || "#f5f5f5";
         cfg.borderColor = cfg.borderColor || "#e0e0e0";
@@ -40,7 +40,7 @@ var controlCollapsibleSection = (function () {
         cfg.zIndex = cfg.zIndex != null ? cfg.zIndex : 0;
 
         // Find container và xử lý z-index (giống groupbox/section)
-        var $container = $("#canvas");
+        var $container = $("#canvas-zoom-inner");
         var parentCfg = null;
         if (cfg.parentId) {
             parentCfg = (builder.controls || []).find(function (c) { return c.id === cfg.parentId; });
@@ -246,6 +246,12 @@ var controlCollapsibleSection = (function () {
                     var curTop = parseFloat($root.css("top")) || cfg.top || 0;
                     var newLeft = curLeft + event.dx;
                     var newTop = curTop + event.dy;
+
+                    // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
+                    var rulerLeft = 20;
+                    var rulerTop = 20;
+                    if (newLeft < rulerLeft) newLeft = rulerLeft;
+                    if (newTop < rulerTop) newTop = rulerTop;
                     $root.css({ left: newLeft + "px", top: newTop + "px" });
                     cfg.left = newLeft;
                     cfg.top = newTop;

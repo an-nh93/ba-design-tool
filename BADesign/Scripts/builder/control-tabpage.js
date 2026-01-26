@@ -1,4 +1,4 @@
-﻿var controlTabPage = (function () {
+var controlTabPage = (function () {
 
     function newConfig() {
         return {
@@ -88,7 +88,7 @@
         });
         if (cfg.zIndex != null) $tab.css("z-index", cfg.zIndex);
 
-        $canvas.append($tab);
+        $("#canvas-zoom-inner").append($tab);
 
         renderTabsHeader($tab, cfg);
 
@@ -112,6 +112,12 @@
                     var curT = parseFloat($tab.css("top")) || cfg.top || 0;
                     var nl = curL + dx;
                     var nt = curT + dy;
+
+                    // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
+                    var rulerLeft = 20;
+                    var rulerTop = 20;
+                    if (nl < rulerLeft) nl = rulerLeft;
+                    if (nt < rulerTop) nt = rulerTop;
 
                     $tab.css({ left: nl, top: nt });
                     cfg.left = nl;

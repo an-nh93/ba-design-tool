@@ -1,4 +1,4 @@
-﻿var controlToolbar = (function () {
+var controlToolbar = (function () {
 
     // =========================
     // Helpers: scale + coords
@@ -115,7 +115,7 @@
 
         $root.removeClass("toolbar-docked-in-popup");
         $root.css({ position: "absolute", left: cfg.left, top: cfg.top });
-        $canvas.append($root);
+        $("#canvas-zoom-inner").append($root);
         applyBackgroundState($root, cfg);
     }
 
@@ -596,7 +596,7 @@
 
             $root.removeClass("toolbar-docked-in-popup")
                 .css({ position: "absolute", left: cfg.left, top: cfg.top })
-                .appendTo($canvas);
+                .appendTo($("#canvas-zoom-inner"));
 
             return;
         }
