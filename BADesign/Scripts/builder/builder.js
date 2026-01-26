@@ -3539,7 +3539,8 @@ var builder = {
             
             // Đảm bảo số cuối cùng (endX) luôn được hiển thị, ngay cả khi hơi ngoài viewport
             var isLastNumber = (x === endX && showLabel);
-            var margin = isLastNumber ? 50 : step; // Cho phép margin lớn hơn cho số cuối
+            // Cho số cuối cùng, cho phép margin rất lớn để luôn hiển thị (ít nhất = canvas width)
+            var margin = isLastNumber ? Math.max(width, rulerWidth * 2, 1000) : step;
             
             // Chỉ vẽ tick nếu nằm trong viewport của ruler (cho phép margin để vẽ đủ)
             if (tickPos < -step || tickPos > rulerWidth + margin) continue;
@@ -3562,21 +3563,29 @@ var builder = {
             }
         }
         
-        // ✅ Đảm bảo số cuối cùng (endX) luôn được hiển thị nếu chưa có trong vòng lặp
+        // ✅ Đảm bảo số cuối cùng (endX) LUÔN được hiển thị, bất kể vị trí scroll
         // Kiểm tra xem số cuối cùng đã được vẽ chưa
         var hasLastLabel = false;
         $ruler.find(".ruler-label").each(function() {
-            if ($(this).text() == endX) {
+            var labelText = parseInt($(this).text(), 10);
+            if (!isNaN(labelText) && labelText === endX) {
                 hasLastLabel = true;
                 return false; // break
             }
         });
         
+        // ✅ LUÔN vẽ số cuối cùng (endX) bất kể vị trí scroll
+        // Đảm bảo số cuối cùng LUÔN được hiển thị khi scroll đến vị trí đó
         if (!hasLastLabel && endX > 0) {
-            // Nếu số cuối cùng chưa được hiển thị, vẽ nó (ngay cả khi hơi ngoài viewport)
+            // Tính vị trí của số cuối cùng trên ruler
             var finalTickPos = endX - scrollLeft + canvasMarginLeft;
-            // Cho phép hiển thị nếu nằm trong khoảng hợp lý (có thể hơi ngoài viewport)
-            if (finalTickPos > -100 && finalTickPos < rulerWidth + 100) {
+            
+            // LUÔN vẽ số cuối cùng, ngay cả khi nằm ngoài viewport hiện tại
+            // (sẽ hiển thị khi scroll đến vị trí đó, ruler có overflow: hidden nên chỉ hiển thị phần trong viewport)
+            // Cho phép margin rất lớn để đảm bảo luôn vẽ được (ít nhất = canvas width để cover mọi trường hợp)
+            var maxMargin = Math.max(width, rulerWidth * 3, 2000); // Đảm bảo margin đủ lớn
+            // Chỉ skip nếu quá xa (tránh vẽ element quá xa, nhưng cho phép margin rất lớn)
+            if (finalTickPos > -maxMargin && finalTickPos < rulerWidth + maxMargin) {
                 var $finalLabel = $("<div>").addClass("ruler-label").text(endX);
                 $finalLabel.css("left", (finalTickPos + 2) + "px");
                 $ruler.append($finalLabel);
@@ -3618,7 +3627,8 @@ var builder = {
             
             // Đảm bảo số cuối cùng (endY) luôn được hiển thị, ngay cả khi hơi ngoài viewport
             var isLastNumber = (y === endY && showLabel);
-            var margin = isLastNumber ? 50 : step; // Cho phép margin lớn hơn cho số cuối
+            // Cho số cuối cùng, cho phép margin rất lớn để luôn hiển thị (ít nhất = canvas height)
+            var margin = isLastNumber ? Math.max(height, rulerHeight * 2, 1000) : step;
             
             // Chỉ vẽ tick nếu nằm trong viewport của ruler (cho phép margin để vẽ đủ)
             if (tickPos < -step || tickPos > rulerHeight + margin) continue;
@@ -3641,20 +3651,28 @@ var builder = {
             }
         }
         
-        // ✅ Đảm bảo số cuối cùng (endY) luôn được hiển thị nếu chưa có trong vòng lặp
+        // ✅ Đảm bảo số cuối cùng (endY) LUÔN được hiển thị, bất kể vị trí scroll
         var hasLastLabel = false;
         $ruler.find(".ruler-label").each(function() {
-            if ($(this).text() == endY) {
+            var labelText = parseInt($(this).text(), 10);
+            if (!isNaN(labelText) && labelText === endY) {
                 hasLastLabel = true;
                 return false; // break
             }
         });
         
+        // ✅ LUÔN vẽ số cuối cùng (endY) bất kể vị trí scroll
+        // Đảm bảo số cuối cùng LUÔN được hiển thị khi scroll đến vị trí đó
         if (!hasLastLabel && endY > 0) {
-            // Nếu số cuối cùng chưa được hiển thị, vẽ nó (ngay cả khi hơi ngoài viewport)
+            // Tính vị trí của số cuối cùng trên ruler
             var finalTickPos = endY - scrollTop + canvasMarginTop;
-            // Cho phép hiển thị nếu nằm trong khoảng hợp lý (có thể hơi ngoài viewport)
-            if (finalTickPos > -100 && finalTickPos < rulerHeight + 100) {
+            
+            // LUÔN vẽ số cuối cùng, ngay cả khi nằm ngoài viewport hiện tại
+            // (sẽ hiển thị khi scroll đến vị trí đó, ruler có overflow: hidden nên chỉ hiển thị phần trong viewport)
+            // Cho phép margin rất lớn để đảm bảo luôn vẽ được (ít nhất = canvas height để cover mọi trường hợp)
+            var maxMargin = Math.max(height, rulerHeight * 3, 2000); // Đảm bảo margin đủ lớn
+            // Chỉ skip nếu quá xa (tránh vẽ element quá xa, nhưng cho phép margin rất lớn)
+            if (finalTickPos > -maxMargin && finalTickPos < rulerHeight + maxMargin) {
                 var $finalLabel = $("<div>").addClass("ruler-label").text(endY);
                 $finalLabel.css("top", finalTickPos + "px");
                 $ruler.append($finalLabel);

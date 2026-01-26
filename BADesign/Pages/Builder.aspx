@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Builder.aspx.cs" Inherits="BADesign.Builder" ResponseEncoding="utf-8" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Builder.aspx.cs" Inherits="BADesign.Builder" ResponseEncoding="utf-8" %>
 
 <!DOCTYPE html>
 <html>
@@ -47,21 +47,29 @@
 /* ========== GLOBAL ========== */
 html {
     height: 100%;
-    overflow-x: hidden; /* Ngăn scrollbar ngang ở page level */
+    overflow-x: hidden !important; /* Ngăn scrollbar ngang ở page level */
     overflow-y: hidden;
+    width: 100%;
+    max-width: 100vw;
 }
 body {
     margin: 0;
     padding: 0; /* tránh làm tăng chiều cao trang gây scrollbar ngoài */
     font-family: Segoe UI, Tahoma, Arial, sans-serif;
-    overflow: hidden; /* Chỉ cho phép khu vực builder scroll, không scroll cả page */
+    overflow: hidden !important; /* Chỉ cho phép khu vực builder scroll, không scroll cả page */
     width: 100%;
     max-width: 100vw; /* Đảm bảo không vượt quá viewport width */
+    position: relative;
 }
 form {
     width: 100%;
     max-width: 100vw;
-    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    overflow-x: hidden !important; /* Ngăn scrollbar ngang */
+    position: relative;
+}
+/* Đảm bảo tất cả container không gây overflow ngang */
+* {
+    box-sizing: border-box;
 }
 
 /* ========== HEADER ========== */
@@ -72,6 +80,10 @@ form {
     padding: 8px 16px;
     background: #f5f5f5;
     border-bottom: 1px solid #ddd;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    box-sizing: border-box;
 }
 .bh-title { font-size: 20px; margin: 0; }
 .bh-sub   { font-size: 13px; color: #666; }
@@ -163,7 +175,9 @@ form {
     min-width: 0;
     max-width: 100%; /* Đảm bảo không vượt quá container */
     position: relative;
-    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    overflow-x: hidden !important; /* Ngăn scrollbar ngang ở page level - QUAN TRỌNG */
+    overflow-y: hidden; /* Ngăn scrollbar dọc ở page level */
+    box-sizing: border-box;
 }
 
 /* Properties panel - resizable width */
@@ -171,6 +185,8 @@ form {
     width: 370px;
     flex-shrink: 0;
     position: relative;
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    max-width: 100%; /* Đảm bảo không vượt quá container */
 }
 
 /* Khi gập Properties: cột phải còn ~26px (thanh dọc) */
@@ -328,6 +344,10 @@ form {
     display: flex;
     flex-direction: column;
     border-right: 1px solid #ddd;
+    min-width: 0; /* Quan trọng: cho phép flex shrink */
+    overflow-x: hidden !important; /* Ngăn scrollbar ngang ở page level - QUAN TRỌNG */
+    overflow-y: hidden; /* Ngăn scrollbar dọc ở page level */
+    box-sizing: border-box;
 }
 
 /* Canvas shell chiếm phần trên */
@@ -337,6 +357,15 @@ form {
     background: #ffffff;
     /* QUAN TRỌNG: Cho phép scroll khi canvas lớn hơn vùng nhìn thấy */
     overflow: auto;
+    /* Đảm bảo scroll chỉ nội bộ, không gây overflow ở page level */
+    max-width: 100%;
+    width: 100%;
+    /* Đảm bảo không vượt quá container và không gây overflow ngang ở page level */
+    min-width: 0; /* Quan trọng: cho phép flex shrink */
+    box-sizing: border-box;
+    /* QUAN TRỌNG: Đảm bảo scroll chỉ nội bộ, không gây overflow ở page level */
+    overflow-x: auto; /* Cho phép scroll ngang nội bộ */
+    overflow-y: auto; /* Cho phép scroll dọc nội bộ */
 }
 
 /* Canvas container (id="canvas") - vùng chứa, KHÔNG zoom. Luôn giữ kích thước cố định. */
@@ -349,6 +378,10 @@ form {
     min-width: 1600px; /* Giá trị mặc định, sẽ được JS cập nhật */
     min-height: 900px; /* Giá trị mặc định, sẽ được JS cập nhật */
     box-sizing: border-box;
+    /* Đảm bảo canvas không gây overflow ngang ở page level - scroll chỉ trong canvas-shell */
+    max-width: none; /* Cho phép canvas lớn hơn viewport, scroll trong shell */
+    /* QUAN TRỌNG: Tắt scrollbar của canvas vì đã có scrollbar ở canvas-shell */
+    overflow: visible; /* Không có scrollbar riêng, scroll chỉ ở canvas-shell */
 }
 
 /* Nội dung zoom được (controls) - CHỈ phần này zoom, không zoom container */
@@ -359,6 +392,8 @@ form {
     min-height: 900px;
     box-sizing: border-box;
     transform-origin: 0 0;
+    /* QUAN TRỌNG: Tắt scrollbar của zoom-inner vì đã có scrollbar ở canvas-shell */
+    overflow: visible; /* Không có scrollbar riêng, scroll chỉ ở canvas-shell */
 }
 
 /* Rulers - Fixed position, không bị scroll mất. left/top/width/height được JS set theo canvas-shell */
@@ -1846,9 +1881,15 @@ select.ess-action-input {
     color: #fff;
     display: flex;
     align-items: center;
+    max-width: calc(100vw - 40px); /* Đảm bảo không vượt quá viewport */
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    box-sizing: border-box;
     gap: 4px;
     z-index: 4400;
     font-size: 12px;
+    max-width: calc(100vw - 40px); /* Đảm bảo không vượt quá viewport */
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    box-sizing: border-box;
 }
 .canvas-bottom-toolbar button {
     min-width: 26px;
@@ -1981,15 +2022,21 @@ body.ub-pan-active {
     left: 0;
     right: 0;
     bottom: 0;
+    width: 100%;
+    max-width: 100vw; /* Đảm bảo không vượt quá viewport */
     padding: 10px 24px;
     background: linear-gradient(180deg, #ffffff 0%, #f8f8f8 100%);
     border-top: 2px solid #e0e0e0;
     box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    overflow-x: hidden !important; /* Ngăn scrollbar ngang */
+    box-sizing: border-box;
     z-index: 4000;
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 16px;
+    overflow-x: hidden; /* Ngăn scrollbar ngang */
+    box-sizing: border-box;
 }
 .footer-buttons .fb-info {
     font-size: 13px;
