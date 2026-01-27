@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DesignerHome.aspx.cs"
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DesignerHome.aspx.cs"
     Inherits="BADesign.Pages.DesignerHome" %>
 
 <!DOCTYPE html>
@@ -1596,6 +1596,11 @@
                             <span>+</span> New empty page
                 </a>
 
+                <asp:HyperLink ID="lnkDatabaseSearch" runat="server"
+                            CssClass="btn btn-sm" NavigateUrl="~/DatabaseSearch"
+                            Style="background: transparent; border: 1px solid var(--border); color: var(--text-secondary);">
+                    Database Search
+                </asp:HyperLink>
                 <asp:HyperLink ID="lnkUserManagement" runat="server"
                             CssClass="btn btn-sm" NavigateUrl="~/Users"
                             Visible="false"

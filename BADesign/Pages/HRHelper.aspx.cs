@@ -1,0 +1,1412 @@
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Web;
+using System.Web.Services;
+using System.Web.Script.Services;
+using BADesign.Helpers.Security;
+using BADesign.Helpers.Utils;
+
+namespace BADesign.Pages
+{
+    public partial class HRHelper : System.Web.UI.Page
+    {
+        public string ConnectedServer { get; private set; } = "";
+        public string ConnectedDatabase { get; private set; } = "";
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            UiAuthHelper.RequireLogin();
+            var k = Request.QueryString["k"];
+            if (string.IsNullOrWhiteSpace(k))
+            {
+                Response.Redirect(ResolveUrl("~/Pages/DatabaseSearch.aspx"));
+                return;
+            }
+            var id = DataSecurityWrapper.DecryptConnectId(k);
+            if (string.IsNullOrEmpty(id))
+            {
+                Response.Redirect(ResolveUrl("~/Pages/DatabaseSearch.aspx"));
+                return;
+            }
+            var ctx = HttpContext.Current;
+            var info = ctx?.Session?["HRConn_" + id] as DatabaseSearch.HRConnInfo;
+            if (info == null)
+            {
+                Response.Redirect(ResolveUrl("~/Pages/DatabaseSearch.aspx"));
+                return;
+            }
+            ConnectedServer = info.Server ?? "";
+            ConnectedDatabase = info.Database ?? "";
+        }
+
+        private static DatabaseSearch.HRConnInfo GetConnectionFromToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+            var id = DataSecurityWrapper.DecryptConnectId(token);
+            if (string.IsNullOrEmpty(id)) return null;
+            return HttpContext.Current?.Session?["HRConn_" + id] as DatabaseSearch.HRConnInfo;
+        }
+
+        private const string UsersQueryBase = @"
+                        SELECT U.ID As UserID, U.UserName, E.ID AS EmployeeID, E.LocalEmployeeID,
+                               E.FullName AS EmployeeName, U.UserEmailAddress AS UserEmail,
+                               CASE WHEN ISNULL(U.IsDefaultTenantAdmin, 0) = 1 OR G.ID IS NOT NULL THEN CAST(1 AS BIT) ELSE CAST(0 AS BIT) END AS IsTenantAdmin,
+                               ISNULL(U.IsWindowADAccount, 0) AS IsWindowADAccount,
+                               U.Password,
+                               E.BusinessEmailAddress AS EmployeeBusinessEmail,
+                               E.PersonalEmailAddress AS EmployeePersonalEmail,
+                               T.Code AS Tenant,
+                               T.ID AS TenantID,
+                               U.IsActive,
+                               U.IsApproved
+                        FROM Security_Users AS U
+                        INNER JOIN MultiTenant_Tenants AS T ON T.ID = U.TenantID
+                        LEFT JOIN Staffing_Employees AS E ON E.ID = U.EmployeeID
+                        OUTER APPLY ( SELECT GU.ID FROM Security_GroupUsers AS GU INNER JOIN Security_Groups AS G ON G.ID = GU.GroupID WHERE GU.UserID = U.ID AND G.GroupType = 'Tenant' ) AS G
+                        WHERE U.IsActive = 1";
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetUsersCount(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT COUNT(*) FROM (" + UsersQueryBase + ") X";
+                    conn.Open();
+                    var total = Convert.ToInt32(cmd.ExecuteScalar());
+                    return new { success = true, total = total };
+                }
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadUsersChunk(string k, int offset, int count)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var list = new List<object>();
+                var take = Math.Max(1, Math.Min(5000, count));
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = UsersQueryBase + " ORDER BY U.ID OFFSET @off ROWS FETCH NEXT @cnt ROWS ONLY";
+                    cmd.Parameters.AddWithValue("@off", offset);
+                    cmd.Parameters.AddWithValue("@cnt", take);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var employeeID = MyConvert.To<long?>(r.GetValue(2));
+                            var rawBiz = MyConvert.To<string>(r.GetValue(9));
+                            var rawPer = MyConvert.To<string>(r.GetValue(10));
+                            string biz = "", per = "";
+                            if (!string.IsNullOrWhiteSpace(rawBiz)) { try { biz = DataSecurityWrapper.DecryptData<string>(rawBiz, employeeID) ?? ""; } catch { } }
+                            if (!string.IsNullOrWhiteSpace(rawPer)) { try { per = DataSecurityWrapper.DecryptData<string>(rawPer, employeeID) ?? ""; } catch { } }
+                            list.Add(new
+                            {
+                                userID = MyConvert.To<long>(r.GetValue(0)),
+                                userName = MyConvert.To<string>(r.GetValue(1)) ?? "",
+                                employeeID = employeeID,
+                                localEmployeeID = MyConvert.To<string>(r.GetValue(3)) ?? "",
+                                employeeName = MyConvert.To<string>(r.GetValue(4)) ?? "",
+                                userEmail = MyConvert.To<string>(r.GetValue(5)) ?? "",
+                                isTenantAdmin = MyConvert.To<bool>(r.GetValue(6)),
+                                isWindowADAccount = MyConvert.To<bool>(r.GetValue(7)),
+                                password = MyConvert.To<string>(r.GetValue(8)) ?? "",
+                                businessEmail = biz,
+                                personalEmail = per,
+                                tenant = MyConvert.To<string>(r.GetValue(11)) ?? "",
+                                tenantID = MyConvert.To<long?>(r.GetValue(12)),
+                                isActive = MyConvert.To<bool>(r.GetValue(13)),
+                                isApproved = MyConvert.To<bool>(r.GetValue(14))
+                            });
+                        }
+                    }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadUsers(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
+                var list = new List<object>();
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = UsersQueryBase + " ORDER BY U.ID";
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var employeeID = MyConvert.To<long?>(r.GetValue(2));
+                            var rawBiz = MyConvert.To<string>(r.GetValue(9));
+                            var rawPer = MyConvert.To<string>(r.GetValue(10));
+                            string biz = "", per = "";
+                            if (!string.IsNullOrWhiteSpace(rawBiz)) { try { biz = DataSecurityWrapper.DecryptData<string>(rawBiz, employeeID) ?? ""; } catch { } }
+                            if (!string.IsNullOrWhiteSpace(rawPer)) { try { per = DataSecurityWrapper.DecryptData<string>(rawPer, employeeID) ?? ""; } catch { } }
+                            list.Add(new
+                            {
+                                userID = MyConvert.To<long>(r.GetValue(0)),
+                                userName = MyConvert.To<string>(r.GetValue(1)) ?? "",
+                                employeeID = employeeID,
+                                localEmployeeID = MyConvert.To<string>(r.GetValue(3)) ?? "",
+                                employeeName = MyConvert.To<string>(r.GetValue(4)) ?? "",
+                                userEmail = MyConvert.To<string>(r.GetValue(5)) ?? "",
+                                isTenantAdmin = MyConvert.To<bool>(r.GetValue(6)),
+                                isWindowADAccount = MyConvert.To<bool>(r.GetValue(7)),
+                                password = MyConvert.To<string>(r.GetValue(8)) ?? "",
+                                businessEmail = biz,
+                                personalEmail = per,
+                                tenant = MyConvert.To<string>(r.GetValue(11)) ?? "",
+                                tenantID = MyConvert.To<long?>(r.GetValue(12)),
+                                isActive = MyConvert.To<bool>(r.GetValue(13)),
+                                isApproved = MyConvert.To<bool>(r.GetValue(14))
+                            });
+                        }
+                    }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object UpdateUsers(string k, List<long> userIds, bool isUpdatePassword, string password, int methodHash, bool isUpdateEmail, string email, bool ignoreWindowsAD)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
+                var connectionString = info.ConnectionString;
+                if (userIds == null || userIds.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 user." };
+                if (!isUpdatePassword && !isUpdateEmail)
+                    return new { success = false, message = "Chọn ít nhất 1 option (Password hoặc Email)." };
+                if (isUpdatePassword && string.IsNullOrWhiteSpace(password))
+                    return new { success = false, message = "Nhập password khi update password." };
+
+                var hashType = methodHash == 512 ? SimpleHash.HashType.SHA512 : SimpleHash.HashType.SHA256;
+                var chosenEmail = isUpdateEmail ? (email ?? "").Trim() : null;
+
+                var updateUsers = LoadUsersForUpdate(connectionString, userIds);
+                if (updateUsers == null || updateUsers.Count == 0)
+                    return new { success = false, message = "Không tìm thấy user cần update." };
+
+                var userTable = BuildUserDataTable(updateUsers, isUpdatePassword, password, hashType, isUpdateEmail, chosenEmail, ignoreWindowsAD);
+
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 600;
+                        cmd.CommandText = @"
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+SET LOCK_TIMEOUT 5000;
+IF OBJECT_ID('tempdb..#UserTemp') IS NOT NULL DROP TABLE #UserTemp;
+CREATE TABLE #UserTemp(
+    RowId INT IDENTITY(1,1) PRIMARY KEY,
+    [Password] NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    IsWindowADAccount BIT NOT NULL,
+    IsRequireChangePassword BIT NOT NULL,
+    LastLoginDateTime DATETIME NULL,
+    IsLockedOut BIT NOT NULL,
+    LastPasswordChangedDateTime DATETIME NULL,
+    FailedPasswordAttemptCount INT NOT NULL,
+    ReceiveEmailTypeID INT NULL,
+    UserEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    UserName NVARCHAR(100) COLLATE DATABASE_DEFAULT NOT NULL,
+    EmployeeBusinessEmail NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    EmployeePersonalEmail NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    UserID BIGINT NULL
+);";
+                        cmd.ExecuteNonQuery();
+                    }
+
+                    using (var bulk = new SqlBulkCopy(conn))
+                    {
+                        bulk.DestinationTableName = "#UserTemp";
+                        bulk.BulkCopyTimeout = 660;
+                        bulk.BatchSize = 5000;
+                        bulk.ColumnMappings.Add("Password", "Password");
+                        bulk.ColumnMappings.Add("IsWindowADAccount", "IsWindowADAccount");
+                        bulk.ColumnMappings.Add("IsRequireChangePassword", "IsRequireChangePassword");
+                        bulk.ColumnMappings.Add("LastLoginDateTime", "LastLoginDateTime");
+                        bulk.ColumnMappings.Add("IsLockedOut", "IsLockedOut");
+                        bulk.ColumnMappings.Add("LastPasswordChangedDateTime", "LastPasswordChangedDateTime");
+                        bulk.ColumnMappings.Add("FailedPasswordAttemptCount", "FailedPasswordAttemptCount");
+                        bulk.ColumnMappings.Add("ReceiveEmailTypeID", "ReceiveEmailTypeID");
+                        bulk.ColumnMappings.Add("UserEmailAddress", "UserEmailAddress");
+                        bulk.ColumnMappings.Add("UserName", "UserName");
+                        bulk.ColumnMappings.Add("EmployeeBusinessEmail", "EmployeeBusinessEmail");
+                        bulk.ColumnMappings.Add("EmployeePersonalEmail", "EmployeePersonalEmail");
+                        bulk.WriteToServer(userTable);
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 600;
+                        cmd.CommandText = @"
+UPDATE UT SET UT.UserID = U.ID
+FROM #UserTemp UT
+JOIN dbo.Security_Users U WITH (READCOMMITTED) ON U.UserName = UT.UserName COLLATE DATABASE_DEFAULT;";
+                        cmd.ExecuteNonQuery();
+                        cmd.CommandText = "CREATE NONCLUSTERED INDEX IX_UT_UserID ON #UserTemp(UserID);";
+                        try { cmd.ExecuteNonQuery(); } catch { /* ignore */ }
+                    }
+
+                    int maxRowId = 0;
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT ISNULL(MAX(RowId),0) FROM #UserTemp;";
+                        var o = cmd.ExecuteScalar();
+                        maxRowId = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt32(o);
+                    }
+
+                    if (maxRowId == 0)
+                        return new { success = true, message = "Không có bản ghi nào cần update." };
+
+                    const int batchSize = 2000;
+                    int totalBatches = (int)Math.Ceiling(maxRowId / (double)batchSize);
+
+                    for (int b = 0; b < totalBatches; b++)
+                    {
+                        int start = b * batchSize + 1;
+                        int end = Math.Min(maxRowId, start + batchSize - 1);
+
+                        for (int attempt = 1; attempt <= 3; attempt++)
+                        {
+                            try
+                            {
+                                using (var cmd = conn.CreateCommand())
+                                {
+                                    cmd.CommandTimeout = 120;
+                                    cmd.Parameters.AddWithValue("@Start", start);
+                                    cmd.Parameters.AddWithValue("@End", end);
+                                    cmd.CommandText = @"
+SET LOCK_TIMEOUT 5000;
+BEGIN TRAN;
+UPDATE U SET U.[Password]=UT.[Password], U.IsRequireChangePassword=UT.IsRequireChangePassword,
+    U.LastLoginDateTime=UT.LastLoginDateTime, U.IsLockedOut=UT.IsLockedOut, U.IsWindowADAccount=UT.IsWindowADAccount,
+    U.LastPasswordChangedDateTime=UT.LastPasswordChangedDateTime, U.FailedPasswordAttemptCount=UT.FailedPasswordAttemptCount,
+    U.ReceiveEmailTypeID=UT.ReceiveEmailTypeID, U.UserEmailAddress=UT.UserEmailAddress
+FROM #UserTemp UT
+JOIN dbo.Security_Users U WITH (ROWLOCK, UPDLOCK) ON U.ID = UT.UserID
+WHERE UT.RowId BETWEEN @Start AND @End AND UT.UserID IS NOT NULL;
+UPDATE E SET E.PersonalEmailAddress=UT.EmployeePersonalEmail, E.BusinessEmailAddress=UT.EmployeeBusinessEmail
+FROM #UserTemp UT
+JOIN dbo.Security_Users U WITH (READCOMMITTED) ON U.ID = UT.UserID
+JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = U.EmployeeID
+WHERE UT.RowId BETWEEN @Start AND @End AND UT.UserID IS NOT NULL;
+COMMIT TRAN;";
+                                    cmd.ExecuteNonQuery();
+                                }
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (attempt == 3) throw new Exception("Batch update failed: " + ex.Message);
+                            }
+                        }
+                    }
+                }
+
+                return new { success = true, message = "Đã update " + updateUsers.Count + " user." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private sealed class UserForUpdate
+        {
+            public long UserID { get; set; }
+            public string UserName { get; set; }
+            public long? EmployeeID { get; set; }
+            public bool IsWindowADAccount { get; set; }
+            public string Password { get; set; }
+            public string UserEmail { get; set; }
+            public string PersonalEmail { get; set; }
+            public string BusinessEmail { get; set; }
+        }
+
+        private static List<UserForUpdate> LoadUsersForUpdate(string connectionString, List<long> userIds)
+        {
+            var list = new List<UserForUpdate>();
+            var ids = string.Join(",", userIds.Select(x => x.ToString()));
+
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+SELECT U.ID, U.UserName, E.ID AS EmployeeID, ISNULL(U.IsWindowADAccount,0) AS IsWindowADAccount,
+       U.[Password], U.UserEmailAddress, E.PersonalEmailAddress, E.BusinessEmailAddress
+FROM Security_Users U
+LEFT JOIN Staffing_Employees E ON E.ID = U.EmployeeID
+WHERE U.IsActive = 1 AND U.ID IN (" + ids + ") ORDER BY U.ID";
+
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        list.Add(new UserForUpdate
+                        {
+                            UserID = MyConvert.To<long>(r.GetValue(0)),
+                            UserName = MyConvert.To<string>(r.GetValue(1)) ?? "",
+                            EmployeeID = MyConvert.To<long?>(r.GetValue(2)),
+                            IsWindowADAccount = MyConvert.To<bool>(r.GetValue(3)),
+                            Password = MyConvert.To<string>(r.GetValue(4)),
+                            UserEmail = MyConvert.To<string>(r.GetValue(5)),
+                            PersonalEmail = MyConvert.To<string>(r.GetValue(6)),
+                            BusinessEmail = MyConvert.To<string>(r.GetValue(7))
+                        });
+                    }
+                }
+            }
+
+            return list;
+        }
+
+        private static DataTable BuildUserDataTable(List<UserForUpdate> updateUsers, bool isUpdatePassword, string inputPassword,
+            SimpleHash.HashType hashType, bool isUpdateEmail, string chosenEmail, bool ignoreWindowsAD)
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("Password", typeof(string));
+            dt.Columns.Add("IsWindowADAccount", typeof(bool));
+            dt.Columns.Add("IsRequireChangePassword", typeof(bool));
+            dt.Columns.Add("LastLoginDateTime", typeof(DateTime));
+            dt.Columns.Add("IsLockedOut", typeof(bool));
+            dt.Columns.Add("LastPasswordChangedDateTime", typeof(DateTime));
+            dt.Columns.Add("FailedPasswordAttemptCount", typeof(int));
+            dt.Columns.Add("ReceiveEmailTypeID", typeof(int));
+            dt.Columns.Add("UserEmailAddress", typeof(string));
+            dt.Columns.Add("UserName", typeof(string));
+            dt.Columns.Add("EmployeeBusinessEmail", typeof(string));
+            dt.Columns.Add("EmployeePersonalEmail", typeof(string));
+
+            var expire = DateTime.Now.AddYears(1);
+
+            foreach (var u in updateUsers)
+            {
+                string encPwd = u.Password;
+                if (isUpdatePassword)
+                    encPwd = SimpleHash.ComputeHash((u.UserName ?? "").Trim().ToLower() + inputPassword, hashType);
+
+                string businessEmail = u.BusinessEmail;
+                string personalEmail = u.PersonalEmail;
+                string userEmail = u.UserEmail;
+
+                if (isUpdateEmail)
+                {
+                    if (u.EmployeeID.HasValue)
+                    {
+                        businessEmail = DataSecurityWrapper.EncryptData(chosenEmail, u.EmployeeID);
+                        personalEmail = DataSecurityWrapper.EncryptData(chosenEmail, u.EmployeeID);
+                    }
+                    else
+                    {
+                        businessEmail = null;
+                        personalEmail = null;
+                    }
+                    userEmail = chosenEmail;
+                }
+
+                bool finalIsAD = u.IsWindowADAccount;
+                string finalPwd = encPwd;
+
+                if (finalIsAD && ignoreWindowsAD)
+                {
+                    finalPwd = null;
+                    finalIsAD = true;
+                }
+                else if (finalIsAD && !ignoreWindowsAD)
+                    finalIsAD = false;
+
+                var row = dt.NewRow();
+                row["Password"] = (object)finalPwd ?? DBNull.Value;
+                row["IsWindowADAccount"] = finalIsAD;
+                row["IsRequireChangePassword"] = false;
+                row["LastLoginDateTime"] = expire;
+                row["IsLockedOut"] = false;
+                row["LastPasswordChangedDateTime"] = expire;
+                row["FailedPasswordAttemptCount"] = 0;
+                row["ReceiveEmailTypeID"] = 2;
+                row["UserEmailAddress"] = (object)userEmail ?? DBNull.Value;
+                row["UserName"] = u.UserName ?? "";
+                row["EmployeeBusinessEmail"] = (object)businessEmail ?? DBNull.Value;
+                row["EmployeePersonalEmail"] = (object)personalEmail ?? DBNull.Value;
+                dt.Rows.Add(row);
+            }
+
+            return dt;
+        }
+
+        /* WinForms: OU.NameEN AS ManagerOrganizionStructure; we use OrganizionStructure for OU to avoid duplicate alias with M.ManagerOrganizionStructure. */
+        private const string EmployeesQueryBase = @"
+SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS EmployeeName, E.DateOfBirth,
+       E.PersonalEmailAddress, E.BusinessEmailAddress, E.MobilePhone1, E.MobilePhone2,
+       T.ServiceStartDate,
+       TSA.ID AS ALPolicyID, TSA.NameEN AS ALPolicy,
+       TS.ID AS TimeSheetPolicyID, TS.NameEN AS TimeSheetPolicy,
+       OS.ID AS OrganizionStructureID, OU.NameEN AS OrganizionStructure,
+       M.ManagerEmployeeID, M.ManagerLocalEmployeeID, M.ManagerFullName, M.ManagerUserName, M.ManagerOrganizionStructureID, M.ManagerOrganizionStructure,
+       U.ID AS UserID, U.UserName, E.PayslipPassword,
+       CAST(C.ID AS VARCHAR(10)) + ' - ' + C.Code + ' - ' + C.NameEN AS CompanyInfo
+FROM Staffing_Transactions AS T
+INNER JOIN Staffing_OrganizationStructures AS OS ON OS.ID = T.OrganizationStructureID
+INNER JOIN Staffing_OrganizationUnits AS OU ON OU.ID = OS.OrgUnitID
+INNER JOIN Staffing_Employees AS E ON E.ID = T.EmployeeID
+OUTER APPLY ( SELECT TOP 1 U.* FROM Security_Users AS U WHERE U.EmployeeID = E.ID ORDER BY U.IsActive DESC ) AS U
+INNER JOIN TIM_TimeSheetPolicies AS TS ON TS.ID = T.TimeSheetPolicyID
+INNER JOIN TIM_TimeSheetALPolicies AS TSA ON TSA.ID = T.TimeSheetALPolicyID
+INNER JOIN MultiTenant_Companies AS C ON C.ID = T.CompanyID
+OUTER APPLY (
+    SELECT ME.LocalEmployeeID AS ManagerLocalEmployeeID, ME.ID AS ManagerEmployeeID, ME.FullName AS ManagerFullName,
+           MOS.ID AS ManagerOrganizionStructureID, MOU.NameEN AS ManagerOrganizionStructure,
+           (SELECT TOP 1 MU.UserName FROM Security_Users AS MU WHERE MU.EmployeeID = ME.ID ORDER BY MU.IsActive DESC) AS ManagerUserName
+    FROM Staffing_ManagersOrgStructureActives AS MOSA
+    INNER JOIN Staffing_Employees AS ME ON ME.ID = MOSA.EmployeeID
+    INNER JOIN Staffing_Transactions AS MT ON MT.EmployeeID = ME.ID AND MT.IsActiveTransaction = 1
+    INNER JOIN Staffing_OrganizationStructures AS MOS ON MOS.ID = MT.OrganizationStructureID
+    INNER JOIN Staffing_OrganizationUnits AS MOU ON MOU.ID = MOS.OrgUnitID
+    WHERE MOSA.OrganizationStructureID = T.OrganizationStructureID AND MOSA.ManagerTypeID = 1 AND MOSA.TenantID = T.TenantID AND MOSA.CompanyID = T.CompanyID
+) AS M
+WHERE T.IsActiveTransaction = 1";
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object ClearEmployeesSessionForCompany(string k, int? companyID)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var sessionKey = "HR_Employees_" + (companyID.HasValue ? companyID.Value.ToString() : "All");
+                HttpContext.Current.Session.Remove(sessionKey);
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveEmployeesChunkToSession(string k, int? companyID, List<object> chunk, bool isFirstChunk = false)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var sessionKey = "HR_Employees_" + (companyID.HasValue ? companyID.Value.ToString() : "All");
+                var session = HttpContext.Current.Session;
+                if (isFirstChunk)
+                    session.Remove(sessionKey);
+                var list = session[sessionKey] as List<object>;
+                if (list == null)
+                {
+                    list = new List<object>();
+                    session[sessionKey] = list;
+                }
+                if (chunk != null && chunk.Count > 0)
+                    list.AddRange(chunk);
+                return new { success = true, count = list.Count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmployeesFromSession(string k, int? companyID)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var sessionKey = "HR_Employees_" + (companyID.HasValue ? companyID.Value.ToString() : "All");
+                var session = HttpContext.Current.Session;
+                if (session == null)
+                    return new { success = false, message = "Session không tồn tại." };
+                var employees = session[sessionKey] as List<object>;
+                if (employees == null || employees.Count == 0)
+                    return new { success = false, message = "Không có data trong session cho key: " + sessionKey };
+                return new { success = true, list = employees, count = employees.Count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object ClearEmployeesSession(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                // Clear all employee sessions for this connection
+                var keys = new List<string>();
+                foreach (string key in HttpContext.Current.Session.Keys)
+                {
+                    if (key != null && key.StartsWith("HR_Employees_"))
+                        keys.Add(key);
+                }
+                foreach (var key in keys)
+                {
+                    HttpContext.Current.Session.Remove(key);
+                }
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private const string UsersSessionKey = "HR_Users";
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object ClearUsersSession(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                HttpContext.Current.Session.Remove(UsersSessionKey);
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveUsersChunkToSession(string k, List<object> chunk, bool isFirstChunk = false)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var session = HttpContext.Current.Session;
+                if (isFirstChunk)
+                    session.Remove(UsersSessionKey);
+                var list = session[UsersSessionKey] as List<object>;
+                if (list == null)
+                {
+                    list = new List<object>();
+                    session[UsersSessionKey] = list;
+                }
+                if (chunk != null && chunk.Count > 0)
+                    list.AddRange(chunk);
+                return new { success = true, count = list.Count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadUsersFromSession(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var list = HttpContext.Current.Session[UsersSessionKey] as List<object>;
+                if (list == null || list.Count == 0)
+                    return new { success = false, message = "Không có data users trong session." };
+                return new { success = true, list = list, count = list.Count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object UpdateUsersInSession(string k, List<long> userIds, bool isUpdatePassword, bool isUpdateEmail, string email)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var session = HttpContext.Current.Session;
+                if (session == null)
+                    return new { success = false, message = "Session không tồn tại." };
+                var list = session[UsersSessionKey] as List<object>;
+                if (list == null || list.Count == 0)
+                    return new { success = false, message = "Không có data users trong session." };
+                var userIdSet = new HashSet<long>(userIds);
+                foreach (var item in list)
+                {
+                    var user = item as Dictionary<string, object>;
+                    if (user == null) continue;
+                    var uid = MyConvert.To<long>(user.ContainsKey("userID") ? user["userID"] : 0);
+                    if (!userIdSet.Contains(uid)) continue;
+                    if (isUpdateEmail && !string.IsNullOrWhiteSpace(email))
+                        user["userEmail"] = email;
+                }
+                return new { success = true, count = list.Count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object UpdateEmployeesInSession(string k, int? companyID, List<long> employeeIds,
+            bool updPersonal, string personalEmail, bool updBusiness, string businessEmail,
+            bool updM1, string m1, bool updM2, string m2)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var sessionKey = "HR_Employees_" + (companyID.HasValue ? companyID.Value.ToString() : "All");
+                var session = HttpContext.Current.Session;
+                if (session == null)
+                    return new { success = false, message = "Session không tồn tại." };
+                var list = session[sessionKey] as List<object>;
+                if (list == null || list.Count == 0)
+                    return new { success = false, message = "Không có data employees trong session cho key: " + sessionKey };
+                var empIdSet = new HashSet<long>(employeeIds);
+                foreach (var item in list)
+                {
+                    var emp = item as Dictionary<string, object>;
+                    if (emp == null) continue;
+                    var eid = MyConvert.To<long>(emp.ContainsKey("employeeID") ? emp["employeeID"] : 0);
+                    if (!empIdSet.Contains(eid)) continue;
+                    if (updPersonal && !string.IsNullOrWhiteSpace(personalEmail))
+                        emp["personalEmail"] = personalEmail;
+                    if (updBusiness && !string.IsNullOrWhiteSpace(businessEmail))
+                        emp["businessEmail"] = businessEmail;
+                    if (updM1 && !string.IsNullOrWhiteSpace(m1))
+                        emp["mobilePhone1"] = m1;
+                    if (updM2 && !string.IsNullOrWhiteSpace(m2))
+                        emp["mobilePhone2"] = m2;
+                }
+                return new { success = true, count = list.Count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetCurrentUserName(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var userName = Environment.UserName;
+                if (userName == "an.nh")
+                {
+                    userName = "huyen.ntu";
+                }
+                return new { success = true, userName = userName };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadTenants(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT ID, Code FROM MultiTenant_Tenants ORDER BY Code";
+                    conn.Open();
+                    var list = new List<object>();
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            list.Add(new { id = MyConvert.To<long>(reader.GetValue(0)), code = MyConvert.To<string>(reader.GetValue(1)) ?? "" });
+                        }
+                    }
+                    return new { success = true, list = list };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadCompaniesByTenant(string k, int tenantID)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT C.ID, C.Code, C.NameEN FROM MultiTenant_Companies AS C WHERE C.TenantID = @tid ORDER BY C.Code, C.NameEN";
+                    cmd.Parameters.AddWithValue("@tid", tenantID);
+                    conn.Open();
+                    var list = new List<object>();
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            list.Add(new { id = MyConvert.To<long>(reader.GetValue(0)), code = MyConvert.To<string>(reader.GetValue(1)) ?? "", name = MyConvert.To<string>(reader.GetValue(2)) ?? "" });
+                        }
+                    }
+                    return new { success = true, list = list };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadCompanyInfo(string k, int? tenantID, int? companyID)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    var sql = @"
+                        SELECT TOP 1 C.HREmailTo, C.HREmailCC, C.PayrollEmailTo, C.PayrollEmailCC, C.Email,
+                               ES.OutgoingMailServer, ES.OutgoingMailServerPort, ES.AccountID, ES.EmailAddress,
+                               ES.PasswordPOP3, ES.SSLPort, ES.SMTPDisplayName, ES.IsEnableSSL
+                        FROM MultiTenant_Companies AS C
+                        LEFT JOIN Setting_EmailServers AS ES ON ES.CompanyID = C.ID";
+                    if (companyID.HasValue)
+                    {
+                        sql += " WHERE C.ID = @cid";
+                        cmd.Parameters.AddWithValue("@cid", companyID.Value);
+                    }
+                    else if (tenantID.HasValue)
+                    {
+                        sql += " WHERE C.TenantID = @tid";
+                        cmd.Parameters.AddWithValue("@tid", tenantID.Value);
+                    }
+                    cmd.CommandText = sql;
+                    conn.Open();
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            var password = MyConvert.To<string>(reader.GetValue(9));
+                            string decryptedPassword = null;
+                            if (!string.IsNullOrWhiteSpace(password))
+                            {
+                                try { decryptedPassword = DataSecurityWrapper.DecryptData<string>(password, (long?)null); } catch { }
+                            }
+                            return new
+                            {
+                                success = true,
+                                data = new
+                                {
+                                    hrEmailTo = MyConvert.To<string>(reader.GetValue(0)) ?? "",
+                                    hrEmailCC = MyConvert.To<string>(reader.GetValue(1)) ?? "",
+                                    payrollEmailTo = MyConvert.To<string>(reader.GetValue(2)) ?? "",
+                                    payrollEmailCC = MyConvert.To<string>(reader.GetValue(3)) ?? "",
+                                    email = MyConvert.To<string>(reader.GetValue(4)) ?? "",
+                                    outgoingMailServer = MyConvert.To<string>(reader.GetValue(5)) ?? "",
+                                    outgoingMailServerPort = MyConvert.To<int>(reader.GetValue(6)),
+                                    accountID = MyConvert.To<string>(reader.GetValue(7)) ?? "",
+                                    emailAddress = MyConvert.To<string>(reader.GetValue(8)) ?? "",
+                                    password = decryptedPassword ?? "",
+                                    sslPort = MyConvert.To<int?>(reader.GetValue(10)),
+                                    smtpDisplayName = MyConvert.To<string>(reader.GetValue(11)) ?? "",
+                                    isEnableSSL = MyConvert.To<bool>(reader.GetValue(12))
+                                }
+                            };
+                        }
+                    }
+                    return new { success = false, message = "Không tìm thấy company." };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object UpdateCompanyInfo(string k, int? tenantID, int? companyID, bool isUpdateAll,
+            bool useCommonEmail, string commonEmail,
+            string hrEmailTo, string hrEmailCC, string payrollEmailTo, string payrollEmailCC, string contactEmail,
+            string outgoingServer, int serverPort, string accountName, string userName, string emailAddress, string password,
+            bool enableSSL, int? sslPort)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 600;
+                        string payrollEmailToVal, payrollEmailCCVal, hrEmailToVal, hrEmailCCVal, emailVal;
+                        if (useCommonEmail && !string.IsNullOrWhiteSpace(commonEmail))
+                        {
+                            payrollEmailToVal = payrollEmailCCVal = hrEmailToVal = hrEmailCCVal = emailVal = commonEmail;
+                        }
+                        else
+                        {
+                            payrollEmailToVal = payrollEmailTo ?? "";
+                            payrollEmailCCVal = payrollEmailCC ?? "";
+                            hrEmailToVal = hrEmailTo ?? "";
+                            hrEmailCCVal = hrEmailCC ?? "";
+                            emailVal = contactEmail ?? "";
+                        }
+                        cmd.CommandText = @"
+                            UPDATE MultiTenant_Companies
+                            SET PayrollEmailTo = @valPayrollEmailTo,
+                                PayrollEmailCC = @valPayrollEmailCC,
+                                HREmailTo = @valHREmailTo,
+                                HREmailCC = @valHREmailCC,
+                                Email = @valEmail
+                            WHERE @valIsUpdateAll = 1 OR ID = @valCompanyID";
+                        cmd.Parameters.AddWithValue("@valCompanyID", companyID ?? 0);
+                        cmd.Parameters.AddWithValue("@valPayrollEmailTo", payrollEmailToVal);
+                        cmd.Parameters.AddWithValue("@valPayrollEmailCC", payrollEmailCCVal);
+                        cmd.Parameters.AddWithValue("@valHREmailTo", hrEmailToVal);
+                        cmd.Parameters.AddWithValue("@valHREmailCC", hrEmailCCVal);
+                        cmd.Parameters.AddWithValue("@valEmail", emailVal);
+                        cmd.Parameters.AddWithValue("@valIsUpdateAll", isUpdateAll ? 1 : 0);
+                        cmd.ExecuteNonQuery();
+                        cmd.Parameters.Clear();
+                        var encryptedPassword = !string.IsNullOrWhiteSpace(password) ? DataSecurityWrapper.EncryptData(password, null) : null;
+                        cmd.CommandText = @"
+                            -- INSERT cho các Company chưa có EmailServer
+                            INSERT INTO Setting_EmailServers
+                                (ID, ServerTypeID, OutgoingMailServer, OutgoingMailServerPort, AccountID,
+                                 IsEnableSSL, EmailAddress, SSLPort, PasswordPOP3, CompanyID, TenantID, SMTPDisplayName)
+                            SELECT 
+                                dbo.NewGuidComb(NEWID()), 
+                                1,
+                                @valOutgoingMailServer,
+                                @valOutgoingMailServerPort,
+                                @valAccountID,
+                                @valIsEnableSSL,
+                                @valEmailAddress,
+                                @valSSLPort,
+                                @valPasswordPOP3,
+                                C.ID,
+                                C.TenantID,
+                                @valSMTPDisplayName
+                            FROM MultiTenant_Companies AS C
+                            LEFT JOIN Setting_EmailServers AS ES ON ES.CompanyID = C.ID
+                            WHERE ES.ID IS NULL AND (@valIsUpdateAll = 1 OR C.ID = @valCompanyID) AND (@valTenantID IS NULL OR C.TenantID = @valTenantID);
+
+                            -- UPDATE theo điều kiện
+                            UPDATE Setting_EmailServers
+                            SET 
+                                OutgoingMailServer = @valOutgoingMailServer,
+                                OutgoingMailServerPort = @valOutgoingMailServerPort,
+                                AccountID = @valAccountID,
+                                EmailAddress = @valEmailAddress,
+                                SSLPort = @valSSLPort,
+                                PasswordPOP3 = @valPasswordPOP3,
+                                SMTPDisplayName = @valSMTPDisplayName,
+                                IsEnableSSL = @valIsEnableSSL
+                            WHERE 
+                                (@valIsUpdateAll = 1 OR CompanyID = @valCompanyID)
+                                AND (@valTenantID IS NULL OR TenantID = @valTenantID);";
+                        cmd.Parameters.AddWithValue("@valOutgoingMailServer", outgoingServer ?? "");
+                        cmd.Parameters.AddWithValue("@valOutgoingMailServerPort", serverPort);
+                        cmd.Parameters.AddWithValue("@valAccountID", userName ?? "");
+                        cmd.Parameters.AddWithValue("@valEmailAddress", emailAddress ?? "");
+                        cmd.Parameters.AddWithValue("@valPasswordPOP3", encryptedPassword ?? (object)DBNull.Value);
+                        cmd.Parameters.AddWithValue("@valSSLPort", sslPort.HasValue ? (object)sslPort.Value : DBNull.Value);
+                        cmd.Parameters.AddWithValue("@valSMTPDisplayName", accountName ?? "");
+                        cmd.Parameters.AddWithValue("@valIsEnableSSL", enableSSL);
+                        cmd.Parameters.AddWithValue("@valIsUpdateAll", isUpdateAll ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@valCompanyID", companyID ?? 0);
+                        cmd.Parameters.AddWithValue("@valTenantID", tenantID.HasValue ? (object)tenantID.Value : DBNull.Value);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                return new { success = true, message = "Đã update company info thành công." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadCompanies(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+                        SELECT C.ID, C.Code, C.NameEN, C.TenantID
+                        FROM MultiTenant_Companies AS C
+                        ORDER BY C.Code, C.NameEN";
+                    conn.Open();
+                    var list = new List<object>();
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            list.Add(new
+                            {
+                                id = reader.GetValue(0),
+                                code = reader.GetValue(1)?.ToString() ?? "",
+                                name = reader.GetValue(2)?.ToString() ?? "",
+                                tenantID = reader.GetValue(3)
+                            });
+                        }
+                    }
+                    return new { success = true, list = list };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetEmployeesCount(string k, int? companyID = null)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    var query = EmployeesQueryBase;
+                    if (companyID.HasValue && companyID.Value > 0)
+                    {
+                        query += " AND T.CompanyID = @companyID";
+                        cmd.Parameters.AddWithValue("@companyID", companyID.Value);
+                    }
+                    cmd.CommandText = "SELECT COUNT(*) FROM (" + query + ") X";
+                    conn.Open();
+                    var total = Convert.ToInt32(cmd.ExecuteScalar());
+                    return new { success = true, total = total };
+                }
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmployeesChunk(string k, int offset, int count, int? companyID = null)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var list = new List<object>();
+                var take = Math.Max(1, Math.Min(5000, count));
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    var query = EmployeesQueryBase;
+                    if (companyID.HasValue && companyID.Value > 0)
+                    {
+                        query += " AND T.CompanyID = @companyID";
+                        cmd.Parameters.AddWithValue("@companyID", companyID.Value);
+                    }
+                    cmd.CommandText = query + " ORDER BY E.ID, T.ID OFFSET @off ROWS FETCH NEXT @cnt ROWS ONLY";
+                    cmd.Parameters.AddWithValue("@off", offset);
+                    cmd.Parameters.AddWithValue("@cnt", take);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                            list.Add(ReadEmployeeRow(r));
+                    }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        private static object ReadEmployeeRow(SqlDataReader r)
+        {
+            var empId = MyConvert.To<long>(r.GetValue(0));
+            var raw4 = MyConvert.To<string>(r.GetValue(4));
+            var raw5 = MyConvert.To<string>(r.GetValue(5));
+            var raw6 = MyConvert.To<string>(r.GetValue(6));
+            var raw7 = MyConvert.To<string>(r.GetValue(7));
+            var raw23 = MyConvert.To<string>(r.GetValue(23));
+            string personal = "", business = "", m1 = "", m2 = "", payslip = "";
+            if (!string.IsNullOrWhiteSpace(raw4)) { try { personal = DataSecurityWrapper.DecryptData<string>(raw4, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw5)) { try { business = DataSecurityWrapper.DecryptData<string>(raw5, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw6)) { try { m1 = DataSecurityWrapper.DecryptData<string>(raw6, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw7)) { try { m2 = DataSecurityWrapper.DecryptData<string>(raw7, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw23)) { try { payslip = DataSecurityWrapper.DecryptData<string>(raw23, empId) ?? ""; } catch { } }
+            var dob = MyConvert.To<DateTime?>(r.GetValue(3));
+            var svc = MyConvert.To<DateTime?>(r.GetValue(8));
+            return new
+            {
+                employeeID = empId,
+                localEmployeeID = MyConvert.To<string>(r.GetValue(1)) ?? "",
+                employeeName = MyConvert.To<string>(r.GetValue(2)) ?? "",
+                dateOfBirth = dob.HasValue ? dob.Value.ToString("yyyy-MM-dd") : "",
+                personalEmail = personal,
+                businessEmail = business,
+                mobilePhone1 = m1,
+                mobilePhone2 = m2,
+                serviceStartDate = svc.HasValue ? svc.Value.ToString("yyyy-MM-dd") : "",
+                alPolicyID = MyConvert.To<long?>(r.GetValue(9)),
+                alPolicy = MyConvert.To<string>(r.GetValue(10)) ?? "",
+                timeSheetPolicyID = MyConvert.To<long?>(r.GetValue(11)),
+                timeSheetPolicy = MyConvert.To<string>(r.GetValue(12)) ?? "",
+                organizionStructureID = MyConvert.To<long?>(r.GetValue(13)),
+                organizionStructure = MyConvert.To<string>(r.GetValue(14)) ?? "",
+                managerEmployeeID = MyConvert.To<long?>(r.GetValue(15)),
+                managerLocalEmployeeID = MyConvert.To<string>(r.GetValue(16)) ?? "",
+                managerFullName = MyConvert.To<string>(r.GetValue(17)) ?? "",
+                managerUserName = MyConvert.To<string>(r.GetValue(18)) ?? "",
+                managerOrganizionStructureID = MyConvert.To<long?>(r.GetValue(19)),
+                managerOrganizionStructure = MyConvert.To<string>(r.GetValue(20)) ?? "",
+                userID = MyConvert.To<long?>(r.GetValue(21)),
+                userName = MyConvert.To<string>(r.GetValue(22)) ?? "",
+                payslipPassword = payslip,
+                companyInfo = MyConvert.To<string>(r.GetValue(24)) ?? ""
+            };
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmployees(string k)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
+                var list = new List<object>();
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = EmployeesQueryBase + " ORDER BY E.ID, T.ID";
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                            list.Add(ReadEmployeeRow(r));
+                    }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object UpdateEmployees(string k, List<long> employeeIds,
+            bool updPersonal, string personalEmail, bool updBusiness, string businessEmail,
+            bool updPayslip, string payslipCommon, bool payslipByEmp,
+            bool updM1, string m1, bool updM2, string m2, bool updBasic, decimal basicSalary)
+        {
+            try
+            {
+                UiAuthHelper.GetCurrentUserIdOrThrow();
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                if (employeeIds == null || employeeIds.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 employee." };
+                if (!updPersonal && !updBusiness && !updPayslip && !updM1 && !updM2 && !updBasic)
+                    return new { success = false, message = "Chọn ít nhất 1 option để update." };
+                if (updPayslip && !payslipByEmp && string.IsNullOrWhiteSpace(payslipCommon))
+                    return new { success = false, message = "Nhập Payslip Password Common khi bật Update Payslip mà không chọn Encrypt by Employee." };
+
+                var employees = LoadEmployeesForUpdate(info.ConnectionString, employeeIds);
+                if (employees == null || employees.Count == 0)
+                    return new { success = false, message = "Không tìm thấy employee cần update." };
+
+                var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail,
+                    updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
+
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 600;
+                        cmd.CommandText = @"
+SET NOCOUNT ON; SET XACT_ABORT ON; SET LOCK_TIMEOUT 5000;
+IF OBJECT_ID('tempdb..#EmployeeTemp') IS NOT NULL DROP TABLE #EmployeeTemp;
+CREATE TABLE #EmployeeTemp(
+    RowId INT IDENTITY(1,1) PRIMARY KEY,
+    EmployeeID BIGINT NOT NULL,
+    PersonalEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    BusinessEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    BasicSalary NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL
+);";
+                        cmd.ExecuteNonQuery();
+                    }
+                    using (var bulk = new SqlBulkCopy(conn))
+                    {
+                        bulk.DestinationTableName = "#EmployeeTemp";
+                        bulk.BulkCopyTimeout = 660;
+                        bulk.BatchSize = 5000;
+                        bulk.ColumnMappings.Add("EmployeeID", "EmployeeID");
+                        bulk.ColumnMappings.Add("PersonalEmailAddress", "PersonalEmailAddress");
+                        bulk.ColumnMappings.Add("BusinessEmailAddress", "BusinessEmailAddress");
+                        bulk.ColumnMappings.Add("PayslipPassword", "PayslipPassword");
+                        bulk.ColumnMappings.Add("MobilePhone1", "MobilePhone1");
+                        bulk.ColumnMappings.Add("MobilePhone2", "MobilePhone2");
+                        bulk.ColumnMappings.Add("BasicSalary", "BasicSalary");
+                        bulk.WriteToServer(dt);
+                    }
+
+                    int maxRowId = 0;
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT ISNULL(MAX(RowId),0) FROM #EmployeeTemp;";
+                        var o = cmd.ExecuteScalar();
+                        maxRowId = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt32(o);
+                    }
+                    if (maxRowId == 0)
+                        return new { success = true, message = "Không có bản ghi nào." };
+
+                    const int batchSize = 2000;
+                    int totalBatches = (int)Math.Ceiling(maxRowId / (double)batchSize);
+                    for (int b = 0; b < totalBatches; b++)
+                    {
+                        int start = b * batchSize + 1;
+                        int end = Math.Min(maxRowId, start + batchSize - 1);
+                        for (int attempt = 1; attempt <= 3; attempt++)
+                        {
+                            try
+                            {
+                                using (var cmd = conn.CreateCommand())
+                                {
+                                    cmd.CommandTimeout = 120;
+                                    cmd.Parameters.AddWithValue("@Start", start);
+                                    cmd.Parameters.AddWithValue("@End", end);
+                                    cmd.CommandText = @"
+SET LOCK_TIMEOUT 5000;
+BEGIN TRAN;
+IF OBJECT_ID('tempdb..#B') IS NOT NULL DROP TABLE #B;
+SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, BasicSalary
+INTO #B FROM #EmployeeTemp WHERE RowId BETWEEN @Start AND @End;
+CREATE NONCLUSTERED INDEX IX_B_EmployeeID ON #B(EmployeeID);
+
+UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),
+    E.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,E.BusinessEmailAddress),
+    E.PayslipPassword=COALESCE(B.PayslipPassword,E.PayslipPassword),
+    E.MobilePhone1=COALESCE(B.MobilePhone1,E.MobilePhone1),
+    E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2)
+FROM #B B
+JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = B.EmployeeID
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.PayslipPassword IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL);
+
+IF OBJECT_ID('dbo.Staffing_EmployeeInformations','U') IS NOT NULL
+UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.PersonalEmailAddress),
+    EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress)
+FROM #B B
+JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = B.EmployeeID
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL);
+
+IF EXISTS(SELECT 1 FROM #B WHERE BasicSalary IS NOT NULL)
+BEGIN
+    IF OBJECT_ID('dbo.PAY_EmployeeSalaries','U') IS NOT NULL
+    UPDATE ES SET ES.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (ROWLOCK, UPDLOCK) ON ES.EmployeeID=B.EmployeeID WHERE B.BasicSalary IS NOT NULL;
+    IF OBJECT_ID('dbo.PAY_EmployeeSalaryDetails','U') IS NOT NULL
+    UPDATE ESD SET ESD.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (READCOMMITTED) ON ES.EmployeeID=B.EmployeeID JOIN dbo.PAY_EmployeeSalaryDetails ESD WITH (ROWLOCK, UPDLOCK) ON ESD.EmployeeSalaryID=ES.ID WHERE B.BasicSalary IS NOT NULL;
+    UPDATE T SET T.BasicSalary=B.BasicSalary
+    FROM #B B
+    JOIN dbo.Staffing_Transactions T WITH (ROWLOCK, UPDLOCK) ON T.EmployeeID=B.EmployeeID AND T.IsActiveTransaction=1
+    WHERE B.BasicSalary IS NOT NULL;
+END
+
+DROP TABLE #B;
+COMMIT TRAN;";
+                                    cmd.ExecuteNonQuery();
+                                }
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                if (attempt == 3) throw new Exception("Batch update failed: " + ex.Message);
+                            }
+                        }
+                    }
+                }
+                return new { success = true, message = "Đã update " + employees.Count + " employee." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private sealed class EmployeeForUpdate
+        {
+            public long EmployeeID { get; set; }
+            public string LocalEmployeeID { get; set; }
+        }
+
+        private static List<EmployeeForUpdate> LoadEmployeesForUpdate(string connectionString, List<long> employeeIds)
+        {
+            var list = new List<EmployeeForUpdate>();
+            var ids = string.Join(",", employeeIds.Select(x => x.ToString()));
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT ID, LocalEmployeeID FROM Staffing_Employees WHERE ID IN (" + ids + ") ORDER BY ID";
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        list.Add(new EmployeeForUpdate
+                        {
+                            EmployeeID = MyConvert.To<long>(r.GetValue(0)),
+                            LocalEmployeeID = MyConvert.To<string>(r.GetValue(1)) ?? ""
+                        });
+                    }
+                }
+            }
+            return list;
+        }
+
+        private static DataTable BuildEmployeeDataTable(List<EmployeeForUpdate> employees,
+            bool updPersonal, string personalEmail, bool updBusiness, string businessEmail,
+            bool updPayslip, string payslipCommon, bool payslipByEmp,
+            bool updM1, string m1, bool updM2, string m2, bool updBasic, decimal basicSalary)
+        {
+            var dt = new DataTable();
+            dt.Columns.Add("EmployeeID", typeof(long));
+            dt.Columns.Add("PersonalEmailAddress", typeof(string));
+            dt.Columns.Add("BusinessEmailAddress", typeof(string));
+            dt.Columns.Add("PayslipPassword", typeof(string));
+            dt.Columns.Add("MobilePhone1", typeof(string));
+            dt.Columns.Add("MobilePhone2", typeof(string));
+            dt.Columns.Add("BasicSalary", typeof(string));
+            foreach (var e in employees)
+            {
+                var row = dt.NewRow();
+                row["EmployeeID"] = e.EmployeeID;
+                row["PersonalEmailAddress"] = updPersonal && !string.IsNullOrWhiteSpace(personalEmail) ? (object)DataSecurityWrapper.EncryptData(personalEmail, e.EmployeeID) : DBNull.Value;
+                row["BusinessEmailAddress"] = updBusiness && !string.IsNullOrWhiteSpace(businessEmail) ? (object)DataSecurityWrapper.EncryptData(businessEmail, e.EmployeeID) : DBNull.Value;
+                string payslipSrc = payslipByEmp ? (e.LocalEmployeeID ?? "") : (payslipCommon ?? "");
+                row["PayslipPassword"] = updPayslip && !string.IsNullOrWhiteSpace(payslipSrc) ? (object)DataSecurityWrapper.EncryptData(payslipSrc, e.EmployeeID) : DBNull.Value;
+                row["MobilePhone1"] = updM1 && !string.IsNullOrWhiteSpace(m1) ? (object)DataSecurityWrapper.EncryptData(m1, e.EmployeeID) : DBNull.Value;
+                row["MobilePhone2"] = updM2 && !string.IsNullOrWhiteSpace(m2) ? (object)DataSecurityWrapper.EncryptData(m2, e.EmployeeID) : DBNull.Value;
+                row["BasicSalary"] = updBasic ? (object)DataSecurityWrapper.EncryptData(basicSalary, e.EmployeeID) : DBNull.Value;
+                dt.Rows.Add(row);
+            }
+            return dt;
+        }
+    }
+}

@@ -1,4 +1,4 @@
-﻿using System.Web.Routing;
+using System.Web.Routing;
 using Microsoft.AspNet.FriendlyUrls;
 
 namespace BADesign
@@ -71,6 +71,18 @@ namespace BADesign
 				"AccountManagePasswordRoute",
 				"Account/ManagePassword",
 				"~/Pages/ChangePassword.aspx"
+			);
+
+			routes.MapPageRoute(
+				"DatabaseSearchRoute",
+				"DatabaseSearch",
+				"~/Pages/DatabaseSearch.aspx"
+			);
+
+			routes.MapPageRoute(
+				"HRHelperRoute",
+				"HRHelper",
+				"~/Pages/HRHelper.aspx"
 			);
 		}
 	}
