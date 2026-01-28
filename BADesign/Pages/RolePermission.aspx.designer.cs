@@ -7,11 +7,11 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace BADesign.Pages
+namespace UiBuilderFull.Admin
 {
 
 
-	public partial class DatabaseSearch
+	public partial class RolePermission
 	{
 
 		/// <summary>
@@ -22,16 +22,5 @@ namespace BADesign.Pages
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
 		protected global::System.Web.UI.HtmlControls.HtmlForm form1;
-
-		/// <summary>
-		/// sm1 control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.ScriptManager sm1;
-
-		protected global::System.Web.UI.WebControls.HyperLink lnkHome;
 	}
 }

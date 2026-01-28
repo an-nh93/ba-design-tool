@@ -1,5 +1,7 @@
-﻿using System;
+using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.Data.SqlClient;
 using System.Security.Cryptography;
 using System.Text;
 using System.Web;
@@ -94,6 +96,74 @@ namespace BADesign
 
 				return (bool)obj;
 			}
+		}
+
+		/// <summary>True khi chưa đăng nhập (dùng Database Search reset password).</summary>
+		public static bool IsAnonymous
+		{
+			get { return CurrentUserId == null; }
+		}
+
+		public static int? GetCurrentUserRoleId()
+		{
+			var ctx = HttpContext.Current;
+			if (ctx?.Session == null) return null;
+			var obj = ctx.Session["UiRoleId"];
+			return obj != null ? (int?)obj : null;
+		}
+
+		public static string GetCurrentUserRoleCode()
+		{
+			var ctx = HttpContext.Current;
+			if (ctx?.Session == null) return null;
+			return ctx.Session["UiRoleCode"] as string;
+		}
+
+		/// <summary>Quyền hiệu lực = Role permissions ∪ User extra permissions. SuperAdmin không dùng bảng.</summary>
+		public static HashSet<string> GetEffectivePermissionCodesForUser(int userId)
+		{
+			var codes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			using (var conn = new SqlConnection(ConnStr))
+			using (var cmd = conn.CreateCommand())
+			{
+				cmd.CommandText = @"
+SELECT p.Code FROM UiPermission p
+INNER JOIN UiRolePermission rp ON rp.PermissionId = p.PermissionId
+INNER JOIN UiUser u ON u.RoleId = rp.RoleId
+WHERE u.UserId = @uid
+UNION
+SELECT p.Code FROM UiPermission p
+INNER JOIN UiUserPermission up ON up.PermissionId = p.PermissionId
+WHERE up.UserId = @uid";
+				cmd.Parameters.AddWithValue("@uid", userId);
+				conn.Open();
+				using (var r = cmd.ExecuteReader())
+				{
+					while (r.Read())
+						codes.Add(r.GetString(0));
+				}
+			}
+			return codes;
+		}
+
+		/// <summary>Kiểm tra user hiện tại có quyền dùng tính năng. SuperAdmin có tất cả. Còn lại xem DB (role + user permissions).</summary>
+		public static bool HasFeature(string featureCode)
+		{
+			if (IsAnonymous) return false;
+			if (IsSuperAdmin) return true;
+			if (featureCode == "UserManagement") return false;
+			var userId = CurrentUserId;
+			if (!userId.HasValue) return false;
+			var codes = GetEffectivePermissionCodesForUser(userId.Value);
+			if (featureCode == "Builder") return codes.Contains("UIBuilder");
+			return codes.Contains(featureCode);
+		}
+
+		/// <summary>Trang chủ: Anonymous→DesignerHome; SuperAdmin/BA/CONS/DEV→HomeRole.</summary>
+		public static string GetHomeUrlByRole()
+		{
+			if (IsAnonymous) return "~/DesignerHome";
+			return "~/HomeRole";
 		}
 	}
 }

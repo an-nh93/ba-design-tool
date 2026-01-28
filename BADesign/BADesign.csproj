@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.0\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props" Condition="Exists('..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.0\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" />
   <Import Project="..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props" Condition="Exists('..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props')" />
@@ -246,9 +246,13 @@
     <Content Include="Pages\AccountSettings.aspx" />
     <Content Include="Pages\DatabaseSearch.aspx" />
     <Content Include="Pages\HRHelper.aspx" />
+    <Content Include="Pages\HomeRole.aspx" />
+    <Content Include="Pages\RolePermission.aspx" />
     <Content Include="Scripts\AddAvatarPathColumn.sql" />
     <Content Include="Scripts\AddBaDatabaseSearch.sql" />
     <Content Include="Scripts\AddProjectSupport.sql" />
+    <Content Include="Scripts\AddUiRoles.sql" />
+    <Content Include="Scripts\AddUiPermissions.sql" />
     <Content Include="Scripts\ai.0.22.9-build00167.js" />
     <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
     <Content Include="Scripts\bootstrap.js" />
@@ -525,6 +529,20 @@
     </Compile>
     <Compile Include="Pages\HRHelper.aspx.designer.cs">
       <DependentUpon>HRHelper.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\HomeRole.aspx.cs">
+      <DependentUpon>HomeRole.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\HomeRole.aspx.designer.cs">
+      <DependentUpon>HomeRole.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\RolePermission.aspx.cs">
+      <DependentUpon>RolePermission.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\RolePermission.aspx.designer.cs">
+      <DependentUpon>RolePermission.aspx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Site.Master.cs">

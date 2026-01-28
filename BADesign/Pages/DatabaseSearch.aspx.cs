@@ -13,9 +13,22 @@ namespace BADesign.Pages
 {
     public partial class DatabaseSearch : Page
     {
+        public bool CanManageServers { get; private set; }
+
         protected void Page_Load(object sender, EventArgs e)
         {
-            UiAuthHelper.RequireLogin();
+            CanManageServers = !UiAuthHelper.IsAnonymous;
+            
+            // Ẩn link "Về trang chủ" nếu anonymous, hoặc set URL đúng theo role
+            if (UiAuthHelper.IsAnonymous)
+            {
+                lnkHome.Visible = false;
+            }
+            else
+            {
+                var homeUrl = UiAuthHelper.GetHomeUrlByRole();
+                lnkHome.NavigateUrl = homeUrl;
+            }
         }
 
         [WebMethod(EnableSession = true)]
@@ -24,7 +37,6 @@ namespace BADesign.Pages
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var list = new List<object>();
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -309,7 +321,6 @@ WHERE Id=@id AND IsActive=1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var list = new List<object>();
                 var log = new List<string>();
                 var serverStatuses = new List<object>();
@@ -361,13 +372,20 @@ WHERE Id=@id AND IsActive=1";
                                 while (rd.Read())
                                 {
                                     var db = rd.IsDBNull(0) ? "" : rd.GetString(0);
+                                    if (IsSystemDatabase(db)) continue;
+                                    var svr = (s.ServerName ?? "").Trim();
+                                    var isDemovn = string.Equals(svr, "demovn.cadena-hrmseries.com", StringComparison.OrdinalIgnoreCase);
+                                    if (isDemovn && !string.Equals(db, "std53.cadena-hrmseries.com", StringComparison.OrdinalIgnoreCase))
+                                        continue;
                                     var cs = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db);
+                                    var csCopy = BuildConnectionStringForCopy(s.ServerName, s.Port, s.Username, s.Password, db);
                                     list.Add(new
                                     {
                                         server = s.ServerName,
                                         database = db,
                                         username = s.Username,
-                                        connectionString = cs
+                                        connectionString = cs,
+                                        connectionStringForCopy = csCopy
                                     });
                                     dbCount++;
                                 }
@@ -398,7 +416,6 @@ WHERE Id=@id AND IsActive=1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 if (string.IsNullOrWhiteSpace(connectionString))
                     return new { success = false, message = "Connection string trống." };
                 var id = Guid.NewGuid().ToString("N");
@@ -414,6 +431,50 @@ WHERE Id=@id AND IsActive=1";
             }
         }
 
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveScanState(string stateJson)
+        {
+            try
+            {
+                var ctx = HttpContext.Current;
+                if (ctx?.Session != null && !string.IsNullOrEmpty(stateJson))
+                    ctx.Session["DbSearch_ScanState"] = stateJson;
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadScanState()
+        {
+            try
+            {
+                var ctx = HttpContext.Current;
+                var state = ctx?.Session?["DbSearch_ScanState"] as string;
+                return new { success = true, state = state };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, state = (string)null };
+            }
+        }
+
+        private static readonly string[] SystemDatabases = { "master", "model", "msdb", "tempdb" };
+
+        private static bool IsSystemDatabase(string db)
+        {
+            if (string.IsNullOrEmpty(db)) return true;
+            var d = db.Trim();
+            for (var i = 0; i < SystemDatabases.Length; i++)
+                if (string.Equals(d, SystemDatabases[i], StringComparison.OrdinalIgnoreCase)) return true;
+            return false;
+        }
+
         /// <summary>
         /// Data Source=server[,port];Initial Catalog=db;UID=u;PWD=p. Connect Timeout=10 để tránh treo khi server tắt/sai mật khẩu.
         /// </summary>
@@ -424,6 +485,15 @@ WHERE Id=@id AND IsActive=1";
                     ? server + "," + port.Value
                     : server;
             return string.Format("Data Source={0};Initial Catalog={1};UID={2};PWD={3};", dataSource, catalog, user, password);
+        }
+
+        /// <summary>
+        /// Connection string dùng cho Copy: PWD= trống, trừ khi UID là dev (full password).
+        /// </summary>
+        private static string BuildConnectionStringForCopy(string server, int? port, string user, string password, string catalog)
+        {
+            var pwd = string.Equals((user ?? "").Trim(), "dev", StringComparison.OrdinalIgnoreCase) ? (password ?? "") : "";
+            return BuildConnectionString(server, port, user, pwd, catalog);
         }
 
         // Helper class thay cho tuple (tương thích .NET Framework cũ)

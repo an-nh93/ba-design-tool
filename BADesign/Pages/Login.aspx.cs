@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Data.SqlClient;
+using System.Web;
 using BADesign;
 
 namespace UiBuilderFull
@@ -31,9 +32,10 @@ namespace UiBuilderFull
 			using (var cmd = conn.CreateCommand())
 			{
 				cmd.CommandText = @"
-SELECT UserId, UserName, IsSuperAdmin, IsActive
-FROM UiUser
-WHERE UserName = @u AND PasswordHash = @p";
+SELECT u.UserId, u.UserName, u.IsSuperAdmin, u.IsActive, u.RoleId, r.Code AS RoleCode
+FROM UiUser u
+LEFT JOIN UiRole r ON r.RoleId = u.RoleId
+WHERE u.UserName = @u AND u.PasswordHash = @p";
 				cmd.Parameters.AddWithValue("@u", user);
 				cmd.Parameters.AddWithValue("@p", hash);
 
@@ -55,10 +57,22 @@ WHERE UserName = @u AND PasswordHash = @p";
 					Session["UiUserId"] = (int)rd["UserId"];
 					Session["UiUserName"] = (string)rd["UserName"];
 					Session["IsSuperAdmin"] = (bool)rd["IsSuperAdmin"];
+					Session["UiRoleId"] = rd["RoleId"] != DBNull.Value && rd["RoleId"] != null ? (object)(int)rd["RoleId"] : null;
+					Session["UiRoleCode"] = rd["RoleCode"] != DBNull.Value && rd["RoleCode"] != null ? (rd["RoleCode"] as string) : null;
 				}
 			}
 
-			Response.Redirect("~/DesignerHome");
+			var returnUrl = Request.QueryString["returnUrl"];
+			if (!string.IsNullOrEmpty(returnUrl) && returnUrl.StartsWith("/"))
+			{
+				Response.Redirect(VirtualPathUtility.ToAbsolute(returnUrl));
+			}
+			else
+			{
+				// Redirect theo role
+				var homeUrl = UiAuthHelper.GetHomeUrlByRole();
+				Response.Redirect(homeUrl);
+			}
 		}
 	}
 }

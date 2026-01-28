@@ -18,7 +18,6 @@ namespace BADesign.Pages
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            UiAuthHelper.RequireLogin();
             var k = Request.QueryString["k"];
             if (string.IsNullOrWhiteSpace(k))
             {
@@ -74,7 +73,6 @@ namespace BADesign.Pages
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -96,7 +94,6 @@ namespace BADesign.Pages
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -151,7 +148,6 @@ namespace BADesign.Pages
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
@@ -203,7 +199,6 @@ namespace BADesign.Pages
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
@@ -476,7 +471,7 @@ WHERE U.IsActive = 1 AND U.ID IN (" + ids + ") ORDER BY U.ID";
 
         /* WinForms: OU.NameEN AS ManagerOrganizionStructure; we use OrganizionStructure for OU to avoid duplicate alias with M.ManagerOrganizionStructure. */
         private const string EmployeesQueryBase = @"
-SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS EmployeeName, E.DateOfBirth,
+SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS EmployeeName, E.EnglishName AS EmployeeEnglishName, E.DateOfBirth,
        E.PersonalEmailAddress, E.BusinessEmailAddress, E.MobilePhone1, E.MobilePhone2,
        T.ServiceStartDate,
        TSA.ID AS ALPolicyID, TSA.NameEN AS ALPolicy,
@@ -512,7 +507,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -532,7 +526,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -562,7 +555,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -587,7 +579,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -618,7 +609,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -637,7 +627,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -666,7 +655,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -687,7 +675,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -723,7 +710,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -764,7 +750,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -787,7 +772,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -819,7 +803,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -852,7 +835,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -928,7 +910,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -1033,7 +1014,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -1074,7 +1054,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -1102,7 +1081,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -1135,46 +1113,47 @@ WHERE T.IsActiveTransaction = 1";
         private static object ReadEmployeeRow(SqlDataReader r)
         {
             var empId = MyConvert.To<long>(r.GetValue(0));
-            var raw4 = MyConvert.To<string>(r.GetValue(4));
             var raw5 = MyConvert.To<string>(r.GetValue(5));
             var raw6 = MyConvert.To<string>(r.GetValue(6));
             var raw7 = MyConvert.To<string>(r.GetValue(7));
-            var raw23 = MyConvert.To<string>(r.GetValue(23));
+            var raw8 = MyConvert.To<string>(r.GetValue(8));
+            var raw24 = MyConvert.To<string>(r.GetValue(24));
             string personal = "", business = "", m1 = "", m2 = "", payslip = "";
-            if (!string.IsNullOrWhiteSpace(raw4)) { try { personal = DataSecurityWrapper.DecryptData<string>(raw4, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw5)) { try { business = DataSecurityWrapper.DecryptData<string>(raw5, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw6)) { try { m1 = DataSecurityWrapper.DecryptData<string>(raw6, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw7)) { try { m2 = DataSecurityWrapper.DecryptData<string>(raw7, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw23)) { try { payslip = DataSecurityWrapper.DecryptData<string>(raw23, empId) ?? ""; } catch { } }
-            var dob = MyConvert.To<DateTime?>(r.GetValue(3));
-            var svc = MyConvert.To<DateTime?>(r.GetValue(8));
+            if (!string.IsNullOrWhiteSpace(raw5)) { try { personal = DataSecurityWrapper.DecryptData<string>(raw5, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw6)) { try { business = DataSecurityWrapper.DecryptData<string>(raw6, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw7)) { try { m1 = DataSecurityWrapper.DecryptData<string>(raw7, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw8)) { try { m2 = DataSecurityWrapper.DecryptData<string>(raw8, empId) ?? ""; } catch { } }
+            if (!string.IsNullOrWhiteSpace(raw24)) { try { payslip = DataSecurityWrapper.DecryptData<string>(raw24, empId) ?? ""; } catch { } }
+            var dob = MyConvert.To<DateTime?>(r.GetValue(4));
+            var svc = MyConvert.To<DateTime?>(r.GetValue(9));
             return new
             {
                 employeeID = empId,
                 localEmployeeID = MyConvert.To<string>(r.GetValue(1)) ?? "",
                 employeeName = MyConvert.To<string>(r.GetValue(2)) ?? "",
+                englishName = MyConvert.To<string>(r.GetValue(3)) ?? "",
                 dateOfBirth = dob.HasValue ? dob.Value.ToString("yyyy-MM-dd") : "",
                 personalEmail = personal,
                 businessEmail = business,
                 mobilePhone1 = m1,
                 mobilePhone2 = m2,
                 serviceStartDate = svc.HasValue ? svc.Value.ToString("yyyy-MM-dd") : "",
-                alPolicyID = MyConvert.To<long?>(r.GetValue(9)),
-                alPolicy = MyConvert.To<string>(r.GetValue(10)) ?? "",
-                timeSheetPolicyID = MyConvert.To<long?>(r.GetValue(11)),
-                timeSheetPolicy = MyConvert.To<string>(r.GetValue(12)) ?? "",
-                organizionStructureID = MyConvert.To<long?>(r.GetValue(13)),
-                organizionStructure = MyConvert.To<string>(r.GetValue(14)) ?? "",
-                managerEmployeeID = MyConvert.To<long?>(r.GetValue(15)),
-                managerLocalEmployeeID = MyConvert.To<string>(r.GetValue(16)) ?? "",
-                managerFullName = MyConvert.To<string>(r.GetValue(17)) ?? "",
-                managerUserName = MyConvert.To<string>(r.GetValue(18)) ?? "",
-                managerOrganizionStructureID = MyConvert.To<long?>(r.GetValue(19)),
-                managerOrganizionStructure = MyConvert.To<string>(r.GetValue(20)) ?? "",
-                userID = MyConvert.To<long?>(r.GetValue(21)),
-                userName = MyConvert.To<string>(r.GetValue(22)) ?? "",
+                alPolicyID = MyConvert.To<long?>(r.GetValue(10)),
+                alPolicy = MyConvert.To<string>(r.GetValue(11)) ?? "",
+                timeSheetPolicyID = MyConvert.To<long?>(r.GetValue(12)),
+                timeSheetPolicy = MyConvert.To<string>(r.GetValue(13)) ?? "",
+                organizionStructureID = MyConvert.To<long?>(r.GetValue(14)),
+                organizionStructure = MyConvert.To<string>(r.GetValue(15)) ?? "",
+                managerEmployeeID = MyConvert.To<long?>(r.GetValue(16)),
+                managerLocalEmployeeID = MyConvert.To<string>(r.GetValue(17)) ?? "",
+                managerFullName = MyConvert.To<string>(r.GetValue(18)) ?? "",
+                managerUserName = MyConvert.To<string>(r.GetValue(19)) ?? "",
+                managerOrganizionStructureID = MyConvert.To<long?>(r.GetValue(20)),
+                managerOrganizionStructure = MyConvert.To<string>(r.GetValue(21)) ?? "",
+                userID = MyConvert.To<long?>(r.GetValue(22)),
+                userName = MyConvert.To<string>(r.GetValue(23)) ?? "",
                 payslipPassword = payslip,
-                companyInfo = MyConvert.To<string>(r.GetValue(24)) ?? ""
+                companyInfo = MyConvert.To<string>(r.GetValue(25)) ?? ""
             };
         }
 
@@ -1184,7 +1163,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
@@ -1214,7 +1192,6 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
-                UiAuthHelper.GetCurrentUserIdOrThrow();
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };

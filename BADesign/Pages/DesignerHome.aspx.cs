@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Web.UI;
@@ -28,13 +28,30 @@ namespace BADesign.Pages
 
 		protected void Page_Load(object sender, EventArgs e)
 		{
+			if (UiAuthHelper.IsAnonymous)
+			{
+				pnlAnonymous.Visible = true;
+				pnlLoggedIn.Visible = false;
+				return;
+			}
+
 			UiAuthHelper.RequireLogin();
+			
+			// DesignerHome cho BA, CONS, DEV, Super Admin (có Builder). Không có quyền → HomeRole.
+			if (!UiAuthHelper.HasFeature("Builder"))
+			{
+				Response.Redirect(UiAuthHelper.GetHomeUrlByRole());
+				return;
+			}
+
+			pnlAnonymous.Visible = false;
+			pnlLoggedIn.Visible = true;
+
 			if (!IsPostBack)
 			{
 				var userName = (string)Session["UiUserName"] ?? "";
 				litUserName.Text = userName;
-				
-				// Load avatar
+
 				var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
 				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 				using (var cmd = conn.CreateCommand())
@@ -49,15 +66,12 @@ namespace BADesign.Pages
 					}
 					else
 					{
-						// Set user initial for avatar
 						if (!string.IsNullOrEmpty(userName))
-						{
 							litUserInitial.Text = userName.Substring(0, 1).ToUpper();
-						}
 					}
 				}
-				
-				lnkUserManagement.Visible = UiAuthHelper.IsSuperAdmin;
+
+				lnkBuilder.Visible = UiAuthHelper.HasFeature("Builder");
 
 				BindMyDesigns();
 				BindPublicDesigns();

@@ -26,11 +26,11 @@ namespace BADesign
 				"~/Pages/DesignerHome.aspx"
 			);
 
-			// 4. Route mặc định: / -> ~/Pages/Login.aspx
+			// 4. Route mặc định: / -> DesignerHome (anonymous: minimal; logged-in: full, role-based)
 			routes.MapPageRoute(
 				"DefaultRoute",
 				"",
-				"~/Pages/Login.aspx"
+				"~/Pages/DesignerHome.aspx"
 			);
 
 			// /Builder => ~/Pages/Builder.aspx   (query string giữ nguyên)
@@ -83,6 +83,18 @@ namespace BADesign
 				"HRHelperRoute",
 				"HRHelper",
 				"~/Pages/HRHelper.aspx"
+			);
+
+			routes.MapPageRoute(
+				"HomeRoleRoute",
+				"HomeRole",
+				"~/Pages/HomeRole.aspx"
+			);
+
+			routes.MapPageRoute(
+				"RolePermissionRoute",
+				"RolePermission",
+				"~/Pages/RolePermission.aspx"
 			);
 		}
 	}

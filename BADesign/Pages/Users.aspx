@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Users.aspx.cs"
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Users.aspx.cs"
     Inherits="UiBuilderFull.Admin.Users" %>
 
 <!DOCTYPE html>
@@ -597,6 +597,37 @@
             cursor: pointer;
             accent-color: var(--primary);
         }
+        .perm-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0;
+            font-size: 0.875rem;
+        }
+        .perm-item input:disabled + span { color: var(--text-muted); }
+        .user-form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .user-form-row .user-form-group { flex: 1; margin-bottom: 0; }
+        .password-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .password-wrap .user-form-input { flex: 1; }
+        .pw-toggle {
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 0.5rem 0.6rem;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .pw-toggle:hover { color: var(--text-primary); background: var(--bg-card); }
     </style>
 </head>
 <body>
@@ -607,12 +638,15 @@
                 <div class="admin-sidebar-header">
                     <div class="admin-sidebar-title">UI Builder</div>
                 </div>
-                <a href="~/DesignerHome" runat="server" class="admin-nav-item">
+                <a href="~/HomeRole" runat="server" class="admin-nav-item">
                     <span>← Back to Home</span>
                 </a>
                 <div class="admin-nav-item active">
                     <span>👥 User Management</span>
                 </div>
+                <a href="~/RolePermission" runat="server" class="admin-nav-item">
+                    <span>🔐 Role Permission</span>
+                </a>
             </div>
 
             <!-- Main Content -->
@@ -636,9 +670,9 @@
                                     <th>Username</th>
                                     <th>Full Name</th>
                                     <th>Email</th>
+                                    <th>Role</th>
                                     <th>Super Admin</th>
                                     <th>Active</th>
-                                    <th>New Password</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -650,6 +684,7 @@
                                             <td><strong><%# Eval("UserName") %></strong></td>
                                             <td><%# Eval("FullName") ?? "-" %></td>
                                             <td><%# Eval("Email") ?? "-" %></td>
+                                            <td><%# Eval("RoleCode") ?? "-" %></td>
                                             <td>
                                                 <span class="admin-badge <%# (bool)Eval("IsSuperAdmin") ? "admin-badge-success" : "" %>">
                                                     <%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>
@@ -661,22 +696,11 @@
                                                 </span>
                                             </td>
                                             <td>
-                                                <input type="password" 
-                                                       class="admin-input admin-password-input" 
-                                                       id="txtRowNewPass_<%# Eval("UserId") %>"
-                                                       placeholder="Enter new password" />
-                                            </td>
-                                            <td>
                                                 <div class="admin-action-buttons">
                                                     <button type="button" 
                                                             class="admin-btn admin-btn-primary admin-btn-sm"
                                                             onclick="editUser(<%# Eval("UserId") %>); return false;">
                                                         Edit
-                                                    </button>
-                                                    <button type="button" 
-                                                            class="admin-btn admin-btn-secondary admin-btn-sm"
-                                                            onclick="changePassword(<%# Eval("UserId") %>); return false;">
-                                                        Change
                                                     </button>
                                                     <button type="button" 
                                                             class="admin-btn admin-btn-secondary admin-btn-sm"
@@ -712,13 +736,18 @@
                     <button type="button" class="user-modal-close" onclick="hideUserModal(); return false;">×</button>
                 </div>
                 <div class="user-modal-body">
-                    <div class="user-form-group">
-                        <label class="user-form-label" for="modalUsername">Username *</label>
-                        <input type="text" id="modalUsername" class="user-form-input" placeholder="Enter username" />
-                    </div>
-                    <div class="user-form-group">
-                        <label class="user-form-label" for="modalPassword">Password <span id="passwordRequired">*</span></label>
-                        <input type="password" id="modalPassword" class="user-form-input" placeholder="Enter password" />
+                    <div class="user-form-row">
+                        <div class="user-form-group">
+                            <label class="user-form-label" for="modalUsername">Username *</label>
+                            <input type="text" id="modalUsername" class="user-form-input" placeholder="Enter username" />
+                        </div>
+                        <div class="user-form-group">
+                            <label class="user-form-label" for="modalPassword">Password <span id="passwordRequired">*</span></label>
+                            <div class="password-wrap">
+                                <input type="password" id="modalPassword" class="user-form-input" placeholder="Enter password" />
+                                <button type="button" class="pw-toggle" id="pwToggle" title="Show password" aria-label="Show password">👁</button>
+                            </div>
+                        </div>
                     </div>
                     <div class="user-form-group">
                         <label class="user-form-label" for="modalFullName">Full Name</label>
@@ -727,6 +756,18 @@
                     <div class="user-form-group">
                         <label class="user-form-label" for="modalEmail">Email</label>
                         <input type="email" id="modalEmail" class="user-form-input" placeholder="Enter email" />
+                    </div>
+                    <div class="user-form-group">
+                        <label class="user-form-label" for="modalRoleId">Role</label>
+                        <select id="modalRoleId" class="user-form-input">
+                            <option value="0">-- No role --</option>
+                        </select>
+                    </div>
+                    <div class="user-form-group" id="wrapPermissions">
+                        <div class="user-form-label">Quyền riêng lẻ (thêm)</div>
+                        <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.5rem;">Quyền từ Role không thể bỏ. Chỉ có thể thêm quyền cho user đặc biệt (UI Builder, Database Search, Encrypt/Decrypt, HR Helper…).</p>
+                        <div id="modalPermissionsList"></div>
+                        <div id="modalPermissionsLoading" style="display: none; font-size: 0.875rem; color: var(--text-muted);">Đang tải danh sách quyền…</div>
                     </div>
                     <div class="user-form-group">
                         <div class="user-form-checkbox-group">
@@ -911,6 +952,78 @@
 
         // ===== User Modal Functions =====
         var currentEditUserId = null;
+        var rolesList = [];
+        var permissionsList = [];
+        var rolePermissionsMap = {};
+        var currentUserPermissionIds = [];
+
+        function loadRoles() {
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/Users.aspx/LoadRoles") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: '{}',
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.list) {
+                        rolesList = d.list;
+                        var $sel = $('#modalRoleId');
+                        $sel.find('option:not([value="0"])').remove();
+                        d.list.forEach(function(r) {
+                            $sel.append('<option value="' + r.id + '">' + (r.code || r.name || r.id) + '</option>');
+                        });
+                    }
+                }
+            });
+        }
+
+        function loadPermissionsAndRolePermissions() {
+            var reqPerm = $.ajax({
+                url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/LoadPermissions") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: '{}'
+            }).done(function(res) {
+                var d = res.d || res;
+                if (d && d.success && d.list) permissionsList = d.list;
+            });
+            var reqRp = $.ajax({
+                url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/LoadRolePermissions") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: '{}'
+            }).done(function(res) {
+                var d = res.d || res;
+                if (d && d.success && d.rolePermissions) rolePermissionsMap = d.rolePermissions;
+            });
+            return $.when(reqPerm, reqRp);
+        }
+
+        function renderPermissionCheckboxes(roleIdVal, userPermissionIds) {
+            userPermissionIds = userPermissionIds || [];
+            var rolePids = rolePermissionsMap[String(roleIdVal)] || [];
+            var $list = $('#modalPermissionsList');
+            var $loading = $('#modalPermissionsLoading');
+            $list.empty();
+            $loading.hide();
+            if (!permissionsList.length) {
+                $loading.text('Chưa có quyền. Kiểm tra Role Permission đã cấu hình chưa.').show();
+                return;
+            }
+            permissionsList.forEach(function(p) {
+                var fromRole = rolePids.indexOf(p.id) >= 0;
+                var fromUser = userPermissionIds.indexOf(p.id) >= 0;
+                var checked = fromRole || fromUser;
+                var disabled = fromRole;
+                var $item = $('<label class="perm-item"></label>');
+                $item.append('<input type="checkbox" class="perm-cb" data-pid="' + p.id + '" ' + (checked ? 'checked' : '') + (disabled ? ' disabled' : '') + ' />');
+                $item.append('<span>' + (p.name || p.code) + (fromRole ? ' <small>(từ Role)</small>' : '') + '</span>');
+                $list.append($item);
+            });
+        }
 
         function showUserModal(userId) {
             currentEditUserId = userId || null;
@@ -920,53 +1033,67 @@
             var $password = $('#modalPassword');
             var $fullName = $('#modalFullName');
             var $email = $('#modalEmail');
+            var $roleId = $('#modalRoleId');
             var $isSuperAdmin = $('#modalIsSuperAdmin');
             var $isActive = $('#modalIsActive');
             var $btnSave = $('#btnSaveUser');
             var $passwordRequired = $('#passwordRequired');
+            var $wrapPerm = $('#wrapPermissions');
 
-            // Reset form
             $username.val('');
             $password.val('');
             $fullName.val('');
             $email.val('');
+            $roleId.val('0');
             $isSuperAdmin.prop('checked', false);
             $isActive.prop('checked', true);
             $username.prop('disabled', false);
             $passwordRequired.show();
+            $wrapPerm.hide();
+            currentUserPermissionIds = [];
+            renderPermissionCheckboxes(0, []);
 
             if (userId) {
-                // Edit mode
                 $title.text('Edit User');
                 $btnSave.text('Update');
                 $username.prop('disabled', true);
                 $passwordRequired.hide();
+                $wrapPerm.show();
+                $('#modalPermissionsLoading').text('Đang tải danh sách quyền…').show();
+                $('#modalPermissionsList').empty();
 
-                // Load user data
-                $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/Users.aspx/GetUserInfo") %>',
-                    type: "POST",
-                    contentType: "application/json; charset=utf-8",
-                    dataType: "json",
-                    data: JSON.stringify({ userId: userId }),
-                    success: function(res) {
-                        var result = res.d || res;
-                        if (result && result.success) {
-                            $username.val(result.userName || '');
-                            $fullName.val(result.fullName || '');
-                            $email.val(result.email || '');
-                            $isSuperAdmin.prop('checked', result.isSuperAdmin || false);
-                            $isActive.prop('checked', result.isActive !== false);
-                        } else {
-                            showToast(result && result.message ? result.message : 'Error loading user data.', 'error');
+                var loadPerm = loadPermissionsAndRolePermissions();
+                loadPerm.always(function() {
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/Users.aspx/GetUserInfo") %>',
+                        type: "POST",
+                        contentType: "application/json; charset=utf-8",
+                        dataType: "json",
+                        data: JSON.stringify({ userId: userId }),
+                        success: function(res) {
+                            var result = res.d || res;
+                            if (result && result.success) {
+                                $username.val(result.userName || '');
+                                $fullName.val(result.fullName || '');
+                                $email.val(result.email || '');
+                                $isSuperAdmin.prop('checked', result.isSuperAdmin || false);
+                                $isActive.prop('checked', result.isActive !== false);
+                                var rid = result.roleId && result.roleId !== 0 ? result.roleId : '0';
+                                $roleId.val(rid);
+                                currentUserPermissionIds = result.userPermissionIds || [];
+                                renderPermissionCheckboxes(rid, currentUserPermissionIds);
+                            } else {
+                                $('#modalPermissionsLoading').hide();
+                                showToast(result && result.message ? result.message : 'Error loading user data.', 'error');
+                            }
+                        },
+                        error: function() {
+                            $('#modalPermissionsLoading').hide();
+                            showToast('Error loading user data.', 'error');
                         }
-                    },
-                    error: function() {
-                        showToast('Error loading user data.', 'error');
-                    }
+                    });
                 });
             } else {
-                // Add mode
                 $title.text('Add New User');
                 $btnSave.text('Save');
             }
@@ -974,9 +1101,41 @@
             $modal.addClass('show');
         }
 
+        $('#modalRoleId').on('change', function() {
+            if (!currentEditUserId) return;
+            var rid = $(this).val();
+            renderPermissionCheckboxes(rid, currentUserPermissionIds);
+        });
+
+        $('#pwToggle').on('click', function() {
+            var $pw = $('#modalPassword');
+            var $btn = $(this);
+            if ($pw.attr('type') === 'password') {
+                $pw.attr('type', 'text');
+                $btn.text('🙈').attr('title', 'Hide password');
+            } else {
+                $pw.attr('type', 'password');
+                $btn.text('👁').attr('title', 'Show password');
+            }
+        });
+
         function hideUserModal() {
             $('#userModal').removeClass('show');
             currentEditUserId = null;
+            var $pw = $('#modalPassword');
+            var $btn = $('#pwToggle');
+            $pw.attr('type', 'password');
+            $btn.text('👁').attr('title', 'Show password');
+        }
+
+        function collectExtraPermissionIds() {
+            var roleIdVal = $('#modalRoleId').val();
+            var rolePids = rolePermissionsMap[String(roleIdVal)] || [];
+            var extra = [];
+            $('#modalPermissionsList .perm-cb:not(:disabled):checked').each(function() {
+                extra.push(parseInt($(this).data('pid'), 10));
+            });
+            return extra;
         }
 
         function saveUser() {
@@ -984,10 +1143,10 @@
             var password = $('#modalPassword').val();
             var fullName = $('#modalFullName').val().trim();
             var email = $('#modalEmail').val().trim();
+            var roleIdVal = parseInt($('#modalRoleId').val(), 10) || 0;
             var isSuperAdmin = $('#modalIsSuperAdmin').is(':checked');
             var isActive = $('#modalIsActive').is(':checked');
 
-            // Validation
             if (!username) {
                 showToast('Username is required.', 'error');
                 return;
@@ -1007,6 +1166,12 @@
                 isSuperAdmin: isSuperAdmin,
                 isActive: isActive
             };
+            if (currentEditUserId) {
+                data.roleId = roleIdVal;
+                data.extraPermissionIds = collectExtraPermissionIds();
+            } else {
+                data.roleId = roleIdVal === 0 ? null : roleIdVal;
+            }
 
             var url = currentEditUserId 
                 ? '<%= ResolveUrl("~/Pages/Users.aspx/UpdateUser") %>'
@@ -1040,7 +1205,11 @@
             showUserModal(userId);
         }
 
-        // Close modal when clicking outside
+        $(function() {
+            loadRoles();
+            loadPermissionsAndRolePermissions();
+        });
+
         $(document).on('click', '.user-modal', function(e) {
             if (e.target === this) {
                 hideUserModal();

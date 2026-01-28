@@ -24,21 +24,58 @@ namespace BADesign.Pages
 		protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
 		/// <summary>
-		/// lnkDatabaseSearch control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.HyperLink lnkDatabaseSearch;
-
-		/// <summary>
-		/// lnkUserManagement control.
+		/// pnlAnonymous control.
 		/// </summary>
 		/// <remarks>
 		/// Auto-generated field.
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
-		protected global::System.Web.UI.WebControls.HyperLink lnkUserManagement;
+		protected global::System.Web.UI.WebControls.Panel pnlAnonymous;
+
+		/// <summary>
+		/// lnkAnonymousDbSearch control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkAnonymousDbSearch;
+
+		/// <summary>
+		/// lnkAnonymousLogin control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkAnonymousLogin;
+
+		/// <summary>
+		/// pnlLoggedIn control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Panel pnlLoggedIn;
+
+		/// <summary>
+		/// lnkBackHome control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkBackHome;
+
+		/// <summary>
+		/// lnkBuilder control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkBuilder;
 
 		/// <summary>
 		/// litUserInitial control.

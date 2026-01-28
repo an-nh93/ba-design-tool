@@ -547,7 +547,7 @@
                                 <button type="button" class="ba-btn ba-btn-primary" onclick="loadUsers(); return false;">View Data</button>
                             </div>
                             <div class="ba-grid-toolbar">
-                                <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant..." />
+                                <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant... (có dấu / không dấu)" />
                             </div>
                             <div class="ba-table-wrap">
                                 <table class="ba-table ba-table-resizable" id="tableUsers">
@@ -622,7 +622,7 @@
                             </div>
                             <div class="ba-grid-toolbar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                                 <div style="flex: 1; min-width: 200px;">
-                                    <input type="text" id="txtSearchEmployees" class="ba-input ba-search" placeholder="Search Employee ID, Name, Email, Phone, Org, Manager, Company..." />
+                                    <input type="text" id="txtSearchEmployees" class="ba-input ba-search" placeholder="Search Employee ID, Name, English Name, Email, Phone, Org, Manager, Company... (có dấu / không dấu)" />
                                 </div>
                                 <div style="min-width: 250px; display: flex; align-items: center; gap: 0.5rem;">
                                     <label class="ba-form-label" style="margin: 0; white-space: nowrap;">Company</label>
@@ -634,7 +634,7 @@
                             <div class="ba-table-wrap">
                                 <table class="ba-table ba-table-resizable" id="tableEmployees">
                                     <colgroup>
-                                        <col style="width: 48px" /><col style="width: 92px" /><col style="width: 88px" /><col style="width: 170px" /><col style="width: 110px" />
+                                        <col style="width: 48px" /><col style="width: 92px" /><col style="width: 88px" /><col style="width: 170px" /><col style="width: 170px" /><col style="width: 110px" />
                                         <col style="width: 200px" /><col style="width: 200px" /><col style="width: 110px" /><col style="width: 110px" /><col style="width: 110px" />
                                         <col style="width: 100px" /><col style="width: 200px" /><col style="width: 130px" /><col style="width: 170px" /><col style="width: 120px" /><col style="width: 200px" />
                                     </colgroup>
@@ -644,22 +644,23 @@
                                             <th class="ba-sortable" data-col="employeeID" data-col-index="1"><span class="ba-th-inner">Employee ID <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
                                             <th class="ba-sortable" data-col="localEmployeeID" data-col-index="2"><span class="ba-th-inner">Local ID <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
                                             <th class="ba-sortable" style="width:265px" data-col="employeeName" data-col-index="3"><span class="ba-th-inner">Name <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" data-col="dateOfBirth" data-col-index="4"><span class="ba-th-inner">Date of Birth <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" style="width:235px" data-col="personalEmail" data-col-index="5"><span class="ba-th-inner">Personal Email <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" style="width:235px" data-col="businessEmail" data-col-index="6"><span class="ba-th-inner">Business Email <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" data-col="mobilePhone1" data-col-index="7"><span class="ba-th-inner">Mobile 1 <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" data-col="mobilePhone2" data-col-index="8"><span class="ba-th-inner">Mobile 2 <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" data-col="serviceStartDate" data-col-index="9"><span class="ba-th-inner">Service Start <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" style="width:215px" data-col="alPolicy" data-col-index="10"><span class="ba-th-inner">AL Policy <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" style="width:215px" data-col="timeSheetPolicy" data-col-index="11"><span class="ba-th-inner">TimeSheet Policy <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" style="width:325px" data-col="organizionStructure" data-col-index="12"><span class="ba-th-inner">Org <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" style="width:265px" data-col="managerFullName" data-col-index="13"><span class="ba-th-inner">Manager <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" data-col="userName" data-col-index="14"><span class="ba-th-inner">User Name <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
-                                            <th class="ba-sortable" style="width:450px" data-col="companyInfo" data-col-index="15"><span class="ba-th-inner">Company <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:265px" data-col="englishName" data-col-index="4"><span class="ba-th-inner">English Name <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" data-col="dateOfBirth" data-col-index="5"><span class="ba-th-inner">Date of Birth <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:235px" data-col="personalEmail" data-col-index="6"><span class="ba-th-inner">Personal Email <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:235px" data-col="businessEmail" data-col-index="7"><span class="ba-th-inner">Business Email <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" data-col="mobilePhone1" data-col-index="8"><span class="ba-th-inner">Mobile 1 <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" data-col="mobilePhone2" data-col-index="9"><span class="ba-th-inner">Mobile 2 <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" data-col="serviceStartDate" data-col-index="10"><span class="ba-th-inner">Service Start <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:215px" data-col="alPolicy" data-col-index="11"><span class="ba-th-inner">AL Policy <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:215px" data-col="timeSheetPolicy" data-col-index="12"><span class="ba-th-inner">TimeSheet Policy <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:325px" data-col="organizionStructure" data-col-index="13"><span class="ba-th-inner">Org <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:265px" data-col="managerFullName" data-col-index="14"><span class="ba-th-inner">Manager <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" data-col="userName" data-col-index="15"><span class="ba-th-inner">User Name <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
+                                            <th class="ba-sortable" style="width:450px" data-col="companyInfo" data-col-index="16"><span class="ba-th-inner">Company <span class="sort-icon"></span></span><span class="ba-lock-icon" title="Click để khóa/mở khóa cột">🔓</span><span class="ba-col-resize" title="Kéo để đổi độ rộng"></span></th>
                                         </tr>
                                     </thead>
                                     <tbody id="tblEmployees">
-                                        <tr><td colspan="16" class="ba-empty">Chưa load data. Bấm "View Data" để tải danh sách employee.</td></tr>
+                                        <tr><td colspan="17" class="ba-empty">Chưa load data. Bấm "View Data" để tải danh sách employee.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -910,6 +911,33 @@
         var updateInProgress = false;
         var lockedColumns = {}; // { tableId: { colIndex: true } }
 
+        var _diacriticsMap = null;
+        var _diacriticsRe = null;
+        function _initDiacritics() {
+            if (_diacriticsMap) return;
+            var from = 'àáảãạăằắẳẵặâầấẩẫậèéẻẽẹêềếểễệìíỉĩịòóỏõọôồốổỗộơờớởỡợùúủũụưừứửữựýỳỹỷỵđÀÁẢÃẠĂẰẮẲẴẶÂẦẤẨẪẬÈÉẺẼẸÊỀẾỂỄỆÌÍỈĨỊÒÓỎÕỌÔỒỐỔỖỘƠỜỚỞỠỢÙÚỦŨỤƯỪỨỬỮỰÝỲỸỶỴĐ';
+            var to   = 'aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyydAAAAAAAAAAAAAAAAAEEEEEEEEEEEIIIIIOOOOOOOOOOOOOOOOOUUUUUUUUUUUYYYYYD';
+            _diacriticsMap = {};
+            for (var i = 0; i < from.length; i++) _diacriticsMap[from[i]] = to[i];
+            _diacriticsRe = new RegExp('[' + from.replace(/[\\\]^-]/g, '\\$&') + ']', 'g');
+        }
+        function removeDiacritics(s) {
+            if (s == null || s === '') return '';
+            _initDiacritics();
+            return String(s).replace(_diacriticsRe, function(c) { return _diacriticsMap[c] || c; });
+        }
+
+        function debounce(fn, ms) {
+            var t;
+            return function() {
+                var self = this, args = arguments;
+                clearTimeout(t);
+                t = setTimeout(function() { fn.apply(self, args); }, ms);
+            };
+        }
+        var debouncedRenderUsers = debounce(function() { renderUsers(); }, 120);
+        var debouncedRenderEmployees = debounce(function() { renderEmployees(); }, 120);
+
         $(document).ready(function() {
             var urlParams = new URLSearchParams(window.location.search);
             hrToken = urlParams.get('k') || '';
@@ -931,7 +959,12 @@
                 if (tab === 'users' && users.length === 0) loadUsersFromSession();
             });
 
-            $('#txtSearchUsers').on('input', function() { userSearch = $(this).val(); userPage = 1; renderUsers(); });
+            $('#txtSearchUsers').on('input', function() {
+                userSearch = $(this).val();
+                userPage = 1;
+                if (!(userSearch || '').trim()) renderUsers();
+                else debouncedRenderUsers();
+            });
             $('#tableUsers').on('click', 'th.ba-sortable', function(e) {
                 if ($(e.target).closest('.ba-col-resize').length) return;
                 var col = $(this).data('col');
@@ -940,7 +973,12 @@
                 renderUsers();
             });
             loadCompanies();
-            $('#txtSearchEmployees').on('input', function() { employeeSearch = $(this).val(); employeePage = 1; renderEmployees(); });
+            $('#txtSearchEmployees').on('input', function() {
+                employeeSearch = $(this).val();
+                employeePage = 1;
+                if (!(employeeSearch || '').trim()) renderEmployees();
+                else debouncedRenderEmployees();
+            });
             $('#selCompanyFilter').on('change', function() {
                 var val = $(this).val();
                 employeeCompanyFilter = val === '' || val === '-1' ? null : parseInt(val, 10);
@@ -1249,11 +1287,12 @@
         }
 
         function filterUsers() {
-            var q = (userSearch || '').toLowerCase().trim();
+            var q = (userSearch || '').trim();
             if (!q) return users.slice();
+            var qNorm = removeDiacritics(q).toLowerCase();
             return users.filter(function(u) {
                 var a = ['' + (u.userID || ''), (u.userName || ''), '' + (u.employeeID || ''), (u.employeeName || ''), (u.userEmail || ''), (u.tenant || ''), (u.businessEmail || ''), (u.personalEmail || '')];
-                return a.some(function(s) { return s.toLowerCase().indexOf(q) >= 0; });
+                return a.some(function(s) { return removeDiacritics(s).toLowerCase().indexOf(qNorm) >= 0; });
             });
         }
 
@@ -1595,11 +1634,12 @@
                     return companyId === employeeCompanyFilter;
                 });
             }
-            var q = (employeeSearch || '').toLowerCase().trim();
+            var q = (employeeSearch || '').trim();
             if (!q) return filtered;
+            var qNorm = removeDiacritics(q).toLowerCase();
             return filtered.filter(function(e) {
-                var a = ['' + (e.employeeID || ''), (e.localEmployeeID || ''), (e.employeeName || ''), (e.dateOfBirth || ''), (e.personalEmail || ''), (e.businessEmail || ''), (e.mobilePhone1 || ''), (e.mobilePhone2 || ''), (e.serviceStartDate || ''), (e.alPolicy || ''), (e.timeSheetPolicy || ''), (e.organizionStructure || ''), (e.managerFullName || ''), (e.userName || ''), (e.companyInfo || '')];
-                return a.some(function(s) { return s.toLowerCase().indexOf(q) >= 0; });
+                var a = ['' + (e.employeeID || ''), (e.localEmployeeID || ''), (e.employeeName || ''), (e.englishName || ''), (e.dateOfBirth || ''), (e.personalEmail || ''), (e.businessEmail || ''), (e.mobilePhone1 || ''), (e.mobilePhone2 || ''), (e.serviceStartDate || ''), (e.alPolicy || ''), (e.timeSheetPolicy || ''), (e.organizionStructure || ''), (e.managerFullName || ''), (e.userName || ''), (e.companyInfo || '')];
+                return a.some(function(s) { return removeDiacritics(s).toLowerCase().indexOf(qNorm) >= 0; });
             });
         }
 
@@ -1760,7 +1800,7 @@
             var $pg = $('#pagerEmployees');
             var $table = $tb.closest('table');
             if (!employees.length) {
-                $tb.html('<tr><td colspan="16" class="ba-empty">Không có employee nào.</td></tr>');
+                $tb.html('<tr><td colspan="17" class="ba-empty">Không có employee nào.</td></tr>');
                 $('#chkSelectAllEmployees').off('change').prop('checked', false);
                 $pg.hide();
                 return;
@@ -1779,18 +1819,19 @@
                     '<td data-col-index="1">' + (e.employeeID || '-') + '</td>' +
                     '<td data-col-index="2">' + (e.localEmployeeID || '-') + '</td>' +
                     '<td data-col-index="3">' + (e.employeeName || '-') + '</td>' +
-                    '<td data-col-index="4">' + (e.dateOfBirth || '-') + '</td>' +
-                    '<td data-col-index="5">' + (e.personalEmail || '-') + '</td>' +
-                    '<td data-col-index="6">' + (e.businessEmail || '-') + '</td>' +
-                    '<td data-col-index="7">' + (e.mobilePhone1 || '-') + '</td>' +
-                    '<td data-col-index="8">' + (e.mobilePhone2 || '-') + '</td>' +
-                    '<td data-col-index="9">' + (e.serviceStartDate || '-') + '</td>' +
-                    '<td data-col-index="10">' + (e.alPolicy || '-') + '</td>' +
-                    '<td data-col-index="11">' + (e.timeSheetPolicy || '-') + '</td>' +
-                    '<td data-col-index="12">' + (e.organizionStructure || '-') + '</td>' +
-                    '<td data-col-index="13">' + (e.managerFullName || '-') + '</td>' +
-                    '<td data-col-index="14">' + (e.userName || '-') + '</td>' +
-                    '<td data-col-index="15">' + (e.companyInfo || '-') + '</td></tr>';
+                    '<td data-col-index="4">' + (e.englishName || '-') + '</td>' +
+                    '<td data-col-index="5">' + (e.dateOfBirth || '-') + '</td>' +
+                    '<td data-col-index="6">' + (e.personalEmail || '-') + '</td>' +
+                    '<td data-col-index="7">' + (e.businessEmail || '-') + '</td>' +
+                    '<td data-col-index="8">' + (e.mobilePhone1 || '-') + '</td>' +
+                    '<td data-col-index="9">' + (e.mobilePhone2 || '-') + '</td>' +
+                    '<td data-col-index="10">' + (e.serviceStartDate || '-') + '</td>' +
+                    '<td data-col-index="11">' + (e.alPolicy || '-') + '</td>' +
+                    '<td data-col-index="12">' + (e.timeSheetPolicy || '-') + '</td>' +
+                    '<td data-col-index="13">' + (e.organizionStructure || '-') + '</td>' +
+                    '<td data-col-index="14">' + (e.managerFullName || '-') + '</td>' +
+                    '<td data-col-index="15">' + (e.userName || '-') + '</td>' +
+                    '<td data-col-index="16">' + (e.companyInfo || '-') + '</td></tr>';
             });
             $tb.html(html);
             setTimeout(function() { applyColumnLocks('tableEmployees'); }, 10);

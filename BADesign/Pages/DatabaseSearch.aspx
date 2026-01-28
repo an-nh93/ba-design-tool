@@ -344,7 +344,9 @@
                 <div class="ba-sidebar-header">
                     <div class="ba-sidebar-title">UI Builder</div>
                 </div>
-                <a href="~/DesignerHome" runat="server" class="ba-nav-item"><span>← Về trang chủ</span></a>
+                <asp:HyperLink ID="lnkHome" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DesignerHome">
+                    <span>← Về trang chủ</span>
+                </asp:HyperLink>
                 <div class="ba-nav-item active"><span>🔍 Database Search</span></div>
             </aside>
             <main class="ba-main">
@@ -368,7 +370,7 @@
                                 <div class="ba-search-wrap">
                                     <input type="text" id="searchServers" class="ba-input ba-search-inp" placeholder="Tìm server..." />
                                 </div>
-                                <button type="button" class="ba-btn ba-btn-primary" onclick="showAddServerModal(); return false;">+ Thêm server</button>
+                                <span id="addServerWrap"><button type="button" class="ba-btn ba-btn-primary" onclick="showAddServerModal(); return false;">+ Thêm server</button></span>
                             </div>
                         </div>
                         <div class="ba-card-body">
@@ -417,7 +419,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tblResults">
-                                        <tr><td colspan="4" class="ba-empty">Chưa quét. Bấm &quot;Quét & load danh sách Database&quot; hoặc &quot;Quét&quot; trên từng server.</td></tr>
+                                        <tr><td colspan="5" class="ba-empty">Chưa quét. Bấm &quot;Quét & load danh sách Database&quot; hoặc &quot;Quét&quot; trên từng server.</td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -512,6 +514,7 @@
         </div>
     </form>
     <script>
+        var canManageServers = <%= CanManageServers ? "true" : "false" %>;
         var servers = [];
         var results = [];
         var serverStatuses = {};
@@ -559,7 +562,7 @@
             var $pg = $('#pagerServers');
             var list = filteredServers();
             if (!list.length) {
-                $tb.html('<tr><td colspan="5" class="ba-empty">Chưa có server. Thêm server ở trên.</td></tr>');
+                $tb.html('<tr><td colspan="5" class="ba-empty">' + (canManageServers ? 'Chưa có server. Thêm server ở trên.' : 'Chưa có server.') + '</td></tr>');
                 $pg.empty();
                 return;
             }
@@ -582,16 +585,17 @@
                     statusCell = '<span class="ba-status-fail" title="Lỗi">✕</span> ' +
                         '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-log" data-id="' + s.id + '" title="Xem log lỗi">Log</button>';
                 }
+                var actions = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;">Quét</button>';
+                if (canManageServers) {
+                    actions = '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;">Sửa</button> ' + actions + ' ' +
+                        '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + '); return false;">Xóa</button>';
+                }
                 html += '<tr data-id="' + s.id + '">' +
                     '<td>' + (s.serverName || '-') + '</td>' +
                     '<td>' + (s.port != null ? s.port : '-') + '</td>' +
                     '<td>' + (s.username || '-') + '</td>' +
                     '<td>' + statusCell + '</td>' +
-                    '<td><div class="ba-actions">' +
-                    '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;">Sửa</button> ' +
-                    '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;">Quét</button> ' +
-                    '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + '); return false;">Xóa</button>' +
-                    '</div></td></tr>';
+                    '<td><div class="ba-actions">' + actions + '</div></td></tr>';
             });
             $tb.html(html);
             $tb.find('.ba-btn-log').on('click', function() {
@@ -741,24 +745,67 @@
         }
 
         function fetchServers() {
-            $.ajax({
-                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetServers") %>',
+            var getServersUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetServers") %>';
+            var loadStateUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/LoadScanState") %>';
+            var p1 = $.ajax({
+                url: getServersUrl,
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
-                data: '{}',
-                success: function(res) {
-                    var d = res.d || res;
-                    servers = (d && d.list) ? d.list : [];
-                    renderServers();
-                },
-                error: function(xhr, status, err) {
-                    servers = [];
-                    renderServers();
-                    if (xhr.status === 401 || (xhr.responseText && xhr.responseText.indexOf('Authentication') >= 0)) {
-                        showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error');
-                    }
+                data: '{}'
+            }).then(function(res) {
+                var d = res.d || res;
+                servers = (d && d.list) ? d.list : [];
+                return servers;
+            }, function(xhr) {
+                servers = [];
+                if (xhr && (xhr.status === 401 || (xhr.responseText && xhr.responseText.indexOf('Authentication') >= 0)))
+                    showToast('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.', 'error');
+                return null;
+            });
+            var p2 = $.ajax({
+                url: loadStateUrl,
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: '{}'
+            }).then(function(res) {
+                var d = res.d || res;
+                return (d && d.state) ? d.state : null;
+            }, function() { return null; });
+            $.when(p1, p2).always(function() {
+                var stateJson = (arguments.length >= 2 && arguments[1] !== undefined && arguments[1] != null) ? arguments[1] : null;
+                if (stateJson) {
+                    try {
+                        var s = typeof stateJson === 'string' ? JSON.parse(stateJson) : stateJson;
+                        results = s.list || [];
+                        serverStatuses = {};
+                        (s.serverStatuses || []).forEach(function(st) {
+                            serverStatuses[st.id] = { ok: !!st.ok, message: st.message || '', dbCount: st.dbCount || 0 };
+                        });
+                        updateDbListLabel(s.mode || 'default', s.serverDisplay || '');
+                    } catch (e) { results = []; serverStatuses = {}; updateDbListLabel('default'); }
                 }
+                renderServers();
+                renderResults();
+            });
+        }
+
+        function saveScanState(mode, serverId, serverDisplay, list, statusMap) {
+            var arr = [];
+            for (var k in statusMap) {
+                if (!statusMap.hasOwnProperty(k)) continue;
+                var st = statusMap[k];
+                arr.push({ id: parseInt(k, 10), ok: !!st.ok, message: st.message || '', dbCount: st.dbCount || 0 });
+            }
+            var state = { mode: mode, serverId: serverId, serverDisplay: serverDisplay || null, list: list || [], serverStatuses: arr };
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/SaveScanState") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ stateJson: JSON.stringify(state) }),
+                error: function() {}
             });
         }
 
@@ -870,6 +917,7 @@
                                     serverStatuses[st.id] = { ok: st.ok, message: st.message || '', dbCount: st.dbCount || 0 };
                                 }
                             }
+                            saveScanState('single', serverId, serverDisplay, results, serverStatuses);
                             renderServers();
                             renderResults();
                             showToast('Đã load ' + results.length + ' database.', 'success');
@@ -996,6 +1044,7 @@
                     $btn.prop('disabled', false);
                     $text.text('Quét & load danh sách Database');
                     updateDbListLabel('all');
+                    saveScanState('all', null, null, results, serverStatuses);
                     $('#scanLogClose, #scanLogDone').show();
                     if (scanLogPreEl) scanLogPreEl.scrollTop = scanLogPreEl.scrollHeight;
                     showToast('Đã load ' + results.length + ' database.', 'success');
@@ -1069,7 +1118,8 @@
             $tb.html(html);
             $tb.find('.ba-copy-btn').on('click', function() {
                 var idx = parseInt($(this).data('idx'), 10);
-                var cs = (results[idx] && results[idx].connectionString) || '';
+                var r = results[idx];
+                var cs = (r && (r.connectionStringForCopy || r.connectionString)) || '';
                 if (!cs) { showToast('Không có connection string.', 'error'); return; }
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(cs).then(function() { showToast('Đã copy connection string.', 'success'); }).catch(function() { fallbackCopy(cs); });
@@ -1103,6 +1153,7 @@
         }
 
         $(function() {
+            if (!canManageServers) $('#addServerWrap').hide();
             fetchServers();
             $('#searchServers').on('input', function() { serverPage = 1; renderServers(); });
             $('#searchDatabases').on('input', function() { dbPage = 1; renderResults(); });

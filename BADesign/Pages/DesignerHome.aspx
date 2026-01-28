@@ -96,7 +96,18 @@
             margin: 0;
         }
 
+        .sidebar-back {
+            flex-shrink: 0;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-back .nav-item {
+            margin: 0;
+        }
+
         .sidebar-search {
+            flex-shrink: 0;
             padding: 1rem;
             border-bottom: 1px solid var(--border);
         }
@@ -1509,6 +1520,63 @@
             opacity: 0.5;
         }
 
+        /* ===== Anonymous home (không đăng nhập) ===== */
+        .anonymous-home {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            background: var(--bg-main);
+        }
+        .anonymous-home-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+        }
+        .anonymous-home-card h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+        .anonymous-home-card p {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+        .anonymous-home-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .anonymous-home-actions a {
+            display: block;
+            padding: 0.6rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .anonymous-home-actions a.anon-btn-primary {
+            background: var(--primary);
+            color: white;
+            border: none;
+        }
+        .anonymous-home-actions a.anon-btn-primary:hover { background: var(--primary-hover); }
+        .anonymous-home-actions a.anon-btn-secondary {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .anonymous-home-actions a.anon-btn-secondary:hover { background: var(--bg-card); }
+
         /* ===== Responsive ===== */
         @media (max-width: 768px) {
             .sidebar {
@@ -1534,17 +1602,34 @@
 </head>
 <body>
     <form id="form1" runat="server">
+        <asp:Panel ID="pnlAnonymous" runat="server" Visible="false">
+            <div class="anonymous-home">
+                <div class="anonymous-home-card">
+                    <h1>Cadena Helper</h1>
+                    <p>Nhân viên có thể dùng <strong>Database Search</strong> để reset password (không cần đăng nhập).</p>
+                    <div class="anonymous-home-actions">
+                        <asp:HyperLink ID="lnkAnonymousDbSearch" runat="server" NavigateUrl="~/DatabaseSearch" CssClass="anon-btn-primary" Text="Database Search" />
+                        <asp:HyperLink ID="lnkAnonymousLogin" runat="server" NavigateUrl="~/Login" CssClass="anon-btn-secondary" Text="Đăng nhập" />
+                    </div>
+                </div>
+            </div>
+        </asp:Panel>
+        <asp:Panel ID="pnlLoggedIn" runat="server">
         <div class="app-container">
             <!-- Sidebar -->
             <div class="sidebar">
                 <div class="sidebar-header">
                     <h1>UI Builder</h1>
                 </div>
-                
+                <div class="sidebar-back">
+                    <asp:HyperLink ID="lnkBackHome" runat="server" NavigateUrl="~/HomeRole" CssClass="nav-item" style="text-decoration: none; display: flex; align-items: center; padding: 0.5rem 1rem;">
+                        <span class="icon">←</span>
+                        <span>Về trang chủ</span>
+                    </asp:HyperLink>
+                </div>
                 <div class="sidebar-search">
                     <input type="text" placeholder="Q Search..." />
-            </div>
-
+                </div>
                 <div class="sidebar-nav">
                     <div class="nav-section">
                         <div class="nav-item active" data-section="my-designs">
@@ -1592,21 +1677,7 @@
                 <div class="top-bar">
                     <div class="top-bar-title">Recents</div>
                     <div class="top-bar-actions">
-                        <a href="~/Builder" class="btn btn-primary btn-sm" runat="server">
-                            <span>+</span> New empty page
-                </a>
-
-                <asp:HyperLink ID="lnkDatabaseSearch" runat="server"
-                            CssClass="btn btn-sm" NavigateUrl="~/DatabaseSearch"
-                            Style="background: transparent; border: 1px solid var(--border); color: var(--text-secondary);">
-                    Database Search
-                </asp:HyperLink>
-                <asp:HyperLink ID="lnkUserManagement" runat="server"
-                            CssClass="btn btn-sm" NavigateUrl="~/Users"
-                            Visible="false"
-                            Style="background: transparent; border: 1px solid var(--border); color: var(--text-secondary);">
-                    User management
-                </asp:HyperLink>
+                        <asp:HyperLink ID="lnkBuilder" runat="server" CssClass="btn btn-primary btn-sm" NavigateUrl="~/Builder" Text="+ New empty page" />
 
                         <button class="theme-switcher" id="themeSwitcher" onclick="toggleTheme(event)">
                             <span class="theme-switcher-icon" id="themeIcon">🌙</span>
@@ -1888,6 +1959,7 @@
         </div>
         </div>
         </div>
+        </asp:Panel>
 
         <!-- Modal Preview -->
     <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">

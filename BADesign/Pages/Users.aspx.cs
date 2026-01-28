@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
@@ -31,7 +31,10 @@ namespace UiBuilderFull.Admin
 			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 			using (var cmd = conn.CreateCommand())
 			{
-				cmd.CommandText = "SELECT UserId, UserName, FullName, Email, IsSuperAdmin, IsActive FROM UiUser ORDER BY UserId";
+				cmd.CommandText = @"SELECT u.UserId, u.UserName, u.FullName, u.Email, u.IsSuperAdmin, u.IsActive, u.RoleId, r.Code AS RoleCode, r.Name AS RoleName
+FROM UiUser u
+LEFT JOIN UiRole r ON r.RoleId = u.RoleId
+ORDER BY u.UserId";
 				conn.Open();
 				using (var da = new SqlDataAdapter(cmd))
 				{
@@ -197,22 +200,46 @@ WHERE UserId=@id";
 				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 				using (var cmd = conn.CreateCommand())
 				{
-					cmd.CommandText = "SELECT UserId, UserName, FullName, Email, IsSuperAdmin, IsActive FROM UiUser WHERE UserId=@id";
+					cmd.CommandText = "SELECT UserId, UserName, FullName, Email, IsSuperAdmin, IsActive, RoleId FROM UiUser WHERE UserId=@id";
 					cmd.Parameters.AddWithValue("@id", userId);
 					conn.Open();
 					using (var rd = cmd.ExecuteReader())
 					{
 						if (rd.Read())
 						{
+							var roleIdObj = rd["RoleId"];
+							var uid = (int)rd["UserId"];
+							var roleId = roleIdObj != DBNull.Value && roleIdObj != null ? (int?)Convert.ToInt32(roleIdObj) : null;
+							var userName = (string)rd["UserName"];
+							var fullName = rd["FullName"] as string ?? "";
+							var email = rd["Email"] as string ?? "";
+							var isSuperAdmin = (bool)rd["IsSuperAdmin"];
+							var isActive = (bool)rd["IsActive"];
+							rd.Close();
+
+							var userPermissionIds = new List<int>();
+							using (var cmd2 = conn.CreateCommand())
+							{
+								cmd2.CommandText = "SELECT PermissionId FROM UiUserPermission WHERE UserId = @uid";
+								cmd2.Parameters.AddWithValue("@uid", uid);
+								using (var r2 = cmd2.ExecuteReader())
+								{
+									while (r2.Read())
+										userPermissionIds.Add(r2.GetInt32(0));
+								}
+							}
+
 							return new
 							{
 								success = true,
-								userId = (int)rd["UserId"],
-								userName = (string)rd["UserName"],
-								fullName = rd["FullName"] as string ?? "",
-								email = rd["Email"] as string ?? "",
-								isSuperAdmin = (bool)rd["IsSuperAdmin"],
-								isActive = (bool)rd["IsActive"]
+								userId = uid,
+								userName = userName,
+								fullName = fullName,
+								email = email,
+								isSuperAdmin = isSuperAdmin,
+								isActive = isActive,
+								roleId = roleId,
+								userPermissionIds = userPermissionIds
 							};
 						}
 						else
@@ -230,7 +257,7 @@ WHERE UserId=@id";
 
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static object CreateUser(string userName, string password, string fullName = null, string email = null, bool isSuperAdmin = false, bool isActive = true)
+		public static object CreateUser(string userName, string password, string fullName = null, string email = null, bool isSuperAdmin = false, bool isActive = true, int? roleId = null)
 		{
 			try
 			{
@@ -251,8 +278,8 @@ WHERE UserId=@id";
 				using (var cmd = conn.CreateCommand())
 				{
 					cmd.CommandText = @"
-INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin, IsActive)
-VALUES (@u, @p, @f, @e, @sa, @ia);
+INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin, IsActive, RoleId)
+VALUES (@u, @p, @f, @e, @sa, @ia, @rid);
 SELECT CAST(SCOPE_IDENTITY() AS INT);";
 					cmd.Parameters.AddWithValue("@u", userName.Trim());
 					cmd.Parameters.AddWithValue("@p", hash);
@@ -260,6 +287,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 					cmd.Parameters.AddWithValue("@e", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim());
 					cmd.Parameters.AddWithValue("@sa", isSuperAdmin);
 					cmd.Parameters.AddWithValue("@ia", isActive);
+					cmd.Parameters.AddWithValue("@rid", roleId.HasValue ? (object)roleId.Value : DBNull.Value);
 
 					conn.Open();
 					var userId = (int)cmd.ExecuteScalar();
@@ -275,7 +303,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static object UpdateUser(int? userId, string userName, string password = null, string fullName = null, string email = null, bool? isSuperAdmin = null, bool? isActive = null)
+		public static object UpdateUser(int? userId, string userName, string password = null, string fullName = null, string email = null, bool? isSuperAdmin = null, bool? isActive = null, int? roleId = null, int[] extraPermissionIds = null)
 		{
 			try
 			{
@@ -291,64 +319,122 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 				}
 
 				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-				using (var cmd = conn.CreateCommand())
 				{
+					conn.Open();
+
 					var updates = new List<string>();
 					var parameters = new List<SqlParameter>();
 
-					// Password (optional - only update if provided)
 					if (!string.IsNullOrWhiteSpace(password))
 					{
 						var hash = UiAuthHelper.HashPassword(password);
 						updates.Add("PasswordHash=@p");
 						parameters.Add(new SqlParameter("@p", hash));
 					}
-
-					// FullName
 					if (fullName != null)
 					{
 						updates.Add("FullName=@f");
 						parameters.Add(new SqlParameter("@f", string.IsNullOrWhiteSpace(fullName) ? (object)DBNull.Value : fullName.Trim()));
 					}
-
-					// Email
 					if (email != null)
 					{
 						updates.Add("Email=@e");
 						parameters.Add(new SqlParameter("@e", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim()));
 					}
-
-					// IsSuperAdmin
 					if (isSuperAdmin.HasValue)
 					{
 						updates.Add("IsSuperAdmin=@sa");
 						parameters.Add(new SqlParameter("@sa", isSuperAdmin.Value));
 					}
-
-					// IsActive
 					if (isActive.HasValue)
 					{
 						updates.Add("IsActive=@ia");
 						parameters.Add(new SqlParameter("@ia", isActive.Value));
 					}
+					if (roleId.HasValue && roleId.Value != 0)
+					{
+						updates.Add("RoleId=@rid");
+						parameters.Add(new SqlParameter("@rid", roleId.Value));
+					}
+					else
+					{
+						updates.Add("RoleId=@rid");
+						parameters.Add(new SqlParameter("@rid", DBNull.Value));
+					}
 
-					if (updates.Count == 0)
+					if (updates.Count == 0 && (extraPermissionIds == null || extraPermissionIds.Length == 0))
 					{
 						return new { success = false, message = "No fields to update." };
 					}
 
-					cmd.CommandText = "UPDATE UiUser SET " + string.Join(", ", updates) + " WHERE UserId=@id";
-					cmd.Parameters.AddWithValue("@id", userId.Value);
-					foreach (var param in parameters)
+					if (updates.Count > 0)
 					{
-						cmd.Parameters.Add(param);
+						using (var cmd = conn.CreateCommand())
+						{
+							cmd.CommandText = "UPDATE UiUser SET " + string.Join(", ", updates) + " WHERE UserId=@id";
+							cmd.Parameters.AddWithValue("@id", userId.Value);
+							foreach (var param in parameters)
+								cmd.Parameters.Add(param);
+							cmd.ExecuteNonQuery();
+						}
 					}
 
-					conn.Open();
-					cmd.ExecuteNonQuery();
-
-					return new { success = true, message = "User updated successfully." };
+					if (extraPermissionIds != null)
+					{
+						using (var del = conn.CreateCommand())
+						{
+							del.CommandText = "DELETE FROM UiUserPermission WHERE UserId = @uid";
+							del.Parameters.AddWithValue("@uid", userId.Value);
+							del.ExecuteNonQuery();
+						}
+						foreach (var pid in extraPermissionIds)
+						{
+							using (var ins = conn.CreateCommand())
+							{
+								ins.CommandText = "INSERT INTO UiUserPermission (UserId, PermissionId) VALUES (@uid, @pid)";
+								ins.Parameters.AddWithValue("@uid", userId.Value);
+								ins.Parameters.AddWithValue("@pid", pid);
+								ins.ExecuteNonQuery();
+							}
+						}
+					}
 				}
+
+				return new { success = true, message = "User updated successfully." };
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object LoadRoles()
+		{
+			try
+			{
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+				{
+					return new { success = false, message = "Unauthorized." };
+				}
+
+				var list = new List<object>();
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "SELECT RoleId, Code, Name FROM UiRole ORDER BY RoleId";
+					conn.Open();
+					using (var r = cmd.ExecuteReader())
+					{
+						while (r.Read())
+						{
+							list.Add(new { id = r.GetInt32(0), code = r.GetString(1), name = r.IsDBNull(2) ? "" : r.GetString(2) });
+						}
+					}
+				}
+				return new { success = true, list = list };
 			}
 			catch (Exception ex)
 			{
