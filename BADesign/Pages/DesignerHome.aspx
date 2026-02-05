@@ -1530,55 +1530,85 @@
             padding: 2rem;
             background: var(--bg-main);
         }
-        .anonymous-home-card {
+        .anonymous-home-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .anonymous-home-header h1 {
+            font-size: 1.75rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        .anonymous-home-header p {
+            color: var(--text-muted);
+            font-size: 0.9375rem;
+        }
+        .anonymous-home-tools {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 1.25rem;
+            max-width: 900px;
+            width: 100%;
+        }
+        .anonymous-home-tool-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 2.5rem;
-            max-width: 420px;
-            width: 100%;
-            text-align: center;
-        }
-        .anonymous-home-card h1 {
-            font-size: 1.5rem;
-            margin-bottom: 0.5rem;
-            color: var(--text-primary);
-        }
-        .anonymous-home-card p {
-            color: var(--text-muted);
-            font-size: 0.875rem;
-            margin-bottom: 1.5rem;
-            line-height: 1.5;
-        }
-        .anonymous-home-actions {
+            padding: 1.5rem;
+            text-decoration: none;
+            color: inherit;
             display: flex;
             flex-direction: column;
-            gap: 0.75rem;
+            align-items: flex-start;
+            text-align: left;
+            transition: all 0.2s ease;
         }
-        .anonymous-home-actions a {
-            display: block;
-            padding: 0.6rem 1rem;
+        .anonymous-home-tool-card:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+        }
+        .anonymous-home-tool-card .tool-icon {
+            font-size: 1.75rem;
+            margin-bottom: 0.75rem;
+        }
+        .anonymous-home-tool-card .tool-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        .anonymous-home-tool-card .tool-desc {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+        .anonymous-home-login-wrap {
+            margin-top: 2rem;
+            text-align: center;
+        }
+        .anonymous-home-login-wrap a {
+            display: inline-block;
+            padding: 0.6rem 1.5rem;
             border-radius: 6px;
             font-size: 0.9375rem;
             font-weight: 500;
             text-decoration: none;
-            transition: all 0.2s;
-        }
-        .anonymous-home-actions a.anon-btn-primary {
-            background: var(--primary);
-            color: white;
-            border: none;
-        }
-        .anonymous-home-actions a.anon-btn-primary:hover { background: var(--primary-hover); }
-        .anonymous-home-actions a.anon-btn-secondary {
             background: var(--bg-hover);
             color: var(--text-primary);
             border: 1px solid var(--border);
+            transition: all 0.2s;
         }
-        .anonymous-home-actions a.anon-btn-secondary:hover { background: var(--bg-card); }
+        .anonymous-home-login-wrap a:hover {
+            background: var(--bg-card);
+            border-color: var(--primary);
+        }
 
         /* ===== Responsive ===== */
         @media (max-width: 768px) {
+            .anonymous-home-tools {
+                grid-template-columns: 1fr;
+            }
+
             .sidebar {
                 width: 60px;
             }
@@ -1604,13 +1634,31 @@
     <form id="form1" runat="server">
         <asp:Panel ID="pnlAnonymous" runat="server" Visible="false">
             <div class="anonymous-home">
-                <div class="anonymous-home-card">
+                <div class="anonymous-home-header">
                     <h1>Cadena Helper</h1>
-                    <p>Nhân viên có thể dùng <strong>Database Search</strong> để reset password (không cần đăng nhập).</p>
-                    <div class="anonymous-home-actions">
-                        <asp:HyperLink ID="lnkAnonymousDbSearch" runat="server" NavigateUrl="~/DatabaseSearch" CssClass="anon-btn-primary" Text="Database Search" />
-                        <asp:HyperLink ID="lnkAnonymousLogin" runat="server" NavigateUrl="~/Login" CssClass="anon-btn-secondary" Text="Đăng nhập" />
-                    </div>
+                    <p>Các công cụ hỗ trợ nhân viên – dùng được ngay không cần đăng nhập</p>
+                </div>
+                <div class="anonymous-home-tools">
+                    <a href="<%= ResolveUrl("~/DatabaseSearch") %>" class="anonymous-home-tool-card">
+                        <span class="tool-icon">🔍</span>
+                        <span class="tool-title">Database Search</span>
+                        <span class="tool-desc">Reset password và tra cứu thông tin trong database.</span>
+                    </a>
+                    <a href="<%= ResolveUrl("~/PgpTool") %>" class="anonymous-home-tool-card">
+                        <span class="tool-icon">🔐</span>
+                        <span class="tool-title">PGP Tool</span>
+                        <span class="tool-desc">Mã hóa, giải mã file PGP với public/private key.</span>
+                    </a>
+                    <%-- Thêm tool mới cho guest: copy block dưới và chỉnh URL, icon, title, desc
+                    <a href="<%= ResolveUrl("~/ToolMoi") %>" class="anonymous-home-tool-card">
+                        <span class="tool-icon">📎</span>
+                        <span class="tool-title">Tên tool</span>
+                        <span class="tool-desc">Mô tả ngắn về chức năng.</span>
+                    </a>
+                    --%>
+                </div>
+                <div class="anonymous-home-login-wrap">
+                    <asp:HyperLink ID="lnkAnonymousLogin" runat="server" NavigateUrl="~/Login" Text="Đăng nhập để dùng thêm tính năng" />
                 </div>
             </div>
         </asp:Panel>
@@ -1696,7 +1744,7 @@
                                 <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('security'); return false;">🔒 Change Password</a>
                                 <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('account'); return false;">⚙️ Account Settings</a>
                                 <div class="menu-item" style="border-top: 1px solid var(--border); margin-top: 0.25rem; padding-top: 0.75rem;">
-                                    <a href="~/Login" runat="server" style="color: inherit; text-decoration: none;" onclick="closeUserMenu();">🚪 Logout</a>
+                                    <a href="~/Login?logout=1" runat="server" style="color: inherit; text-decoration: none;" onclick="closeUserMenu();">🚪 Logout</a>
                 </div>
                             </div>
                         </div>

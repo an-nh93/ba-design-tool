@@ -11,7 +11,22 @@ namespace UiBuilderFull
 		{
 			if (!IsPostBack)
 			{
-				Session.Clear();
+				if (Request.QueryString["logout"] == "1")
+				{
+					UiAuthHelper.ClearRememberMeCookie();
+					Session.Clear();
+					// Không redirect, hiển thị form login
+				}
+				else if (Session["UiUserId"] != null)
+				{
+					// Đã login (vd. từ Remember cookie) thì chuyển về trang chủ
+					Response.Redirect(VirtualPathUtility.ToAbsolute(UiAuthHelper.GetHomeUrlByRole() ?? "~/HomeRole"));
+					return;
+				}
+				else
+				{
+					Session.Clear();
+				}
 			}
 		}
 
@@ -61,6 +76,9 @@ WHERE u.UserName = @u AND u.PasswordHash = @p";
 					Session["UiRoleCode"] = rd["RoleCode"] != DBNull.Value && rd["RoleCode"] != null ? (rd["RoleCode"] as string) : null;
 				}
 			}
+
+			if (chkRemember.Checked)
+				UiAuthHelper.SetRememberMeCookie((int)Session["UiUserId"]);
 
 			var returnUrl = Request.QueryString["returnUrl"];
 			if (!string.IsNullOrEmpty(returnUrl) && returnUrl.StartsWith("/"))

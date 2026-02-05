@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Login.aspx.cs" Inherits="UiBuilderFull.Login" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Login.aspx.cs" Inherits="UiBuilderFull.Login" %>
 
 <!DOCTYPE html>
 <html>
@@ -41,8 +41,8 @@
 
                     <div class="login-extra">
                         <label class="remember-me">
-                            <input type="checkbox" />
-                            <span>Remember me</span>
+                            <asp:CheckBox runat="server" ID="chkRemember" />
+                            <span>Remember me (30 day)</span>
                         </label>
                         <a href="#" class="forgot-link">Forgot password</a>
                     </div>

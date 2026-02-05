@@ -15,8 +15,8 @@ namespace BADesign.Pages
 	{
 		protected void Page_Load(object sender, EventArgs e)
 		{
-			UiAuthHelper.RequireLogin();
-			if (!UiAuthHelper.HasFeature("PGPTool"))
+			// Cho phép guest sử dụng PGP Tool. Nếu đã login nhưng không có quyền thì redirect.
+			if (!UiAuthHelper.IsAnonymous && !UiAuthHelper.HasFeature("PGPTool"))
 			{
 				Response.Redirect(ResolveUrl(UiAuthHelper.GetHomeUrlByRole() ?? "~/HomeRole"));
 				return;
@@ -173,8 +173,8 @@ namespace BADesign.Pages
 
 		private static void EnsurePgpToolPermission()
 		{
-			UiAuthHelper.RequireLogin();
-			if (!UiAuthHelper.HasFeature("PGPTool"))
+			// Guest được phép dùng PGP Tool. User đã login phải có feature PGPTool.
+			if (!UiAuthHelper.IsAnonymous && !UiAuthHelper.HasFeature("PGPTool"))
 				throw new UnauthorizedAccessException("Bạn không có quyền sử dụng PGP Tool.");
 		}
 

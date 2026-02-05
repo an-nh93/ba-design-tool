@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -16,6 +16,14 @@ namespace BADesign
             // Code that runs on application startup
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+        }
+
+        protected void Application_BeginRequest(object sender, EventArgs e)
+        {
+            // Restore session từ Remember Me cookie nếu session trống
+            var userId = UiAuthHelper.TryRestoreFromRememberCookie();
+            if (userId.HasValue)
+                UiAuthHelper.RestoreSessionFromUserId(userId.Value);
         }
     }
 }
