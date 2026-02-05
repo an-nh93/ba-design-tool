@@ -522,14 +522,14 @@
                             <span>👥 User Management</span>
                         </asp:HyperLink>
                         <asp:HyperLink ID="lnkNavRolePermission" runat="server" CssClass="ba-nav-item" NavigateUrl="~/RolePermission">
-                            <span>🔐 Role Permission</span>
+                            <span>🛡 Role Permission</span>
                         </asp:HyperLink>
                         <asp:HyperLink ID="lnkNavLeaveManager" runat="server" CssClass="ba-nav-item" NavigateUrl="~/LeaveManager">
                             <span>📅 Leave Manager</span>
                         </asp:HyperLink>
                         <asp:PlaceHolder ID="phNavPgpTool" runat="server" Visible="false">
                             <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool">
-                                <span>🔐 PGP Tool</span>
+                                <span>🧰 PGP Tool</span>
                             </asp:HyperLink>
                         </asp:PlaceHolder>
                     </asp:PlaceHolder>
@@ -603,7 +603,7 @@
                                     <div class="ba-feature-desc">Quản lý user: thêm, sửa, đổi mật khẩu, gán role và quyền riêng lẻ.</div>
                                 </asp:HyperLink>
                                 <asp:HyperLink ID="lnkFeatureRolePermission" runat="server" CssClass="ba-feature-card" NavigateUrl="~/RolePermission">
-                                    <div class="ba-feature-icon">🔐</div>
+                                    <div class="ba-feature-icon">🛡</div>
                                     <div class="ba-feature-title">Role Permission</div>
                                     <div class="ba-feature-desc">Định nghĩa quyền theo Role (BA, CONS, DEV). Cấu hình UI Builder, Database Search, Encrypt/Decrypt, HR Helper.</div>
                                 </asp:HyperLink>
@@ -614,7 +614,7 @@
                                 </asp:HyperLink>
                                 <asp:PlaceHolder ID="phFeaturePgpTool" runat="server" Visible="false">
                                     <asp:HyperLink ID="lnkFeaturePgpTool" runat="server" CssClass="ba-feature-card" NavigateUrl="~/PgpTool">
-                                        <div class="ba-feature-icon">🔐</div>
+                                        <div class="ba-feature-icon">🧰</div>
                                         <div class="ba-feature-title">PGP Tool</div>
                                         <div class="ba-feature-desc">Xuất key .asc, mã hóa và giải mã file PGP (tương tự tool cũ).</div>
                                     </asp:HyperLink>

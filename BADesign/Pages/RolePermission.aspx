@@ -109,7 +109,7 @@
                 </div>
                 <a href="~/HomeRole" runat="server" class="rp-nav-item">← Back to Home</a>
                 <a href="~/Users" runat="server" class="rp-nav-item">👥 User Management</a>
-                <div class="rp-nav-item active">🔐 Role Permission</div>
+                <div class="rp-nav-item active">🛡 Role Permission</div>
             </aside>
             <main class="rp-main">
                 <div class="rp-top">

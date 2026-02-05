@@ -70,7 +70,7 @@
         <div class="ba-container">
             <aside class="ba-sidebar">
                 <div class="ba-sidebar-header">
-                    <div class="ba-sidebar-title">🔐 PGP Tool</div>
+                    <div class="ba-sidebar-title">🧰 PGP Tool</div>
                 </div>
                 <nav class="ba-nav">
                     <a href="<%= ResolveUrl("~/HomeRole") %>" class="ba-nav-item">← Về trang chủ</a>

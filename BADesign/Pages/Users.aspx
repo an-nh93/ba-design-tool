@@ -645,7 +645,7 @@
                     <span>👥 User Management</span>
                 </div>
                 <a href="~/RolePermission" runat="server" class="admin-nav-item">
-                    <span>🔐 Role Permission</span>
+                    <span>🛡 Role Permission</span>
                 </a>
             </div>
 
