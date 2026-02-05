@@ -512,9 +512,9 @@
                         <span>🔍 Database Search</span>
                     </asp:HyperLink>
                     <asp:PlaceHolder ID="phNavEncryptDecrypt" runat="server" Visible="false">
-                        <div class="ba-nav-item" style="color: var(--text-muted); cursor: default;">
+                        <asp:HyperLink ID="lnkNavEncryptDecrypt" runat="server" CssClass="ba-nav-item" NavigateUrl="~/EncryptDecrypt">
                             <span>🔐 Encrypt/Decrypt</span>
-                        </div>
+                        </asp:HyperLink>
                     </asp:PlaceHolder>
                     <asp:PlaceHolder ID="phNavSuperAdmin" runat="server" Visible="false">
                         <div class="ba-nav-item" style="color: var(--text-muted); font-size: 0.75rem; padding-top: 1rem; padding-bottom: 0.25rem;">Super Admin</div>
@@ -524,6 +524,14 @@
                         <asp:HyperLink ID="lnkNavRolePermission" runat="server" CssClass="ba-nav-item" NavigateUrl="~/RolePermission">
                             <span>🔐 Role Permission</span>
                         </asp:HyperLink>
+                        <asp:HyperLink ID="lnkNavLeaveManager" runat="server" CssClass="ba-nav-item" NavigateUrl="~/LeaveManager">
+                            <span>📅 Leave Manager</span>
+                        </asp:HyperLink>
+                        <asp:PlaceHolder ID="phNavPgpTool" runat="server" Visible="false">
+                            <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool">
+                                <span>🔐 PGP Tool</span>
+                            </asp:HyperLink>
+                        </asp:PlaceHolder>
                     </asp:PlaceHolder>
                 </nav>
             </aside>
@@ -575,11 +583,11 @@
                                 <div class="ba-feature-desc">Tìm kiếm và quản lý database connections. Quét server, xem danh sách database, copy connection string.</div>
                             </asp:HyperLink>
                             <asp:PlaceHolder ID="phFeatureEncryptDecrypt" runat="server" Visible="false">
-                                <div class="ba-feature-card disabled">
+                                <asp:HyperLink ID="lnkFeatureEncryptDecrypt" runat="server" CssClass="ba-feature-card" NavigateUrl="~/EncryptDecrypt">
                                     <div class="ba-feature-icon">🔐</div>
                                     <div class="ba-feature-title">Encrypt/Decrypt Data</div>
-                                    <div class="ba-feature-desc">Mã hóa và giải mã dữ liệu, file. (Coming Soon)</div>
-                                </div>
+                                    <div class="ba-feature-desc">Mã hóa / giải mã đơn, tạo script Demo Reset (phone, email, lương) theo nhân viên.</div>
+                                </asp:HyperLink>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phNoFeatures" runat="server" Visible="false">
                                 <div class="ba-feature-card disabled" style="grid-column: 1 / -1; text-align: center; opacity: 1;">
@@ -599,6 +607,18 @@
                                     <div class="ba-feature-title">Role Permission</div>
                                     <div class="ba-feature-desc">Định nghĩa quyền theo Role (BA, CONS, DEV). Cấu hình UI Builder, Database Search, Encrypt/Decrypt, HR Helper.</div>
                                 </asp:HyperLink>
+                                <asp:HyperLink ID="lnkFeatureLeaveManager" runat="server" CssClass="ba-feature-card" NavigateUrl="~/LeaveManager">
+                                    <div class="ba-feature-icon">📅</div>
+                                    <div class="ba-feature-title">Leave Manager</div>
+                                    <div class="ba-feature-desc">Quản lý lịch nghỉ phép team. Xem hôm nay bao nhiêu NV nghỉ, ai trực (chụp hình gửi sếp).</div>
+                                </asp:HyperLink>
+                                <asp:PlaceHolder ID="phFeaturePgpTool" runat="server" Visible="false">
+                                    <asp:HyperLink ID="lnkFeaturePgpTool" runat="server" CssClass="ba-feature-card" NavigateUrl="~/PgpTool">
+                                        <div class="ba-feature-icon">🔐</div>
+                                        <div class="ba-feature-title">PGP Tool</div>
+                                        <div class="ba-feature-desc">Xuất key .asc, mã hóa và giải mã file PGP (tương tự tool cũ).</div>
+                                    </asp:HyperLink>
+                                </asp:PlaceHolder>
                             </asp:PlaceHolder>
                         </div>
                     </div>

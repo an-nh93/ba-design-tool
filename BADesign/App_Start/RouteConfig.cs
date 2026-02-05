@@ -96,6 +96,24 @@ namespace BADesign
 				"RolePermission",
 				"~/Pages/RolePermission.aspx"
 			);
+
+			routes.MapPageRoute(
+				"EncryptDecryptRoute",
+				"EncryptDecrypt",
+				"~/Pages/EncryptDecrypt.aspx"
+			);
+
+			routes.MapPageRoute(
+				"LeaveManagerRoute",
+				"LeaveManager",
+				"~/Pages/LeaveManager.aspx"
+			);
+
+			routes.MapPageRoute(
+				"PgpToolRoute",
+				"PgpTool",
+				"~/Pages/PgpTool.aspx"
+			);
 		}
 	}
 }

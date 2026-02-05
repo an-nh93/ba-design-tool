@@ -527,9 +527,12 @@
             <main class="ba-main">
                 <div class="ba-top-bar">
                     <h1 class="ba-top-bar-title">HR Helper</h1>
-                    <div class="ba-conn-label">
-                        <span>Server: <strong><%= ConnectedServer %></strong></span>
-                        <span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span>
+                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                        <div class="ba-conn-label">
+                            <span>Server: <strong><%= ConnectedServer %></strong></span>
+                            <span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span>
+                        </div>
+                        <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a>
                     </div>
                 </div>
                 <div class="ba-content">

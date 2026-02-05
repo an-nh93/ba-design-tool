@@ -5,8 +5,9 @@ using System.Text;
 namespace BADesign.Helpers.Security
 {
     /// <summary>
-    /// AES/Rijndael encrypt-decrypt compatible with Cadena DataSecurityWrapper.
-    /// Key = UTF8(salt) padded to 32 bytes; IV = UTF8(iv) 16 bytes.
+    /// AES/Rijndael encrypt-decrypt – copy logic từ WinForms Cadena SymmetricCryptography.
+    /// Key = UTF8(salt) pad tới 32 bytes (256-bit); IV = UTF8(iv) 16 bytes; CBC, PKCS7.
+    /// DataSecurityWrapper: password "my secret password", salt = key + "w9=z4]0h", iv "fd98w7z3yupz0q41".
     /// </summary>
     internal static class AesHelper
     {

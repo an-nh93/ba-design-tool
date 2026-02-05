@@ -16,6 +16,18 @@ namespace BADesign.Pages
         public string ConnectedServer { get; private set; } = "";
         public string ConnectedDatabase { get; private set; } = "";
 
+        /// <summary>URL to EncryptDecrypt page with current connection token k (for Generate Demo Reset Script).</summary>
+        public string EncryptDecryptUrl
+        {
+            get
+            {
+                var k = Request.QueryString["k"];
+                var baseUrl = ResolveUrl("~/EncryptDecrypt");
+                if (string.IsNullOrWhiteSpace(k)) return baseUrl;
+                return baseUrl + "?k=" + System.Web.HttpUtility.UrlEncode(k);
+            }
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             var k = Request.QueryString["k"];
