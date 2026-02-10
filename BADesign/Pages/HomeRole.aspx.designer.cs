@@ -42,13 +42,15 @@ namespace BADesign.Pages
 		protected global::System.Web.UI.WebControls.PlaceHolder phNavSuperAdmin;
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavUserManagement;
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavRolePermission;
+		protected global::System.Web.UI.WebControls.PlaceHolder phNavAppSettings;
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavAppSettings;
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavLeaveManager;
-		protected global::System.Web.UI.WebControls.PlaceHolder phNavPgpTool;
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavPgpTool;
 		protected global::System.Web.UI.WebControls.PlaceHolder phSuperAdminCards;
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureUserManagement;
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureRolePermission;
-		protected global::System.Web.UI.WebControls.PlaceHolder phFeaturePgpTool;
+		protected global::System.Web.UI.WebControls.PlaceHolder phFeatureAppSettings;
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureAppSettings;
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeaturePgpTool;
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureLeaveManager;
 	}

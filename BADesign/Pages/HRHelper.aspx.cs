@@ -15,6 +15,8 @@ namespace BADesign.Pages
     {
         public string ConnectedServer { get; private set; } = "";
         public string ConnectedDatabase { get; private set; } = "";
+        public bool IsMultiDbMode { get; private set; }
+        public bool CanEditSettings => UiAuthHelper.HasFeature("Settings");
 
         /// <summary>URL to EncryptDecrypt page with current connection token k (for Generate Demo Reset Script).</summary>
         public string EncryptDecryptUrl
@@ -43,22 +45,48 @@ namespace BADesign.Pages
                 return;
             }
             var ctx = HttpContext.Current;
-            var info = ctx?.Session?["HRConn_" + id] as DatabaseSearch.HRConnInfo;
-            if (info == null)
+
+            if (id.StartsWith("multi_", StringComparison.OrdinalIgnoreCase))
             {
-                Response.Redirect(ResolveUrl("~/Pages/DatabaseSearch.aspx"));
-                return;
+                var guid = id.Length > 6 ? id.Substring(6) : "";
+                var multi = ctx?.Session?["HRConnMulti_" + guid] as DatabaseSearch.HRConnMultiInfo;
+                if (multi == null || multi.Databases == null || multi.Databases.Count == 0)
+                {
+                    Response.Redirect(ResolveUrl("~/Pages/DatabaseSearch.aspx"));
+                    return;
+                }
+                IsMultiDbMode = true;
+                ConnectedServer = multi.Server ?? "";
+                ConnectedDatabase = "All (" + multi.Databases.Count + " databases)";
             }
-            ConnectedServer = info.Server ?? "";
-            ConnectedDatabase = info.Database ?? "";
+            else
+            {
+                var info = ctx?.Session?["HRConn_" + id] as DatabaseSearch.HRConnInfo;
+                if (info == null)
+                {
+                    Response.Redirect(ResolveUrl("~/Pages/DatabaseSearch.aspx"));
+                    return;
+                }
+                ConnectedServer = info.Server ?? "";
+                ConnectedDatabase = info.Database ?? "";
+            }
         }
 
         private static DatabaseSearch.HRConnInfo GetConnectionFromToken(string token)
         {
             if (string.IsNullOrWhiteSpace(token)) return null;
             var id = DataSecurityWrapper.DecryptConnectId(token);
-            if (string.IsNullOrEmpty(id)) return null;
+            if (string.IsNullOrEmpty(id) || id.StartsWith("multi_", StringComparison.OrdinalIgnoreCase)) return null;
             return HttpContext.Current?.Session?["HRConn_" + id] as DatabaseSearch.HRConnInfo;
+        }
+
+        private static DatabaseSearch.HRConnMultiInfo GetMultiConnFromToken(string token)
+        {
+            if (string.IsNullOrWhiteSpace(token)) return null;
+            var id = DataSecurityWrapper.DecryptConnectId(token);
+            if (string.IsNullOrEmpty(id) || !id.StartsWith("multi_", StringComparison.OrdinalIgnoreCase)) return null;
+            var guid = id.Length > 6 ? id.Substring(6) : "";
+            return HttpContext.Current?.Session?["HRConnMulti_" + guid] as DatabaseSearch.HRConnMultiInfo;
         }
 
         private const string UsersQueryBase = @"
@@ -1038,6 +1066,618 @@ WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table AND COLUMN_NAME = @col
             public string schema { get; set; }
             public string table { get; set; }
             public string column { get; set; }
+        }
+
+        private const string EmailIgnoreSettingKey = "HR_MultiDb_EmailIgnore";
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveEmailIgnoreConfig(string k, List<string> patterns)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = "Bạn không có quyền Settings để lưu cấu hình." };
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null) return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
+                var value = patterns != null && patterns.Count > 0
+                    ? string.Join("\n", patterns.Select(p => (p ?? "").Trim()).Where(p => p.Length > 0))
+                    : "";
+                var userId = UiAuthHelper.CurrentUserId;
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+IF EXISTS (SELECT 1 FROM BaAppSetting WHERE [Key] = @key)
+    UPDATE BaAppSetting SET [Value] = @val, UpdatedAt = SYSDATETIME(), UpdatedBy = @uid WHERE [Key] = @key;
+ELSE
+    INSERT INTO BaAppSetting ([Key], [Value], UpdatedBy) VALUES (@key, @val, @uid);";
+                    cmd.Parameters.AddWithValue("@key", EmailIgnoreSettingKey);
+                    cmd.Parameters.AddWithValue("@val", value);
+                    cmd.Parameters.AddWithValue("@uid", userId.HasValue ? (object)userId.Value : DBNull.Value);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+                return new { success = true };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmailIgnoreConfig(string k)
+        {
+            try
+            {
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null) return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
+                var list = LoadEmailIgnoreFromDb();
+                return new { success = true, list = list };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        /// <summary>Load Email Ignore từ DB. Dùng cho cả Multi-DB và AppSettings.</summary>
+        public static List<string> LoadEmailIgnoreFromDb()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT [Value] FROM BaAppSetting WHERE [Key] = @key";
+                    cmd.Parameters.AddWithValue("@key", EmailIgnoreSettingKey);
+                    conn.Open();
+                    var val = cmd.ExecuteScalar();
+                    if (val == null || val == DBNull.Value || string.IsNullOrWhiteSpace(val.ToString()))
+                        return new List<string>();
+                    return val.ToString().Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).ToList();
+                }
+            }
+            catch { return new List<string>(); }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmailIgnoreConfigPublic()
+        {
+            try
+            {
+                var list = LoadEmailIgnoreFromDb();
+                return new { success = true, list = list };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        /// <summary>Lưu Email Ignore từ trang Settings. Chỉ user có quyền Settings.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveEmailIgnoreToSettings(List<string> patterns)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = "Bạn không có quyền Settings." };
+                var value = patterns != null && patterns.Count > 0
+                    ? string.Join("\n", patterns.Select(p => (p ?? "").Trim()).Where(p => p.Length > 0))
+                    : "";
+                var userId = UiAuthHelper.CurrentUserId;
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+IF EXISTS (SELECT 1 FROM BaAppSetting WHERE [Key] = @key)
+    UPDATE BaAppSetting SET [Value] = @val, UpdatedAt = SYSDATETIME(), UpdatedBy = @uid WHERE [Key] = @key;
+ELSE
+    INSERT INTO BaAppSetting ([Key], [Value], UpdatedBy) VALUES (@key, @val, @uid);";
+                    cmd.Parameters.AddWithValue("@key", EmailIgnoreSettingKey);
+                    cmd.Parameters.AddWithValue("@val", value);
+                    cmd.Parameters.AddWithValue("@uid", userId.HasValue ? (object)userId.Value : DBNull.Value);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+                return new { success = true };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetMultiDbDatabases(string k)
+        {
+            try
+            {
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null)
+                    return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
+                var list = multi.Databases.Select(d => new { database = d.DatabaseName }).ToList();
+                return new { success = true, list = list };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        private static bool EmailMatchesIgnore(string email, List<string> ignorePatterns)
+        {
+            if (string.IsNullOrWhiteSpace(email)) return true;
+            var e = email.Trim();
+            if (ignorePatterns == null || ignorePatterns.Count == 0) return false;
+            foreach (var p in ignorePatterns)
+            {
+                var pat = (p ?? "").Trim();
+                if (string.IsNullOrEmpty(pat)) continue;
+                if (pat.StartsWith("*"))
+                {
+                    if (e.EndsWith(pat.Substring(1), StringComparison.OrdinalIgnoreCase)) return true;
+                }
+                else if (string.Equals(e, pat, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>Phân tích 1 database. Client gọi từng DB để hiển thị progress.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object AnalyzeSingleDbStatus(string k, string databaseName, List<string> emailIgnorePatterns)
+        {
+            try
+            {
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null)
+                    return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
+                var db = multi.Databases.FirstOrDefault(d => string.Equals(d.DatabaseName, databaseName, StringComparison.OrdinalIgnoreCase));
+                if (db == null)
+                    return new { success = false, message = "Không tìm thấy database." };
+
+                var status = "Reset";
+                var reason = "";
+                try
+                {
+                    using (var conn = new SqlConnection(db.ConnectionString))
+                    {
+                        conn.Open();
+                        if (DatabaseNeedsReset(conn, emailIgnorePatterns ?? new List<string>(), out reason))
+                            status = "NotReset";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    status = "Error";
+                    reason = ex.Message ?? "Lỗi";
+                }
+                return new { success = true, database = db.DatabaseName, status = status, reason = reason };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object AnalyzeMultiDbStatus(string k, List<string> emailIgnorePatterns)
+        {
+            try
+            {
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null)
+                    return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
+
+                var results = new List<object>();
+                var ignore = emailIgnorePatterns ?? new List<string>();
+
+                foreach (var db in multi.Databases)
+                {
+                    var status = "Reset";
+                    var reason = "";
+                    try
+                    {
+                        using (var conn = new SqlConnection(db.ConnectionString))
+                        {
+                            conn.Open();
+                            if (DatabaseNeedsReset(conn, ignore, out reason))
+                            {
+                                status = "NotReset";
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        status = "Error";
+                        reason = ex.Message ?? "Lỗi";
+                    }
+                    results.Add(new { database = db.DatabaseName, status = status, reason = reason });
+                }
+                return new { success = true, list = results };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private static bool IsValidEmailFormat(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s)) return false;
+            var e = s.Trim();
+            if (e.Length < 5) return false; // a@b.c
+            var at = e.IndexOf('@');
+            if (at <= 0 || at >= e.Length - 2) return false;
+            var dot = e.LastIndexOf('.');
+            if (dot <= at + 1 || dot >= e.Length - 1) return false;
+            return true;
+        }
+
+        /// <summary>Cột email mã hóa: (Schema, Table, Column) -> KeyColumn để giải mã. Key dùng DataSecurityWrapper.DecryptData(raw, key).</summary>
+        private static string GetEncryptedEmailKeyColumn(string schema, string table, string column)
+        {
+            var sch = (schema ?? "dbo").Trim();
+            var tbl = (table ?? "").Trim();
+            var col = (column ?? "").Trim();
+            if (string.Equals(tbl, "Staffing_Employees", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(col, "PersonalEmailAddress", StringComparison.OrdinalIgnoreCase) || string.Equals(col, "BusinessEmailAddress", StringComparison.OrdinalIgnoreCase)))
+                return "ID";
+            if (string.Equals(tbl, "Staffing_EmployeeInformations", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(col, "PersonalEmailAddress", StringComparison.OrdinalIgnoreCase) || string.Equals(col, "BusinessEmailAddress", StringComparison.OrdinalIgnoreCase)))
+                return "EmployeeID";
+            return null;
+        }
+
+        private static bool DatabaseNeedsReset(SqlConnection conn, List<string> emailIgnore, out string reason)
+        {
+            reason = "";
+            var cols = new List<Tuple<string, string, string>>();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 30;
+                cmd.CommandText = @"
+SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS c
+WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','EmailBody')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        var schema = MyConvert.To<string>(r.GetValue(0)) ?? "dbo";
+                        var table = MyConvert.To<string>(r.GetValue(1)) ?? "";
+                        var col = MyConvert.To<string>(r.GetValue(2)) ?? "";
+                        if (!string.IsNullOrEmpty(table) && !string.IsNullOrEmpty(col))
+                            cols.Add(Tuple.Create(schema, table, col));
+                    }
+                }
+            }
+
+            foreach (var t in cols)
+            {
+                var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
+                var colName = "[" + t.Item3.Replace("]", "]]") + "]";
+                var keyCol = GetEncryptedEmailKeyColumn(t.Item1, t.Item2, t.Item3);
+
+                try
+                {
+                    if (!string.IsNullOrEmpty(keyCol))
+                    {
+                        var keyColSafe = "[" + keyCol.Replace("]", "]]") + "]";
+                        var whereClause = " WHERE LTRIM(RTRIM(ISNULL(" + colName + ",'')) ) <> ''";
+                        var selectBase = "SELECT TOP 50 " + keyColSafe + ", " + colName + " FROM " + fullName + " WITH (NOLOCK)" + whereClause;
+                        foreach (var orderDir in new[] { " ASC", " DESC" })
+                        {
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandTimeout = 15;
+                                cmd.CommandText = selectBase + " ORDER BY " + keyColSafe + orderDir;
+                                using (var rd = cmd.ExecuteReader())
+                                {
+                                    while (rd.Read())
+                                    {
+                                        var keyVal = rd.GetValue(0);
+                                        var rawVal = rd.GetValue(1);
+                                        if (rawVal == null || rawVal == DBNull.Value) continue;
+                                        var raw = ((rawVal as string) ?? rawVal.ToString()).Trim();
+                                        if (string.IsNullOrEmpty(raw)) continue;
+                                        string email = null;
+                                        try
+                                        {
+                                            var k = keyVal != null && keyVal != DBNull.Value ? MyConvert.To<long?>(keyVal) : null;
+                                            email = DataSecurityWrapper.DecryptData<string>(raw, k)?.Trim();
+                                        }
+                                        catch { continue; }
+                                        if (string.IsNullOrEmpty(email)) continue;
+                                        if (!IsValidEmailFormat(email)) continue;
+                                        if (!EmailMatchesIgnore(email, emailIgnore))
+                                        {
+                                            var sample = email.Length > 40 ? email.Substring(0, 37) + "..." : email;
+                                            reason = "Có email khách hàng: " + t.Item2 + "." + t.Item3 + " (VD: " + HttpUtility.HtmlEncode(sample) + ")";
+                                            return true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 15;
+                            cmd.CommandText = "SELECT TOP 50 " + colName + " FROM " + fullName + " WITH (NOLOCK) WHERE LTRIM(RTRIM(ISNULL(" + colName + ",'')) ) <> ''";
+                            using (var rd = cmd.ExecuteReader())
+                            {
+                                while (rd.Read())
+                                {
+                                    var val = rd.GetValue(0);
+                                    if (val == null || val == DBNull.Value) continue;
+                                    var email = ((val as string) ?? val.ToString()).Trim();
+                                    if (string.IsNullOrEmpty(email)) continue;
+                                    if (!IsValidEmailFormat(email)) continue;
+                                    if (!EmailMatchesIgnore(email, emailIgnore))
+                                    {
+                                        var sample = email.Length > 40 ? email.Substring(0, 37) + "..." : email;
+                                        reason = "Có email khách hàng: " + t.Item2 + "." + t.Item3 + " (VD: " + HttpUtility.HtmlEncode(sample) + ")";
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch { }
+            }
+            return false;
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetColumnsToReset(string k, List<string> databaseNames, string email, string phone)
+        {
+            try
+            {
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null)
+                    return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
+                if (databaseNames == null || databaseNames.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 database." };
+                var emailTrim = (email ?? "").Trim();
+                var phoneTrim = (phone ?? "").Trim();
+                if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
+                    return new { success = false, message = "Nhập Email và/hoặc Phone để reset." };
+
+                var dbSet = new HashSet<string>(databaseNames.Select(x => (x ?? "").Trim()), StringComparer.OrdinalIgnoreCase);
+                var toProcess = multi.Databases.Where(d => dbSet.Contains(d.DatabaseName ?? "")).ToList();
+                var list = new List<object>();
+
+                foreach (var db in toProcess)
+                {
+                    try
+                    {
+                        using (var conn = new SqlConnection(db.ConnectionString))
+                        {
+                            conn.Open();
+                            if (!string.IsNullOrEmpty(emailTrim))
+                            {
+                                foreach (var c in GetEmailColumns(conn))
+                                    list.Add(new { databaseName = db.DatabaseName, schema = c.Item1, table = c.Item2, column = c.Item3, maxLen = c.Item4, dataType = c.Item5, type = "email" });
+                            }
+                            if (!string.IsNullOrEmpty(phoneTrim))
+                            {
+                                foreach (var c in GetPhoneColumns(conn))
+                                    list.Add(new { databaseName = db.DatabaseName, schema = c.Item1, table = c.Item2, column = c.Item3, maxLen = c.Item4, dataType = c.Item5, type = "phone" });
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object ResetSingleColumn(string k, string databaseName, string schema, string table, string column, string value, string columnType, int? maxLen, string dataType)
+        {
+            try
+            {
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null)
+                    return new { success = false, affected = 0, error = "Chế độ Multi-DB không hợp lệ." };
+                var db = multi.Databases.FirstOrDefault(d => string.Equals(d.DatabaseName, databaseName, StringComparison.OrdinalIgnoreCase));
+                if (db == null)
+                    return new { success = false, affected = 0, error = "Database không tìm thấy." };
+
+                using (var conn = new SqlConnection(db.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    conn.Open();
+                    var fullName = "[" + (schema ?? "dbo").Replace("]", "]]") + "].[" + (table ?? "").Replace("]", "]]") + "]";
+                    var colName = "[" + (column ?? "").Replace("]", "]]") + "]";
+                    var paramName = columnType == "phone" ? "@phone" : "@email";
+                    var val = TruncateToColumnLength(value ?? "", maxLen);
+                    var n = ExecuteBatchUpdate(cmd, fullName, colName, paramName, val, dataType ?? "nvarchar");
+                    return new { success = true, affected = n, error = (string)null };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, affected = 0, error = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object ResetMultiDbSelected(string k, List<string> databaseNames, string email, string phone)
+        {
+            try
+            {
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null)
+                    return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
+                if (databaseNames == null || databaseNames.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 database." };
+                var emailTrim = (email ?? "").Trim();
+                var phoneTrim = (phone ?? "").Trim();
+                if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
+                    return new { success = false, message = "Nhập Email và/hoặc Phone để reset." };
+
+                var dbSet = new HashSet<string>(databaseNames.Select(x => (x ?? "").Trim()), StringComparer.OrdinalIgnoreCase);
+                var toProcess = multi.Databases.Where(d => dbSet.Contains(d.DatabaseName ?? "")).ToList();
+
+                var done = 0;
+                var totalAffected = 0;
+                var errors = new List<string>();
+
+                foreach (var db in toProcess)
+                {
+                    try
+                    {
+                        using (var conn = new SqlConnection(db.ConnectionString))
+                        {
+                            conn.Open();
+                            if (!string.IsNullOrEmpty(emailTrim))
+                                totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
+                            if (!string.IsNullOrEmpty(phoneTrim))
+                                totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
+                        }
+                        done++;
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(db.DatabaseName + ": " + (ex.Message ?? "Lỗi"));
+                    }
+                }
+
+                var msg = "Đã reset " + done + "/" + toProcess.Count + " database. Tổng bản ghi cập nhật: " + totalAffected;
+                if (errors.Count > 0)
+                    msg += ". Lỗi: " + string.Join("; ", errors.Take(5));
+                return new { success = true, message = msg, done = done, total = toProcess.Count, affected = totalAffected, errors = errors };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private const int UpdateBatchSize = 5000;
+        private const int UpdateCommandTimeout = 600;
+
+        private static int ExecuteBatchUpdate(SqlCommand cmd, string fullName, string colName, string paramName, object paramValue, string dataType)
+        {
+            cmd.Parameters.Clear();
+            cmd.Parameters.AddWithValue(paramName, paramValue ?? (object)DBNull.Value);
+            cmd.CommandTimeout = UpdateCommandTimeout;
+            var isNtextOrText = string.Equals(dataType, "ntext", StringComparison.OrdinalIgnoreCase) || string.Equals(dataType, "text", StringComparison.OrdinalIgnoreCase);
+            string whereClause = isNtextOrText
+                ? colName + " IS NULL OR CAST(" + colName + " AS NVARCHAR(MAX)) <> " + paramName
+                : colName + " IS NULL OR " + colName + " <> " + paramName;
+            var total = 0;
+            int n;
+            do
+            {
+                cmd.CommandText = "UPDATE TOP (" + UpdateBatchSize + ") " + fullName + " SET " + colName + " = " + paramName + " WHERE " + whereClause;
+                n = cmd.ExecuteNonQuery();
+                total += n;
+            } while (n >= UpdateBatchSize);
+            return total;
+        }
+
+        private static string TruncateToColumnLength(string value, int? maxLength)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+            if (!maxLength.HasValue || maxLength.Value <= 0 || maxLength.Value == int.MaxValue) return value;
+            if (value.Length <= maxLength.Value) return value;
+            return value.Substring(0, maxLength.Value);
+        }
+
+        private static readonly string ColumnsQueryBase = @"
+SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.CHARACTER_MAXIMUM_LENGTH, c.DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS c
+INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
+WHERE {0}";
+
+        private static List<Tuple<string, string, string, int?, string>> GetEmailColumns(SqlConnection conn)
+        {
+            var sql = string.Format(ColumnsQueryBase, @"c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','EmailBody')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')");
+            return GetColumnsFromQuery(conn, sql);
+        }
+
+        private static List<Tuple<string, string, string, int?, string>> GetPhoneColumns(SqlConnection conn)
+        {
+            var sql = string.Format(ColumnsQueryBase, @"c.COLUMN_NAME LIKE N'%Phone%'
+  AND NOT (c.TABLE_SCHEMA = 'dbo' AND c.TABLE_NAME LIKE 'PAY_MasterPayroll%')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')");
+            return GetColumnsFromQuery(conn, sql);
+        }
+
+        private static List<Tuple<string, string, string, int?, string>> GetColumnsFromQuery(SqlConnection conn, string sql)
+        {
+            var cols = new List<Tuple<string, string, string, int?, string>>();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = sql;
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        var schema = MyConvert.To<string>(r.GetValue(0)) ?? "dbo";
+                        var table = MyConvert.To<string>(r.GetValue(1)) ?? "";
+                        var col = MyConvert.To<string>(r.GetValue(2)) ?? "";
+                        int? maxLen = null;
+                        var ml = r.GetValue(3);
+                        if (ml != null && ml != DBNull.Value && ml.ToString() != "-1")
+                        {
+                            int parsed;
+                            if (int.TryParse(ml.ToString(), out parsed) && parsed > 0)
+                                maxLen = parsed;
+                        }
+                        var dataType = MyConvert.To<string>(r.GetValue(4)) ?? "nvarchar";
+                        if (!string.IsNullOrEmpty(table) && !string.IsNullOrEmpty(col))
+                            cols.Add(Tuple.Create(schema, table, col, maxLen, dataType));
+                    }
+                }
+            }
+            return cols;
+        }
+
+        private static int ResetPhoneColumnsInDb(SqlConnection conn, string phone)
+        {
+            var cols = GetPhoneColumns(conn);
+            using (var cmd = conn.CreateCommand())
+            {
+                var total = 0;
+                foreach (var t in cols)
+                {
+                    var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
+                    var colName = "[" + t.Item3.Replace("]", "]]") + "]";
+                    var val = TruncateToColumnLength(phone, t.Item4);
+                    try { total += ExecuteBatchUpdate(cmd, fullName, colName, "@phone", val, t.Item5); }
+                    catch (Exception ex) { throw new Exception(string.Format("Phone tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex); }
+                }
+                return total;
+            }
+        }
+
+        private static int UpdateEmailValuesInDb(SqlConnection conn, string email)
+        {
+            var cols = GetEmailColumns(conn);
+            using (var cmd = conn.CreateCommand())
+            {
+                var total = 0;
+                foreach (var t in cols)
+                {
+                    var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
+                    var colName = "[" + t.Item3.Replace("]", "]]") + "]";
+                    var val = TruncateToColumnLength(email, t.Item4);
+                    try { total += ExecuteBatchUpdate(cmd, fullName, colName, "@email", val, t.Item5); }
+                    catch (Exception ex) { throw new Exception(string.Format("Email tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex); }
+                }
+                return total;
+            }
         }
 
         [WebMethod(EnableSession = true)]

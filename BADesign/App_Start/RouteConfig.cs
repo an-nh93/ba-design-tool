@@ -114,6 +114,12 @@ namespace BADesign
 				"PgpTool",
 				"~/Pages/PgpTool.aspx"
 			);
+
+			routes.MapPageRoute(
+				"AppSettingsRoute",
+				"AppSettings",
+				"~/Pages/AppSettings.aspx"
+			);
 		}
 	}
 }

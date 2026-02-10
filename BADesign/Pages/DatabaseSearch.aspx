@@ -334,6 +334,31 @@
         }
         .ba-modal .ba-form-group { margin-bottom: 1rem; }
         .ba-modal .ba-form-group:last-child { margin-bottom: 0; }
+        /* Multi-DB loading overlay */
+        .ba-multidb-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 10003;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        .ba-multidb-overlay.show { display: flex; }
+        .ba-multidb-overlay-content {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            min-width: 360px;
+            text-align: center;
+        }
+        .ba-multidb-overlay-title { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.75rem; }
+        .ba-multidb-overlay-text { font-size: 0.9375rem; color: var(--text-muted); margin-bottom: 1.25rem; }
+        .ba-multidb-spinner { width: 40px; height: 40px; border: 3px solid var(--border); border-top-color: var(--primary); border-radius: 50%; animation: multidb-spin 0.8s linear infinite; margin: 0 auto 1rem; }
+        @keyframes multidb-spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
@@ -496,6 +521,15 @@
             </div>
         </div>
 
+        <!-- Multi-DB Loading Overlay -->
+        <div id="multiDbOverlay" class="ba-multidb-overlay">
+            <div class="ba-multidb-overlay-content">
+                <div class="ba-multidb-spinner"></div>
+                <div class="ba-multidb-overlay-title">Đang quét database trên server</div>
+                <div class="ba-multidb-overlay-text">Đang lấy danh sách database có ST_ProjectInfo...<br />Vui lòng chờ, không click nhiều lần.</div>
+            </div>
+        </div>
+
         <!-- Confirm modal (giống Designer Home) -->
         <div id="confirmModal" class="ba-modal" style="display: none;">
             <div class="ba-modal-content" style="max-width: 440px;">
@@ -585,7 +619,8 @@
                     statusCell = '<span class="ba-status-fail" title="Lỗi">✕</span> ' +
                         '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-log" data-id="' + s.id + '" title="Xem log lỗi">Log</button>';
                 }
-                var actions = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;">Quét</button>';
+                var actions = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;">Quét</button>' +
+                    ' <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-multidb-btn" onclick="connectMultiDb(' + s.id + '); return false;" title="Connect Multi-DB Reset">Multi-DB</button>';
                 if (canManageServers) {
                     actions = '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;">Sửa</button> ' + actions + ' ' +
                         '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + '); return false;">Xóa</button>';
@@ -1078,6 +1113,42 @@
                 },
                 error: function(xhr, status, err) {
                     showToast('Lỗi: ' + (xhr.responseJSON && xhr.responseJSON.Message ? xhr.responseJSON.Message : (err || status)), 'error');
+                }
+            });
+        }
+
+        function connectMultiDb(serverId) {
+            $('#multiDbOverlay').addClass('show');
+            $('.ba-multidb-btn').prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/PrepareConnectForMultiDb") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ serverId: serverId }),
+                timeout: 60000,
+                success: function(res) {
+                    $('#multiDbOverlay').removeClass('show');
+                    $('.ba-multidb-btn').prop('disabled', false);
+                    var d = res.d || res;
+                    if (d && d.success && d.token) {
+                        window.location.href = '<%= ResolveUrl("~/Pages/HRHelper.aspx") %>?k=' + encodeURIComponent(d.token) + '&mode=multi';
+                    } else {
+                        showToast(d && d.message ? d.message : 'Không thể chuẩn bị Multi-DB.', 'error');
+                    }
+                },
+                error: function(xhr, status, err) {
+                    $('#multiDbOverlay').removeClass('show');
+                    $('.ba-multidb-btn').prop('disabled', false);
+                    var msg = 'Lỗi khi chuẩn bị Multi-DB.';
+                    if (xhr && xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message;
+                            else if (j.message) msg = j.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
                 }
             });
         }

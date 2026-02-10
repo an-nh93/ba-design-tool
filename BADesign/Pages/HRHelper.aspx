@@ -455,7 +455,9 @@
             border: 1px solid var(--border);
             border-radius: 12px;
             padding: 2rem;
-            min-width: 400px;
+            width: 560px;
+            min-width: 560px;
+            max-width: 95vw;
             text-align: center;
         }
         .ba-progress-title {
@@ -486,6 +488,19 @@
         .ba-progress-text {
             color: var(--text-secondary);
             font-size: 0.875rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .ba-progress-db-section {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+        .ba-progress-db-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+            text-align: left;
         }
         .ba-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; }
         .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
@@ -555,6 +570,7 @@
                     <a href="<%= ResolveUrl("~/Pages/DesignerHome.aspx") %>" class="ba-nav-item">Về trang chủ</a>
                     <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item">Database Search</a>
                     <a href="#" class="ba-nav-item active">HR Helper</a>
+                    <% if (CanEditSettings) { %><a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item">App Settings</a><% } %>
                 </nav>
             </aside>
             <main class="ba-main">
@@ -565,18 +581,17 @@
                             <span>Server: <strong><%= ConnectedServer %></strong></span>
                             <span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span>
                         </div>
-                        <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a>
+                        <% if (!IsMultiDbMode) { %><a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a><% } %>
                     </div>
                 </div>
                 <div class="ba-content">
+                    <% if (!IsMultiDbMode) { %>
                     <div class="ba-tabs">
                         <button type="button" class="ba-tab active" data-tab="users">Users</button>
                         <button type="button" class="ba-tab" data-tab="employees">Employee Info</button>
                         <button type="button" class="ba-tab" data-tab="company">Company Info</button>
                         <button type="button" class="ba-tab" data-tab="other">Other Information</button>
                     </div>
-
-                    <!-- Tab Users -->
                     <div id="tabUsers" class="ba-tab-content active">
                         <div class="ba-card ba-card-scrollable">
                             <h2 class="ba-card-title">User Management</h2>
@@ -959,6 +974,66 @@
                             </div>
                         </div>
                     </div>
+                    <% } else { %>
+                    <!-- Multi-Database Reset Mode -->
+                    <div class="ba-multi-db-wrapper" style="flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+                    <div class="ba-card" style="flex: 1; display: flex; flex-direction: column; min-height: 0; overflow: hidden;">
+                        <h2 class="ba-card-title">Multi-Database Reset</h2>
+                        <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">Phân tích và reset Email/Phone cho tất cả database trên server. Cấu hình Email Ignore để loại trừ email nội bộ.</p>
+
+                        <div class="ba-card ba-update-section" style="margin-bottom: 1.5rem;">
+                            <h3 class="ba-card-title" style="font-size: 1.1rem;">Email Ignore (Config)</h3>
+                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Các email/pattern trong danh sách được coi là nội bộ (đã reset). Email khách hàng khác sẽ được đánh dấu "Chưa reset". Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix. Load từ Settings.</p>
+                            <textarea id="txtMultiEmailIgnore" class="ba-input" rows="4" placeholder="*@cadena.com.sg&#10;test@internal.com" style="max-width: 600px;" readonly></textarea>
+                            <div class="ba-actions" style="margin-top: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                                <% if (CanEditSettings) { %>
+                                <a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-btn ba-btn-secondary" style="text-decoration: none;">Cấu hình tại Settings</a>
+                                <% } %>
+                            </div>
+                        </div>
+
+                        <div class="ba-actions" style="margin-bottom: 1rem;">
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnMultiAnalyze" onclick="analyzeMultiDb(); return false;">Phân tích</button>
+                        </div>
+                        <div id="multiAnalyzeStatus" style="font-size: 0.875rem; margin-bottom: 1rem; color: var(--text-secondary);"></div>
+
+                        <div id="multiDbResultsSection" style="display: none; flex: 1; flex-direction: column; min-height: 0; overflow: hidden;">
+                            <div id="multiDbSearchWrap" style="margin-bottom: 0.5rem;">
+                                <input type="text" id="txtMultiDbSearch" class="ba-input" placeholder="Tìm database..." style="max-width: 300px;" />
+                            </div>
+                            <div class="ba-table-wrap" id="multiDbTableWrap" style="flex: 1; min-height: 200px; max-height: 400px; overflow-y: auto;">
+                                <table class="ba-table">
+                                    <thead>
+                                        <tr>
+                                            <th><input type="checkbox" id="chkMultiSelectAll" /></th>
+                                            <th class="ba-sortable" data-sort="1" style="cursor: pointer; user-select: none;">Database</th>
+                                            <th class="ba-sortable" data-sort="2" style="cursor: pointer; user-select: none;">Trạng thái</th>
+                                            <th class="ba-sortable" data-sort="3" style="cursor: pointer; user-select: none;">Chi tiết</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tblMultiDb"></tbody>
+                                </table>
+                            </div>
+                            <div class="ba-actions" style="margin-top: 1rem;">
+                                <button type="button" class="ba-btn ba-btn-secondary" id="btnMultiSelectNotReset" onclick="selectNotResetOnly(); return false;" disabled>Chọn Chưa reset</button>
+                                <button type="button" class="ba-btn ba-btn-primary" id="btnMultiReset" onclick="resetMultiDbSelected(); return false;" disabled>Reset đã chọn</button>
+                            </div>
+                        </div>
+
+                        <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
+                            <h3 class="ba-card-title" style="font-size: 1.1rem;">Giá trị reset</h3>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Email</label>
+                                <input type="text" id="txtMultiResetEmail" class="ba-input" placeholder="user@cadena.com.sg" style="max-width: 400px;" />
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Phone</label>
+                                <input type="text" id="txtMultiResetPhone" class="ba-input" placeholder="VD: 0123456789" style="max-width: 400px;" />
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                    <% } %>
                 </div>
             </main>
         </div>
@@ -971,6 +1046,14 @@
         <div id="progressOverlay" class="ba-progress-overlay">
             <div class="ba-progress-content">
                 <div class="ba-progress-title" id="progressTitle">Đang xử lý...</div>
+                <div id="progressDbSection" class="ba-progress-db-section" style="display: none;">
+                    <div class="ba-progress-db-label">Tiến trình database</div>
+                    <div class="ba-progress-bar-wrap">
+                        <div class="ba-progress-bar" id="progressDbBar" style="width: 0%; background: var(--primary);">0%</div>
+                    </div>
+                    <div class="ba-progress-text" id="progressDbText" style="font-size: 0.8rem; margin-top: 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</div>
+                </div>
+                <div id="progressColLabel" class="ba-progress-db-label" style="margin-top: 0.75rem; display: none;">Chi tiết cột đang xử lý</div>
                 <div class="ba-progress-bar-wrap">
                     <div class="ba-progress-bar" id="progressBar" style="width: 0%;">0%</div>
                 </div>
@@ -1000,6 +1083,38 @@
     </form>
     <script>
         var hrToken = '';
+        var isMultiDbMode = <%= IsMultiDbMode ? "true" : "false" %>;
+        var multiDbAnalyzeResults = [];
+        var multiDbSortCol = 1;
+        var multiDbSortDir = 1;
+
+        function renderMultiDbTable() {
+            var arr = multiDbAnalyzeResults.slice();
+            arr.sort(function(a, b) {
+                var va = multiDbSortCol === 1 ? (a.database || '') : (multiDbSortCol === 2 ? (a.status || '') : (a.reason || ''));
+                var vb = multiDbSortCol === 1 ? (b.database || '') : (multiDbSortCol === 2 ? (b.status || '') : (b.reason || ''));
+                var cmp = (va + '').localeCompare(vb + '', undefined, { numeric: true });
+                return multiDbSortDir > 0 ? cmp : -cmp;
+            });
+            var html = '';
+            arr.forEach(function(r) {
+                var statusCls = r.status === 'Reset' ? 'var(--success)' : (r.status === 'NotReset' ? 'var(--warning)' : 'var(--danger)');
+                html += '<tr><td><input type="checkbox" class="chkMultiDb" data-db="' + (r.database || '').replace(/"/g, '&quot;') + '" /></td>' +
+                    '<td>' + (r.database || '-') + '</td>' +
+                    '<td><span style="color: ' + statusCls + ';">' + (r.status || '-') + '</span></td>' +
+                    '<td>' + (r.reason || '-') + '</td></tr>';
+            });
+            $('#tblMultiDb').html(html);
+        }
+
+        function bindMultiDbSortHeaders() {
+            $('#multiDbTableWrap').off('click.multiDbSort').on('click.multiDbSort', '.ba-sortable', function() {
+                var col = parseInt($(this).data('sort'), 10);
+                if (col === multiDbSortCol) multiDbSortDir = -multiDbSortDir; else { multiDbSortCol = col; multiDbSortDir = 1; }
+                renderMultiDbTable();
+                filterMultiDbTable();
+            });
+        }
         var users = [];
         var employees = [];
         var company = null;
@@ -1056,6 +1171,10 @@
             if (!hrToken) {
                 showToast('Thiếu tham số kết nối. Vui lòng Connect từ Database Search.', 'error');
                 setTimeout(function() { window.location.href = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>'; }, 2000);
+                return;
+            }
+            if (isMultiDbMode) {
+                initMultiDbMode();
                 return;
             }
             // Clear session khi reload trang
@@ -1258,16 +1377,30 @@
             type = type || 'info';
             var icons = { success: '✓', error: '✕', info: 'ℹ' };
             var titles = { success: 'Thành công', error: 'Lỗi', info: 'Thông báo' };
+            var duration = type === 'error' ? 10000 : (type === 'success' ? 5000 : 4000);
             var $t = $('<div class="toast ' + type + '"><span>' + (icons[type] || 'ℹ') + '</span> ' + (titles[type] || '') + ': ' + msg + '</div>');
             $('#toastContainer').append($t);
             setTimeout(function() { $t.addClass('show'); }, 10);
-            setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, 3000);
+            setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, duration);
         }
 
         function showProgress(title, percent, text) {
+            $('#progressDbSection').hide();
+            $('#progressColLabel').hide();
             $('#progressTitle').text(title || 'Đang xử lý...');
             $('#progressBar').css('width', (percent || 0) + '%').text((percent || 0) + '%');
             $('#progressText').text(text || '');
+            $('#progressOverlay').addClass('show');
+        }
+
+        function showProgressDual(title, dbPercent, dbText, colPercent, colText) {
+            $('#progressDbSection').show();
+            $('#progressColLabel').show();
+            $('#progressTitle').text(title || 'Đang xử lý...');
+            $('#progressDbBar').css('width', (dbPercent || 0) + '%').text((dbPercent || 0) + '%');
+            $('#progressDbText').text(dbText || '-');
+            $('#progressBar').css('width', (colPercent || 0) + '%').text((colPercent || 0) + '%');
+            $('#progressText').text(colText || '');
             $('#progressOverlay').addClass('show');
         }
 
@@ -1540,6 +1673,273 @@
                 },
                 error: function() {
                     $('#selCompanyFilter').html('<option value="">Lỗi load companies</option>');
+                }
+            });
+        }
+
+        function initMultiDbMode() {
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmailIgnoreConfig") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken }),
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.list && d.list.length) {
+                        $('#txtMultiEmailIgnore').val(d.list.join('\n'));
+                    }
+                }
+            });
+        }
+
+        function saveEmailIgnoreConfig() {
+            var lines = ($('#txtMultiEmailIgnore').val() || '').split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/SaveEmailIgnoreConfig") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, patterns: lines }),
+                success: function(res) {
+                    var d = res.d || res;
+                    showToast(d && d.success ? 'Đã lưu config.' : (d && d.message ? d.message : 'Lỗi'), d && d.success ? 'success' : 'error');
+                }
+            });
+        }
+
+        function analyzeMultiDb() {
+            var lines = ($('#txtMultiEmailIgnore').val() || '').split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+            $('#multiDbResultsSection').hide();
+            updateInProgress = true;
+            showProgress('Đang phân tích...', 0, 'Đang lấy danh sách DB...');
+            $('.ba-btn').prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiDbDatabases") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken }),
+                success: function(res) {
+                    var d = res.d || res;
+                    if (!d || !d.success || !d.list || d.list.length === 0) {
+                        hideProgress();
+                        updateInProgress = false;
+                        $('.ba-btn').prop('disabled', false);
+                        $('#multiAnalyzeStatus').text('Lỗi: ' + (d && d.message ? d.message : 'Không có database.'));
+                        return;
+                    }
+                    var dbList = d.list.map(function(x) { return x.database; });
+                    var total = dbList.length;
+                    multiDbAnalyzeResults = [];
+                    var idx = 0;
+                    function next() {
+                        if (idx >= total) {
+                            var notReset = multiDbAnalyzeResults.filter(function(x) { return x.status === 'NotReset'; }).length;
+                            var errCount = multiDbAnalyzeResults.filter(function(x) { return x.status === 'Error'; }).length;
+                            showProgress('Hoàn thành', 100, multiDbAnalyzeResults.length + ' DB. Chưa reset: ' + notReset + (errCount ? ', Lỗi: ' + errCount : ''));
+                            setTimeout(function() {
+                                hideProgress();
+                                updateInProgress = false;
+                                $('.ba-btn').prop('disabled', false);
+                                $('#multiAnalyzeStatus').html('<span style="color: var(--success);">Phân tích xong. ' + multiDbAnalyzeResults.length + ' DB. Chưa reset: ' + notReset + (errCount ? ', Lỗi: ' + errCount : '') + '</span>');
+                                renderMultiDbTable();
+                                bindMultiDbSortHeaders();
+                                $('#multiDbResultsSection').css('display', 'flex').show();
+                                $('#txtMultiDbSearch').val('').off('input').on('input', filterMultiDbTable);
+                                filterMultiDbTable();
+                                $('#btnMultiSelectNotReset').prop('disabled', false);
+                                $('#btnMultiReset').prop('disabled', false);
+                                $('#chkMultiSelectAll').off('change').on('change', function() {
+                                    var v = $(this).prop('checked');
+                                    $('.chkMultiDb').prop('checked', v);
+                                });
+                            }, 400);
+                            return;
+                        }
+                        var db = dbList[idx];
+                        var pct = Math.round(((idx) / total) * 100);
+                        showProgress('Đang phân tích...', pct, (idx + 1) + ' / ' + total + ' - ' + db);
+                        $.ajax({
+                            url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/AnalyzeSingleDbStatus") %>',
+                            type: 'POST',
+                            contentType: 'application/json; charset=utf-8',
+                            dataType: 'json',
+                            data: JSON.stringify({ k: hrToken, databaseName: db, emailIgnorePatterns: lines }),
+                            timeout: 60000,
+                            success: function(r) {
+                                var rd = r.d || r;
+                                if (rd && rd.success)
+                                    multiDbAnalyzeResults.push({ database: rd.database, status: rd.status || 'Reset', reason: rd.reason || '' });
+                                idx++;
+                                next();
+                            },
+                            error: function() {
+                                multiDbAnalyzeResults.push({ database: db, status: 'Error', reason: 'Lỗi kết nối' });
+                                idx++;
+                                next();
+                            }
+                        });
+                    }
+                    next();
+                },
+                error: function() {
+                    hideProgress();
+                    updateInProgress = false;
+                    $('.ba-btn').prop('disabled', false);
+                    $('#multiAnalyzeStatus').text('Lỗi khi lấy danh sách DB.');
+                }
+            });
+        }
+
+        function filterMultiDbTable() {
+            var q = ($('#txtMultiDbSearch').val() || '').trim().toLowerCase();
+            $('#tblMultiDb tr').each(function() {
+                var $tr = $(this);
+                var db = ($tr.find('td:eq(1)').text() || '').toLowerCase();
+                $tr.toggle(!q || db.indexOf(q) >= 0);
+            });
+        }
+
+        function selectNotResetOnly() {
+            $('.chkMultiDb').each(function() {
+                var db = $(this).data('db');
+                var r = multiDbAnalyzeResults.filter(function(x) { return x.database === db; })[0];
+                $(this).prop('checked', r && r.status === 'NotReset');
+            });
+        }
+
+        function resetMultiDbSelected() {
+            var selected = [];
+            $('.chkMultiDb:checked').each(function() { selected.push($(this).data('db')); });
+            if (selected.length === 0) {
+                showToast('Chọn ít nhất 1 database.', 'error');
+                return;
+            }
+            var email = $('#txtMultiResetEmail').val();
+            var phone = $('#txtMultiResetPhone').val();
+            if ((!email || !email.trim()) && (!phone || !phone.trim())) {
+                showToast('Nhập Email và/hoặc Phone để reset.', 'error');
+                return;
+            }
+            updateInProgress = true;
+            $('.ba-btn').prop('disabled', true);
+            showProgress('Đang lấy danh sách cột...', 0, '');
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetColumnsToReset") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, databaseNames: selected, email: (email || '').trim(), phone: (phone || '').trim() }),
+                timeout: 60000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (!d || !d.success || !d.list || d.list.length === 0) {
+                        updateInProgress = false;
+                        hideProgress();
+                        $('.ba-btn').prop('disabled', false);
+                        showToast(d && d.message ? d.message : 'Không có cột nào cần reset.', 'info');
+                        return;
+                    }
+                    var list = d.list;
+                    var total = list.length;
+                    var totalAffected = 0;
+                    var errors = [];
+                    var dbCount = {};
+                    selected.forEach(function(db) { dbCount[db] = 0; });
+                    var uniqueDbs = [];
+                    var seenDb = {};
+                    list.forEach(function(item) {
+                        var db = item.databaseName || '';
+                        if (db && !seenDb[db]) { seenDb[db] = true; uniqueDbs.push(db); }
+                    });
+                    var totalDbs = uniqueDbs.length;
+                    function doNext(idx) {
+                        if (idx >= total) {
+                            var doneDb = 0;
+                            for (var k in dbCount) if (dbCount[k] > 0) doneDb++;
+                            var hasErrors = errors.length > 0;
+                            var msg = 'Đã reset ' + doneDb + '/' + selected.length + ' database. Tổng bản ghi cập nhật: ' + totalAffected;
+                            if (errors.length > 0) msg += '. Lỗi: ' + errors.slice(0, 5).join('; ');
+                            showProgress(hasErrors ? 'Có lỗi' : 'Hoàn thành', 100, msg);
+                            setTimeout(function() {
+                                updateInProgress = false;
+                                hideProgress();
+                                $('.ba-btn').prop('disabled', false);
+                                showToast(msg, hasErrors ? 'error' : 'success');
+                                if (doneDb > 0) analyzeMultiDb();
+                            }, 500);
+                            return;
+                        }
+                        var item = list[idx];
+                        var dbName = item.databaseName || '';
+                        var schema = item.schema || 'dbo';
+                        var tbl = item.table || '';
+                        var col = item.column || '';
+                        var typ = item.type || 'email';
+                        var val = (typ === 'phone' ? (phone || '').trim() : (email || '').trim());
+                        var colKey = schema + '.' + tbl + '.' + col;
+                        var colPct = Math.min(99, Math.round(((idx + 1) / total) * 100));
+                        var dbIdx = uniqueDbs.indexOf(dbName) + 1;
+                        var dbPctRaw = totalDbs > 0 ? Math.round((dbIdx / totalDbs) * 100) : 0;
+                        var dbPct = Math.min(dbPctRaw, colPct);
+                        var dbText = dbIdx + ' / ' + totalDbs + ' DB - ' + dbName;
+                        var colText = (idx + 1) + ' / ' + total + ' - ' + colKey;
+                        showProgressDual('Đang reset...', dbPct, dbText, colPct, colText);
+                        $.ajax({
+                            url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ResetSingleColumn") %>',
+                            type: 'POST',
+                            contentType: 'application/json; charset=utf-8',
+                            dataType: 'json',
+                            data: JSON.stringify({
+                                k: hrToken,
+                                databaseName: dbName,
+                                schema: schema,
+                                table: tbl,
+                                column: col,
+                                value: val,
+                                columnType: typ,
+                                maxLen: item.maxLen,
+                                dataType: item.dataType || 'nvarchar'
+                            }),
+                            timeout: 300000,
+                            success: function(r) {
+                                var rd = r.d || r;
+                                if (rd && rd.success) {
+                                    totalAffected += rd.affected || 0;
+                                    dbCount[dbName] = (dbCount[dbName] || 0) + 1;
+                                }
+                                if (rd && rd.error) errors.push(dbName + ': ' + colKey + ': ' + rd.error);
+                                doNext(idx + 1);
+                            },
+                            error: function(xhr) {
+                                var msg = 'Lỗi khi reset.';
+                                if (xhr && xhr.responseText) {
+                                    try {
+                                        var j = JSON.parse(xhr.responseText);
+                                        if (j.d && j.d.error) msg = j.d.error;
+                                        else if (j.Message) msg = j.Message;
+                                    } catch(e) {}
+                                }
+                                errors.push(dbName + ': ' + colKey + ': ' + msg);
+                                doNext(idx + 1);
+                            }
+                        });
+                    }
+                    doNext(0);
+                },
+                error: function(xhr) {
+                    var msg = 'Lỗi khi lấy danh sách cột.';
+                    if (xhr && xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message;
+                        } catch(e) {}
+                    }
+                    updateInProgress = false;
+                    hideProgress();
+                    $('.ba-btn').prop('disabled', false);
+                    showToast(msg, 'error');
                 }
             });
         }

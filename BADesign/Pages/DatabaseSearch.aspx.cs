@@ -366,7 +366,7 @@ WHERE Id=@id AND IsActive=1";
                             q.CommandText = "SELECT name FROM sys.databases WHERE state_desc = N'ONLINE' ORDER BY name";
                             q.CommandTimeout = 15; /* tránh treo khi server chậm; Connect Timeout=10 đã có trong connection string */
                             c.Open();
-                            var dbCount = 0;
+                            var candidateDbs = new List<string>();
                             using (var rd = q.ExecuteReader())
                             {
                                 while (rd.Read())
@@ -377,20 +377,26 @@ WHERE Id=@id AND IsActive=1";
                                     var isDemovn = string.Equals(svr, "demovn.cadena-hrmseries.com", StringComparison.OrdinalIgnoreCase);
                                     if (isDemovn && !string.Equals(db, "std53.cadena-hrmseries.com", StringComparison.OrdinalIgnoreCase))
                                         continue;
-                                    var cs = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db);
-                                    var csCopy = BuildConnectionStringForCopy(s.ServerName, s.Port, s.Username, s.Password, db);
-                                    list.Add(new
-                                    {
-                                        server = s.ServerName,
-                                        database = db,
-                                        username = s.Username,
-                                        connectionString = cs,
-                                        connectionStringForCopy = csCopy
-                                    });
-                                    dbCount++;
+                                    candidateDbs.Add(db);
                                 }
                             }
-                            log.Add("  OK: " + dbCount + " database.");
+                            var dbCount = 0;
+                            foreach (var db in candidateDbs)
+                            {
+                                if (!DatabaseHasStProjectInfo(c, db)) continue;
+                                var cs = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db);
+                                var csCopy = BuildConnectionStringForCopy(s.ServerName, s.Port, s.Username, s.Password, db);
+                                list.Add(new
+                                {
+                                    server = s.ServerName,
+                                    database = db,
+                                    username = s.Username,
+                                    connectionString = cs,
+                                    connectionStringForCopy = csCopy
+                                });
+                                dbCount++;
+                            }
+                            log.Add("  OK: " + dbCount + " database (có ST_ProjectInfo).");
                             serverStatuses.Add(new { id = s.Id, serverName = s.ServerName, ok = true, message = "", dbCount = dbCount });
                         }
                     }
@@ -408,6 +414,102 @@ WHERE Id=@id AND IsActive=1";
             {
                 return new { success = false, message = ex.Message };
             }
+        }
+
+        /// <summary>Chuẩn bị kết nối Multi-DB cho toàn bộ database trên 1 server. Dùng cho Manager reset nhiều DB.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object PrepareConnectForMultiDb(int serverId)
+        {
+            try
+            {
+                ServerInfo s = null;
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Id, ServerName, Port, Username, Password FROM BaDatabaseServer WHERE IsActive = 1 AND Id = @id";
+                    cmd.Parameters.AddWithValue("@id", serverId);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (r.Read())
+                        {
+                            s = new ServerInfo
+                            {
+                                Id = r.GetInt32(0),
+                                ServerName = r.IsDBNull(1) ? "" : r.GetString(1),
+                                Port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
+                                Username = r.IsDBNull(3) ? "" : r.GetString(3),
+                                Password = r.IsDBNull(4) ? "" : r.GetString(4)
+                            };
+                        }
+                    }
+                }
+                if (s == null)
+                    return new { success = false, message = "Không tìm thấy server." };
+
+                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var databases = new List<HRConnMultiDbEntry>();
+                using (var c = new SqlConnection(masterConn))
+                using (var q = c.CreateCommand())
+                {
+                    q.CommandText = "SELECT name FROM sys.databases WHERE state_desc = N'ONLINE' ORDER BY name";
+                    q.CommandTimeout = 30;
+                    c.Open();
+                    var candidateDbs = new List<string>();
+                    using (var rd = q.ExecuteReader())
+                    {
+                        while (rd.Read())
+                        {
+                            var db = rd.IsDBNull(0) ? "" : rd.GetString(0);
+                            if (IsSystemDatabase(db)) continue;
+                            var svr = (s.ServerName ?? "").Trim();
+                            var isDemovn = string.Equals(svr, "demovn.cadena-hrmseries.com", StringComparison.OrdinalIgnoreCase);
+                            if (isDemovn && !string.Equals(db, "std53.cadena-hrmseries.com", StringComparison.OrdinalIgnoreCase))
+                                continue;
+                            candidateDbs.Add(db);
+                        }
+                    }
+                    foreach (var db in candidateDbs)
+                    {
+                        if (!DatabaseHasStProjectInfo(c, db)) continue;
+                        var cs = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db);
+                        databases.Add(new HRConnMultiDbEntry { DatabaseName = db, ConnectionString = cs });
+                    }
+                }
+
+                if (databases.Count == 0)
+                    return new { success = false, message = "Không có database nào trên server." };
+
+                var id = Guid.NewGuid().ToString("N");
+                var ctx = HttpContext.Current;
+                if (ctx?.Session != null)
+                {
+                    ctx.Session["HRConnMulti_" + id] = new HRConnMultiInfo
+                    {
+                        Server = (s.ServerName ?? "") + (s.Port.HasValue ? "," + s.Port.Value : ""),
+                        Databases = databases
+                    };
+                }
+                var token = DataSecurityWrapper.EncryptConnectId("multi_" + id);
+                return new { success = true, token = token, dbCount = databases.Count };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        public class HRConnMultiDbEntry
+        {
+            public string DatabaseName { get; set; }
+            public string ConnectionString { get; set; }
+        }
+
+        public class HRConnMultiInfo
+        {
+            public string Server { get; set; }
+            public List<HRConnMultiDbEntry> Databases { get; set; }
         }
 
         [WebMethod(EnableSession = true)]
@@ -473,6 +575,24 @@ WHERE Id=@id AND IsActive=1";
             for (var i = 0; i < SystemDatabases.Length; i++)
                 if (string.Equals(d, SystemDatabases[i], StringComparison.OrdinalIgnoreCase)) return true;
             return false;
+        }
+
+        /// <summary>Chỉ database có bảng ST_ProjectInfo (product HRM) mới được liệt kê.</summary>
+        private static bool DatabaseHasStProjectInfo(SqlConnection masterConn, string dbName)
+        {
+            if (string.IsNullOrEmpty(dbName)) return false;
+            try
+            {
+                var safe = dbName.Trim().Replace("]", "]]");
+                using (var cmd = masterConn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT 1 FROM [" + safe + "].sys.tables WHERE name = 'ST_ProjectInfo'";
+                    cmd.CommandTimeout = 5;
+                    var r = cmd.ExecuteScalar();
+                    return r != null;
+                }
+            }
+            catch { return false; }
         }
 
         /// <summary>

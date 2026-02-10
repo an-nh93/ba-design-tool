@@ -89,9 +89,9 @@ namespace BADesign.Pages
 				lnkFeatureDbSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
 				phNavSuperAdmin.Visible = UiAuthHelper.IsSuperAdmin;
 				phSuperAdminCards.Visible = UiAuthHelper.IsSuperAdmin;
-				phNavPgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
-				phFeaturePgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
-				phNoFeatures.Visible = !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("UIBuilder") && !UiAuthHelper.HasFeature("DatabaseSearch") && !UiAuthHelper.HasFeature("EncryptDecrypt") && !UiAuthHelper.HasFeature("PGPTool");
+				phNavAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
+				phFeatureAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
+				phNoFeatures.Visible = !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("UIBuilder") && !UiAuthHelper.HasFeature("DatabaseSearch") && !UiAuthHelper.HasFeature("EncryptDecrypt") && !UiAuthHelper.HasFeature("PGPTool") && !UiAuthHelper.HasFeature("Settings");
 			}
 		}
 
