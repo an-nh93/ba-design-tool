@@ -23,35 +23,274 @@ namespace BADesign.Pages
 		/// </remarks>
 		protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
+		/// <summary>
+		/// sm1 control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.ScriptManager sm1;
+
+		/// <summary>
+		/// lnkNavUIBuilder control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavUIBuilder;
+
+		/// <summary>
+		/// lnkNavDatabaseSearch control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavDatabaseSearch;
+
+		/// <summary>
+		/// phNavEncryptDecrypt control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.PlaceHolder phNavEncryptDecrypt;
+
+		/// <summary>
+		/// lnkNavEncryptDecrypt control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavEncryptDecrypt;
-		protected global::System.Web.UI.WebControls.Literal litPageTitle;
-		protected global::System.Web.UI.WebControls.Literal litUserInitial;
-		protected global::System.Web.UI.WebControls.Literal litUserName;
-		protected global::System.Web.UI.WebControls.Literal litRoleBadge;
-		protected global::System.Web.UI.WebControls.Literal litWelcomeTitle;
-		protected global::System.Web.UI.WebControls.Literal litWelcomeDesc;
-		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureUIBuilder;
-		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureDbSearch;
-		protected global::System.Web.UI.WebControls.PlaceHolder phFeatureEncryptDecrypt;
-		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureEncryptDecrypt;
-		protected global::System.Web.UI.WebControls.PlaceHolder phNoFeatures;
-		protected global::System.Web.UI.WebControls.PlaceHolder phNavSuperAdmin;
-		protected global::System.Web.UI.WebControls.HyperLink lnkNavUserManagement;
-		protected global::System.Web.UI.WebControls.HyperLink lnkNavRolePermission;
+
+		/// <summary>
+		/// phNavAppSettings control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.PlaceHolder phNavAppSettings;
+
+		/// <summary>
+		/// lnkNavAppSettings control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavAppSettings;
-		protected global::System.Web.UI.WebControls.HyperLink lnkNavLeaveManager;
+
+		/// <summary>
+		/// lnkNavPgpTool control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavPgpTool;
-		protected global::System.Web.UI.WebControls.PlaceHolder phSuperAdminCards;
-		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureUserManagement;
-		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureRolePermission;
+
+		/// <summary>
+		/// phNavSuperAdmin control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phNavSuperAdmin;
+
+		/// <summary>
+		/// lnkNavUserManagement control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavUserManagement;
+
+		/// <summary>
+		/// lnkNavRolePermission control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavRolePermission;
+
+		/// <summary>
+		/// lnkNavLeaveManager control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavLeaveManager;
+
+		/// <summary>
+		/// litPageTitle control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Literal litPageTitle;
+
+		/// <summary>
+		/// litUserInitial control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Literal litUserInitial;
+
+		/// <summary>
+		/// litUserName control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Literal litUserName;
+
+		/// <summary>
+		/// litRoleBadge control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Literal litRoleBadge;
+
+		/// <summary>
+		/// litWelcomeTitle control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Literal litWelcomeTitle;
+
+		/// <summary>
+		/// litWelcomeDesc control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Literal litWelcomeDesc;
+
+		/// <summary>
+		/// lnkFeatureUIBuilder control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureUIBuilder;
+
+		/// <summary>
+		/// lnkFeatureDbSearch control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureDbSearch;
+
+		/// <summary>
+		/// phFeatureEncryptDecrypt control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phFeatureEncryptDecrypt;
+
+		/// <summary>
+		/// lnkFeatureEncryptDecrypt control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureEncryptDecrypt;
+
+		/// <summary>
+		/// phFeatureAppSettings control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.PlaceHolder phFeatureAppSettings;
+
+		/// <summary>
+		/// lnkFeatureAppSettings control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureAppSettings;
+
+		/// <summary>
+		/// lnkFeaturePgpTool control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeaturePgpTool;
+
+		/// <summary>
+		/// phNoFeatures control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phNoFeatures;
+
+		/// <summary>
+		/// phSuperAdminCards control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phSuperAdminCards;
+
+		/// <summary>
+		/// lnkFeatureUserManagement control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureUserManagement;
+
+		/// <summary>
+		/// lnkFeatureRolePermission control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureRolePermission;
+
+		/// <summary>
+		/// lnkFeatureLeaveManager control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureLeaveManager;
 	}
 }

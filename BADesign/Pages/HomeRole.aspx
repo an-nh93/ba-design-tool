@@ -614,13 +614,13 @@
                                 <asp:HyperLink ID="lnkFeatureAppSettings" runat="server" CssClass="ba-feature-card" NavigateUrl="~/AppSettings">
                                     <div class="ba-feature-icon">⚙️</div>
                                     <div class="ba-feature-title">App Settings</div>
-                                    <div class="ba-feature-desc">Cấu hình hệ thống: Email Ignore (HR Multi-DB), v.v. Chỉ user có quyền Settings.</div>
+                                    <div class="ba-feature-desc">Cấu hình hệ thống: Email Ignore (HR Multi-DB), v.v.</div>
                                 </asp:HyperLink>
                             </asp:PlaceHolder>
                             <asp:HyperLink ID="lnkFeaturePgpTool" runat="server" CssClass="ba-feature-card" NavigateUrl="~/PgpTool">
                                 <div class="ba-feature-icon">🧰</div>
                                 <div class="ba-feature-title">PGP Tool</div>
-                                <div class="ba-feature-desc">Xuất key .asc, mã hóa và giải mã file PGP (tương tự tool cũ).</div>
+                                <div class="ba-feature-desc">Xuất key .asc, mã hóa và giải mã file PGP.</div>
                             </asp:HyperLink>
                             <asp:PlaceHolder ID="phNoFeatures" runat="server" Visible="false">
                                 <div class="ba-feature-card disabled" style="grid-column: 1 / -1; text-align: center; opacity: 1;">
@@ -638,12 +638,12 @@
                                 <asp:HyperLink ID="lnkFeatureRolePermission" runat="server" CssClass="ba-feature-card" NavigateUrl="~/RolePermission">
                                     <div class="ba-feature-icon">🛡</div>
                                     <div class="ba-feature-title">Role Permission</div>
-                                    <div class="ba-feature-desc">Định nghĩa quyền theo Role (BA, CONS, DEV) và cấu hình UIBuilder, Database Search, EncryptDecrypt, HR Helper.</div>
+                                    <div class="ba-feature-desc">Định nghĩa quyền theo Role (BA, CONS, DEV, QC) và cấu hình UIBuilder, Database Search, EncryptDecrypt, HR Helper.</div>
                                 </asp:HyperLink>
                                 <asp:HyperLink ID="lnkFeatureLeaveManager" runat="server" CssClass="ba-feature-card" NavigateUrl="~/LeaveManager">
                                     <div class="ba-feature-icon">📅</div>
                                     <div class="ba-feature-title">Leave Manager</div>
-                                    <div class="ba-feature-desc">Quản lý lịch nghỉ phép team. Xem hôm nay bao nhiêu NV nghỉ, ai trực (chụp hình gửi sếp).</div>
+                                    <div class="ba-feature-desc">Quản lý lịch nghỉ phép team. Xem hôm nay bao nhiêu NV nghỉ, ai làm.</div>
                                 </asp:HyperLink>
                             </asp:PlaceHolder>
                         </div>

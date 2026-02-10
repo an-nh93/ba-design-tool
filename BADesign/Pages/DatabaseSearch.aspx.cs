@@ -13,11 +13,21 @@ namespace BADesign.Pages
 {
     public partial class DatabaseSearch : Page
     {
+        /// <summary>True khi user có quyền thêm/sửa/xóa server.</summary>
         public bool CanManageServers { get; private set; }
+        /// <summary>True khi user có quyền Multi-DB Reset (Database Bulk Reset).</summary>
+        public bool CanBulkReset { get; private set; }
+        /// <summary>True khi là guest (chưa đăng nhập).</summary>
+        public bool IsGuest { get; private set; }
+        /// <summary>True khi user có quyền dùng server quét (DatabaseSearch).</summary>
+        public bool CanUseServers { get; private set; }
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            CanManageServers = !UiAuthHelper.IsAnonymous;
+            IsGuest = UiAuthHelper.IsAnonymous;
+            CanManageServers = UiAuthHelper.HasFeature("DatabaseManageServers");
+            CanBulkReset = UiAuthHelper.HasFeature("DatabaseBulkReset");
+            CanUseServers = !IsGuest && UiAuthHelper.HasFeature("DatabaseSearch");
             
             // Ẩn link "Về trang chủ" nếu anonymous, hoặc set URL đúng theo role
             if (UiAuthHelper.IsAnonymous)
@@ -37,11 +47,22 @@ namespace BADesign.Pages
         {
             try
             {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = true, list = new List<object>() };
+
+                var accessibleIds = GetAccessibleServerIds();
                 var list = new List<object>();
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "SELECT Id, ServerName, Port, Username FROM BaDatabaseServer WHERE IsActive = 1 ORDER BY Id";
+                    if (accessibleIds == null)
+                        cmd.CommandText = "SELECT Id, ServerName, Port, Username FROM BaDatabaseServer WHERE IsActive = 1 ORDER BY Id";
+                    else if (accessibleIds.Count == 0)
+                        cmd.CommandText = "SELECT Id, ServerName, Port, Username FROM BaDatabaseServer WHERE 1=0";
+                    else
+                    {
+                        cmd.CommandText = "SELECT Id, ServerName, Port, Username FROM BaDatabaseServer WHERE IsActive = 1 AND Id IN (" + string.Join(",", accessibleIds) + ") ORDER BY Id";
+                    }
                     conn.Open();
                     using (var r = cmd.ExecuteReader())
                     {
@@ -65,12 +86,55 @@ namespace BADesign.Pages
             }
         }
 
+        /// <summary>Null = thấy tất cả (SuperAdmin hoặc DatabaseManageServers). Empty = không thấy server nào. Non-empty = chỉ các Id được phép.</summary>
+        private static List<int> GetAccessibleServerIds()
+        {
+            if (UiAuthHelper.IsSuperAdmin || UiAuthHelper.HasFeature("DatabaseManageServers"))
+                return null;
+            var userId = UiAuthHelper.CurrentUserId;
+            var roleId = UiAuthHelper.GetCurrentUserRoleId();
+            if (!userId.HasValue && !roleId.HasValue)
+                return new List<int>();
+            var ids = new HashSet<int>();
+            using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+            {
+                conn.Open();
+                if (roleId.HasValue)
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT ServerId FROM UiRoleServerAccess WHERE RoleId = @rid";
+                        cmd.Parameters.AddWithValue("@rid", roleId.Value);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read()) ids.Add(r.GetInt32(0));
+                        }
+                    }
+                }
+                if (userId.HasValue)
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT ServerId FROM UiUserServerAccess WHERE UserId = @uid";
+                        cmd.Parameters.AddWithValue("@uid", userId.Value);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read()) ids.Add(r.GetInt32(0));
+                        }
+                    }
+                }
+            }
+            return ids.Count > 0 ? new List<int>(ids) : new List<int>();
+        }
+
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object CheckDuplicate(string serverName, int? port, string username, int? excludeId)
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseManageServers"))
+                    return new { success = false, message = "Bạn không có quyền quản lý server." };
                 UiAuthHelper.GetCurrentUserIdOrThrow();
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -106,6 +170,8 @@ WHERE IsActive = 1
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseManageServers"))
+                    return new { success = false, message = "Bạn không có quyền quản lý server." };
                 UiAuthHelper.GetCurrentUserIdOrThrow();
                 var masterConn = BuildConnectionString(serverName, port, username, password, "master");
                 using (var c = new SqlConnection(masterConn))
@@ -130,6 +196,8 @@ WHERE IsActive = 1
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseManageServers"))
+                    return new { success = false, message = "Bạn không có quyền thêm server." };
                 UiAuthHelper.GetCurrentUserIdOrThrow();
                 if (string.IsNullOrWhiteSpace(serverName) || string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
                     return new { success = false, message = "Server, Username và Password không được trống." };
@@ -199,6 +267,8 @@ VALUES (@sn, @port, @u, @p, 1, SYSDATETIME());";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseManageServers"))
+                    return new { success = false, message = "Bạn không có quyền sửa server." };
                 UiAuthHelper.GetCurrentUserIdOrThrow();
                 if (string.IsNullOrWhiteSpace(serverName) || string.IsNullOrWhiteSpace(username))
                     return new { success = false, message = "Server và Username không được trống." };
@@ -298,6 +368,8 @@ WHERE Id=@id AND IsActive=1";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseManageServers"))
+                    return new { success = false, message = "Bạn không có quyền xóa server." };
                 UiAuthHelper.GetCurrentUserIdOrThrow();
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -321,6 +393,10 @@ WHERE Id=@id AND IsActive=1";
         {
             try
             {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Guest chỉ dùng Connection String. Đăng nhập để quét server." };
+
+                var accessibleIds = GetAccessibleServerIds();
                 var list = new List<object>();
                 var log = new List<string>();
                 var serverStatuses = new List<object>();
@@ -332,8 +408,18 @@ WHERE Id=@id AND IsActive=1";
                     cmd.CommandText = "SELECT Id, ServerName, Port, Username, Password FROM BaDatabaseServer WHERE IsActive = 1";
                     if (serverId.HasValue)
                     {
+                        if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId.Value)))
+                            return new { success = false, message = "Bạn không có quyền truy cập server này." };
                         cmd.CommandText += " AND Id = @sid";
                         cmd.Parameters.AddWithValue("@sid", serverId.Value);
+                    }
+                    else if (accessibleIds != null && accessibleIds.Count == 0)
+                    {
+                        cmd.CommandText += " AND 1=0";
+                    }
+                    else if (accessibleIds != null)
+                    {
+                        cmd.CommandText += " AND Id IN (" + string.Join(",", accessibleIds) + ")";
                     }
                     cmd.CommandText += " ORDER BY Id";
                     conn.Open();
@@ -423,6 +509,12 @@ WHERE Id=@id AND IsActive=1";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                    return new { success = false, message = "Bạn không có quyền sử dụng Multi-DB Reset. Liên hệ Admin để được cấp quyền Database Bulk Reset." };
+                var accessibleIds = GetAccessibleServerIds();
+                if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
+                    return new { success = false, message = "Bạn không có quyền truy cập server này." };
+
                 ServerInfo s = null;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())

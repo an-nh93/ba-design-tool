@@ -394,14 +394,22 @@
             <main class="ba-main">
                 <div class="ba-top-bar">
                     <h1 class="ba-top-bar-title">Database Search</h1>
-                    <div class="ba-actions">
-                        <button type="button" class="ba-btn ba-btn-primary" id="btnLoadDb" onclick="loadDatabases(); return false;">
-                            <span class="btn-text">Quét & load danh sách Database</span>
-                        </button>
-                    </div>
                 </div>
                 <div class="ba-content">
-                    <!-- Server config -->
+                    <!-- Connection String (Guest + Logged-in) -->
+                    <div class="ba-card" id="cardConnStr">
+                        <div class="ba-card-header">
+                            <h2 class="ba-card-title">Kết nối bằng Connection String</h2>
+                        </div>
+                        <div class="ba-card-body">
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Dán connection string vào ô bên dưới rồi bấm Connect để mở HR Helper.</p>
+                            <div class="ba-form-group" style="margin-bottom: 1rem;">
+                                <input type="text" id="txtConnStr" class="ba-input" placeholder="Data Source=...;Initial Catalog=...;User ID=...;Password=..." style="width:100%; font-family: Consolas, monospace; font-size: 0.8125rem;" />
+                            </div>
+                            <button type="button" class="ba-btn ba-btn-primary" onclick="connectByConnStr(); return false;">Connect</button>
+                        </div>
+                    </div>
+                    <!-- Server config (chỉ khi đăng nhập + có quyền DatabaseSearch) -->
                     <div class="ba-card" id="cardServers">
                         <div class="ba-card-header">
                             <div class="ba-card-title-wrap">
@@ -416,7 +424,13 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Thêm server để quét. Có thể quét tất cả hoặc chọn 1 server rồi bấm &quot;Quét&quot; để load database.</p>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Thêm server để quét. Có thể quét tất cả hoặc chọn 1 server rồi bấm &quot;Quét&quot; để load database.</p>
+                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Quét tất cả server: bấm nút bên dưới để quét và load danh sách database từ tất cả server đã cấu hình.</p>
+                            <div style="margin-bottom: 1rem;">
+                                <button type="button" class="ba-btn ba-btn-primary" id="btnLoadDb" onclick="loadDatabases(); return false;">
+                                    <span class="btn-text">Quét & load danh sách Database</span>
+                                </button>
+                            </div>
                             <div class="ba-table-wrap">
                                 <table class="ba-table">
                                     <thead>
@@ -575,7 +589,10 @@
                 localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
             });
         })();
+        var isGuest = <%= IsGuest ? "true" : "false" %>;
+        var canUseServers = <%= CanUseServers ? "true" : "false" %>;
         var canManageServers = <%= CanManageServers ? "true" : "false" %>;
+        var canBulkReset = <%= CanBulkReset ? "true" : "false" %>;
         var servers = [];
         var results = [];
         var serverStatuses = {};
@@ -646,8 +663,8 @@
                     statusCell = '<span class="ba-status-fail" title="Lỗi">✕</span> ' +
                         '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-log" data-id="' + s.id + '" title="Xem log lỗi">Log</button>';
                 }
-                var actions = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;">Quét</button>' +
-                    ' <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-multidb-btn" onclick="connectMultiDb(' + s.id + '); return false;" title="Connect Multi-DB Reset">Multi-DB</button>';
+                var actions = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;">Quét</button>';
+                if (canBulkReset) actions += ' <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-multidb-btn" onclick="connectMultiDb(' + s.id + '); return false;" title="Connect Multi-DB Reset">Multi-DB</button>';
                 if (canManageServers) {
                     actions = '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;">Sửa</button> ' + actions + ' ' +
                         '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + '); return false;">Xóa</button>';
@@ -1250,8 +1267,65 @@
             document.body.removeChild(ta);
         }
 
+        function connectByConnStr() {
+            var cs = ($('#txtConnStr').val() || '').trim();
+            if (!cs) {
+                showToast('Nhập connection string.', 'error');
+                return;
+            }
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/PrepareConnect") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ connectionString: cs, server: '', database: '' }),
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.token) {
+                        window.location.href = '<%= ResolveUrl("~/Pages/HRHelper.aspx") %>?k=' + encodeURIComponent(d.token);
+                    } else {
+                        showToast(d && d.message ? d.message : 'Không thể kết nối.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = 'Lỗi kết nối.';
+                    if (xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message;
+                            else if (j.message) msg = j.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
+                }
+            });
+        }
+
         $(function() {
+            if (isGuest) {
+                $('#cardServers').hide();
+                $('#cardDatabases').hide();
+                $('#btnLoadDb').hide();
+            } else if (!canUseServers) {
+                $('#cardServers').hide();
+                $('#cardDatabases').hide();
+                $('#btnLoadDb').hide();
+            }
             if (!canManageServers) $('#addServerWrap').hide();
+            var msg = (function() {
+                var s = (window.location.search || '').replace(/^\?/, '');
+                if (!s) return null;
+                var parts = s.split('&');
+                for (var i = 0; i < parts.length; i++) {
+                    var p = parts[i].split('=');
+                    if (p[0] === 'msg' && p[1]) return p[1];
+                }
+                return null;
+            })();
+            if (msg) {
+                try { msg = decodeURIComponent(msg); } catch(e) {}
+                showToast(msg, 'error');
+            }
             fetchServers();
             $('#searchServers').on('input', function() { serverPage = 1; renderServers(); });
             $('#searchDatabases').on('input', function() { dbPage = 1; renderResults(); });

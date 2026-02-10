@@ -98,6 +98,12 @@ namespace BADesign
 			);
 
 			routes.MapPageRoute(
+				"AccessDeniedRoute",
+				"AccessDenied",
+				"~/Pages/AccessDenied.aspx"
+			);
+
+			routes.MapPageRoute(
 				"EncryptDecryptRoute",
 				"EncryptDecrypt",
 				"~/Pages/EncryptDecrypt.aspx"

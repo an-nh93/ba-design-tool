@@ -270,6 +270,8 @@
     <Content Include="Scripts\AddProjectSupport.sql" />
     <Content Include="Scripts\AddUiRoles.sql" />
     <Content Include="Scripts\AddUiPermissions.sql" />
+    <Content Include="Scripts\AddDatabaseBulkResetPermission.sql" />
+    <Content Include="Scripts\AddDatabaseManageServersAndServerAccess.sql" />
     <Content Include="Scripts\ai.0.22.9-build00167.js" />
     <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
     <Content Include="Scripts\bootstrap.js" />

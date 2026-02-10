@@ -55,6 +55,11 @@ namespace BADesign.Pages
                     Response.Redirect(ResolveUrl("~/Pages/DatabaseSearch.aspx"));
                     return;
                 }
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                {
+                    Response.Redirect(ResolveUrl("~/DatabaseSearch") + "?msg=" + System.Web.HttpUtility.UrlEncode("Bạn không có quyền Multi-DB Reset."));
+                    return;
+                }
                 IsMultiDbMode = true;
                 ConnectedServer = multi.Server ?? "";
                 ConnectedDatabase = "All (" + multi.Databases.Count + " databases)";
@@ -1347,6 +1352,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                    return new { success = false, message = "Bạn không có quyền sử dụng Multi-DB Reset." };
                 var multi = GetMultiConnFromToken(k);
                 if (multi == null || multi.Databases == null)
                     return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
@@ -1382,6 +1389,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                    return new { success = false, message = "Bạn không có quyền sử dụng Multi-DB Reset." };
                 var multi = GetMultiConnFromToken(k);
                 if (multi == null || multi.Databases == null)
                     return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
@@ -1419,6 +1428,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                    return new { success = false, message = "Bạn không có quyền sử dụng Multi-DB Reset." };
                 var multi = GetMultiConnFromToken(k);
                 if (multi == null || multi.Databases == null)
                     return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };
@@ -1673,6 +1684,8 @@ WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','Em
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                    return new { success = false, message = "Bạn không có quyền sử dụng Multi-DB Reset." };
                 var multi = GetMultiConnFromToken(k);
                 if (multi == null || multi.Databases == null)
                     return new { success = false, message = "Chế độ Multi-DB không hợp lệ." };

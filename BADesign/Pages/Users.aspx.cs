@@ -229,6 +229,18 @@ WHERE UserId=@id";
 								}
 							}
 
+							var userServerIds = new List<int>();
+							using (var cmd3 = conn.CreateCommand())
+							{
+								cmd3.CommandText = "SELECT ServerId FROM UiUserServerAccess WHERE UserId = @uid";
+								cmd3.Parameters.AddWithValue("@uid", uid);
+								using (var r3 = cmd3.ExecuteReader())
+								{
+									while (r3.Read())
+										userServerIds.Add(r3.GetInt32(0));
+								}
+							}
+
 							return new
 							{
 								success = true,
@@ -239,7 +251,8 @@ WHERE UserId=@id";
 								isSuperAdmin = isSuperAdmin,
 								isActive = isActive,
 								roleId = roleId,
-								userPermissionIds = userPermissionIds
+								userPermissionIds = userPermissionIds,
+								userServerIds = userServerIds
 							};
 						}
 						else
@@ -303,7 +316,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static object UpdateUser(int? userId, string userName, string password = null, string fullName = null, string email = null, bool? isSuperAdmin = null, bool? isActive = null, int? roleId = null, int[] extraPermissionIds = null)
+		public static object UpdateUser(int? userId, string userName, string password = null, string fullName = null, string email = null, bool? isSuperAdmin = null, bool? isActive = null, int? roleId = null, int[] extraPermissionIds = null, int[] extraServerIds = null)
 		{
 			try
 			{
@@ -362,7 +375,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 						parameters.Add(new SqlParameter("@rid", DBNull.Value));
 					}
 
-					if (updates.Count == 0 && (extraPermissionIds == null || extraPermissionIds.Length == 0))
+					if (updates.Count == 0 && (extraPermissionIds == null || extraPermissionIds.Length == 0) && (extraServerIds == null))
 					{
 						return new { success = false, message = "No fields to update." };
 					}
@@ -398,9 +411,58 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 							}
 						}
 					}
+
+					if (extraServerIds != null)
+					{
+						using (var del = conn.CreateCommand())
+						{
+							del.CommandText = "DELETE FROM UiUserServerAccess WHERE UserId = @uid";
+							del.Parameters.AddWithValue("@uid", userId.Value);
+							del.ExecuteNonQuery();
+						}
+						foreach (var sid in extraServerIds)
+						{
+							using (var ins = conn.CreateCommand())
+							{
+								ins.CommandText = "INSERT INTO UiUserServerAccess (UserId, ServerId) VALUES (@uid, @sid)";
+								ins.Parameters.AddWithValue("@uid", userId.Value);
+								ins.Parameters.AddWithValue("@sid", sid);
+								ins.ExecuteNonQuery();
+							}
+						}
+					}
 				}
 
 				return new { success = true, message = "User updated successfully." };
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object LoadServers()
+		{
+			try
+			{
+				UiAuthHelper.RequireLogin();
+				if (!UiAuthHelper.IsSuperAdmin)
+					return new { success = false, message = "Unauthorized." };
+				var list = new List<object>();
+				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "SELECT Id, ServerName, Port, Username FROM BaDatabaseServer WHERE IsActive = 1 ORDER BY Id";
+					conn.Open();
+					using (var r = cmd.ExecuteReader())
+					{
+						while (r.Read())
+							list.Add(new { id = r.GetInt32(0), serverName = r.IsDBNull(1) ? "" : r.GetString(1), port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2), username = r.IsDBNull(3) ? "" : r.GetString(3) });
+					}
+				}
+				return new { success = true, list = list };
 			}
 			catch (Exception ex)
 			{

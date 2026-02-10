@@ -70,8 +70,26 @@
             padding: 1.5rem;
             margin-bottom: 1.5rem;
         }
-        .rp-card h2 { font-size: 1.25rem; margin-bottom: 1rem; color: var(--text-primary); }
+        .rp-card { position: relative; }
+        .rp-card.collapsed .rp-card-body { display: none; }
+        .rp-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+        }
+        .rp-card-header:hover { opacity: 0.9; }
+        .rp-card-header .rp-toggle { color: var(--text-muted); font-size: 1rem; transition: transform 0.2s; }
+        .rp-card.collapsed .rp-card-header .rp-toggle { transform: rotate(-90deg); }
+        .rp-card h2 { font-size: 1.25rem; margin: 0; color: var(--text-primary); }
+        .rp-card-body { margin-top: 1rem; }
         .rp-table { width: 100%; border-collapse: collapse; }
+        .rp-table-wrap { max-height: 360px; overflow-y: auto; margin-bottom: 0.5rem; }
+        .rp-table-wrap .rp-table th { position: sticky; top: 0; background: var(--bg-darker); z-index: 1; }
+        .rp-table th.rp-sortable { cursor: pointer; user-select: none; }
+        .rp-table th.rp-sortable:hover { background: var(--bg-hover); }
+        .rp-table th .rp-sort-icon { margin-left: 4px; opacity: 0.6; }
         .rp-table th, .rp-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
         .rp-table th { background: var(--bg-darker); color: var(--text-secondary); font-weight: 600; }
         .rp-table td { color: var(--text-primary); }
@@ -128,8 +146,12 @@
                     <button type="button" class="rp-btn rp-btn-primary" id="btnSave" onclick="saveRolePermissions(); return false;">Lưu cấu hình</button>
                 </div>
                 <div class="rp-content">
-                    <div class="rp-card">
-                        <h2>Định nghĩa quyền theo Role</h2>
+                    <div class="rp-card" id="cardPermissions">
+                        <div class="rp-card-header" onclick="toggleRpCard('cardPermissions'); return false;">
+                            <h2>Định nghĩa quyền theo Role</h2>
+                            <span class="rp-toggle" title="Thu gọn / Mở rộng">▼</span>
+                        </div>
+                        <div class="rp-card-body">
                         <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
                             Chọn quyền cho từng role. User được gán role sẽ có đủ các quyền của role (không thể bỏ). Có thể thêm quyền riêng lẻ khi Edit User.
                         </p>
@@ -145,6 +167,31 @@
                             </thead>
                             <tbody id="tbodyRolePermission"></tbody>
                         </table>
+                        </div>
+                    </div>
+                    <div class="rp-card" id="cardServerAccess">
+                        <div class="rp-card-header" onclick="toggleRpCard('cardServerAccess'); return false;">
+                            <h2>Server Access theo Role</h2>
+                            <span class="rp-toggle" title="Thu gọn / Mở rộng">▼</span>
+                        </div>
+                        <div class="rp-card-body">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
+                            Chọn server mà mỗi role được phép sử dụng khi quét database. Nếu không chọn server nào, role đó không thấy server nào (trừ khi có quyền Database Manage Servers). Super Admin và user có Database Manage Servers thấy tất cả.
+                        </p>
+                        <div class="rp-search-wrap" style="margin-bottom: 0.75rem;">
+                            <input type="text" id="searchServersRp" class="rp-input" placeholder="Tìm server..." style="max-width: 280px; padding: 0.5rem 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem;" />
+                        </div>
+                        <div class="rp-table-wrap" id="serverAccessTableWrap">
+                        <table class="rp-table" id="tblRoleServerAccess">
+                            <thead>
+                                <tr id="trRoleServerAccessHead">
+                                    <th class="rp-sortable" data-col="server"><span>Server <span class="rp-sort-icon"></span></span></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyRoleServerAccess"></tbody>
+                        </table>
+                        </div>
+                        </div>
                     </div>
                 </div>
             </main>
@@ -165,6 +212,16 @@
         var permissions = [];
         var roles = [];
         var rolePermissions = {}; // roleId -> [permissionId]
+        var servers = [];
+        var roleServerAccess = {}; // roleId -> [serverId]
+        var serverSortCol = 'server';
+        var serverSortDir = 1;
+
+        function toggleRpCard(id) {
+            $('#' + id).toggleClass('collapsed');
+            var key = 'rpCard_' + id;
+            localStorage.setItem(key, $('#' + id).hasClass('collapsed') ? '1' : '0');
+        }
 
         function showToast(msg, type) {
             type = type || 'info';
@@ -209,7 +266,27 @@
                 var d = res.d || res;
                 if (d && d.success && d.rolePermissions) rolePermissions = d.rolePermissions;
             });
-            $.when(reqPerm, reqRoles, reqRp).always(function() {
+            var reqServers = $.ajax({
+                url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/LoadServers") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: '{}',
+                dataType: 'json'
+            }).done(function(res) {
+                var d = res.d || res;
+                if (d && d.success && d.list) servers = d.list;
+            });
+            var reqRsa = $.ajax({
+                url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/LoadRoleServerAccess") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: '{}',
+                dataType: 'json'
+            }).done(function(res) {
+                var d = res.d || res;
+                if (d && d.success && d.roleServerAccess) roleServerAccess = d.roleServerAccess;
+            });
+            $.when(reqPerm, reqRoles, reqRp, reqServers, reqRsa).always(function() {
                 render();
             }).fail(function() {
                 showToast('Không tải được dữ liệu.', 'error');
@@ -231,6 +308,61 @@
                 });
                 $tb.append($tr);
             });
+            var $trHead = $('#trRoleServerAccessHead');
+            $trHead.find('th:not(:first)').remove();
+            $trHead.find('th:first').replaceWith('<th class="rp-sortable" data-col="server"><span>Server <span class="rp-sort-icon"></span></span></th>');
+            roles.forEach(function(r) {
+                $trHead.append('<th>' + (r.code || r.name || r.id) + '</th>');
+            });
+            var sorted = servers.slice().sort(function(a, b) {
+                var va = ((a.serverName || '') + (a.port != null ? ':' + a.port : '') + (a.username || '')).toLowerCase();
+                var vb = ((b.serverName || '') + (b.port != null ? ':' + b.port : '') + (b.username || '')).toLowerCase();
+                return serverSortDir * va.localeCompare(vb);
+            });
+            var $tbSrv = $('#tbodyRoleServerAccess');
+            $tbSrv.empty();
+            if (!servers.length) {
+                $tbSrv.append('<tr><td colspan="' + (roles.length + 1) + '" style="color: var(--text-muted);">Chưa có server. Thêm server trong Database Search.</td></tr>');
+            } else {
+                sorted.forEach(function(s) {
+                    var disp = (s.serverName || '') + (s.port != null ? ':' + s.port : '') + ' (' + (s.username || '') + ')';
+                    var searchText = disp.toLowerCase();
+                    var $tr = $('<tr data-server-id="' + s.id + '" data-search="' + searchText.replace(/"/g, '&quot;') + '"></tr>');
+                    $tr.append('<td>' + disp + '</td>');
+                    roles.forEach(function(r) {
+                        var rsa = roleServerAccess[String(r.id)] || [];
+                        var chk = rsa.indexOf(s.id) >= 0;
+                        var $td = $('<td></td>');
+                        $td.append('<input type="checkbox" class="rp-role-server-cb" data-role-id="' + r.id + '" data-server-id="' + s.id + '" ' + (chk ? 'checked' : '') + ' />');
+                        $tr.append($td);
+                    });
+                    $tbSrv.append($tr);
+                });
+            }
+            $('#tblRoleServerAccess th.rp-sortable .rp-sort-icon').text('');
+            $('#tblRoleServerAccess th.rp-sortable[data-col="' + serverSortCol + '"] .rp-sort-icon').text(serverSortDir === 1 ? '↑' : '↓');
+            filterServerRows();
+        }
+
+        function syncRoleServerAccessFromDom() {
+            roleServerAccess = {};
+            $('.rp-role-server-cb').each(function() {
+                var rid = $(this).data('role-id'), sid = $(this).data('server-id');
+                if (!rid || !sid) return;
+                if (!roleServerAccess[String(rid)]) roleServerAccess[String(rid)] = [];
+                if ($(this).prop('checked') && roleServerAccess[String(rid)].indexOf(sid) < 0)
+                    roleServerAccess[String(rid)].push(sid);
+            });
+        }
+
+        function filterServerRows() {
+            var q = ($('#searchServersRp').val() || '').toLowerCase().trim();
+            $('#tbodyRoleServerAccess tr').each(function() {
+                var $r = $(this);
+                if ($r.find('td').length === 0) return;
+                var match = !q || ($r.attr('data-search') || '').indexOf(q) >= 0;
+                $r.css('display', match ? '' : 'none');
+            });
         }
 
         function saveRolePermissions() {
@@ -243,33 +375,69 @@
                 if (!byRole[rk]) byRole[rk] = [];
                 byRole[rk].push(p);
             });
+            var byRoleServer = {};
+            roles.forEach(function(r) { byRoleServer[String(r.id)] = []; });
+            $('#tbodyRoleServerAccess .rp-role-server-cb:checked').each(function() {
+                var r = parseInt($(this).data('role-id'), 10);
+                var s = parseInt($(this).data('server-id'), 10);
+                var rk = String(r);
+                if (!byRoleServer[rk]) byRoleServer[rk] = [];
+                byRoleServer[rk].push(s);
+            });
 
-            var total = roles.length;
+            var total = roles.length * 2;
             var done = 0;
             function next() {
                 if (done >= total) {
-                    showToast('Đã lưu cấu hình quyền theo Role.', 'success');
+                    showToast('Đã lưu cấu hình quyền và server access theo Role.', 'success');
                     load();
                     return;
                 }
-                var r = roles[done];
-                var pids = byRole[String(r.id)] || [];
-                $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/SaveRolePermissions") %>',
-                    type: 'POST',
-                    contentType: 'application/json; charset=utf-8',
-                    data: JSON.stringify({ roleId: r.id, permissionIds: pids }),
-                    dataType: 'json'
-                }).done(function(res) {
-                    var d = res.d || res;
-                    if (!d || !d.success) showToast(d && d.message ? d.message : 'Lỗi lưu role ' + r.code, 'error');
-                }).fail(function() { showToast('Lỗi lưu role ' + r.code, 'error'); })
-                  .always(function() { done++; next(); });
+                var idx = done;
+                var r = roles[Math.floor(idx / 2)];
+                if (idx % 2 === 0) {
+                    var pids = byRole[String(r.id)] || [];
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/SaveRolePermissions") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        data: JSON.stringify({ roleId: r.id, permissionIds: pids }),
+                        dataType: 'json'
+                    }).done(function(res) {
+                        var d = res.d || res;
+                        if (!d || !d.success) showToast(d && d.message ? d.message : 'Lỗi lưu role ' + r.code, 'error');
+                    }).fail(function() { showToast('Lỗi lưu role ' + r.code, 'error'); })
+                      .always(function() { done++; next(); });
+                } else {
+                    var sids = byRoleServer[String(r.id)] || [];
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/SaveRoleServerAccess") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        data: JSON.stringify({ roleId: r.id, serverIds: sids }),
+                        dataType: 'json'
+                    }).done(function(res) {
+                        var d = res.d || res;
+                        if (!d || !d.success) showToast(d && d.message ? d.message : 'Lỗi lưu server access role ' + r.code, 'error');
+                    }).fail(function() { showToast('Lỗi lưu server access role ' + r.code, 'error'); })
+                      .always(function() { done++; next(); });
+                }
             }
             next();
         }
 
-        $(function() { load(); });
+        $(function() {
+            if (localStorage.getItem('rpCard_cardPermissions') === '1') $('#cardPermissions').addClass('collapsed');
+            if (localStorage.getItem('rpCard_cardServerAccess') === '1') $('#cardServerAccess').addClass('collapsed');
+            $('#searchServersRp').on('input', filterServerRows);
+            $('#tblRoleServerAccess').on('click', 'th.rp-sortable', function() {
+                syncRoleServerAccessFromDom();
+                var col = $(this).data('col');
+                if (col === serverSortCol) serverSortDir = -serverSortDir; else { serverSortCol = col; serverSortDir = 1; }
+                render();
+            });
+            load();
+        });
     </script>
 </body>
 </html>

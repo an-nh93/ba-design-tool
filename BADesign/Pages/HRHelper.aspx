@@ -453,6 +453,45 @@
         .ba-collapsible-group.collapsed .ba-collapsible-body {
             display: none;
         }
+        .ba-column-row {
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+        .ba-column-row:focus-within,
+        .ba-column-row.ba-column-row-focused {
+            background: var(--bg-hover);
+            outline: 1px solid var(--primary);
+            outline-offset: -1px;
+        }
+        .ba-column-row.ba-column-row-checked {
+            background: rgba(0, 120, 212, 0.12);
+            border-left: 2px solid var(--primary);
+        }
+        .ba-column-row.ba-column-row-checked:focus-within,
+        .ba-column-row.ba-column-row-checked.ba-column-row-focused {
+            background: rgba(0, 120, 212, 0.18);
+        }
+        .ba-column-row .ba-copy-select-btn {
+            opacity: 0;
+            padding: 0.15rem 0.4rem;
+            font-size: 0.7rem;
+            flex-shrink: 0;
+            transition: opacity 0.2s;
+            background: var(--bg-hover);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            color: var(--text-primary);
+            cursor: pointer;
+            margin-left: 0.25rem;
+        }
+        .ba-column-row .ba-copy-select-btn:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .ba-column-row:hover .ba-copy-select-btn {
+            opacity: 1;
+        }
         .ba-progress-overlay {
             position: fixed;
             inset: 0;
@@ -933,22 +972,38 @@
                                 <div class="ba-actions" style="margin-bottom: 0.75rem;">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnLoadEmailColumns" onclick="loadEmailColumnsList(); return false;">Tải danh sách bảng có cột Email</button>
                                 </div>
-                                <div id="emailColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.75rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
-                                <div id="emailColumnsListWrap" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; background: var(--bg-darker); margin-bottom: 1rem; display: none;">
-                                    <div style="margin-bottom: 0.5rem;">
-                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer;">
+                                <div id="emailColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
+                                <div id="emailColumnsControls" style="margin-bottom: 0.5rem; display: none;">
+                                    <input type="text" id="searchEmailColumns" class="ba-input" placeholder="Tìm theo tên bảng hoặc trạng thái (Cần reset, OK)..." style="width: 100%; margin-bottom: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.8125rem;" />
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
                                             <input type="checkbox" id="chkSelectAllEmailColumns" />
                                             <span style="margin-left: 0.5rem;">Chọn tất cả</span>
                                         </label>
+                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="selectEmailColumnsNeedReset(); return false;" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;">Chọn tất cả cần reset</button>
+                                        <span style="font-size: 0.8125rem; color: var(--text-muted);">Sắp xếp:</span>
+                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm email-sort-btn" data-sort="name" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;">Tên bảng <span class="sort-icon" id="emailSortNameIcon"></span></button>
+                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm email-sort-btn" data-sort="status" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;">Trạng thái <span class="sort-icon" id="emailSortStatusIcon"></span></button>
+                                        <span id="emailSelectedCount" style="font-size: 0.8125rem; color: var(--primary); font-weight: 500;"></span>
+                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
+                                            <input type="checkbox" id="chkEmailFilterSelected" />
+                                            <span style="margin-left: 0.5rem; font-size: 0.8125rem;">Chỉ hiện đã chọn</span>
+                                        </label>
                                     </div>
-                                    <div id="emailColumnsList" style="display: flex; flex-direction: column; gap: 0.35rem;"></div>
+                                </div>
+                                <div id="emailSelectedSummary" style="display: none; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,120,212,0.08); border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8125rem; font-weight: 500; margin-bottom: 0.35rem;">Đã chọn:</div>
+                                    <div id="emailSelectedList" style="font-size: 0.75rem; font-family: monospace; max-height: 80px; overflow-y: auto;"></div>
+                                </div>
+                                <div id="emailColumnsListWrap" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--bg-darker); margin-bottom: 1rem; display: none;">
+                                    <div id="emailColumnsList" style="display: flex; flex-direction: column; gap: 0.25rem;"></div>
                                 </div>
                                 <div class="ba-form-group">
                                     <label class="ba-form-label">Email reset chung</label>
                                     <input type="text" id="txtOtherEmailColumnsEmail" class="ba-input" placeholder="user@cadena.com.sg" style="max-width: 400px;" />
                                 </div>
                                 <div class="ba-actions">
-                                    <button type="button" class="ba-btn ba-btn-primary" id="btnResetEmailColumns" onclick="resetEmailColumns(); return false;" disabled>Reset các cột đã chọn</button>
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnResetEmailColumns" onclick="resetEmailColumns(); return false;" disabled>Reset các cột đã chọn <span id="btnEmailCount"></span></button>
                                 </div>
                                 </div>
                             </div>
@@ -964,22 +1019,36 @@
                                 <div class="ba-actions" style="margin-bottom: 0.75rem;">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnLoadPhoneColumns" onclick="loadPhoneColumnsList(); return false;">Tải danh sách bảng có cột Phone</button>
                                 </div>
-                                <div id="phoneColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.75rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
-                                <div id="phoneColumnsListWrap" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; background: var(--bg-darker); margin-bottom: 1rem; display: none;">
-                                    <div style="margin-bottom: 0.5rem;">
-                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer;">
+                                <div id="phoneColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
+                                <div id="phoneColumnsControls" style="margin-bottom: 0.5rem; display: none;">
+                                    <input type="text" id="searchPhoneColumns" class="ba-input" placeholder="Tìm theo tên bảng..." style="width: 100%; margin-bottom: 0.5rem; padding: 0.35rem 0.5rem; font-size: 0.8125rem;" />
+                                    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
                                             <input type="checkbox" id="chkSelectAllPhoneColumns" />
                                             <span style="margin-left: 0.5rem;">Chọn tất cả</span>
                                         </label>
+                                        <span style="font-size: 0.8125rem; color: var(--text-muted);">Sắp xếp:</span>
+                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm phone-sort-btn" data-sort="name" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;">Tên bảng <span class="sort-icon" id="phoneSortNameIcon"></span></button>
+                                        <span id="phoneSelectedCount" style="font-size: 0.8125rem; color: var(--primary); font-weight: 500;"></span>
+                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
+                                            <input type="checkbox" id="chkPhoneFilterSelected" />
+                                            <span style="margin-left: 0.5rem; font-size: 0.8125rem;">Chỉ hiện đã chọn</span>
+                                        </label>
                                     </div>
-                                    <div id="phoneColumnsList" style="display: flex; flex-direction: column; gap: 0.35rem;"></div>
+                                </div>
+                                <div id="phoneSelectedSummary" style="display: none; margin-bottom: 0.5rem; padding: 0.5rem; background: rgba(0,120,212,0.08); border-radius: 6px; border: 1px solid var(--border);">
+                                    <div style="font-size: 0.8125rem; font-weight: 500; margin-bottom: 0.35rem;">Đã chọn:</div>
+                                    <div id="phoneSelectedList" style="font-size: 0.75rem; font-family: monospace; max-height: 80px; overflow-y: auto;"></div>
+                                </div>
+                                <div id="phoneColumnsListWrap" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; background: var(--bg-darker); margin-bottom: 1rem; display: none;">
+                                    <div id="phoneColumnsList" style="display: flex; flex-direction: column; gap: 0.25rem;"></div>
                                 </div>
                                 <div class="ba-form-group">
                                     <label class="ba-form-label">Số điện thoại reset chung</label>
                                     <input type="text" id="txtOtherPhoneColumnsPhone" class="ba-input" placeholder="VD: 0123456789" style="max-width: 400px;" />
                                 </div>
                                 <div class="ba-actions">
-                                    <button type="button" class="ba-btn ba-btn-primary" id="btnResetPhoneColumns" onclick="resetPhoneColumns(); return false;" disabled>Reset các cột đã chọn</button>
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnResetPhoneColumns" onclick="resetPhoneColumns(); return false;" disabled>Reset các cột đã chọn <span id="btnPhoneCount"></span></button>
                                 </div>
                                 </div>
                             </div>
@@ -1355,6 +1424,12 @@
             lockedColumns['tableEmployees'][0] = true;
             applyColumnLocks('tableEmployees');
             $(document).on('click', '#confirmUpdateModal', function(e) { if (e.target === this) hideConfirmUpdateModal(); });
+            $(document).on('click', '.ba-copy-select-btn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var schema = $(this).data('schema') || 'dbo', table = $(this).data('table'), column = $(this).data('column');
+                copyColumnSelectToClipboard(schema, table, column);
+            });
             $(document).on('click', function(e) {
                 if (!$(e.target).closest('#columnContextMenu').length && !$(e.target).closest('.ba-table th').length) {
                     $('#columnContextMenu').removeClass('show');
@@ -2000,6 +2075,98 @@
         }
 
         var emailColumnsList = [];
+        var emailColumnsSortCol = 'name';
+        var emailColumnsSortDir = 1;
+
+        function renderEmailColumnsList() {
+            var q = ($('#searchEmailColumns').val() || '').toLowerCase().trim();
+            var filterSelected = $('#chkEmailFilterSelected').prop('checked');
+            var checkedKeys = {};
+            if (filterSelected) {
+                $('.chkEmailColumn:checked').each(function() {
+                    var k = ($(this).data('schema') || 'dbo') + '|' + $(this).data('table') + '|' + $(this).data('column');
+                    checkedKeys[k] = true;
+                });
+                var numChecked = Object.keys(checkedKeys).length;
+                if (numChecked === 0) {
+                    $('#chkEmailFilterSelected').prop('checked', false);
+                    filterSelected = false;
+                    showToast('Chưa chọn item nào. Chọn ít nhất một dòng rồi bật "Chỉ hiện đã chọn".', 'info');
+                }
+            }
+            var filtered = emailColumnsList.filter(function(item) {
+                var key = ((item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '')).toLowerCase();
+                var statusLabel = (item.status === 'NotReset' ? 'Cần reset' : 'OK').toLowerCase();
+                var ck = (item.schema || 'dbo') + '|' + (item.table || '') + '|' + (item.column || '');
+                if (filterSelected && !checkedKeys[ck]) return false;
+                if (!q) return true;
+                return key.indexOf(q) >= 0 || statusLabel.indexOf(q) >= 0;
+            });
+            filtered.sort(function(a, b) {
+                var va, vb;
+                if (emailColumnsSortCol === 'name') {
+                    va = ((a.schema || 'dbo') + '.' + (a.table || '') + '.' + (a.column || '')).toLowerCase();
+                    vb = ((b.schema || 'dbo') + '.' + (b.table || '') + '.' + (b.column || '')).toLowerCase();
+                    return emailColumnsSortDir * va.localeCompare(vb);
+                } else {
+                    va = a.status === 'NotReset' ? 0 : 1;
+                    vb = b.status === 'NotReset' ? 0 : 1;
+                    return emailColumnsSortDir * (va - vb);
+                }
+            });
+            var checked = [];
+            $('.chkEmailColumn:checked').each(function() {
+                checked.push($(this).data('schema') + '|' + $(this).data('table') + '|' + $(this).data('column'));
+            });
+            var html = '';
+            filtered.forEach(function(item) {
+                var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
+                var isNotReset = item.status === 'NotReset';
+                var statusCls = isNotReset ? 'var(--warning)' : 'var(--success)';
+                var statusLabel = isNotReset ? 'Cần reset' : 'OK';
+                var reasonPart = item.reason ? ' — ' + (item.reason || '') : '';
+                var needResetAttr = isNotReset ? ' data-need-reset="1"' : '';
+                var ck = (item.schema || 'dbo') + '|' + (item.table || '') + '|' + (item.column || '');
+                var checkedAttr = checked.indexOf(ck) >= 0 ? ' checked' : '';
+                var sch = (item.schema || 'dbo').replace(/"/g, '&quot;'), tbl = (item.table || '').replace(/"/g, '&quot;'), col = (item.column || '').replace(/"/g, '&quot;');
+                var checkedClass = checked.indexOf(ck) >= 0 ? ' ba-column-row-checked' : '';
+                html += '<div class="ba-column-row' + checkedClass + '" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding: 0.3rem 0.5rem;" tabindex="0">' +
+                    '<label class="ba-checkbox" style="display: flex; flex-wrap: wrap; align-items: center; cursor: pointer; font-size: 0.875rem; gap: 0.35rem; flex: 1; min-width: 0; margin: 0;">' +
+                    '<input type="checkbox" class="chkEmailColumn" data-schema="' + sch + '" data-table="' + tbl + '" data-column="' + col + '"' + needResetAttr + checkedAttr + ' />' +
+                    '<span style="font-family: monospace;">' + key + '</span>' +
+                    '<span style="color: ' + statusCls + '; font-size: 0.75rem; font-weight: 500;">[' + statusLabel + ']</span>' +
+                    (reasonPart ? '<span style="color: ' + statusCls + '; font-size: 0.75rem;">' + reasonPart + '</span>' : '') +
+                    '<button type="button" class="ba-copy-select-btn" data-schema="' + sch + '" data-table="' + tbl + '" data-column="' + col + '" title="Copy câu SELECT">📋</button>' +
+                    '</label>' +
+                    '</div>';
+            });
+            $('#emailColumnsList').html(html);
+            $('#emailSortNameIcon').text(emailColumnsSortCol === 'name' ? (emailColumnsSortDir === 1 ? '↑' : '↓') : '');
+            $('#emailSortStatusIcon').text(emailColumnsSortCol === 'status' ? (emailColumnsSortDir === 1 ? '↑' : '↓') : '');
+            updateEmailSelectedCount();
+        }
+
+        function updateEmailSelectedCount() {
+            var $checked = $('.chkEmailColumn:checked');
+            var n = $checked.length;
+            $('#emailSelectedCount').text(n > 0 ? 'Đang chọn: ' + n + ' dòng' : '');
+            var $sum = $('#emailSelectedSummary');
+            var $list = $('#emailSelectedList');
+            if (n > 0) {
+                var items = [];
+                $checked.each(function() {
+                    var s = $(this).data('schema') || 'dbo', t = $(this).data('table'), c = $(this).data('column');
+                    items.push(s + '.' + t + '.' + c);
+                });
+                $list.html(items.map(function(k) { return '<div>' + k + '</div>'; }).join(''));
+                $sum.show();
+                $('#btnEmailCount').text('(' + n + ')');
+            } else {
+                $sum.hide();
+                $('#chkEmailFilterSelected').prop('checked', false);
+                $('#btnEmailCount').text('');
+            }
+        }
 
         function loadEmailColumnsList() {
             $('#emailColumnsStatus').text('Đang tải...');
@@ -2028,32 +2195,77 @@
                         '<span style="color: var(--success);">Tìm thấy ' + emailColumnsList.length + ' cột Email.</span> ' +
                         '<span style="color: var(--warning);">Cần reset: ' + notReset + '</span>. ' +
                         '<span style="color: var(--text-muted);">Đã reset: ' + resetCount + '</span>');
-                    var html = '';
-                    emailColumnsList.forEach(function(item) {
-                        var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
-                        var isNotReset = item.status === 'NotReset';
-                        var statusCls = isNotReset ? 'var(--warning)' : 'var(--success)';
-                        var statusLabel = isNotReset ? 'Cần reset' : 'OK';
-                        var reasonPart = item.reason ? ' — ' + (item.reason || '') : '';
-                        html += '<label class="ba-checkbox" style="display: flex; flex-wrap: wrap; align-items: center; cursor: pointer; font-size: 0.875rem; gap: 0.5rem;">' +
-                            '<input type="checkbox" class="chkEmailColumn" data-schema="' + (item.schema || 'dbo').replace(/"/g, '&quot;') + '" data-table="' + (item.table || '').replace(/"/g, '&quot;') + '" data-column="' + (item.column || '').replace(/"/g, '&quot;') + '" />' +
-                            '<span style="font-family: monospace;">' + key + '</span>' +
-                            '<span style="color: ' + statusCls + '; font-size: 0.75rem; font-weight: 500;">[' + statusLabel + ']</span>' +
-                            (reasonPart ? '<span style="color: ' + statusCls + '; font-size: 0.75rem;">' + reasonPart + '</span>' : '') +
-                            '</label>';
-                    });
-                    $('#emailColumnsList').html(html);
+                    $('#searchEmailColumns').val('');
+                    $('#emailColumnsControls').show();
                     $('#emailColumnsListWrap').show();
                     $('#btnResetEmailColumns').prop('disabled', false);
+                    renderEmailColumnsList();
                     $('#chkSelectAllEmailColumns').off('change').prop('checked', false).on('change', function() {
                         var v = $(this).prop('checked');
                         $('.chkEmailColumn').prop('checked', v);
+                        $('#emailColumnsList .ba-column-row').toggleClass('ba-column-row-checked', v);
+                        updateEmailSelectedCount();
+                    });
+                    $('#searchEmailColumns').off('input').on('input', renderEmailColumnsList);
+                    $('#chkEmailFilterSelected').off('change').on('change', renderEmailColumnsList);
+                    $(document).off('change', '.chkEmailColumn').on('change', '.chkEmailColumn', function() {
+                        $(this).closest('.ba-column-row').toggleClass('ba-column-row-checked', $(this).prop('checked'));
+                        updateEmailSelectedCount();
+                    });
+                    $('.email-sort-btn').off('click').on('click', function() {
+                        var col = $(this).data('sort');
+                        if (emailColumnsSortCol === col) emailColumnsSortDir = -emailColumnsSortDir;
+                        else { emailColumnsSortCol = col; emailColumnsSortDir = 1; }
+                        renderEmailColumnsList();
                     });
                 },
                 error: function() {
                     $('#emailColumnsStatus').text('Lỗi khi tải danh sách.');
                 }
             });
+        }
+
+        function selectEmailColumnsNeedReset() {
+            $('.chkEmailColumn').each(function() {
+                var needReset = $(this).attr('data-need-reset') === '1';
+                $(this).prop('checked', needReset);
+                $(this).closest('.ba-column-row').toggleClass('ba-column-row-checked', needReset);
+            });
+            $('#chkSelectAllEmailColumns').prop('checked', false);
+            updateEmailSelectedCount();
+        }
+
+        function buildColumnSelectSql(schema, table, column) {
+            var s = schema || 'dbo', t = table || '', c = column || '';
+            var tbl = '[' + s + '].[' + t + ']';
+            var col = '[' + c + ']';
+            return 'SELECT ' + col + ', * FROM ' + tbl + ' WHERE ISNULL(' + col + ', \'\') <> \'\'';
+        }
+
+        function copyColumnSelectToClipboard(schema, table, column) {
+            var sql = buildColumnSelectSql(schema, table, column);
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(sql).then(function() {
+                    showToast('Đã copy câu SELECT vào clipboard.', 'success');
+                }).catch(function() { fallbackCopy(sql); });
+            } else {
+                fallbackCopy(sql);
+            }
+        }
+
+        function fallbackCopy(text) {
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('Đã copy câu SELECT vào clipboard.', 'success');
+            } catch (e) {
+                showToast('Không copy được.', 'error');
+            }
+            document.body.removeChild(ta);
         }
 
         function resetEmailColumns() {
@@ -2115,6 +2327,82 @@
         }
 
         var phoneColumnsList = [];
+        var phoneColumnsSortCol = 'name';
+        var phoneColumnsSortDir = 1;
+
+        function renderPhoneColumnsList() {
+            var q = ($('#searchPhoneColumns').val() || '').toLowerCase().trim();
+            var filterSelected = $('#chkPhoneFilterSelected').prop('checked');
+            var checkedKeys = {};
+            if (filterSelected) {
+                $('.chkPhoneColumn:checked').each(function() {
+                    var k = ($(this).data('schema') || 'dbo') + '|' + $(this).data('table') + '|' + $(this).data('column');
+                    checkedKeys[k] = true;
+                });
+                var numChecked = Object.keys(checkedKeys).length;
+                if (numChecked === 0) {
+                    $('#chkPhoneFilterSelected').prop('checked', false);
+                    filterSelected = false;
+                    showToast('Chưa chọn item nào. Chọn ít nhất một dòng rồi bật "Chỉ hiện đã chọn".', 'info');
+                }
+            }
+            var filtered = phoneColumnsList.filter(function(item) {
+                var key = ((item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '')).toLowerCase();
+                var ck = (item.schema || 'dbo') + '|' + (item.table || '') + '|' + (item.column || '');
+                if (filterSelected && !checkedKeys[ck]) return false;
+                if (!q) return true;
+                return key.indexOf(q) >= 0;
+            });
+            filtered.sort(function(a, b) {
+                var va = ((a.schema || 'dbo') + '.' + (a.table || '') + '.' + (a.column || '')).toLowerCase();
+                var vb = ((b.schema || 'dbo') + '.' + (b.table || '') + '.' + (b.column || '')).toLowerCase();
+                return phoneColumnsSortDir * va.localeCompare(vb);
+            });
+            var checked = [];
+            $('.chkPhoneColumn:checked').each(function() {
+                checked.push($(this).data('schema') + '|' + $(this).data('table') + '|' + $(this).data('column'));
+            });
+            var html = '';
+            filtered.forEach(function(item) {
+                var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
+                var sch = (item.schema || 'dbo').replace(/"/g, '&quot;'), tbl = (item.table || '').replace(/"/g, '&quot;'), col = (item.column || '').replace(/"/g, '&quot;');
+                var ck = (item.schema || 'dbo') + '|' + (item.table || '') + '|' + (item.column || '');
+                var checkedAttr = checked.indexOf(ck) >= 0 ? ' checked' : '';
+                var checkedClass = checked.indexOf(ck) >= 0 ? ' ba-column-row-checked' : '';
+                html += '<div class="ba-column-row' + checkedClass + '" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding: 0.3rem 0.5rem;" tabindex="0">' +
+                    '<label class="ba-checkbox" style="display: flex; align-items: center; cursor: pointer; font-size: 0.875rem; flex: 1; min-width: 0; margin: 0;">' +
+                    '<input type="checkbox" class="chkPhoneColumn" data-schema="' + sch + '" data-table="' + tbl + '" data-column="' + col + '"' + checkedAttr + ' />' +
+                    '<span style="margin-left: 0.5rem; font-family: monospace;">' + key + '</span>' +
+                    '<button type="button" class="ba-copy-select-btn" data-schema="' + sch + '" data-table="' + tbl + '" data-column="' + col + '" title="Copy câu SELECT">📋</button>' +
+                    '</label>' +
+                    '</div>';
+            });
+            $('#phoneColumnsList').html(html);
+            $('#phoneSortNameIcon').text(phoneColumnsSortDir === 1 ? '↑' : '↓');
+            updatePhoneSelectedCount();
+        }
+
+        function updatePhoneSelectedCount() {
+            var $checked = $('.chkPhoneColumn:checked');
+            var n = $checked.length;
+            $('#phoneSelectedCount').text(n > 0 ? 'Đang chọn: ' + n + ' dòng' : '');
+            var $sum = $('#phoneSelectedSummary');
+            var $list = $('#phoneSelectedList');
+            if (n > 0) {
+                var items = [];
+                $checked.each(function() {
+                    var s = $(this).data('schema') || 'dbo', t = $(this).data('table'), c = $(this).data('column');
+                    items.push(s + '.' + t + '.' + c);
+                });
+                $list.html(items.map(function(k) { return '<div>' + k + '</div>'; }).join(''));
+                $sum.show();
+                $('#btnPhoneCount').text('(' + n + ')');
+            } else {
+                $sum.hide();
+                $('#chkPhoneFilterSelected').prop('checked', false);
+                $('#btnPhoneCount').text('');
+            }
+        }
 
         function loadPhoneColumnsList() {
             $('#phoneColumnsStatus').text('Đang tải...');
@@ -2138,19 +2426,26 @@
                         return;
                     }
                     $('#phoneColumnsStatus').html('<span style="color: var(--success);">Tìm thấy ' + phoneColumnsList.length + ' cột Phone.</span>');
-                    var html = '';
-                    phoneColumnsList.forEach(function(item) {
-                        var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
-                        html += '<label class="ba-checkbox" style="display: flex; align-items: center; cursor: pointer; font-size: 0.875rem;">' +
-                            '<input type="checkbox" class="chkPhoneColumn" data-schema="' + (item.schema || 'dbo').replace(/"/g, '&quot;') + '" data-table="' + (item.table || '').replace(/"/g, '&quot;') + '" data-column="' + (item.column || '').replace(/"/g, '&quot;') + '" />' +
-                            '<span style="margin-left: 0.5rem; font-family: monospace;">' + key + '</span></label>';
-                    });
-                    $('#phoneColumnsList').html(html);
+                    $('#searchPhoneColumns').val('');
+                    $('#phoneColumnsControls').show();
                     $('#phoneColumnsListWrap').show();
                     $('#btnResetPhoneColumns').prop('disabled', false);
+                    renderPhoneColumnsList();
                     $('#chkSelectAllPhoneColumns').off('change').prop('checked', false).on('change', function() {
                         var v = $(this).prop('checked');
                         $('.chkPhoneColumn').prop('checked', v);
+                        $('#phoneColumnsList .ba-column-row').toggleClass('ba-column-row-checked', v);
+                        updatePhoneSelectedCount();
+                    });
+                    $('#searchPhoneColumns').off('input').on('input', renderPhoneColumnsList);
+                    $('#chkPhoneFilterSelected').off('change').on('change', renderPhoneColumnsList);
+                    $('.phone-sort-btn').off('click').on('click', function() {
+                        phoneColumnsSortDir = -phoneColumnsSortDir;
+                        renderPhoneColumnsList();
+                    });
+                    $(document).off('change', '.chkPhoneColumn').on('change', '.chkPhoneColumn', function() {
+                        $(this).closest('.ba-column-row').toggleClass('ba-column-row-checked', $(this).prop('checked'));
+                        updatePhoneSelectedCount();
                     });
                 },
                 error: function() {

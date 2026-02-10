@@ -670,6 +670,72 @@
             cursor: pointer;
             accent-color: var(--primary);
         }
+        .user-permissions-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            padding: 0.25rem 0;
+        }
+        .user-permissions-header:hover { opacity: 0.9; }
+        .permissions-toggle {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+        }
+        .user-permissions-body.collapsed { display: none !important; }
+        .user-permissions-header .permissions-toggle.rotated { transform: rotate(-90deg); }
+        .server-select-all-label {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-size: 0.8125rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .user-server-access-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            user-select: none;
+            padding: 0.25rem 0;
+        }
+        .user-server-access-header:hover { opacity: 0.9; }
+        .server-access-badge {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: var(--bg-hover);
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+        .server-access-toggle {
+            margin-left: auto;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            transition: transform 0.2s;
+        }
+        .user-server-access-body.collapsed { display: none !important; }
+        .user-server-access-header .server-access-toggle.rotated { transform: rotate(-90deg); }
+        .modal-server-access-wrap {
+            max-height: 180px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.5rem;
+            background: var(--bg-darker);
+        }
+        .modal-server-access-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 0.25rem 1rem;
+        }
+        .modal-server-access-grid .perm-item {
+            padding: 0.2rem 0;
+            font-size: 0.8125rem;
+        }
         .perm-item {
             display: flex;
             align-items: center;
@@ -843,10 +909,34 @@
                         </select>
                     </div>
                     <div class="user-form-group" id="wrapPermissions">
-                        <div class="user-form-label">Quyền riêng lẻ (thêm)</div>
-                        <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.5rem;">Quyền từ Role không thể bỏ. Chỉ có thể thêm quyền cho user đặc biệt (UI Builder, Database Search, Encrypt/Decrypt, HR Helper…).</p>
-                        <div id="modalPermissionsList"></div>
-                        <div id="modalPermissionsLoading" style="display: none; font-size: 0.875rem; color: var(--text-muted);">Đang tải danh sách quyền…</div>
+                        <div class="user-permissions-header" onclick="togglePermissionsSection(); return false;" title="Thu gọn / Mở rộng">
+                            <span class="user-form-label" style="margin: 0;">Quyền riêng lẻ (thêm)</span>
+                            <span class="permissions-toggle" id="permissionsToggle">▼</span>
+                        </div>
+                        <div class="user-permissions-body" id="permissionsBody">
+                            <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.5rem;">Quyền từ Role không thể bỏ. Chỉ có thể thêm quyền cho user đặc biệt (UI Builder, Database Search, Encrypt/Decrypt, HR Helper…).</p>
+                            <div id="modalPermissionsList"></div>
+                            <div id="modalPermissionsLoading" style="display: none; font-size: 0.875rem; color: var(--text-muted);">Đang tải danh sách quyền…</div>
+                        </div>
+                    </div>
+                    <div class="user-form-group" id="wrapServerAccess">
+                        <div class="user-server-access-header" id="serverAccessHeader" onclick="toggleServerAccessSection(); return false;" title="Thu gọn / Mở rộng">
+                            <span class="user-form-label" style="margin: 0;">Server Access (bổ sung cho role)</span>
+                            <span class="server-access-badge" id="serverAccessBadge"></span>
+                            <span class="server-access-toggle" id="serverAccessToggle">▼</span>
+                        </div>
+                        <div class="user-server-access-body" id="serverAccessBody">
+                            <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.5rem;">Chọn server mà user được phép sử dụng (quét DB). Gộp với server từ Role. Nếu không chọn = chỉ dùng server từ Role.</p>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap;">
+                                <input type="text" id="modalServerSearch" class="admin-input" placeholder="Tìm server..." style="flex: 1; min-width: 120px; padding: 0.4rem 0.6rem; font-size: 0.8125rem;" />
+                                <label class="server-select-all-label">
+                                    <input type="checkbox" id="modalServerSelectAll" /> Chọn tất cả
+                                </label>
+                            </div>
+                            <div class="modal-server-access-wrap" id="modalServerAccessWrap">
+                                <div id="modalServerAccessList"></div>
+                            </div>
+                        </div>
                     </div>
                     <div class="user-form-group">
                         <div class="user-form-checkbox-group">
@@ -1046,6 +1136,8 @@
         var permissionsList = [];
         var rolePermissionsMap = {};
         var currentUserPermissionIds = [];
+        var serversList = [];
+        var currentUserServerIds = [];
 
         function loadRoles() {
             $.ajax({
@@ -1091,6 +1183,102 @@
             });
             return $.when(reqPerm, reqRp);
         }
+
+        function loadServers() {
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/Users.aspx/LoadServers") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: '{}',
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.list) serversList = d.list;
+                }
+            });
+        }
+
+        function renderServerAccessCheckboxes(userServerIds) {
+            userServerIds = userServerIds || [];
+            var $list = $('#modalServerAccessList');
+            $list.empty();
+            if (!serversList.length) {
+                $list.html('<p style="font-size: 0.875rem; color: var(--text-muted);">Chưa có server. Thêm server trong Database Search.</p>');
+                updateServerAccessBadge(0);
+                return;
+            }
+            var $grid = $('<div class="modal-server-access-grid"></div>');
+            serversList.forEach(function(s) {
+                var checked = userServerIds.indexOf(s.id) >= 0;
+                var disp = (s.serverName || '') + (s.port != null ? ':' + s.port : '') + ' (' + (s.username || '') + ')';
+                var searchText = disp.toLowerCase();
+                var $item = $('<label class="perm-item" data-search="' + searchText.replace(/"/g, '&quot;') + '"></label>');
+                $item.append('<input type="checkbox" class="perm-server-cb" data-sid="' + s.id + '" ' + (checked ? 'checked' : '') + ' />');
+                $item.append('<span>' + disp + '</span>');
+                $grid.append($item);
+            });
+            $list.append($grid);
+            $('#modalServerSelectAll').prop('checked', false).prop('indeterminate', false);
+            updateServerAccessBadge(userServerIds.length);
+            filterModalServerRows();
+        }
+
+        function togglePermissionsSection() {
+            var $body = $('#permissionsBody');
+            var $tog = $('#permissionsToggle');
+            $body.toggleClass('collapsed');
+            $tog.toggleClass('rotated', $body.hasClass('collapsed'));
+        }
+
+        function toggleServerAccessSection() {
+            var $body = $('#serverAccessBody');
+            var $tog = $('#serverAccessToggle');
+            $body.toggleClass('collapsed');
+            $tog.toggleClass('rotated', $body.hasClass('collapsed'));
+        }
+
+        function updateServerAccessBadge(count) {
+            var $badge = $('#serverAccessBadge');
+            $badge.text(count > 0 ? count + ' đã chọn' : '');
+        }
+
+        function filterModalServerRows() {
+            var q = ($('#modalServerSearch').val() || '').toLowerCase().trim();
+            $('#modalServerAccessList .perm-item').each(function() {
+                var match = !q || ($(this).attr('data-search') || '').indexOf(q) >= 0;
+                $(this).css('display', match ? '' : 'none');
+            });
+            updateServerSelectAllState();
+        }
+
+        function updateServerSelectAllState() {
+            var $all = $('#modalServerSelectAll');
+            var $cbs = $('#modalServerAccessList .perm-server-cb');
+            var $visible = $cbs.filter(function() { return $(this).closest('.perm-item').css('display') !== 'none'; });
+            var checked = $visible.filter(':checked').length;
+            if (checked === 0) {
+                $all.prop('checked', false);
+                $all.prop('indeterminate', false);
+            } else if (checked === $visible.length) {
+                $all.prop('checked', true);
+                $all.prop('indeterminate', false);
+            } else {
+                $all.prop('checked', false);
+                $all.prop('indeterminate', true);
+            }
+            updateServerAccessBadge($('#modalServerAccessList .perm-server-cb:checked').length);
+        }
+
+        $(document).on('change', '.perm-server-cb', function() {
+            updateServerSelectAllState();
+        });
+
+        $('#modalServerSelectAll').on('change', function() {
+            var checked = $(this).prop('checked');
+            $('#modalServerAccessList .perm-item:visible .perm-server-cb').prop('checked', checked);
+            updateServerAccessBadge(checked ? $('#modalServerAccessList .perm-server-cb').length : 0);
+            $('#modalServerSelectAll').prop('indeterminate', false);
+        });
 
         function renderPermissionCheckboxes(roleIdVal, userPermissionIds) {
             userPermissionIds = userPermissionIds || [];
@@ -1140,8 +1328,16 @@
             $username.prop('disabled', false);
             $passwordRequired.show();
             $wrapPerm.hide();
+            $('#wrapServerAccess').hide();
+            $('#serverAccessBody').removeClass('collapsed');
+            $('#serverAccessToggle').removeClass('rotated');
+            $('#permissionsBody').removeClass('collapsed');
+            $('#permissionsToggle').removeClass('rotated');
+            $('#modalServerSearch').val('');
             currentUserPermissionIds = [];
+            currentUserServerIds = [];
             renderPermissionCheckboxes(0, []);
+            renderServerAccessCheckboxes([]);
 
             if (userId) {
                 $title.text('Edit User');
@@ -1149,6 +1345,11 @@
                 $username.prop('disabled', true);
                 $passwordRequired.hide();
                 $wrapPerm.show();
+                $('#wrapServerAccess').show();
+                $('#serverAccessBody').addClass('collapsed');
+                $('#serverAccessToggle').addClass('rotated');
+                $('#permissionsBody').addClass('collapsed');
+                $('#permissionsToggle').addClass('rotated');
                 $('#modalPermissionsLoading').text('Đang tải danh sách quyền…').show();
                 $('#modalPermissionsList').empty();
 
@@ -1171,7 +1372,9 @@
                                 var rid = result.roleId && result.roleId !== 0 ? result.roleId : '0';
                                 $roleId.val(rid);
                                 currentUserPermissionIds = result.userPermissionIds || [];
+                                currentUserServerIds = result.userServerIds || [];
                                 renderPermissionCheckboxes(rid, currentUserPermissionIds);
+                                renderServerAccessCheckboxes(currentUserServerIds);
                             } else {
                                 $('#modalPermissionsLoading').hide();
                                 showToast(result && result.message ? result.message : 'Error loading user data.', 'error');
@@ -1190,6 +1393,10 @@
 
             $modal.addClass('show');
         }
+
+        $('#modalServerSearch').on('input', filterModalServerRows);
+
+        $(document).on('click', '#modalServerSelectAll', function(e) { e.stopPropagation(); });
 
         $('#modalRoleId').on('change', function() {
             if (!currentEditUserId) return;
@@ -1259,6 +1466,10 @@
             if (currentEditUserId) {
                 data.roleId = roleIdVal;
                 data.extraPermissionIds = collectExtraPermissionIds();
+                data.extraServerIds = [];
+                $('#modalServerAccessList .perm-server-cb:checked').each(function() {
+                    data.extraServerIds.push(parseInt($(this).data('sid'), 10));
+                });
             } else {
                 data.roleId = roleIdVal === 0 ? null : roleIdVal;
             }
@@ -1359,6 +1570,7 @@
         $(function() {
             loadRoles();
             loadPermissionsAndRolePermissions();
+            loadServers();
             bindUserSearchAndSort();
         });
 
