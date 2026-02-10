@@ -175,7 +175,8 @@
             border-radius: 8px;
             overflow: hidden;
             margin-bottom: 2rem;
-            max-height: 480px;
+            max-height: min(900px, calc(100vh - 220px));
+            min-height: 400px;
             overflow-y: auto;
         }
 
@@ -1327,8 +1328,8 @@
             $isActive.prop('checked', true);
             $username.prop('disabled', false);
             $passwordRequired.show();
-            $wrapPerm.hide();
-            $('#wrapServerAccess').hide();
+            $wrapPerm.show();
+            $('#wrapServerAccess').show();
             $('#serverAccessBody').removeClass('collapsed');
             $('#serverAccessToggle').removeClass('rotated');
             $('#permissionsBody').removeClass('collapsed');
@@ -1389,6 +1390,19 @@
             } else {
                 $title.text('Add New User');
                 $btnSave.text('Save');
+                $('#serverAccessBody').removeClass('collapsed');
+                $('#serverAccessToggle').removeClass('rotated');
+                $('#permissionsBody').removeClass('collapsed');
+                $('#permissionsToggle').removeClass('rotated');
+                $('#modalPermissionsLoading').text('Đang tải danh sách quyền…').show();
+                $('#modalPermissionsList').empty();
+                var loadPerm = loadPermissionsAndRolePermissions();
+                loadPerm.always(function() {
+                    var rid = $('#modalRoleId').val() || '0';
+                    renderPermissionCheckboxes(rid, []);
+                    renderServerAccessCheckboxes([]);
+                    $('#modalPermissionsLoading').hide();
+                });
             }
 
             $modal.addClass('show');
@@ -1399,9 +1413,9 @@
         $(document).on('click', '#modalServerSelectAll', function(e) { e.stopPropagation(); });
 
         $('#modalRoleId').on('change', function() {
-            if (!currentEditUserId) return;
             var rid = $(this).val();
-            renderPermissionCheckboxes(rid, currentUserPermissionIds);
+            var uPids = currentEditUserId ? currentUserPermissionIds : [];
+            renderPermissionCheckboxes(rid, uPids);
         });
 
         $('#pwToggle').on('click', function() {
@@ -1472,6 +1486,11 @@
                 });
             } else {
                 data.roleId = roleIdVal === 0 ? null : roleIdVal;
+                data.extraPermissionIds = collectExtraPermissionIds();
+                data.extraServerIds = [];
+                $('#modalServerAccessList .perm-server-cb:checked').each(function() {
+                    data.extraServerIds.push(parseInt($(this).data('sid'), 10));
+                });
             }
 
             var url = currentEditUserId 

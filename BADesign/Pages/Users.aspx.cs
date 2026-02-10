@@ -270,7 +270,7 @@ WHERE UserId=@id";
 
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static object CreateUser(string userName, string password, string fullName = null, string email = null, bool isSuperAdmin = false, bool isActive = true, int? roleId = null)
+		public static object CreateUser(string userName, string password, string fullName = null, string email = null, bool isSuperAdmin = false, bool isActive = true, int? roleId = null, int[] extraPermissionIds = null, int[] extraServerIds = null)
 		{
 			try
 			{
@@ -288,22 +288,54 @@ WHERE UserId=@id";
 				var hash = UiAuthHelper.HashPassword(password);
 
 				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-				using (var cmd = conn.CreateCommand())
 				{
-					cmd.CommandText = @"
+					conn.Open();
+
+					int userId;
+					using (var cmd = conn.CreateCommand())
+					{
+						cmd.CommandText = @"
 INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin, IsActive, RoleId)
 VALUES (@u, @p, @f, @e, @sa, @ia, @rid);
 SELECT CAST(SCOPE_IDENTITY() AS INT);";
-					cmd.Parameters.AddWithValue("@u", userName.Trim());
-					cmd.Parameters.AddWithValue("@p", hash);
-					cmd.Parameters.AddWithValue("@f", string.IsNullOrWhiteSpace(fullName) ? (object)DBNull.Value : fullName.Trim());
-					cmd.Parameters.AddWithValue("@e", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim());
-					cmd.Parameters.AddWithValue("@sa", isSuperAdmin);
-					cmd.Parameters.AddWithValue("@ia", isActive);
-					cmd.Parameters.AddWithValue("@rid", roleId.HasValue ? (object)roleId.Value : DBNull.Value);
+						cmd.Parameters.AddWithValue("@u", userName.Trim());
+						cmd.Parameters.AddWithValue("@p", hash);
+						cmd.Parameters.AddWithValue("@f", string.IsNullOrWhiteSpace(fullName) ? (object)DBNull.Value : fullName.Trim());
+						cmd.Parameters.AddWithValue("@e", string.IsNullOrWhiteSpace(email) ? (object)DBNull.Value : email.Trim());
+						cmd.Parameters.AddWithValue("@sa", isSuperAdmin);
+						cmd.Parameters.AddWithValue("@ia", isActive);
+						cmd.Parameters.AddWithValue("@rid", roleId.HasValue ? (object)roleId.Value : DBNull.Value);
 
-					conn.Open();
-					var userId = (int)cmd.ExecuteScalar();
+						userId = (int)cmd.ExecuteScalar();
+					}
+
+					if (extraPermissionIds != null && extraPermissionIds.Length > 0)
+					{
+						foreach (var pid in extraPermissionIds)
+						{
+							using (var ins = conn.CreateCommand())
+							{
+								ins.CommandText = "INSERT INTO UiUserPermission (UserId, PermissionId) VALUES (@uid, @pid)";
+								ins.Parameters.AddWithValue("@uid", userId);
+								ins.Parameters.AddWithValue("@pid", pid);
+								ins.ExecuteNonQuery();
+							}
+						}
+					}
+
+					if (extraServerIds != null && extraServerIds.Length > 0)
+					{
+						foreach (var sid in extraServerIds)
+						{
+							using (var ins = conn.CreateCommand())
+							{
+								ins.CommandText = "INSERT INTO UiUserServerAccess (UserId, ServerId) VALUES (@uid, @sid)";
+								ins.Parameters.AddWithValue("@uid", userId);
+								ins.Parameters.AddWithValue("@sid", sid);
+								ins.ExecuteNonQuery();
+							}
+						}
+					}
 
 					return new { success = true, message = "User created successfully.", userId = userId };
 				}

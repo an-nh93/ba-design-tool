@@ -965,7 +965,7 @@
                             <div class="ba-card ba-update-section ba-collapsible-group" id="groupEmail">
                                 <div class="ba-collapsible-header" onclick="toggleOtherGroup('groupEmail'); return false;">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset cột Email (tự động phát hiện)</h3>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset trường Email (Gợi ý)</h3>
                                 </div>
                                 <div class="ba-collapsible-body">
                                 <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1rem;">Liệt kê tất cả bảng có cột tên chứa "Email" và kiểu text. Chọn các bảng cần reset rồi nhập email chung.</p>
@@ -1012,7 +1012,7 @@
                             <div class="ba-card ba-update-section ba-collapsible-group" id="groupPhone">
                                 <div class="ba-collapsible-header" onclick="toggleOtherGroup('groupPhone'); return false;">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset cột Phone (tự động phát hiện)</h3>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset trường Phone (Gợi ý)</h3>
                                 </div>
                                 <div class="ba-collapsible-body">
                                 <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1rem;">Liệt kê tất cả bảng có cột tên chứa "Phone" và kiểu text. Chọn các bảng cần reset rồi nhập số điện thoại chung.</p>
