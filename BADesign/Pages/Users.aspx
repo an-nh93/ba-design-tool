@@ -85,7 +85,8 @@
         .admin-sidebar.collapsed .admin-sidebar-header { padding: 0 0.75rem 1rem; }
         .admin-sidebar.collapsed .admin-sidebar-title,
         .admin-sidebar.collapsed .admin-nav-item span { display: none; }
-        .admin-sidebar.collapsed .admin-nav-item { justify-content: center; padding: 0.75rem; }
+        .admin-sidebar.collapsed .admin-nav-item { justify-content: center; padding: 0.75rem; text-align: center; font-size: 1.25rem; }
+        .admin-sidebar.collapsed .admin-nav-item::before { content: attr(data-icon); }
         .admin-sidebar-toggle {
             background: none;
             border: none;
@@ -711,13 +712,13 @@
                     <div class="admin-sidebar-title">UI Builder</div>
                     <button type="button" class="admin-sidebar-toggle" id="adminSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
-                <a href="~/HomeRole" runat="server" class="admin-nav-item" title="Back to Home">
+                <a href="~/HomeRole" runat="server" class="admin-nav-item" data-icon="←" title="Back to Home">
                     <span>← Back to Home</span>
                 </a>
-                <div class="admin-nav-item active" title="User Management">
+                <div class="admin-nav-item active" data-icon="👥" title="User Management">
                     <span>👥 User Management</span>
                 </div>
-                <a href="~/RolePermission" runat="server" class="admin-nav-item" title="Role Permission">
+                <a href="~/RolePermission" runat="server" class="admin-nav-item" data-icon="🛡" title="Role Permission">
                     <span>🛡 Role Permission</span>
                 </a>
             </div>
@@ -1294,27 +1295,36 @@
             showUserModal(userId);
         }
 
-        // ===== Users Table Search & Sort =====
+        // ===== Users Table Search & Sort (dùng hide/show, không xóa rows) =====
         var userSortCol = 'userId';
         var userSortDir = 1;
-        var allUserRows = [];
+
+        function rowMatchesQuery($r, q) {
+            if (!q) return true;
+            var rowText = ($r.text() || '').replace(/\s+/g, ' ').trim().toLowerCase();
+            if (rowText.indexOf(q) >= 0) return true;
+            var un = ($r.attr('data-user-name') || '').toLowerCase();
+            var fn = ($r.attr('data-full-name') || '').toLowerCase();
+            var em = ($r.attr('data-email') || '').toLowerCase();
+            var rl = ($r.attr('data-role') || '').toLowerCase();
+            return un.indexOf(q) >= 0 || fn.indexOf(q) >= 0 || em.indexOf(q) >= 0 || rl.indexOf(q) >= 0;
+        }
 
         function filterAndSortUsers() {
             var q = ($('#userSearchInput').val() || '').toLowerCase().trim();
-            var $tbody = $('#usersTableBody');
-            var sourceRows = allUserRows.length ? allUserRows : $tbody.find('tr').toArray();
-            if (!allUserRows.length) allUserRows = sourceRows.slice();
-            var filtered = q ? sourceRows.filter(function() {
-                var $r = $(this);
-                var $cells = $r.find('td');
-                var uid = $cells.length > 0 ? ($r.attr('data-user-id') || $cells.eq(0).text() || '').toString().toLowerCase() : '';
-                var un = $cells.length > 1 ? ($cells.eq(1).text() || '').toLowerCase() : ($r.attr('data-user-name') || '').toLowerCase();
-                var fn = $cells.length > 2 ? ($cells.eq(2).text() || '').toLowerCase() : ($r.attr('data-full-name') || '').toLowerCase();
-                var em = $cells.length > 3 ? ($cells.eq(3).text() || '').toLowerCase() : ($r.attr('data-email') || '').toLowerCase();
-                var rl = $cells.length > 4 ? ($cells.eq(4).text() || '').toLowerCase() : ($r.attr('data-role') || '').toLowerCase();
-                return uid.indexOf(q) >= 0 || un.indexOf(q) >= 0 || fn.indexOf(q) >= 0 || em.indexOf(q) >= 0 || rl.indexOf(q) >= 0;
-            }) : sourceRows;
-            var sorted = filtered.slice().sort(function(a, b) {
+            var $tbody = $('#usersTableBody').length ? $('#usersTableBody') : $('.admin-table tbody');
+            var $rows = $tbody.find('tr');
+            $rows.each(function() {
+                var match = rowMatchesQuery($(this), q);
+                $(this).css('display', match ? '' : 'none');
+            });
+            var visibleArr = [];
+            var hiddenArr = [];
+            $rows.each(function() {
+                if ($(this).css('display') !== 'none') visibleArr.push(this);
+                else hiddenArr.push(this);
+            });
+            var sorted = visibleArr.slice().sort(function(a, b) {
                 var $a = $(a), $b = $(b);
                 var va, vb;
                 switch (userSortCol) {
@@ -1328,14 +1338,15 @@
                     default: return 0;
                 }
             });
-            $tbody.empty().append(sorted);
+            $tbody.empty();
+            $.each(sorted, function(_, el) { $tbody.append(el); });
+            $.each(hiddenArr, function(_, el) { $tbody.append(el); });
             $('.admin-table th .sort-icon').text('');
             var $active = $('.admin-table th.admin-sortable[data-col="' + userSortCol + '"] .sort-icon');
             if ($active.length) $active.text(userSortDir === 1 ? '↑' : '↓');
         }
 
         function bindUserSearchAndSort() {
-            allUserRows = $('#usersTableBody tr').toArray();
             $('#userSearchInput').on('input keyup', filterAndSortUsers);
             $('.admin-table').on('click', 'th.admin-sortable', function() {
                 var col = $(this).data('col');
