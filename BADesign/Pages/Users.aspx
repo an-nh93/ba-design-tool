@@ -1,5 +1,6 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Users.aspx.cs"
     Inherits="UiBuilderFull.Admin.Users" %>
+<%@ Import Namespace="System.Web" %>
 
 <!DOCTYPE html>
 <html>
@@ -173,6 +174,8 @@
             border-radius: 8px;
             overflow: hidden;
             margin-bottom: 2rem;
+            max-height: 480px;
+            overflow-y: auto;
         }
 
         .admin-table {
@@ -183,6 +186,13 @@
         .admin-table thead {
             background: var(--bg-darker);
             border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .admin-table thead th {
+            background: var(--bg-darker);
         }
 
         .admin-table th {
@@ -208,6 +218,43 @@
 
         .admin-table tbody tr:last-child td {
             border-bottom: none;
+        }
+
+        .admin-table th.admin-sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        .admin-table th.admin-sortable:hover { background: var(--bg-hover); }
+        .admin-table th .sort-icon { margin-left: 4px; opacity: 0.6; }
+
+        .admin-users-search {
+            margin-bottom: 1rem;
+            max-width: 400px;
+        }
+        .admin-users-search input {
+            width: 100%;
+            padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+        .admin-users-search input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .admin-users-search-wrap {
+            position: relative;
+        }
+        .admin-users-search-wrap::before {
+            content: "🔍";
+            position: absolute;
+            left: 0.75rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.875rem;
+            opacity: 0.7;
         }
 
         /* ===== Form Elements ===== */
@@ -687,25 +734,30 @@
 
                 <!-- Content -->
                 <div class="admin-content">
+                    <div class="admin-users-search">
+                        <div class="admin-users-search-wrap">
+                            <input type="text" id="userSearchInput" placeholder="Search by Username, Full Name, Email, Role..." />
+                        </div>
+                    </div>
                     <!-- Users Table -->
                     <div class="admin-table-container">
                         <table class="admin-table">
                             <thead>
                                 <tr>
-                                    <th>ID</th>
-                                    <th>Username</th>
-                                    <th>Full Name</th>
-                                    <th>Email</th>
-                                    <th>Role</th>
-                                    <th>Super Admin</th>
-                                    <th>Active</th>
+                                    <th class="admin-sortable" data-col="userId"><span>ID <span class="sort-icon"></span></span></th>
+                                    <th class="admin-sortable" data-col="userName"><span>Username <span class="sort-icon"></span></span></th>
+                                    <th class="admin-sortable" data-col="fullName"><span>Full Name <span class="sort-icon"></span></span></th>
+                                    <th class="admin-sortable" data-col="email"><span>Email <span class="sort-icon"></span></span></th>
+                                    <th class="admin-sortable" data-col="role"><span>Role <span class="sort-icon"></span></span></th>
+                                    <th class="admin-sortable" data-col="superAdmin"><span>Super Admin <span class="sort-icon"></span></span></th>
+                                    <th class="admin-sortable" data-col="active"><span>Active <span class="sort-icon"></span></span></th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="usersTableBody">
                                 <asp:Repeater ID="rpUsers" runat="server">
                                     <ItemTemplate>
-                                        <tr>
+                                        <tr data-user-id="<%# Eval("UserId") %>" data-user-name="<%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %>" data-full-name="<%# HttpUtility.HtmlEncode((Eval("FullName") as string) ?? "-") %>" data-email="<%# HttpUtility.HtmlEncode((Eval("Email") as string) ?? "-") %>" data-role="<%# HttpUtility.HtmlEncode((Eval("RoleCode") as string) ?? "-") %>" data-super-admin="<%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>" data-active="<%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>">
                                             <td><%# Eval("UserId") %></td>
                                             <td><strong><%# Eval("UserName") %></strong></td>
                                             <td><%# Eval("FullName") ?? "-" %></td>
@@ -1242,9 +1294,61 @@
             showUserModal(userId);
         }
 
+        // ===== Users Table Search & Sort =====
+        var userSortCol = 'userId';
+        var userSortDir = 1;
+        var allUserRows = [];
+
+        function filterAndSortUsers() {
+            var q = ($('#userSearchInput').val() || '').toLowerCase().trim();
+            var $tbody = $('#usersTableBody');
+            var sourceRows = allUserRows.length ? allUserRows : $tbody.find('tr').toArray();
+            if (!allUserRows.length) allUserRows = sourceRows.slice();
+            var filtered = q ? sourceRows.filter(function() {
+                var $r = $(this);
+                var $cells = $r.find('td');
+                var uid = $cells.length > 0 ? ($r.attr('data-user-id') || $cells.eq(0).text() || '').toString().toLowerCase() : '';
+                var un = $cells.length > 1 ? ($cells.eq(1).text() || '').toLowerCase() : ($r.attr('data-user-name') || '').toLowerCase();
+                var fn = $cells.length > 2 ? ($cells.eq(2).text() || '').toLowerCase() : ($r.attr('data-full-name') || '').toLowerCase();
+                var em = $cells.length > 3 ? ($cells.eq(3).text() || '').toLowerCase() : ($r.attr('data-email') || '').toLowerCase();
+                var rl = $cells.length > 4 ? ($cells.eq(4).text() || '').toLowerCase() : ($r.attr('data-role') || '').toLowerCase();
+                return uid.indexOf(q) >= 0 || un.indexOf(q) >= 0 || fn.indexOf(q) >= 0 || em.indexOf(q) >= 0 || rl.indexOf(q) >= 0;
+            }) : sourceRows;
+            var sorted = filtered.slice().sort(function(a, b) {
+                var $a = $(a), $b = $(b);
+                var va, vb;
+                switch (userSortCol) {
+                    case 'userId': va = parseInt($a.attr('data-user-id'), 10) || 0; vb = parseInt($b.attr('data-user-id'), 10) || 0; return userSortDir * (va - vb);
+                    case 'userName': va = ($a.attr('data-user-name') || '').toLowerCase(); vb = ($b.attr('data-user-name') || '').toLowerCase(); return userSortDir * va.localeCompare(vb);
+                    case 'fullName': va = ($a.attr('data-full-name') || '').toLowerCase(); vb = ($b.attr('data-full-name') || '').toLowerCase(); return userSortDir * va.localeCompare(vb);
+                    case 'email': va = ($a.attr('data-email') || '').toLowerCase(); vb = ($b.attr('data-email') || '').toLowerCase(); return userSortDir * va.localeCompare(vb);
+                    case 'role': va = ($a.attr('data-role') || '').toLowerCase(); vb = ($b.attr('data-role') || '').toLowerCase(); return userSortDir * va.localeCompare(vb);
+                    case 'superAdmin': va = ($a.attr('data-super-admin') || '').toLowerCase(); vb = ($b.attr('data-super-admin') || '').toLowerCase(); return userSortDir * va.localeCompare(vb);
+                    case 'active': va = ($a.attr('data-active') || '').toLowerCase(); vb = ($b.attr('data-active') || '').toLowerCase(); return userSortDir * va.localeCompare(vb);
+                    default: return 0;
+                }
+            });
+            $tbody.empty().append(sorted);
+            $('.admin-table th .sort-icon').text('');
+            var $active = $('.admin-table th.admin-sortable[data-col="' + userSortCol + '"] .sort-icon');
+            if ($active.length) $active.text(userSortDir === 1 ? '↑' : '↓');
+        }
+
+        function bindUserSearchAndSort() {
+            allUserRows = $('#usersTableBody tr').toArray();
+            $('#userSearchInput').on('input keyup', filterAndSortUsers);
+            $('.admin-table').on('click', 'th.admin-sortable', function() {
+                var col = $(this).data('col');
+                if (!col) return;
+                if (userSortCol === col) userSortDir = -userSortDir; else { userSortCol = col; userSortDir = 1; }
+                filterAndSortUsers();
+            });
+        }
+
         $(function() {
             loadRoles();
             loadPermissionsAndRolePermissions();
+            bindUserSearchAndSort();
         });
 
         $(document).on('click', '.user-modal', function(e) {

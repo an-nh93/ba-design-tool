@@ -2022,13 +2022,25 @@
                         $('#emailColumnsStatus').html('<span style="color: var(--text-muted);">Không tìm thấy bảng nào có cột Email (kiểu text).</span>');
                         return;
                     }
-                    $('#emailColumnsStatus').html('<span style="color: var(--success);">Tìm thấy ' + emailColumnsList.length + ' cột Email.</span>');
+                    var notReset = emailColumnsList.filter(function(x) { return x.status === 'NotReset'; }).length;
+                    var resetCount = emailColumnsList.length - notReset;
+                    $('#emailColumnsStatus').html(
+                        '<span style="color: var(--success);">Tìm thấy ' + emailColumnsList.length + ' cột Email.</span> ' +
+                        '<span style="color: var(--warning);">Cần reset: ' + notReset + '</span>. ' +
+                        '<span style="color: var(--text-muted);">Đã reset: ' + resetCount + '</span>');
                     var html = '';
                     emailColumnsList.forEach(function(item) {
                         var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
-                        html += '<label class="ba-checkbox" style="display: flex; align-items: center; cursor: pointer; font-size: 0.875rem;">' +
+                        var isNotReset = item.status === 'NotReset';
+                        var statusCls = isNotReset ? 'var(--warning)' : 'var(--success)';
+                        var statusLabel = isNotReset ? 'Cần reset' : 'OK';
+                        var reasonPart = item.reason ? ' — ' + (item.reason || '') : '';
+                        html += '<label class="ba-checkbox" style="display: flex; flex-wrap: wrap; align-items: center; cursor: pointer; font-size: 0.875rem; gap: 0.5rem;">' +
                             '<input type="checkbox" class="chkEmailColumn" data-schema="' + (item.schema || 'dbo').replace(/"/g, '&quot;') + '" data-table="' + (item.table || '').replace(/"/g, '&quot;') + '" data-column="' + (item.column || '').replace(/"/g, '&quot;') + '" />' +
-                            '<span style="margin-left: 0.5rem; font-family: monospace;">' + key + '</span></label>';
+                            '<span style="font-family: monospace;">' + key + '</span>' +
+                            '<span style="color: ' + statusCls + '; font-size: 0.75rem; font-weight: 500;">[' + statusLabel + ']</span>' +
+                            (reasonPart ? '<span style="color: ' + statusCls + '; font-size: 0.75rem;">' + reasonPart + '</span>' : '') +
+                            '</label>';
                     });
                     $('#emailColumnsList').html(html);
                     $('#emailColumnsListWrap').show();

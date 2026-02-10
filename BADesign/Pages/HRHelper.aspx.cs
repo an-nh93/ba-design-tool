@@ -843,7 +843,7 @@ WHERE T.IsActiveTransaction = 1";
             }
         }
 
-        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Email" và kiểu dữ liệu text. Chỉ base table, có maxLen và dataType.</summary>
+        /// <summary>Lấy danh sách table.column có Email. Chỉ base table. Có status (NotReset/Reset) và reason cho mỗi cột.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetTablesWithEmailColumns(string k)
@@ -861,12 +861,13 @@ WHERE c.COLUMN_NAME LIKE N'%Email%'
   AND c.COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')
 ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
+                var emailIgnore = LoadEmailIgnoreFromDb();
                 using (var conn = new SqlConnection(info.ConnectionString))
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = sql;
                     conn.Open();
-                    var list = new List<object>();
+                    var rows = new List<object[]>();
                     using (var r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -884,8 +885,22 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                                     maxLen = parsed;
                             }
                             var dataType = MyConvert.To<string>(r.GetValue(4)) ?? "nvarchar";
-                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col, maxLen = maxLen, dataType = dataType });
+                            rows.Add(new object[] { schema, table, col, maxLen, dataType });
                         }
+                    }
+                    var list = new List<object>();
+                    foreach (object[] row in rows)
+                    {
+                        var schema = (string)row[0];
+                        var table = (string)row[1];
+                        var col = (string)row[2];
+                        var maxLen = (int?)row[3];
+                        var dataType = (string)row[4];
+                        string status = "Reset";
+                        string reason = "";
+                        if (ColumnNeedsReset(conn, schema, table, col, emailIgnore, out reason))
+                            status = "NotReset";
+                        list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col, maxLen = maxLen, dataType = dataType, status = status, reason = reason });
                     }
                     return new { success = true, list = list };
                 }
@@ -894,6 +909,84 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
             {
                 return new { success = false, message = ex.Message };
             }
+        }
+
+        private static bool ColumnNeedsReset(SqlConnection conn, string schema, string table, string column, List<string> emailIgnore, out string reason)
+        {
+            reason = "";
+            var fullName = "[" + (schema ?? "dbo").Replace("]", "]]") + "].[" + (table ?? "").Replace("]", "]]") + "]";
+            var colName = "[" + (column ?? "").Replace("]", "]]") + "]";
+            var keyCol = GetEncryptedEmailKeyColumn(schema, table, column);
+            try
+            {
+                if (!string.IsNullOrEmpty(keyCol))
+                {
+                    var keyColSafe = "[" + keyCol.Replace("]", "]]") + "]";
+                    var whereClause = " WHERE LTRIM(RTRIM(ISNULL(" + colName + ",'')) ) <> ''";
+                    var selectBase = "SELECT TOP 50 " + keyColSafe + ", " + colName + " FROM " + fullName + " WITH (NOLOCK)" + whereClause;
+                    foreach (var orderDir in new[] { " ASC", " DESC" })
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 15;
+                            cmd.CommandText = selectBase + " ORDER BY " + keyColSafe + orderDir;
+                            using (var rd = cmd.ExecuteReader())
+                            {
+                                while (rd.Read())
+                                {
+                                    var keyVal = rd.GetValue(0);
+                                    var rawVal = rd.GetValue(1);
+                                    if (rawVal == null || rawVal == DBNull.Value) continue;
+                                    var raw = ((rawVal as string) ?? rawVal.ToString()).Trim();
+                                    if (string.IsNullOrEmpty(raw)) continue;
+                                    string email = null;
+                                    try
+                                    {
+                                        var k = keyVal != null && keyVal != DBNull.Value ? MyConvert.To<long?>(keyVal) : null;
+                                        email = DataSecurityWrapper.DecryptData<string>(raw, k)?.Trim();
+                                    }
+                                    catch { continue; }
+                                    if (string.IsNullOrEmpty(email)) continue;
+                                    if (!IsValidEmailFormat(email)) continue;
+                                    if (!EmailMatchesIgnore(email, emailIgnore))
+                                    {
+                                        var sample = email.Length > 40 ? email.Substring(0, 37) + "..." : email;
+                                        reason = "Có email khách hàng (VD: " + HttpUtility.HtmlEncode(sample) + ")";
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 15;
+                        cmd.CommandText = "SELECT TOP 50 " + colName + " FROM " + fullName + " WITH (NOLOCK) WHERE LTRIM(RTRIM(ISNULL(" + colName + ",'')) ) <> ''";
+                        using (var rd = cmd.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                var val = rd.GetValue(0);
+                                if (val == null || val == DBNull.Value) continue;
+                                var email = ((val as string) ?? val.ToString()).Trim();
+                                if (string.IsNullOrEmpty(email)) continue;
+                                if (!IsValidEmailFormat(email)) continue;
+                                if (!EmailMatchesIgnore(email, emailIgnore))
+                                {
+                                    var sample = email.Length > 40 ? email.Substring(0, 37) + "..." : email;
+                                    reason = "Có email khách hàng (VD: " + HttpUtility.HtmlEncode(sample) + ")";
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
         }
 
         /// <summary>Reset các cột email đã chọn với giá trị email chung. Chỉ base table, truncate theo max length, batch update, xử lý ntext.</summary>
