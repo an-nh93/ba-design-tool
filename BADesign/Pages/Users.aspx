@@ -75,12 +75,37 @@
             flex-shrink: 0;
             display: flex;
             flex-direction: column;
+            transition: width 0.25s ease;
         }
+        .admin-sidebar.collapsed {
+            width: 64px;
+            padding: 1rem 0;
+        }
+        .admin-sidebar.collapsed .admin-sidebar-header { padding: 0 0.75rem 1rem; }
+        .admin-sidebar.collapsed .admin-sidebar-title,
+        .admin-sidebar.collapsed .admin-nav-item span { display: none; }
+        .admin-sidebar.collapsed .admin-nav-item { justify-content: center; padding: 0.75rem; }
+        .admin-sidebar-toggle {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.25rem;
+            font-size: 1rem;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .admin-sidebar-toggle:hover { color: var(--text-primary); }
+        .admin-sidebar.collapsed .admin-sidebar-toggle { transform: rotate(180deg); }
 
         .admin-sidebar-header {
             padding: 0 1.5rem 1.5rem;
             border-bottom: 1px solid var(--border);
             margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
         }
 
         .admin-sidebar-title {
@@ -634,17 +659,18 @@
     <form id="form1" runat="server">
         <div class="admin-container">
             <!-- Sidebar -->
-            <div class="admin-sidebar">
+            <div class="admin-sidebar" id="adminSidebar">
                 <div class="admin-sidebar-header">
                     <div class="admin-sidebar-title">UI Builder</div>
+                    <button type="button" class="admin-sidebar-toggle" id="adminSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
-                <a href="~/HomeRole" runat="server" class="admin-nav-item">
+                <a href="~/HomeRole" runat="server" class="admin-nav-item" title="Back to Home">
                     <span>← Back to Home</span>
                 </a>
-                <div class="admin-nav-item active">
+                <div class="admin-nav-item active" title="User Management">
                     <span>👥 User Management</span>
                 </div>
-                <a href="~/RolePermission" runat="server" class="admin-nav-item">
+                <a href="~/RolePermission" runat="server" class="admin-nav-item" title="Role Permission">
                     <span>🛡 Role Permission</span>
                 </a>
             </div>
@@ -794,6 +820,17 @@
     </form>
 
     <script>
+        // ===== Sidebar collapse =====
+        (function() {
+            var key = 'adminSidebarCollapsed';
+            var $sb = $('#adminSidebar');
+            var $btn = $('#adminSidebarToggle');
+            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
+            $btn.on('click', function() {
+                $sb.toggleClass('collapsed');
+                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
+            });
+        })();
         // ===== Toast Message Functions =====
         function showToast(message, type) {
             type = type || 'info';

@@ -36,8 +36,18 @@
             background: var(--bg-darker);
             border-right: 1px solid var(--border);
             padding: 1.5rem 0;
+            transition: width 0.25s ease;
         }
-        .rp-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); }
+        .rp-sidebar.collapsed { width: 64px; padding: 1rem 0; }
+        .rp-sidebar.collapsed .rp-sidebar-header { padding: 0 0.75rem 1rem; }
+        .rp-sidebar.collapsed .rp-sidebar-title { display: none; }
+        .rp-sidebar.collapsed .rp-nav-item { padding: 0.75rem; text-align: center; font-size: 1.25rem; }
+        .rp-sidebar.collapsed .rp-nav-item span { display: none; }
+        .rp-sidebar.collapsed .rp-nav-item::before { content: attr(data-icon); }
+        .rp-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
+        .rp-sidebar-toggle:hover { color: var(--text-primary); }
+        .rp-sidebar.collapsed .rp-sidebar-toggle { transform: rotate(180deg); }
+        .rp-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
         .rp-sidebar-title { font-size: 1.125rem; font-weight: 600; }
         .rp-nav-item {
             display: block;
@@ -103,13 +113,14 @@
 <body>
     <form id="form1" runat="server">
         <div class="rp-container">
-            <aside class="rp-sidebar">
+            <aside class="rp-sidebar" id="rpSidebar">
                 <div class="rp-sidebar-header">
                     <div class="rp-sidebar-title">UI Builder</div>
+                    <button type="button" class="rp-sidebar-toggle" id="rpSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
-                <a href="~/HomeRole" runat="server" class="rp-nav-item">← Back to Home</a>
-                <a href="~/Users" runat="server" class="rp-nav-item">👥 User Management</a>
-                <div class="rp-nav-item active">🛡 Role Permission</div>
+                <a href="~/HomeRole" runat="server" class="rp-nav-item" data-icon="←" title="Back to Home"><span>← Back to Home</span></a>
+                <a href="~/Users" runat="server" class="rp-nav-item" data-icon="👥" title="User Management"><span>👥 User Management</span></a>
+                <div class="rp-nav-item active" data-icon="🛡" title="Role Permission"><span>🛡 Role Permission</span></div>
             </aside>
             <main class="rp-main">
                 <div class="rp-top">
@@ -141,6 +152,16 @@
         <div id="toastContainer" class="toast-container"></div>
     </form>
     <script>
+        (function() {
+            var key = 'rpSidebarCollapsed';
+            var $sb = $('#rpSidebar');
+            var $btn = $('#rpSidebarToggle');
+            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
+            $btn.on('click', function() {
+                $sb.toggleClass('collapsed');
+                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
+            });
+        })();
         var permissions = [];
         var roles = [];
         var rolePermissions = {}; // roleId -> [permissionId]

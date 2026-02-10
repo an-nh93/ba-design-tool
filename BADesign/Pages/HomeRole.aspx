@@ -71,10 +71,25 @@
             top: 0;
             bottom: 0;
             z-index: 1000;
+            transition: width 0.25s ease;
         }
+        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
+        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
+        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
+        .ba-sidebar.collapsed .ba-nav-item span { display: none; }
+        .ba-sidebar.collapsed .ba-nav-label { display: none; }
+        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; }
+        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
+        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
+        .ba-sidebar-toggle:hover { color: var(--text-primary); }
+        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
         .ba-sidebar-header {
             padding: 0 1.5rem 1rem;
             border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
         }
         .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
         .ba-nav { padding: 1rem 0; }
@@ -93,7 +108,9 @@
             flex-direction: column;
             overflow: hidden;
             margin-left: 240px;
+            transition: margin-left 0.25s ease;
         }
+        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
         .ba-top-bar {
             padding: 1rem 2rem;
             background: var(--bg-card);
@@ -500,39 +517,40 @@
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <aside class="ba-sidebar">
+            <aside class="ba-sidebar" id="baSidebar">
                 <div class="ba-sidebar-header">
                     <div class="ba-sidebar-title">UI Builder</div>
+                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <nav class="ba-nav">
-                    <asp:HyperLink ID="lnkNavUIBuilder" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DesignerHome">
+                    <asp:HyperLink ID="lnkNavUIBuilder" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DesignerHome" data-icon="🛠" title="UI Builder">
                         <span>🛠️ UI Builder</span>
                     </asp:HyperLink>
-                    <asp:HyperLink ID="lnkNavDatabaseSearch" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DatabaseSearch">
+                    <asp:HyperLink ID="lnkNavDatabaseSearch" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DatabaseSearch" data-icon="🔍" title="Database Search">
                         <span>🔍 Database Search</span>
                     </asp:HyperLink>
                     <asp:PlaceHolder ID="phNavEncryptDecrypt" runat="server" Visible="false">
-                        <asp:HyperLink ID="lnkNavEncryptDecrypt" runat="server" CssClass="ba-nav-item" NavigateUrl="~/EncryptDecrypt">
+                        <asp:HyperLink ID="lnkNavEncryptDecrypt" runat="server" CssClass="ba-nav-item" NavigateUrl="~/EncryptDecrypt" data-icon="🔐" title="Encrypt/Decrypt">
                             <span>🔐 Encrypt/Decrypt</span>
                         </asp:HyperLink>
                     </asp:PlaceHolder>
                     <asp:PlaceHolder ID="phNavAppSettings" runat="server" Visible="false">
-                        <asp:HyperLink ID="lnkNavAppSettings" runat="server" CssClass="ba-nav-item" NavigateUrl="~/AppSettings">
+                        <asp:HyperLink ID="lnkNavAppSettings" runat="server" CssClass="ba-nav-item" NavigateUrl="~/AppSettings" data-icon="⚙" title="App Settings">
                             <span>⚙️ App Settings</span>
                         </asp:HyperLink>
                     </asp:PlaceHolder>
-                    <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool">
+                    <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool" data-icon="🧰" title="PGP Tool">
                         <span>🧰 PGP Tool</span>
                     </asp:HyperLink>
                     <asp:PlaceHolder ID="phNavSuperAdmin" runat="server" Visible="false">
-                        <div class="ba-nav-item" style="color: var(--text-muted); font-size: 0.75rem; padding-top: 1rem; padding-bottom: 0.25rem;">Super Admin</div>
-                        <asp:HyperLink ID="lnkNavUserManagement" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Users">
+                        <div class="ba-nav-item ba-nav-label" style="color: var(--text-muted); font-size: 0.75rem; padding-top: 1rem; padding-bottom: 0.25rem;">Super Admin</div>
+                        <asp:HyperLink ID="lnkNavUserManagement" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Users" data-icon="👥" title="User Management">
                             <span>👥 User Management</span>
                         </asp:HyperLink>
-                        <asp:HyperLink ID="lnkNavRolePermission" runat="server" CssClass="ba-nav-item" NavigateUrl="~/RolePermission">
+                        <asp:HyperLink ID="lnkNavRolePermission" runat="server" CssClass="ba-nav-item" NavigateUrl="~/RolePermission" data-icon="🛡" title="Role Permission">
                             <span>🛡 Role Permission</span>
                         </asp:HyperLink>
-                        <asp:HyperLink ID="lnkNavLeaveManager" runat="server" CssClass="ba-nav-item" NavigateUrl="~/LeaveManager">
+                        <asp:HyperLink ID="lnkNavLeaveManager" runat="server" CssClass="ba-nav-item" NavigateUrl="~/LeaveManager" data-icon="📅" title="Leave Manager">
                             <span>📅 Leave Manager</span>
                         </asp:HyperLink>
                     </asp:PlaceHolder>
@@ -718,6 +736,16 @@
         </div>
     </form>
     <script>
+        (function() {
+            var key = 'baSidebarCollapsed';
+            var $sb = $('#baSidebar');
+            var $btn = $('#baSidebarToggle');
+            if ($sb.length && localStorage.getItem(key) === '1') $sb.addClass('collapsed');
+            if ($btn.length) $btn.on('click', function() {
+                $sb.toggleClass('collapsed');
+                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
+            });
+        })();
         function toggleUserMenu(e) {
             if (e) {
                 e.preventDefault();

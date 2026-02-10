@@ -843,7 +843,7 @@ WHERE T.IsActiveTransaction = 1";
             }
         }
 
-        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Email" và kiểu dữ liệu text.</summary>
+        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Email" và kiểu dữ liệu text. Chỉ base table, có maxLen và dataType.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetTablesWithEmailColumns(string k)
@@ -853,16 +853,18 @@ WHERE T.IsActiveTransaction = 1";
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
-                using (var conn = new SqlConnection(info.ConnectionString))
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = @"
-SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME
+                var sql = @"
+SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.CHARACTER_MAXIMUM_LENGTH, c.DATA_TYPE
 FROM INFORMATION_SCHEMA.COLUMNS c
+INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
 WHERE c.COLUMN_NAME LIKE N'%Email%'
   AND c.COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')
 ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = sql;
                     conn.Open();
                     var list = new List<object>();
                     using (var r = cmd.ExecuteReader())
@@ -873,7 +875,16 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                             var table = MyConvert.To<string>(r.GetValue(1)) ?? "";
                             var col = MyConvert.To<string>(r.GetValue(2)) ?? "";
                             if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(col)) continue;
-                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col });
+                            int? maxLen = null;
+                            var ml = r.GetValue(3);
+                            if (ml != null && ml != DBNull.Value && ml.ToString() != "-1")
+                            {
+                                int parsed;
+                                if (int.TryParse(ml.ToString(), out parsed) && parsed > 0)
+                                    maxLen = parsed;
+                            }
+                            var dataType = MyConvert.To<string>(r.GetValue(4)) ?? "nvarchar";
+                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col, maxLen = maxLen, dataType = dataType });
                         }
                     }
                     return new { success = true, list = list };
@@ -885,7 +896,7 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
             }
         }
 
-        /// <summary>Reset các cột email đã chọn với giá trị email chung. Chỉ update các cột đã validate qua INFORMATION_SCHEMA.</summary>
+        /// <summary>Reset các cột email đã chọn với giá trị email chung. Chỉ base table, truncate theo max length, batch update, xử lý ntext.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object ResetEmailColumns(string k, List<EmailColumnSelection> selections, string email)
@@ -900,7 +911,7 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                 if (selections == null || selections.Count == 0)
                     return new { success = false, message = "Chọn ít nhất 1 bảng/cột để reset." };
 
-                var validSelections = new List<EmailColumnSelection>();
+                var validWithMeta = new List<Tuple<string, string, string, int?, string>>();
                 using (var conn = new SqlConnection(info.ConnectionString))
                 {
                     conn.Open();
@@ -914,32 +925,54 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                         using (var cmd = conn.CreateCommand())
                         {
                             cmd.CommandText = @"
-SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
-WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table AND COLUMN_NAME = @col
-  AND COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
-  AND DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
+SELECT c.CHARACTER_MAXIMUM_LENGTH, c.DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS c
+INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
+WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @col
+  AND c.COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
                             cmd.Parameters.AddWithValue("@schema", schema);
                             cmd.Parameters.AddWithValue("@table", table);
                             cmd.Parameters.AddWithValue("@col", column);
-                            if (cmd.ExecuteScalar() != null)
-                                validSelections.Add(new EmailColumnSelection { schema = schema, table = table, column = column });
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                if (r.Read())
+                                {
+                                    int? maxLen = null;
+                                    var ml = r.GetValue(0);
+                                    if (ml != null && ml != DBNull.Value && ml.ToString() != "-1")
+                                    {
+                                        int parsed;
+                                        if (int.TryParse(ml.ToString(), out parsed) && parsed > 0)
+                                            maxLen = parsed;
+                                    }
+                                    var dataType = MyConvert.To<string>(r.GetValue(1)) ?? "nvarchar";
+                                    validWithMeta.Add(Tuple.Create(schema, table, column, maxLen, dataType));
+                                }
+                            }
                         }
                     }
 
                     var totalAffected = 0;
-                    foreach (var s in validSelections)
+                    using (var cmd = conn.CreateCommand())
                     {
-                        var fullName = "[" + s.schema.Replace("]", "]]") + "].[" + s.table.Replace("]", "]]") + "]";
-                        var colName = "[" + s.column.Replace("]", "]]") + "]";
-                        using (var cmd = conn.CreateCommand())
+                        foreach (var t in validWithMeta)
                         {
-                            cmd.CommandText = "UPDATE " + fullName + " SET " + colName + " = @email";
-                            cmd.Parameters.AddWithValue("@email", email.Trim());
-                            totalAffected += cmd.ExecuteNonQuery();
+                            var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
+                            var colName = "[" + t.Item3.Replace("]", "]]") + "]";
+                            var val = TruncateToColumnLength(email.Trim(), t.Item4);
+                            try
+                            {
+                                totalAffected += ExecuteBatchUpdate(cmd, fullName, colName, "@email", val, t.Item5);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new Exception(string.Format("Email tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex);
+                            }
                         }
                     }
 
-                    return new { success = true, message = "Đã reset " + validSelections.Count + " cột. Tổng bản ghi cập nhật: " + totalAffected, affected = totalAffected, columnsUpdated = validSelections.Count };
+                    return new { success = true, message = "Đã reset " + validWithMeta.Count + " cột. Tổng bản ghi cập nhật: " + totalAffected, affected = totalAffected, columnsUpdated = validWithMeta.Count };
                 }
             }
             catch (Exception ex)
@@ -955,7 +988,7 @@ WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table AND COLUMN_NAME = @col
             public string column { get; set; }
         }
 
-        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Phone" và kiểu dữ liệu text.</summary>
+        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Phone" và kiểu dữ liệu text. Chỉ base table, có maxLen và dataType.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetTablesWithPhoneColumns(string k)
@@ -965,16 +998,18 @@ WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table AND COLUMN_NAME = @col
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
-                using (var conn = new SqlConnection(info.ConnectionString))
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = @"
-SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME
+                var sql = @"
+SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.CHARACTER_MAXIMUM_LENGTH, c.DATA_TYPE
 FROM INFORMATION_SCHEMA.COLUMNS c
+INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
 WHERE c.COLUMN_NAME LIKE N'%Phone%'
   AND NOT (c.TABLE_SCHEMA = 'dbo' AND c.TABLE_NAME LIKE 'PAY_MasterPayroll%')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')
 ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = sql;
                     conn.Open();
                     var list = new List<object>();
                     using (var r = cmd.ExecuteReader())
@@ -985,7 +1020,16 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                             var table = MyConvert.To<string>(r.GetValue(1)) ?? "";
                             var col = MyConvert.To<string>(r.GetValue(2)) ?? "";
                             if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(col)) continue;
-                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col });
+                            int? maxLen = null;
+                            var ml = r.GetValue(3);
+                            if (ml != null && ml != DBNull.Value && ml.ToString() != "-1")
+                            {
+                                int parsed;
+                                if (int.TryParse(ml.ToString(), out parsed) && parsed > 0)
+                                    maxLen = parsed;
+                            }
+                            var dataType = MyConvert.To<string>(r.GetValue(4)) ?? "nvarchar";
+                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col, maxLen = maxLen, dataType = dataType });
                         }
                     }
                     return new { success = true, list = list };
@@ -997,7 +1041,7 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
             }
         }
 
-        /// <summary>Reset các cột Phone đã chọn với giá trị chung. Chỉ update các cột đã validate qua INFORMATION_SCHEMA.</summary>
+        /// <summary>Reset các cột Phone đã chọn với giá trị chung. Chỉ base table, truncate theo max length, batch update, xử lý ntext.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object ResetPhoneColumns(string k, List<PhoneColumnSelection> selections, string phone)
@@ -1012,7 +1056,7 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                 if (selections == null || selections.Count == 0)
                     return new { success = false, message = "Chọn ít nhất 1 bảng/cột để reset." };
 
-                var validSelections = new List<PhoneColumnSelection>();
+                var validWithMeta = new List<Tuple<string, string, string, int?, string>>();
                 using (var conn = new SqlConnection(info.ConnectionString))
                 {
                     conn.Open();
@@ -1026,33 +1070,55 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                         using (var cmd = conn.CreateCommand())
                         {
                             cmd.CommandText = @"
-SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
-WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table AND COLUMN_NAME = @col
-  AND COLUMN_NAME LIKE N'%Phone%'
-  AND NOT (TABLE_SCHEMA = 'dbo' AND TABLE_NAME LIKE 'PAY_MasterPayroll%')
-  AND DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
+SELECT c.CHARACTER_MAXIMUM_LENGTH, c.DATA_TYPE
+FROM INFORMATION_SCHEMA.COLUMNS c
+INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
+WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @col
+  AND c.COLUMN_NAME LIKE N'%Phone%'
+  AND NOT (c.TABLE_SCHEMA = 'dbo' AND c.TABLE_NAME LIKE 'PAY_MasterPayroll%')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
                             cmd.Parameters.AddWithValue("@schema", schema);
                             cmd.Parameters.AddWithValue("@table", table);
                             cmd.Parameters.AddWithValue("@col", column);
-                            if (cmd.ExecuteScalar() != null)
-                                validSelections.Add(new PhoneColumnSelection { schema = schema, table = table, column = column });
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                if (r.Read())
+                                {
+                                    int? maxLen = null;
+                                    var ml = r.GetValue(0);
+                                    if (ml != null && ml != DBNull.Value && ml.ToString() != "-1")
+                                    {
+                                        int parsed;
+                                        if (int.TryParse(ml.ToString(), out parsed) && parsed > 0)
+                                            maxLen = parsed;
+                                    }
+                                    var dataType = MyConvert.To<string>(r.GetValue(1)) ?? "nvarchar";
+                                    validWithMeta.Add(Tuple.Create(schema, table, column, maxLen, dataType));
+                                }
+                            }
                         }
                     }
 
                     var totalAffected = 0;
-                    foreach (var s in validSelections)
+                    using (var cmd = conn.CreateCommand())
                     {
-                        var fullName = "[" + s.schema.Replace("]", "]]") + "].[" + s.table.Replace("]", "]]") + "]";
-                        var colName = "[" + s.column.Replace("]", "]]") + "]";
-                        using (var cmd = conn.CreateCommand())
+                        foreach (var t in validWithMeta)
                         {
-                            cmd.CommandText = "UPDATE " + fullName + " SET " + colName + " = @phone";
-                            cmd.Parameters.AddWithValue("@phone", phone.Trim());
-                            totalAffected += cmd.ExecuteNonQuery();
+                            var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
+                            var colName = "[" + t.Item3.Replace("]", "]]") + "]";
+                            var val = TruncateToColumnLength(phone.Trim(), t.Item4);
+                            try
+                            {
+                                totalAffected += ExecuteBatchUpdate(cmd, fullName, colName, "@phone", val, t.Item5);
+                            }
+                            catch (Exception ex)
+                            {
+                                throw new Exception(string.Format("Phone tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex);
+                            }
                         }
                     }
 
-                    return new { success = true, message = "Đã reset " + validSelections.Count + " cột. Tổng bản ghi cập nhật: " + totalAffected, affected = totalAffected, columnsUpdated = validSelections.Count };
+                    return new { success = true, message = "Đã reset " + validWithMeta.Count + " cột. Tổng bản ghi cập nhật: " + totalAffected, affected = totalAffected, columnsUpdated = validWithMeta.Count };
                 }
             }
             catch (Exception ex)

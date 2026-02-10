@@ -44,13 +44,23 @@
         .ba-sidebar {
             width: 240px; background: var(--bg-darker); border-right: 1px solid var(--border);
             padding: 1.5rem 0; flex-shrink: 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000; overflow-y: auto;
+            transition: width 0.25s ease;
         }
-        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); }
+        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
+        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
+        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
+        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
+        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
+        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
+        .ba-sidebar-toggle:hover { color: var(--text-primary); }
+        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
+        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
         .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
         .ba-nav-item { display: block; padding: 0.75rem 1.5rem; color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
         .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
         .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main { flex: 1; margin-left: 240px; display: flex; flex-direction: column; overflow: hidden; }
+        .ba-main { flex: 1; margin-left: 240px; display: flex; flex-direction: column; overflow: hidden; transition: margin-left 0.25s ease; }
+        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
         .ba-top-bar {
             padding: 1rem 2rem; background: var(--bg-card); border-bottom: 1px solid var(--border);
             display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; flex-shrink: 0; position: sticky; top: 0; z-index: 100;
@@ -194,13 +204,14 @@
 <body>
     <form id="form1" runat="server">
         <div class="ba-container">
-            <aside class="ba-sidebar">
+            <aside class="ba-sidebar" id="baSidebar">
                 <div class="ba-sidebar-header">
                     <div class="ba-sidebar-title">📅 Leave Manager</div>
+                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <nav class="ba-nav">
-                    <a href="<%= ResolveUrl("~/HomeRole") %>" class="ba-nav-item">← Về trang chủ</a>
-                    <a href="#" class="ba-nav-item active">Quản lý nghỉ phép</a>
+                    <a href="<%= ResolveUrl("~/HomeRole") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">← Về trang chủ</a>
+                    <a href="#" class="ba-nav-item active" data-icon="📅" title="Quản lý nghỉ phép">Quản lý nghỉ phép</a>
                 </nav>
             </aside>
             <main class="ba-main">
@@ -337,6 +348,16 @@
         </div>
     </form>
     <script>
+        (function() {
+            var key = 'baSidebarCollapsed';
+            var $sb = $('#baSidebar');
+            var $btn = $('#baSidebarToggle');
+            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
+            $btn.on('click', function() {
+                $sb.toggleClass('collapsed');
+                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
+            });
+        })();
         (function () {
             var KEY_MEMBERS = 'LeaveManager_members';
             var KEY_LEAVES = 'LeaveManager_leaves';

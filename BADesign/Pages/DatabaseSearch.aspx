@@ -53,11 +53,25 @@
             overflow-x: hidden;
             display: flex;
             flex-direction: column;
+            transition: width 0.25s ease;
         }
+        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
+        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
+        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
+        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
+        .ba-sidebar.collapsed .ba-nav-item span { display: none; }
+        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
+        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
+        .ba-sidebar-toggle:hover { color: var(--text-primary); }
+        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
         .ba-sidebar-header {
             padding: 0 1.5rem 1.5rem;
             border-bottom: 1px solid var(--border);
             margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
         }
         .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
         .ba-nav-item {
@@ -76,10 +90,12 @@
             flex: 1;
             margin-left: 240px;
             min-height: 100vh;
+            transition: margin-left 0.25s ease;
             display: flex;
             flex-direction: column;
             overflow: hidden;
         }
+        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
         .ba-top-bar {
             position: sticky;
             top: 0;
@@ -365,14 +381,15 @@
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <aside class="ba-sidebar">
+            <aside class="ba-sidebar" id="baSidebar">
                 <div class="ba-sidebar-header">
                     <div class="ba-sidebar-title">UI Builder</div>
+                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
-                <asp:HyperLink ID="lnkHome" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DesignerHome">
+                <asp:HyperLink ID="lnkHome" runat="server" CssClass="ba-nav-item" NavigateUrl="~/HomeRole" data-icon="🏠" title="Về trang chủ">
                     <span>← Về trang chủ</span>
                 </asp:HyperLink>
-                <div class="ba-nav-item active"><span>🔍 Database Search</span></div>
+                <div class="ba-nav-item active" data-icon="🔍" title="Database Search"><span>🔍 Database Search</span></div>
             </aside>
             <main class="ba-main">
                 <div class="ba-top-bar">
@@ -548,6 +565,16 @@
         </div>
     </form>
     <script>
+        (function() {
+            var key = 'baSidebarCollapsed';
+            var $sb = $('#baSidebar');
+            var $btn = $('#baSidebarToggle');
+            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
+            $btn.on('click', function() {
+                $sb.toggleClass('collapsed');
+                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
+            });
+        })();
         var canManageServers = <%= CanManageServers ? "true" : "false" %>;
         var servers = [];
         var results = [];

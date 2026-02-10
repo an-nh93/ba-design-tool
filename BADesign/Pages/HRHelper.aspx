@@ -57,10 +57,23 @@
             top: 0;
             bottom: 0;
             z-index: 1000;
+            transition: width 0.25s ease;
         }
+        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
+        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
+        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
+        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
+        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
+        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
+        .ba-sidebar-toggle:hover { color: var(--text-primary); }
+        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
         .ba-sidebar-header {
             padding: 0 1.5rem 1rem;
             border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
         }
         .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
         .ba-nav { padding: 1rem 0; }
@@ -79,7 +92,9 @@
             flex-direction: column;
             overflow: hidden;
             margin-left: 240px;
+            transition: margin-left 0.25s ease;
         }
+        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
         .ba-top-bar {
             padding: 1rem 2rem;
             background: var(--bg-card);
@@ -562,15 +577,16 @@
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <aside class="ba-sidebar">
+            <aside class="ba-sidebar" id="baSidebar">
                 <div class="ba-sidebar-header">
                     <div class="ba-sidebar-title">UI Builder</div>
+                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <nav class="ba-nav">
-                    <a href="<%= ResolveUrl("~/Pages/DesignerHome.aspx") %>" class="ba-nav-item">Về trang chủ</a>
-                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item">Database Search</a>
-                    <a href="#" class="ba-nav-item active">HR Helper</a>
-                    <% if (CanEditSettings) { %><a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item">App Settings</a><% } %>
+                    <a href="<%= ResolveUrl("~/HomeRole") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">Về trang chủ</a>
+                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item" data-icon="🔍" title="Database Search">Database Search</a>
+                    <a href="#" class="ba-nav-item active" data-icon="👥" title="HR Helper">HR Helper</a>
+                    <% if (CanEditSettings) { %><a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item" data-icon="⚙" title="App Settings">App Settings</a><% } %>
                 </nav>
             </aside>
             <main class="ba-main">
@@ -1082,6 +1098,16 @@
         <div id="toastContainer" class="toast-container"></div>
     </form>
     <script>
+        (function() {
+            var key = 'baSidebarCollapsed';
+            var $sb = $('#baSidebar');
+            var $btn = $('#baSidebarToggle');
+            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
+            $btn.on('click', function() {
+                $sb.toggleClass('collapsed');
+                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
+            });
+        })();
         var hrToken = '';
         var isMultiDbMode = <%= IsMultiDbMode ? "true" : "false" %>;
         var multiDbAnalyzeResults = [];

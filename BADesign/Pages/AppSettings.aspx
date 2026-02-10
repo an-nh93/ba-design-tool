@@ -39,8 +39,17 @@
             border-right: 1px solid var(--border);
             padding: 1.5rem 0; flex-shrink: 0;
             display: flex; flex-direction: column;
+            transition: width 0.25s ease;
         }
-        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); }
+        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
+        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
+        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
+        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
+        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
+        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
+        .ba-sidebar-toggle:hover { color: var(--text-primary); }
+        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
+        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
         .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; }
         .ba-nav { padding: 1rem 0; }
         .ba-nav-item {
@@ -50,7 +59,8 @@
         }
         .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
         .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main { flex: 1; display: flex; flex-direction: column; overflow: auto; margin-left: 240px; }
+        .ba-main { flex: 1; display: flex; flex-direction: column; overflow: auto; margin-left: 240px; transition: margin-left 0.25s ease; }
+        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
         .ba-top-bar {
             padding: 1rem 2rem; background: var(--bg-card);
             border-bottom: 1px solid var(--border);
@@ -93,15 +103,16 @@
 <body>
     <form id="form1" runat="server">
         <div class="ba-container">
-            <nav class="ba-sidebar">
+            <nav class="ba-sidebar" id="baSidebar">
                 <div class="ba-sidebar-header">
                     <div class="ba-sidebar-title">UI Builder</div>
+                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <div class="ba-nav">
-                    <a href="<%= ResolveUrl("~/DesignerHome") %>" class="ba-nav-item">Về trang chủ</a>
-                    <a href="<%= ResolveUrl("~/DatabaseSearch") %>" class="ba-nav-item">Database Search</a>
-                    <a href="<%= ResolveUrl("~/HRHelper") %>" class="ba-nav-item">HR Helper</a>
-                    <a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item active">App Settings</a>
+                    <a href="<%= ResolveUrl("~/HomeRole") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">Về trang chủ</a>
+                    <a href="<%= ResolveUrl("~/DatabaseSearch") %>" class="ba-nav-item" data-icon="🔍" title="Database Search">Database Search</a>
+                    <a href="<%= ResolveUrl("~/HRHelper") %>" class="ba-nav-item" data-icon="👥" title="HR Helper">HR Helper</a>
+                    <a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item active" data-icon="⚙" title="App Settings">App Settings</a>
                 </div>
             </nav>
             <div class="ba-main">
@@ -129,6 +140,16 @@
         </div>
     </form>
     <script>
+        (function() {
+            var key = 'baSidebarCollapsed';
+            var $sb = $('#baSidebar');
+            var $btn = $('#baSidebarToggle');
+            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
+            $btn.on('click', function() {
+                $sb.toggleClass('collapsed');
+                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
+            });
+        })();
         (function () {
             function loadEmailIgnore() {
                 $.ajax({
