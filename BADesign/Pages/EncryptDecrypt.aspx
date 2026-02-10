@@ -117,7 +117,7 @@
                     <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <nav class="ba-nav">
-                    <a href="<%= ResolveUrl("~/HomeRole") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">← Về trang chủ</a>
+                    <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">← Về trang chủ</a>
                     <a href="<%= ResolveUrl("~/DatabaseSearch") %>" class="ba-nav-item" data-icon="🔍" title="Database Search">Database Search</a>
                     <a href="#" class="ba-nav-item active" data-icon="🔐" title="Encrypt/Decrypt">Encrypt/Decrypt</a>
                 </nav>

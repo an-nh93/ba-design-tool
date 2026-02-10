@@ -9,7 +9,7 @@ using System.Web.Script.Services;
 
 namespace BADesign.Pages
 {
-	public partial class DesignerHome : Page
+	public partial class Home : Page
 	{
 	class DesignRow
 	{
@@ -28,6 +28,7 @@ namespace BADesign.Pages
 
 		protected void Page_Load(object sender, EventArgs e)
 		{
+			lnkBackHome.NavigateUrl = ResolveUrl(UiAuthHelper.GetHomeUrlByRole() ?? "~/");
 			if (UiAuthHelper.IsAnonymous)
 			{
 				pnlAnonymous.Visible = true;
@@ -37,7 +38,7 @@ namespace BADesign.Pages
 
 			UiAuthHelper.RequireLogin();
 			
-			// DesignerHome cho BA, CONS, DEV, Super Admin (có Builder). Không có quyền → HomeRole.
+			// Home cho BA, CONS, DEV, Super Admin (có Builder). Không có quyền → HomeRole.
 			if (!UiAuthHelper.HasFeature("Builder"))
 			{
 				Response.Redirect(UiAuthHelper.GetHomeUrlByRole());

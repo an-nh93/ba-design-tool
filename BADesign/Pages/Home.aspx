@@ -1,5 +1,5 @@
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DesignerHome.aspx.cs"
-    Inherits="BADesign.Pages.DesignerHome" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Home.aspx.cs"
+    Inherits="BADesign.Pages.Home" %>
 
 <!DOCTYPE html>
 <html>
@@ -3427,7 +3427,7 @@
             var maxRetries = 5;
             
             $.ajax({
-                url: '/Pages/DesignerHome.aspx/GetAccountInfo',
+                url: '/Pages/Home.aspx/GetAccountInfo',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 data: '{}',
@@ -3670,7 +3670,7 @@
 
             // Call server method
             $.ajax({
-                url: '/Pages/DesignerHome.aspx/ChangePassword',
+                url: '/Pages/Home.aspx/ChangePassword',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 data: JSON.stringify({
@@ -3713,7 +3713,7 @@
             var next = $btn.data('next') === true || $btn.data('next') === "true";
 
             $.ajax({
-                url: '/Pages/DesignerHome.aspx/SetDesignPublic',
+                url: '/Pages/Home.aspx/SetDesignPublic',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 data: JSON.stringify({ controlId: id, isPublic: next }),

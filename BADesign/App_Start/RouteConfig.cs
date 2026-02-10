@@ -19,18 +19,18 @@ namespace BADesign
 				"~/Pages/Login.aspx"   // file thật
 			);
 
-			// 3. Route cho DesignerHome (nếu cần): /DesignerHome -> ~/Pages/DesignerHome.aspx
+			// 3. /Home -> trang chủ (guest + logged-in có Builder)
 			routes.MapPageRoute(
-				"DesignerHomeRoute",
-				"DesignerHome",
-				"~/Pages/DesignerHome.aspx"
+				"HomeRoute",
+				"Home",
+				"~/Pages/Home.aspx"
 			);
 
-			// 4. Route mặc định: / -> DesignerHome (anonymous: minimal; logged-in: full, role-based)
+			// 4. Route mặc định: / -> trang chủ
 			routes.MapPageRoute(
 				"DefaultRoute",
 				"",
-				"~/Pages/DesignerHome.aspx"
+				"~/Pages/Home.aspx"
 			);
 
 			// /Builder => ~/Pages/Builder.aspx   (query string giữ nguyên)

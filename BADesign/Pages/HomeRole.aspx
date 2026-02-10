@@ -523,7 +523,7 @@
                     <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <nav class="ba-nav">
-                    <asp:HyperLink ID="lnkNavUIBuilder" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DesignerHome" data-icon="🛠" title="UI Builder">
+                    <asp:HyperLink ID="lnkNavUIBuilder" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Home" data-icon="🛠" title="UI Builder">
                         <span>🛠️ UI Builder</span>
                     </asp:HyperLink>
                     <asp:HyperLink ID="lnkNavDatabaseSearch" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DatabaseSearch" data-icon="🔍" title="Database Search">
@@ -593,7 +593,7 @@
                             <asp:Literal ID="litWelcomeDesc" runat="server" />
                         </p>
                         <div class="ba-feature-grid">
-                            <asp:HyperLink ID="lnkFeatureUIBuilder" runat="server" CssClass="ba-feature-card" NavigateUrl="~/DesignerHome">
+                            <asp:HyperLink ID="lnkFeatureUIBuilder" runat="server" CssClass="ba-feature-card" NavigateUrl="~/Home">
                                 <div class="ba-feature-icon">🛠️</div>
                                 <div class="ba-feature-title">UI Builder</div>
                                 <div class="ba-feature-desc">Thiết kế và tạo giao diện người dùng. Tạo controls, forms, và các component UI.</div>

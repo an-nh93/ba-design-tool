@@ -54,7 +54,7 @@ namespace BADesign
 			{
 				// URL sẽ quay lại sau khi login
 				// (giữ nguyên RawUrl cũng được, nó chỉ nằm trong query string)
-				var returnUrl = ctx.Request.RawUrl ?? "~/DesignerHome";
+				var returnUrl = ctx.Request.RawUrl ?? "~/Home";
 
 				// Dùng route friendly: "Login" -> ~/Pages/Login.aspx
 				var url = "~/Login?returnUrl=" + HttpUtility.UrlEncode(returnUrl);
@@ -159,10 +159,10 @@ WHERE up.UserId = @uid";
 			return codes.Contains(featureCode);
 		}
 
-		/// <summary>Trang chủ: Anonymous→DesignerHome; SuperAdmin/BA/CONS/DEV→HomeRole.</summary>
+		/// <summary>Trang chủ: Anonymous→/Home; Logged-in→HomeRole.</summary>
 		public static string GetHomeUrlByRole()
 		{
-			if (IsAnonymous) return "~/DesignerHome";
+			if (IsAnonymous) return "~/Home";
 			return "~/HomeRole";
 		}
 

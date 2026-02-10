@@ -11,7 +11,7 @@ namespace BADesign.Pages
 {
 
 
-	public partial class DesignerHome
+	public partial class Home
 	{
 
 		/// <summary>

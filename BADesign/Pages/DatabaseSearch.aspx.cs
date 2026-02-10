@@ -29,16 +29,7 @@ namespace BADesign.Pages
             CanBulkReset = UiAuthHelper.HasFeature("DatabaseBulkReset");
             CanUseServers = !IsGuest && UiAuthHelper.HasFeature("DatabaseSearch");
             
-            // Ẩn link "Về trang chủ" nếu anonymous, hoặc set URL đúng theo role
-            if (UiAuthHelper.IsAnonymous)
-            {
-                lnkHome.Visible = false;
-            }
-            else
-            {
-                var homeUrl = UiAuthHelper.GetHomeUrlByRole();
-                lnkHome.NavigateUrl = homeUrl;
-            }
+            lnkHome.NavigateUrl = ResolveUrl(UiAuthHelper.GetHomeUrlByRole() ?? "~/");
         }
 
         [WebMethod(EnableSession = true)]

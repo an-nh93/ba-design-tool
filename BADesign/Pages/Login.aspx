@@ -5,7 +5,7 @@
 <head runat="server">
     <title>UI Builder - Login</title>
     <%-- dùng ResolveUrl để chạy đúng cả khi host ảo --%>
-    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.1") %>" />
 </head>
 <body class="login-body">
     <form id="form1" runat="server">

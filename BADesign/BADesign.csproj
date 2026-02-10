@@ -249,7 +249,7 @@
     </Content>
     <None Include="Scripts\jquery-1.10.2.intellisense.js" />
     <Content Include="Pages\Users.aspx" />
-    <Content Include="Pages\DesignerHome.aspx" />
+    <Content Include="Pages\Home.aspx" />
     <Content Include="Pages\Login.aspx" />
     <Content Include="Pages\Builder.aspx" />
     <Content Include="Pages\Preview.aspx" />
@@ -492,12 +492,12 @@
     <Compile Include="Pages\Users.aspx.designer.cs">
       <DependentUpon>Users.aspx</DependentUpon>
     </Compile>
-    <Compile Include="Pages\DesignerHome.aspx.cs">
-      <DependentUpon>DesignerHome.aspx</DependentUpon>
+    <Compile Include="Pages\Home.aspx.cs">
+      <DependentUpon>Home.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
-    <Compile Include="Pages\DesignerHome.aspx.designer.cs">
-      <DependentUpon>DesignerHome.aspx</DependentUpon>
+    <Compile Include="Pages\Home.aspx.designer.cs">
+      <DependentUpon>Home.aspx</DependentUpon>
     </Compile>
     <Compile Include="Pages\Login.aspx.cs">
       <DependentUpon>Login.aspx</DependentUpon>

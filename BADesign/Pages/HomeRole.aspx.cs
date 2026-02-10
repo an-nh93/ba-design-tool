@@ -49,7 +49,7 @@ namespace BADesign.Pages
 				               (roleUpper == "BA" ? "Business Analyst" : (roleCode.Length > 0 ? roleCode : "User")));
 				litRoleBadge.Text = $"<span class=\"ba-role-badge\">{roleName}</span>";
 
-				// Page title and welcome based on role. Không redirect DesignerHome để tránh loop (BA/CONS/DEV hoặc không có role đều ở HomeRole).
+				// Page title and welcome based on role. Không redirect Home để tránh loop (BA/CONS/DEV hoặc không có role đều ở HomeRole).
 				if (roleUpper == "DEV")
 				{
 					litPageTitle.Text = "Developer Home";
