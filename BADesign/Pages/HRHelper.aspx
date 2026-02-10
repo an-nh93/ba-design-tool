@@ -405,6 +405,39 @@
             height: 18px;
             cursor: pointer;
         }
+        .ba-collapsible-group {
+            margin-bottom: 1.5rem;
+            border-left: 3px solid var(--primary);
+        }
+        .ba-collapsible-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+        .ba-collapsible-header:hover {
+            background: rgba(255,255,255,0.03);
+            margin: 0 -1rem;
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+        .ba-collapsible-header .ba-collapse-icon {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            transition: transform 0.2s;
+        }
+        .ba-collapsible-group.collapsed .ba-collapse-icon {
+            transform: rotate(-90deg);
+        }
+        .ba-collapsible-body {
+            padding-top: 0.5rem;
+        }
+        .ba-collapsible-group.collapsed .ba-collapsible-body {
+            display: none;
+        }
         .ba-progress-overlay {
             position: fixed;
             inset: 0;
@@ -540,6 +573,7 @@
                         <button type="button" class="ba-tab active" data-tab="users">Users</button>
                         <button type="button" class="ba-tab" data-tab="employees">Employee Info</button>
                         <button type="button" class="ba-tab" data-tab="company">Company Info</button>
+                        <button type="button" class="ba-tab" data-tab="other">Other Information</button>
                     </div>
 
                     <!-- Tab Users -->
@@ -850,6 +884,81 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Tab Other Information -->
+                    <div id="tabOther" class="ba-tab-content">
+                        <div class="ba-card ba-card-scrollable">
+                            <h2 class="ba-card-title">Reset Other Information</h2>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">Reset các thông tin cấu hình khác trong database. Mỗi phần dưới đây tương ứng với một bảng/cấu hình cụ thể.</p>
+
+                            <!-- Section: Reset tất cả cột Email -->
+                            <div class="ba-card ba-update-section ba-collapsible-group" id="groupEmail">
+                                <div class="ba-collapsible-header" onclick="toggleOtherGroup('groupEmail'); return false;">
+                                    <span class="ba-collapse-icon">▼</span>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset cột Email (tự động phát hiện)</h3>
+                                </div>
+                                <div class="ba-collapsible-body">
+                                <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1rem;">Liệt kê tất cả bảng có cột tên chứa "Email" và kiểu text. Chọn các bảng cần reset rồi nhập email chung.</p>
+                                <div class="ba-actions" style="margin-bottom: 0.75rem;">
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnLoadEmailColumns" onclick="loadEmailColumnsList(); return false;">Tải danh sách bảng có cột Email</button>
+                                </div>
+                                <div id="emailColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.75rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
+                                <div id="emailColumnsListWrap" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; background: var(--bg-darker); margin-bottom: 1rem; display: none;">
+                                    <div style="margin-bottom: 0.5rem;">
+                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="chkSelectAllEmailColumns" />
+                                            <span style="margin-left: 0.5rem;">Chọn tất cả</span>
+                                        </label>
+                                    </div>
+                                    <div id="emailColumnsList" style="display: flex; flex-direction: column; gap: 0.35rem;"></div>
+                                </div>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label">Email reset chung</label>
+                                    <input type="text" id="txtOtherEmailColumnsEmail" class="ba-input" placeholder="user@cadena.com.sg" style="max-width: 400px;" />
+                                </div>
+                                <div class="ba-actions">
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnResetEmailColumns" onclick="resetEmailColumns(); return false;" disabled>Reset các cột đã chọn</button>
+                                </div>
+                                </div>
+                            </div>
+
+                            <!-- Section: Reset tất cả cột Phone -->
+                            <div class="ba-card ba-update-section ba-collapsible-group" id="groupPhone">
+                                <div class="ba-collapsible-header" onclick="toggleOtherGroup('groupPhone'); return false;">
+                                    <span class="ba-collapse-icon">▼</span>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset cột Phone (tự động phát hiện)</h3>
+                                </div>
+                                <div class="ba-collapsible-body">
+                                <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1rem;">Liệt kê tất cả bảng có cột tên chứa "Phone" và kiểu text. Chọn các bảng cần reset rồi nhập số điện thoại chung.</p>
+                                <div class="ba-actions" style="margin-bottom: 0.75rem;">
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnLoadPhoneColumns" onclick="loadPhoneColumnsList(); return false;">Tải danh sách bảng có cột Phone</button>
+                                </div>
+                                <div id="phoneColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.75rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
+                                <div id="phoneColumnsListWrap" style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 0.75rem; background: var(--bg-darker); margin-bottom: 1rem; display: none;">
+                                    <div style="margin-bottom: 0.5rem;">
+                                        <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer;">
+                                            <input type="checkbox" id="chkSelectAllPhoneColumns" />
+                                            <span style="margin-left: 0.5rem;">Chọn tất cả</span>
+                                        </label>
+                                    </div>
+                                    <div id="phoneColumnsList" style="display: flex; flex-direction: column; gap: 0.35rem;"></div>
+                                </div>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label">Số điện thoại reset chung</label>
+                                    <input type="text" id="txtOtherPhoneColumnsPhone" class="ba-input" placeholder="VD: 0123456789" style="max-width: 400px;" />
+                                </div>
+                                <div class="ba-actions">
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnResetPhoneColumns" onclick="resetPhoneColumns(); return false;" disabled>Reset các cột đã chọn</button>
+                                </div>
+                                </div>
+                            </div>
+
+                            <!-- Placeholder cho các section reset khác sau này -->
+                            <div id="otherResetSections" style="margin-top: 1rem;">
+                                <!-- Có thể thêm các section mới tại đây -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -960,6 +1069,7 @@
                 $(this).addClass('active');
                 $('#tab' + tab.charAt(0).toUpperCase() + tab.slice(1)).addClass('active');
                 if (tab === 'users' && users.length === 0) loadUsersFromSession();
+                if (tab === 'other') loadOtherTab();
             });
 
             $('#txtSearchUsers').on('input', function() {
@@ -1430,6 +1540,241 @@
                 },
                 error: function() {
                     $('#selCompanyFilter').html('<option value="">Lỗi load companies</option>');
+                }
+            });
+        }
+
+        var otherTabLoaded = false;
+
+        function toggleOtherGroup(groupId) {
+            var $g = $('#' + groupId);
+            if ($g.length) $g.toggleClass('collapsed');
+        }
+
+        function loadOtherTab() {
+            if (otherTabLoaded) return;
+            otherTabLoaded = true;
+            // Load default email (Windows user + @cadena.com.sg)
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetCurrentUserName") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken }),
+                timeout: 10000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.userName) {
+                        var defaultEmail = (d.userName || '').trim().toLowerCase() + '@cadena.com.sg';
+                        var $ec = $('#txtOtherEmailColumnsEmail');
+                        if (!$ec.val() || $ec.data('default-set')) $ec.val(defaultEmail).data('default-set', true);
+                    }
+                }
+            });
+        }
+
+        var emailColumnsList = [];
+
+        function loadEmailColumnsList() {
+            $('#emailColumnsStatus').text('Đang tải...');
+            $('#emailColumnsListWrap').hide();
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetTablesWithEmailColumns") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken }),
+                timeout: 30000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (!d || !d.success) {
+                        $('#emailColumnsStatus').text('Lỗi: ' + (d && d.message ? d.message : 'Không tải được.'));
+                        return;
+                    }
+                    emailColumnsList = d.list || [];
+                    if (emailColumnsList.length === 0) {
+                        $('#emailColumnsStatus').html('<span style="color: var(--text-muted);">Không tìm thấy bảng nào có cột Email (kiểu text).</span>');
+                        return;
+                    }
+                    $('#emailColumnsStatus').html('<span style="color: var(--success);">Tìm thấy ' + emailColumnsList.length + ' cột Email.</span>');
+                    var html = '';
+                    emailColumnsList.forEach(function(item) {
+                        var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
+                        html += '<label class="ba-checkbox" style="display: flex; align-items: center; cursor: pointer; font-size: 0.875rem;">' +
+                            '<input type="checkbox" class="chkEmailColumn" data-schema="' + (item.schema || 'dbo').replace(/"/g, '&quot;') + '" data-table="' + (item.table || '').replace(/"/g, '&quot;') + '" data-column="' + (item.column || '').replace(/"/g, '&quot;') + '" />' +
+                            '<span style="margin-left: 0.5rem; font-family: monospace;">' + key + '</span></label>';
+                    });
+                    $('#emailColumnsList').html(html);
+                    $('#emailColumnsListWrap').show();
+                    $('#btnResetEmailColumns').prop('disabled', false);
+                    $('#chkSelectAllEmailColumns').off('change').prop('checked', false).on('change', function() {
+                        var v = $(this).prop('checked');
+                        $('.chkEmailColumn').prop('checked', v);
+                    });
+                },
+                error: function() {
+                    $('#emailColumnsStatus').text('Lỗi khi tải danh sách.');
+                }
+            });
+        }
+
+        function resetEmailColumns() {
+            var selected = [];
+            $('.chkEmailColumn:checked').each(function() {
+                selected.push({
+                    schema: $(this).data('schema') || 'dbo',
+                    table: $(this).data('table'),
+                    column: $(this).data('column')
+                });
+            });
+            if (selected.length === 0) {
+                showToast('Chọn ít nhất 1 bảng/cột để reset.', 'error');
+                return;
+            }
+            var email = $('#txtOtherEmailColumnsEmail').val();
+            if (!email || !email.trim()) {
+                showToast('Nhập Email reset chung.', 'error');
+                return;
+            }
+            updateInProgress = true;
+            showProgress('Đang reset các cột Email...', 0, '0 / ' + selected.length + ' cột');
+            $('.ba-btn').prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ResetEmailColumns") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, selections: selected, email: email.trim() }),
+                timeout: 60000,
+                success: function(res) {
+                    var d = res.d || res;
+                    showProgress('Hoàn thành', 100, d && d.message ? d.message : 'Reset xong.');
+                    setTimeout(function() {
+                        updateInProgress = false;
+                        hideProgress();
+                        $('.ba-btn').prop('disabled', false);
+                        showToast(d && d.success ? (d.message || 'Đã reset thành công.') : (d && d.message ? d.message : 'Lỗi'), d && d.success ? 'success' : 'error');
+                    }, 400);
+                },
+                error: function(xhr, status, err) {
+                    var msg = 'Lỗi khi reset.';
+                    if (xhr.responseText) {
+                        try {
+                            var json = JSON.parse(xhr.responseText);
+                            if (json.d && json.d.message) msg = json.d.message;
+                            else if (json.message) msg = json.message;
+                        } catch(e) {}
+                    }
+                    showProgress('Lỗi', 100, msg);
+                    setTimeout(function() {
+                        updateInProgress = false;
+                        hideProgress();
+                        $('.ba-btn').prop('disabled', false);
+                        showToast(msg, 'error');
+                    }, 400);
+                }
+            });
+        }
+
+        var phoneColumnsList = [];
+
+        function loadPhoneColumnsList() {
+            $('#phoneColumnsStatus').text('Đang tải...');
+            $('#phoneColumnsListWrap').hide();
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetTablesWithPhoneColumns") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken }),
+                timeout: 30000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (!d || !d.success) {
+                        $('#phoneColumnsStatus').text('Lỗi: ' + (d && d.message ? d.message : 'Không tải được.'));
+                        return;
+                    }
+                    phoneColumnsList = d.list || [];
+                    if (phoneColumnsList.length === 0) {
+                        $('#phoneColumnsStatus').html('<span style="color: var(--text-muted);">Không tìm thấy bảng nào có cột Phone (kiểu text).</span>');
+                        return;
+                    }
+                    $('#phoneColumnsStatus').html('<span style="color: var(--success);">Tìm thấy ' + phoneColumnsList.length + ' cột Phone.</span>');
+                    var html = '';
+                    phoneColumnsList.forEach(function(item) {
+                        var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
+                        html += '<label class="ba-checkbox" style="display: flex; align-items: center; cursor: pointer; font-size: 0.875rem;">' +
+                            '<input type="checkbox" class="chkPhoneColumn" data-schema="' + (item.schema || 'dbo').replace(/"/g, '&quot;') + '" data-table="' + (item.table || '').replace(/"/g, '&quot;') + '" data-column="' + (item.column || '').replace(/"/g, '&quot;') + '" />' +
+                            '<span style="margin-left: 0.5rem; font-family: monospace;">' + key + '</span></label>';
+                    });
+                    $('#phoneColumnsList').html(html);
+                    $('#phoneColumnsListWrap').show();
+                    $('#btnResetPhoneColumns').prop('disabled', false);
+                    $('#chkSelectAllPhoneColumns').off('change').prop('checked', false).on('change', function() {
+                        var v = $(this).prop('checked');
+                        $('.chkPhoneColumn').prop('checked', v);
+                    });
+                },
+                error: function() {
+                    $('#phoneColumnsStatus').text('Lỗi khi tải danh sách.');
+                }
+            });
+        }
+
+        function resetPhoneColumns() {
+            var selected = [];
+            $('.chkPhoneColumn:checked').each(function() {
+                selected.push({
+                    schema: $(this).data('schema') || 'dbo',
+                    table: $(this).data('table'),
+                    column: $(this).data('column')
+                });
+            });
+            if (selected.length === 0) {
+                showToast('Chọn ít nhất 1 bảng/cột để reset.', 'error');
+                return;
+            }
+            var phone = $('#txtOtherPhoneColumnsPhone').val();
+            if (!phone || !phone.trim()) {
+                showToast('Nhập số điện thoại reset chung.', 'error');
+                return;
+            }
+            updateInProgress = true;
+            showProgress('Đang reset các cột Phone...', 0, '0 / ' + selected.length + ' cột');
+            $('.ba-btn').prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ResetPhoneColumns") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, selections: selected, phone: phone.trim() }),
+                timeout: 60000,
+                success: function(res) {
+                    var d = res.d || res;
+                    showProgress('Hoàn thành', 100, d && d.message ? d.message : 'Reset xong.');
+                    setTimeout(function() {
+                        updateInProgress = false;
+                        hideProgress();
+                        $('.ba-btn').prop('disabled', false);
+                        showToast(d && d.success ? (d.message || 'Đã reset thành công.') : (d && d.message ? d.message : 'Lỗi'), d && d.success ? 'success' : 'error');
+                    }, 400);
+                },
+                error: function(xhr, status, err) {
+                    var msg = 'Lỗi khi reset.';
+                    if (xhr.responseText) {
+                        try {
+                            var json = JSON.parse(xhr.responseText);
+                            if (json.d && json.d.message) msg = json.d.message;
+                            else if (json.message) msg = json.message;
+                        } catch(e) {}
+                    }
+                    showProgress('Lỗi', 100, msg);
+                    setTimeout(function() {
+                        updateInProgress = false;
+                        hideProgress();
+                        $('.ba-btn').prop('disabled', false);
+                        showToast(msg, 'error');
+                    }, 400);
                 }
             });
         }

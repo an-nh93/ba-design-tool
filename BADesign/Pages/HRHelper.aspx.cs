@@ -778,6 +778,268 @@ WHERE T.IsActiveTransaction = 1";
             }
         }
 
+        /// <summary>Kiểm tra bảng có tồn tại trong database hay không.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object CheckTableExists(string k, string tableName)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                if (string.IsNullOrWhiteSpace(tableName))
+                    return new { success = false, exists = false, message = "Tên bảng không được trống." };
+                var schema = "dbo";
+                var name = tableName.Trim();
+                if (name.Contains("."))
+                {
+                    var parts = name.Split(new[] { '.' }, 2);
+                    schema = parts[0].Trim();
+                    name = parts[1].Trim();
+                }
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @name";
+                    cmd.Parameters.AddWithValue("@schema", schema);
+                    cmd.Parameters.AddWithValue("@name", name);
+                    conn.Open();
+                    var exists = cmd.ExecuteScalar() != null;
+                    return new { success = true, exists = exists };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, exists = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Email" và kiểu dữ liệu text.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetTablesWithEmailColumns(string k)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS c
+WHERE c.COLUMN_NAME LIKE N'%Email%'
+  AND c.COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')
+ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
+                    conn.Open();
+                    var list = new List<object>();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var schema = MyConvert.To<string>(r.GetValue(0)) ?? "dbo";
+                            var table = MyConvert.To<string>(r.GetValue(1)) ?? "";
+                            var col = MyConvert.To<string>(r.GetValue(2)) ?? "";
+                            if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(col)) continue;
+                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col });
+                        }
+                    }
+                    return new { success = true, list = list };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Reset các cột email đã chọn với giá trị email chung. Chỉ update các cột đã validate qua INFORMATION_SCHEMA.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object ResetEmailColumns(string k, List<EmailColumnSelection> selections, string email)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                if (string.IsNullOrWhiteSpace(email))
+                    return new { success = false, message = "Email không được trống." };
+                if (selections == null || selections.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 bảng/cột để reset." };
+
+                var validSelections = new List<EmailColumnSelection>();
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    conn.Open();
+                    foreach (var s in selections)
+                    {
+                        if (string.IsNullOrWhiteSpace(s.schema)) s.schema = "dbo";
+                        var schema = s.schema.Trim();
+                        var table = (s.table ?? "").Trim();
+                        var column = (s.column ?? "").Trim();
+                        if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(column)) continue;
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = @"
+SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table AND COLUMN_NAME = @col
+  AND COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
+  AND DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
+                            cmd.Parameters.AddWithValue("@schema", schema);
+                            cmd.Parameters.AddWithValue("@table", table);
+                            cmd.Parameters.AddWithValue("@col", column);
+                            if (cmd.ExecuteScalar() != null)
+                                validSelections.Add(new EmailColumnSelection { schema = schema, table = table, column = column });
+                        }
+                    }
+
+                    var totalAffected = 0;
+                    foreach (var s in validSelections)
+                    {
+                        var fullName = "[" + s.schema.Replace("]", "]]") + "].[" + s.table.Replace("]", "]]") + "]";
+                        var colName = "[" + s.column.Replace("]", "]]") + "]";
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = "UPDATE " + fullName + " SET " + colName + " = @email";
+                            cmd.Parameters.AddWithValue("@email", email.Trim());
+                            totalAffected += cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    return new { success = true, message = "Đã reset " + validSelections.Count + " cột. Tổng bản ghi cập nhật: " + totalAffected, affected = totalAffected, columnsUpdated = validSelections.Count };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        public class EmailColumnSelection
+        {
+            public string schema { get; set; }
+            public string table { get; set; }
+            public string column { get; set; }
+        }
+
+        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Phone" và kiểu dữ liệu text.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetTablesWithPhoneColumns(string k)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS c
+WHERE c.COLUMN_NAME LIKE N'%Phone%'
+  AND NOT (c.TABLE_SCHEMA = 'dbo' AND c.TABLE_NAME LIKE 'PAY_MasterPayroll%')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')
+ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
+                    conn.Open();
+                    var list = new List<object>();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var schema = MyConvert.To<string>(r.GetValue(0)) ?? "dbo";
+                            var table = MyConvert.To<string>(r.GetValue(1)) ?? "";
+                            var col = MyConvert.To<string>(r.GetValue(2)) ?? "";
+                            if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(col)) continue;
+                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col });
+                        }
+                    }
+                    return new { success = true, list = list };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Reset các cột Phone đã chọn với giá trị chung. Chỉ update các cột đã validate qua INFORMATION_SCHEMA.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object ResetPhoneColumns(string k, List<PhoneColumnSelection> selections, string phone)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                if (string.IsNullOrWhiteSpace(phone))
+                    return new { success = false, message = "Số điện thoại không được trống." };
+                if (selections == null || selections.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 bảng/cột để reset." };
+
+                var validSelections = new List<PhoneColumnSelection>();
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    conn.Open();
+                    foreach (var s in selections)
+                    {
+                        if (string.IsNullOrWhiteSpace(s.schema)) s.schema = "dbo";
+                        var schema = s.schema.Trim();
+                        var table = (s.table ?? "").Trim();
+                        var column = (s.column ?? "").Trim();
+                        if (string.IsNullOrEmpty(table) || string.IsNullOrEmpty(column)) continue;
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = @"
+SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS 
+WHERE TABLE_SCHEMA = @schema AND TABLE_NAME = @table AND COLUMN_NAME = @col
+  AND COLUMN_NAME LIKE N'%Phone%'
+  AND NOT (TABLE_SCHEMA = 'dbo' AND TABLE_NAME LIKE 'PAY_MasterPayroll%')
+  AND DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
+                            cmd.Parameters.AddWithValue("@schema", schema);
+                            cmd.Parameters.AddWithValue("@table", table);
+                            cmd.Parameters.AddWithValue("@col", column);
+                            if (cmd.ExecuteScalar() != null)
+                                validSelections.Add(new PhoneColumnSelection { schema = schema, table = table, column = column });
+                        }
+                    }
+
+                    var totalAffected = 0;
+                    foreach (var s in validSelections)
+                    {
+                        var fullName = "[" + s.schema.Replace("]", "]]") + "].[" + s.table.Replace("]", "]]") + "]";
+                        var colName = "[" + s.column.Replace("]", "]]") + "]";
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = "UPDATE " + fullName + " SET " + colName + " = @phone";
+                            cmd.Parameters.AddWithValue("@phone", phone.Trim());
+                            totalAffected += cmd.ExecuteNonQuery();
+                        }
+                    }
+
+                    return new { success = true, message = "Đã reset " + validSelections.Count + " cột. Tổng bản ghi cập nhật: " + totalAffected, affected = totalAffected, columnsUpdated = validSelections.Count };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        public class PhoneColumnSelection
+        {
+            public string schema { get; set; }
+            public string table { get; set; }
+            public string column { get; set; }
+        }
+
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object LoadTenants(string k)
