@@ -851,7 +851,7 @@
                             </div>
                             <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
                                 <h3 class="ba-card-title" style="font-size: 1.1rem; margin-bottom: 1rem;">Company Email Settings</h3>
-                                <div class="ba-actions" style="margin-bottom: 1rem;">
+                                <div class="ba-actions" style="margin-bottom: 1rem;" id="companyUserActionWrap">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCompanyUserAction" onclick="loadUserActionEmail(); return false;" disabled>User Action Email</button>
                                 </div>
                                 <div class="ba-form-group">
@@ -1179,6 +1179,7 @@
         })();
         var hrToken = '';
         var isMultiDbMode = <%= IsMultiDbMode ? "true" : "false" %>;
+        var isGuest = <%= IsGuest ? "true" : "false" %>;
         var multiDbAnalyzeResults = [];
         var multiDbSortCol = 1;
         var multiDbSortDir = 1;
@@ -1300,6 +1301,7 @@
                 renderUsers();
             });
             loadCompanies();
+            if (isGuest) $('#companyUserActionWrap').hide();
             $('#txtSearchEmployees').on('input', function() {
                 employeeSearch = $(this).val();
                 employeePage = 1;
@@ -1792,6 +1794,21 @@
                     }
                 }
             });
+            // Fill email từ Windows user (VD: cadena\an.nh → an.nh@cadena.com.sg)
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetWindowsUserEmail") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ domainSuffix: 'cadena.com.sg' }),
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.email) {
+                        var e = (d.email || '').trim();
+                        if (e && !$('#txtMultiResetEmail').val()) $('#txtMultiResetEmail').val(e);
+                    }
+                }
+            });
         }
 
         function saveEmailIgnoreConfig() {
@@ -2055,20 +2072,22 @@
         function loadOtherTab() {
             if (otherTabLoaded) return;
             otherTabLoaded = true;
-            // Load default email (Windows user + @cadena.com.sg)
+            // Load default email từ Windows user (VD: cadena\an.nh → an.nh@cadena.com.sg)
             $.ajax({
-                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetCurrentUserName") %>',
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetWindowsUserEmail") %>',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
-                data: JSON.stringify({ k: hrToken }),
+                data: JSON.stringify({ domainSuffix: 'cadena.com.sg' }),
                 timeout: 10000,
                 success: function(res) {
                     var d = res.d || res;
-                    if (d && d.success && d.userName) {
-                        var defaultEmail = (d.userName || '').trim().toLowerCase() + '@cadena.com.sg';
-                        var $ec = $('#txtOtherEmailColumnsEmail');
-                        if (!$ec.val() || $ec.data('default-set')) $ec.val(defaultEmail).data('default-set', true);
+                    if (d && d.success && d.email) {
+                        var defaultEmail = (d.email || '').trim();
+                        if (defaultEmail) {
+                            var $ec = $('#txtOtherEmailColumnsEmail');
+                            if (!$ec.val() || $ec.data('default-set')) $ec.val(defaultEmail).data('default-set', true);
+                        }
                     }
                 }
             });
@@ -2169,7 +2188,7 @@
         }
 
         function loadEmailColumnsList() {
-            $('#emailColumnsStatus').text('Đang tải...');
+            showProgress('Đang tải danh sách bảng có cột Email...', 0, 'Đang xử lý...');
             $('#emailColumnsListWrap').hide();
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetTablesWithEmailColumns") %>',
@@ -2181,10 +2200,12 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (!d || !d.success) {
+                        hideProgress();
                         $('#emailColumnsStatus').text('Lỗi: ' + (d && d.message ? d.message : 'Không tải được.'));
                         return;
                     }
                     emailColumnsList = d.list || [];
+                    hideProgress();
                     if (emailColumnsList.length === 0) {
                         $('#emailColumnsStatus').html('<span style="color: var(--text-muted);">Không tìm thấy bảng nào có cột Email (kiểu text).</span>');
                         return;
@@ -2220,6 +2241,7 @@
                     });
                 },
                 error: function() {
+                    hideProgress();
                     $('#emailColumnsStatus').text('Lỗi khi tải danh sách.');
                 }
             });
@@ -2405,7 +2427,7 @@
         }
 
         function loadPhoneColumnsList() {
-            $('#phoneColumnsStatus').text('Đang tải...');
+            showProgress('Đang tải danh sách bảng có cột Phone...', 0, 'Đang xử lý...');
             $('#phoneColumnsListWrap').hide();
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetTablesWithPhoneColumns") %>',
@@ -2417,10 +2439,12 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (!d || !d.success) {
+                        hideProgress();
                         $('#phoneColumnsStatus').text('Lỗi: ' + (d && d.message ? d.message : 'Không tải được.'));
                         return;
                     }
                     phoneColumnsList = d.list || [];
+                    hideProgress();
                     if (phoneColumnsList.length === 0) {
                         $('#phoneColumnsStatus').html('<span style="color: var(--text-muted);">Không tìm thấy bảng nào có cột Phone (kiểu text).</span>');
                         return;
@@ -2449,6 +2473,7 @@
                     });
                 },
                 error: function() {
+                    hideProgress();
                     $('#phoneColumnsStatus').text('Lỗi khi tải danh sách.');
                 }
             });
@@ -3426,13 +3451,17 @@
                 timeout: 10000,
                 success: function(res) {
                     var d = res.d || res;
-                    if (d && d.success && d.userName) {
-                        var email = d.userName + '@cadena-hrmseries.com';
-                        $('#txtCompanyPayrollEmailTo').val(email);
-                        $('#txtCompanyPayrollEmailCC').val(email);
-                        $('#txtCompanyHREmailTo').val(email);
-                        $('#txtCompanyHREmailCC').val(email);
-                        $('#txtCompanyContactEmail').val(email);
+                    if (d && d.success && (d.userName || d.email)) {
+                        var email = (d.email && d.email.indexOf('@') > 0)
+                            ? d.email.replace(/@[^@]+$/, '@cadena-hrmseries.com')
+                            : ((d.userName || '').trim() + '@cadena-hrmseries.com');
+                        if (email && email !== '@cadena-hrmseries.com') {
+                            $('#txtCompanyPayrollEmailTo').val(email);
+                            $('#txtCompanyPayrollEmailCC').val(email);
+                            $('#txtCompanyHREmailTo').val(email);
+                            $('#txtCompanyHREmailCC').val(email);
+                            $('#txtCompanyContactEmail').val(email);
+                        }
                     }
                     hideProgress();
                 },

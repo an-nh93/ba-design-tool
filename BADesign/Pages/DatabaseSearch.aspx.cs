@@ -612,10 +612,44 @@ WHERE Id=@id AND IsActive=1";
             {
                 if (string.IsNullOrWhiteSpace(connectionString))
                     return new { success = false, message = "Connection string trống." };
+                var connStr = connectionString.Trim();
+                var isConnStrDirect = string.IsNullOrWhiteSpace(server) && string.IsNullOrWhiteSpace(database);
+                var parsedServer = server ?? "";
+                var parsedDatabase = database ?? "";
+                if (isConnStrDirect)
+                {
+                    var toValidate = connStr;
+                    if (toValidate.IndexOf("Connect Timeout=", StringComparison.OrdinalIgnoreCase) < 0
+                        && toValidate.IndexOf("Connection Timeout=", StringComparison.OrdinalIgnoreCase) < 0)
+                        toValidate = toValidate.TrimEnd(';') + ";Connect Timeout=10";
+                    try
+                    {
+                        using (var conn = new SqlConnection(toValidate))
+                        {
+                            conn.Open();
+                        }
+                    }
+                    catch (SqlException ex)
+                    {
+                        var msg = "Không kết nối được. ";
+                        if (ex.Number == 18456) msg += "Sai tên đăng nhập hoặc mật khẩu.";
+                        else if (ex.Number == -1 || ex.Number == 53) msg += "Không truy cập được server.";
+                        else if (ex.Number == 4060) msg += "Database không tồn tại hoặc không có quyền truy cập.";
+                        else msg += ex.Message;
+                        return new { success = false, message = msg };
+                    }
+                    try
+                    {
+                        var builder = new SqlConnectionStringBuilder(connStr);
+                        parsedServer = builder.DataSource ?? "";
+                        parsedDatabase = builder.InitialCatalog ?? "";
+                    }
+                    catch { }
+                }
                 var id = Guid.NewGuid().ToString("N");
                 var ctx = HttpContext.Current;
                 if (ctx?.Session != null)
-                    ctx.Session["HRConn_" + id] = new HRConnInfo { ConnectionString = connectionString, Server = server ?? "", Database = database ?? "" };
+                    ctx.Session["HRConn_" + id] = new HRConnInfo { ConnectionString = connStr, Server = parsedServer, Database = parsedDatabase };
                 var token = DataSecurityWrapper.EncryptConnectId(id);
                 return new { success = true, token = token };
             }

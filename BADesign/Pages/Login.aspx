@@ -53,6 +53,7 @@
                                     Text="Log in"
                                     CssClass="btn-login"
                                     OnClick="btnLogin_Click" />
+                        <a href="<%= ResolveUrl("~/") %>" class="btn-guest">Use with Guest User</a>
                     </div>
                 </div>
             </div>

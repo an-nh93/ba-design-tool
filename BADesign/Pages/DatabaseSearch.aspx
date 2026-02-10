@@ -406,7 +406,7 @@
                             <div class="ba-form-group" style="margin-bottom: 1rem;">
                                 <input type="text" id="txtConnStr" class="ba-input" placeholder="Data Source=...;Initial Catalog=...;User ID=...;Password=..." style="width:100%; font-family: Consolas, monospace; font-size: 0.8125rem;" />
                             </div>
-                            <button type="button" class="ba-btn ba-btn-primary" onclick="connectByConnStr(); return false;">Connect</button>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnConnStrConnect" onclick="connectByConnStr(); return false;">Connect</button>
                         </div>
                     </div>
                     <!-- Server config (chỉ khi đăng nhập + có quyền DatabaseSearch) -->
@@ -1273,21 +1273,27 @@
                 showToast('Nhập connection string.', 'error');
                 return;
             }
+            var $btn = $('#btnConnStrConnect');
+            var origText = $btn.text();
+            $btn.prop('disabled', true).text('Đang kết nối...');
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/PrepareConnect") %>',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
                 data: JSON.stringify({ connectionString: cs, server: '', database: '' }),
+                timeout: 15000,
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success && d.token) {
                         window.location.href = '<%= ResolveUrl("~/Pages/HRHelper.aspx") %>?k=' + encodeURIComponent(d.token);
                     } else {
+                        $btn.prop('disabled', false).text(origText);
                         showToast(d && d.message ? d.message : 'Không thể kết nối.', 'error');
                     }
                 },
-                error: function(xhr) {
+                error: function(xhr, status, err) {
+                    $btn.prop('disabled', false).text(origText);
                     var msg = 'Lỗi kết nối.';
                     if (xhr.responseText) {
                         try {
@@ -1296,6 +1302,7 @@
                             else if (j.message) msg = j.message;
                         } catch(e) {}
                     }
+                    if (status === 'timeout') msg = 'Hết thời gian chờ kết nối (timeout).';
                     showToast(msg, 'error');
                 }
             });

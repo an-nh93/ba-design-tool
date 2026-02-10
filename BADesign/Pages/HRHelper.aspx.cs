@@ -17,6 +17,7 @@ namespace BADesign.Pages
         public string ConnectedDatabase { get; private set; } = "";
         public bool IsMultiDbMode { get; private set; }
         public bool CanEditSettings => UiAuthHelper.HasFeature("Settings");
+        public bool IsGuest => UiAuthHelper.IsAnonymous;
 
         /// <summary>URL to EncryptDecrypt page with current connection token k (for Generate Demo Reset Script).</summary>
         public string EncryptDecryptUrl
@@ -789,6 +790,7 @@ WHERE T.IsActiveTransaction = 1";
             }
         }
 
+        /// <summary>Lấy username/email mặc định: guest = empty, logged-in = username từ web login + @cadena.com.sg</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetCurrentUserName(string k)
@@ -798,12 +800,11 @@ WHERE T.IsActiveTransaction = 1";
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
-                var userName = Environment.UserName;
-                if (userName == "an.nh")
-                {
-                    userName = "huyen.ntu";
-                }
-                return new { success = true, userName = userName };
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = true, userName = "", email = "" };
+                var userName = HttpContext.Current?.Session?["UiUserName"] as string ?? "";
+                var email = string.IsNullOrEmpty(userName) ? "" : (userName.Trim() + "@cadena.com.sg").ToLowerInvariant();
+                return new { success = true, userName = userName, email = email };
             }
             catch (Exception ex)
             {
@@ -994,6 +995,21 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
             return false;
         }
 
+        /// <summary>Lấy email mặc định: guest = empty, logged-in = username@cadena.com.sg</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetWindowsUserEmail(string domainSuffix = "cadena.com.sg")
+        {
+            if (UiAuthHelper.IsAnonymous)
+                return new { success = true, email = "" };
+            var userName = HttpContext.Current?.Session?["UiUserName"] as string;
+            if (string.IsNullOrEmpty(userName))
+                return new { success = true, email = "" };
+            var domain = string.IsNullOrEmpty(domainSuffix) ? "cadena.com.sg" : domainSuffix;
+            var email = (userName.Trim() + "@" + domain).ToLowerInvariant();
+            return new { success = true, email = email };
+        }
+
         /// <summary>Reset các cột email đã chọn với giá trị email chung. Chỉ base table, truncate theo max length, batch update, xử lý ntext.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -1004,7 +1020,8 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
-                if (string.IsNullOrWhiteSpace(email))
+                var emailVal = (email ?? "").Trim();
+                if (string.IsNullOrWhiteSpace(emailVal))
                     return new { success = false, message = "Email không được trống." };
                 if (selections == null || selections.Count == 0)
                     return new { success = false, message = "Chọn ít nhất 1 bảng/cột để reset." };
@@ -1058,7 +1075,7 @@ WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @co
                         {
                             var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
                             var colName = "[" + t.Item3.Replace("]", "]]") + "]";
-                            var val = TruncateToColumnLength(email.Trim(), t.Item4);
+                            var val = TruncateToColumnLength(emailVal.Trim(), t.Item4);
                             try
                             {
                                 totalAffected += ExecuteBatchUpdate(cmd, fullName, colName, "@email", val, t.Item5);
