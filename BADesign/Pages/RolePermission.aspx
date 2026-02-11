@@ -152,9 +152,13 @@
                             <span class="rp-toggle" title="Thu gọn / Mở rộng">▼</span>
                         </div>
                         <div class="rp-card-body">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 1rem;">
+                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
                             Chọn quyền cho từng role. User được gán role sẽ có đủ các quyền của role (không thể bỏ). Có thể thêm quyền riêng lẻ khi Edit User.
                         </p>
+                        <div class="rp-search-wrap" style="margin-bottom: 0.75rem;">
+                            <input type="text" id="searchPermissionsRp" class="rp-input" placeholder="Tìm chức năng..." style="max-width: 280px; padding: 0.5rem 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem;" />
+                        </div>
+                        <div class="rp-table-wrap" id="permissionsTableWrap" style="max-height: 360px; overflow-y: auto; margin-bottom: 0.5rem;">
                         <table class="rp-table" id="tblRolePermission">
                             <thead>
                                 <tr>
@@ -167,6 +171,7 @@
                             </thead>
                             <tbody id="tbodyRolePermission"></tbody>
                         </table>
+                        </div>
                         </div>
                     </div>
                     <div class="rp-card" id="cardServerAccess">
@@ -293,11 +298,21 @@
             });
         }
 
+        function filterPermissionRows() {
+            var q = ($('#searchPermissionsRp').val() || '').toLowerCase().trim();
+            $('#tbodyRolePermission tr').each(function() {
+                var $r = $(this);
+                var match = !q || ($r.attr('data-search') || '').indexOf(q) >= 0;
+                $r.css('display', match ? '' : 'none');
+            });
+        }
+
         function render() {
             var $tb = $('#tbodyRolePermission');
             $tb.empty();
             permissions.forEach(function(p) {
-                var $tr = $('<tr></tr>');
+                var searchText = ((p.name || '') + ' ' + (p.code || '')).toLowerCase().replace(/"/g, '&quot;');
+                var $tr = $('<tr data-search="' + searchText + '"></tr>');
                 $tr.append('<td>' + (p.name || p.code) + '</td>');
                 roles.forEach(function(r) {
                     var rp = rolePermissions[String(r.id)] || [];
@@ -308,6 +323,7 @@
                 });
                 $tb.append($tr);
             });
+            filterPermissionRows();
             var $trHead = $('#trRoleServerAccessHead');
             $trHead.find('th:not(:first)').remove();
             $trHead.find('th:first').replaceWith('<th class="rp-sortable" data-col="server"><span>Server <span class="rp-sort-icon"></span></span></th>');
@@ -430,6 +446,7 @@
             if (localStorage.getItem('rpCard_cardPermissions') === '1') $('#cardPermissions').addClass('collapsed');
             if (localStorage.getItem('rpCard_cardServerAccess') === '1') $('#cardServerAccess').addClass('collapsed');
             $('#searchServersRp').on('input', filterServerRows);
+            $('#searchPermissionsRp').on('input', filterPermissionRows);
             $('#tblRoleServerAccess').on('click', 'th.rp-sortable', function() {
                 syncRoleServerAccessFromDom();
                 var col = $(this).data('col');

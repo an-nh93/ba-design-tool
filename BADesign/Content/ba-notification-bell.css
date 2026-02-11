@@ -1,0 +1,190 @@
+/* Chuông thông báo (Backup/Restore jobs) - dùng chung cho HomeRole, DatabaseSearch, v.v. */
+#restoreJobsBellWrap { position: relative; margin-right: 8px; }
+.ba-notif-bell-btn {
+    padding: 6px 10px;
+    min-width: auto;
+    opacity: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+}
+.ba-notif-bell-btn:hover { background: var(--bg-hover, #3e3e42); }
+#restoreJobsBellBtn { opacity: 1 !important; background: var(--bg-card) !important; color: var(--text-primary) !important; border: 1px solid var(--border) !important; }
+#restoreJobsBellBtn:hover { background: var(--bg-hover, #3e3e42) !important; }
+
+.ba-notif-badge {
+    display: none;
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border-radius: 9px;
+    background: #eb0b52;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+    box-sizing: border-box;
+}
+.ba-notif-badge.visible { display: inline-flex !important; align-items: center; justify-content: center; }
+
+.ba-notif-panel {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 4px;
+    width: 380px;
+    max-height: 420px;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    z-index: 1001;
+}
+.ba-notif-panel .ba-notif-panel-title {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    background: var(--bg-card);
+    color: var(--text-primary);
+}
+.ba-notif-list {
+    padding: 6px;
+    overflow-y: auto;
+    max-height: 380px;
+    background: var(--bg-card);
+}
+.ba-notif-item {
+    position: relative;
+    padding: 10px 12px;
+    padding-right: 28px;
+    border-bottom: 1px solid var(--border, var(--border-color));
+    font-size: 0.8125rem;
+    background: var(--bg-card);
+    max-height: 120px;
+    overflow: hidden;
+}
+.ba-notif-item:last-child { border-bottom: none; }
+.ba-notif-item .ba-notif-dismiss {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 1rem;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.ba-notif-item .ba-notif-dismiss:hover { color: var(--text-primary); background: var(--surface-hover, rgba(0,0,0,0.06)); }
+.ba-notif-item .ba-notif-msg {
+    margin-top: 4px;
+    color: var(--danger, #ef4444);
+    font-size: 0.75rem;
+    line-height: 1.35;
+    max-height: 2.7em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+}
+.ba-notif-item .ba-notif-detail-link {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    color: var(--primary);
+    cursor: pointer;
+    text-decoration: none;
+}
+.ba-notif-item .ba-notif-detail-link:hover { text-decoration: underline; }
+
+.ba-notif-type-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-right: 6px; }
+.ba-notif-type-restore { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.ba-notif-type-backup { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.ba-notif-type-hr-user { background: #4ac5f5; color: #fff; }
+.ba-notif-type-hr-employee { background: #8757f7; color: #fff; }
+.ba-notif-type-hr-other { background: rgba(135, 87, 247, 0.5); color: #fff; }
+.ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
+
+/* Modal chi tiết thông báo */
+#notificationDetailModal,
+.ba-notif-detail-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10002;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.5);
+}
+#notificationDetailModal.show,
+.ba-notif-detail-modal.show { display: flex; }
+#notificationDetailModal .ba-notif-detail-modal-content,
+.ba-notif-detail-modal-content {
+    background: var(--bg-card);
+    border-radius: 8px;
+    max-width: 520px;
+    width: 96%;
+    max-height: 85vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+#notificationDetailModal .ba-modal-content { max-width: 520px; width: 96%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
+.ba-notif-detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.ba-notif-detail-header .ba-notif-detail-title { font-weight: 600; color: var(--text-primary); }
+#notificationDetailClose {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 0;
+}
+#notificationDetailClose:hover { color: var(--text-primary) !important; background: rgba(0,0,0,0.06) !important; }
+.ba-modal-close { background: transparent !important; border: none !important; color: var(--text-muted) !important; width: 32px !important; height: 32px !important; border-radius: 6px !important; cursor: pointer !important; font-size: 1.5rem !important; line-height: 1 !important; padding: 0 !important; }
+.ba-modal-close:hover { color: var(--text-primary) !important; background: rgba(0,0,0,0.06) !important; }
+
+#notificationDetailModal .ba-notif-detail-body {
+    overflow-y: auto;
+    padding: 1rem;
+    font-size: 0.875rem;
+}
+#notificationDetailModal .ba-notif-detail-body table { width: 100%; border-collapse: collapse; }
+#notificationDetailModal .ba-notif-detail-body th { text-align: left; padding: 6px 10px; color: var(--text-muted); font-weight: 500; width: 120px; }
+#notificationDetailModal .ba-notif-detail-body td { padding: 6px 10px; border-bottom: 1px solid var(--border, var(--border-color)); }
+#notificationDetailModal .ba-notif-detail-body .ba-notif-full-msg {
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--surface-alt, var(--bg-darker));
+    border-radius: 6px;
+    font-size: 0.8125rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 200px;
+    overflow-y: auto;
+}

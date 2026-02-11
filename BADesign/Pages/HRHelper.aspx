@@ -1,5 +1,6 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="HRHelper.aspx.cs"
     Inherits="BADesign.Pages.HRHelper" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
 
 <!DOCTYPE html>
 <html>
@@ -7,7 +8,11 @@
     <meta charset="utf-8" />
     <title>HR Helper - UI Builder</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
+    <link href="../Content/ba-layout.css" rel="stylesheet" />
+    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
+    <script src="../Scripts/jquery.signalR.min.js"></script>
+    <script src="../Scripts/ba-signalr.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
     <style>
         :root {
@@ -504,6 +509,35 @@
             gap: 1.5rem;
         }
         .ba-progress-overlay.show { display: flex; }
+        /* Full-screen overlay khi có HR Helper job đang chạy (update user/employee/other) */
+        .ba-hr-job-overlay {
+            display: none;
+            position: fixed;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.75);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .ba-hr-job-overlay.show { display: flex; }
+        .ba-hr-job-overlay .ba-hr-job-spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: ba-spin 0.9s linear infinite;
+        }
+        @@keyframes ba-spin { to { transform: rotate(360deg); } }
+        .ba-hr-job-overlay .ba-hr-job-text {
+            color: var(--text-primary);
+            font-size: 1rem;
+        }
         .ba-progress-content {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -629,16 +663,13 @@
                 </nav>
             </aside>
             <main class="ba-main">
-                <div class="ba-top-bar">
-                    <h1 class="ba-top-bar-title">HR Helper</h1>
-                    <div style="display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                        <div class="ba-conn-label">
-                            <span>Server: <strong><%= ConnectedServer %></strong></span>
-                            <span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span>
-                        </div>
-                        <% if (!IsMultiDbMode) { %><a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a><% } %>
-                    </div>
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" />
+                <% if (!IsMultiDbMode) { %>
+                <div class="ba-hr-conn-bar" style="padding: 0.5rem 2rem; background: var(--bg-darker, #161616); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
+                    <span class="ba-conn-label" style="font-size: 0.875rem;"><span>Server: <strong><%= ConnectedServer %></strong></span><span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span></span>
+                    <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a>
                 </div>
+                <% } %>
                 <div class="ba-content">
                     <% if (!IsMultiDbMode) { %>
                     <div class="ba-tabs">
@@ -1146,6 +1177,12 @@
             </div>
         </div>
 
+        <!-- HR Helper job running overlay: che màn hình khi có job update user/employee/other đang chạy -->
+        <div id="hrJobOverlay" class="ba-hr-job-overlay">
+            <div class="ba-hr-job-spinner"></div>
+            <div class="ba-hr-job-text">Đang xử lý... Không thao tác cho đến khi job hoàn thành.</div>
+        </div>
+
         <!-- Confirm Modal -->
         <div id="confirmUpdateModal" class="ba-modal" style="display: none;">
             <div class="ba-modal-content" style="max-width: 440px;">
@@ -1276,6 +1313,20 @@
             // Clear session khi reload trang
             $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ClearEmployeesSession") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ k: hrToken }), timeout: 10000, error: function() {} });
             $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ClearUsersSession") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ k: hrToken }), timeout: 10000, error: function() {} });
+
+            // Kiểm tra job HR Helper đang chạy (update user/employee/other) → hiển thị overlay; SignalR để cập nhật khi job xong
+            checkHRHelperJobsAndShowOverlay();
+            if (typeof BA_SignalR !== 'undefined') {
+                BA_SignalR.onJobsUpdated(function() {
+                    checkHRHelperJobsAndShowOverlay();
+                    var activeTab = $('.ba-tab.active').data('tab');
+                    if (activeTab === 'users') { if (typeof loadUsers === 'function') loadUsers(); }
+                    else if (activeTab === 'employees') { if (typeof loadEmployees === 'function') loadEmployees(); }
+                    else if (activeTab === 'company') { if (typeof loadCompanyInfo === 'function') loadCompanyInfo(); }
+                    else if (activeTab === 'other') { otherTabLoaded = false; if (typeof loadOtherTab === 'function') loadOtherTab(); }
+                });
+                BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');
+            }
 
             $('.ba-tab').on('click', function() {
                 var tab = $(this).data('tab');
@@ -1485,6 +1536,32 @@
             $('#toastContainer').append($t);
             setTimeout(function() { $t.addClass('show'); }, 10);
             setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, duration);
+        }
+
+        /** Gọi GetMyRunningHRHelperJobs: nếu có job đang chạy thì show overlay, không thì hide (và toast khi vừa xong). */
+        function checkHRHelperJobsAndShowOverlay() {
+            var wasShowing = $('#hrJobOverlay').hasClass('show');
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetMyRunningHRHelperJobs") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({}),
+                timeout: 15000,
+                success: function(res) {
+                    var d = res.d || res;
+                    var count = (d && d.success && d.runningCount) ? parseInt(d.runningCount, 10) : 0;
+                    if (count > 0) {
+                        $('#hrJobOverlay').addClass('show');
+                    } else {
+                        if (wasShowing) showToast('Job đã hoàn thành.', 'success');
+                        $('#hrJobOverlay').removeClass('show');
+                    }
+                },
+                error: function() {
+                    if (wasShowing) $('#hrJobOverlay').removeClass('show');
+                }
+            });
         }
 
         function showProgress(title, percent, text) {
@@ -3026,120 +3103,44 @@
         }
 
         function doUpdateUsers(targetIds, isUpdatePassword, isUpdateEmail, ignoreWindowsAD) {
-            var chunks = [];
-            for (var i = 0; i < targetIds.length; i += UPDATE_CHUNK_SIZE) {
-                chunks.push(targetIds.slice(i, i + UPDATE_CHUNK_SIZE));
-            }
-            var totalChunks = chunks.length;
-            var totalUsers = targetIds.length;
-
-            updateInProgress = true;
-            showProgress('Đang update users...', 0, '0 / ' + totalUsers + ' user');
-            $('.ba-btn').prop('disabled', true);
-
-            function runChunk(idx) {
-                if (idx >= totalChunks) {
-                    // All chunks completed - update session
-                    $.ajax({
-                        url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/UpdateUsersInSession") %>',
-                        type: 'POST',
-                        contentType: 'application/json; charset=utf-8',
-                        dataType: 'json',
-                        data: JSON.stringify({
-                            k: hrToken,
-                            userIds: targetIds,
-                            isUpdatePassword: isUpdatePassword,
-                            isUpdateEmail: isUpdateEmail,
-                            email: isUpdateEmail ? $('#txtEmail').val().trim() : null
-                        }),
-                        timeout: 30000,
-                        success: function(sessRes) {
-                            var sd = sessRes.d || sessRes;
-                            if (sd && sd.success) {
-                                // Update local users array
-                                var userIdSet = new Set(targetIds);
-                                var newEmail = isUpdateEmail ? $('#txtEmail').val().trim() : null;
-                                users.forEach(function(u) {
-                                    if (userIdSet.has(u.userID)) {
-                                        if (isUpdateEmail && newEmail) {
-                                            u.userEmail = newEmail;
-                                        }
-                                    }
-                                });
-                                renderUsers();
-                            }
-                            showProgress('Hoàn thành', 100, totalUsers + ' / ' + totalUsers + ' user');
-                            setTimeout(function() {
-                                updateInProgress = false;
-                                hideProgress();
-                                $('.ba-btn').prop('disabled', false);
-                                showToast('Đã update ' + totalUsers + ' user thành công.', 'success');
-                            }, 400);
-                        },
-                        error: function() {
-                            showProgress('Hoàn thành', 100, totalUsers + ' / ' + totalUsers + ' user');
-                            setTimeout(function() {
-                                updateInProgress = false;
-                                hideProgress();
-                                $('.ba-btn').prop('disabled', false);
-                                showToast('Đã update ' + totalUsers + ' user thành công (session chưa cập nhật).', 'warning');
-                            }, 400);
-                        }
-                    });
-                    return;
-                }
-                var chunk = chunks[idx];
-                var doneSoFar = Math.min(idx * UPDATE_CHUNK_SIZE, totalUsers);
-                var pct = totalUsers > 0 ? Math.round((doneSoFar / totalUsers) * 100) : 0;
-                showProgress('Đang update users...', Math.min(99, pct), doneSoFar + ' / ' + totalUsers + ' user');
-
-                var payload = {
-                    k: hrToken,
-                    userIds: chunk,
-                    isUpdatePassword: isUpdatePassword,
-                    password: isUpdatePassword ? $('#txtPassword').val().trim() : null,
-                    methodHash: parseInt($('#selMethodHash').val(), 10) || 256,
-                    isUpdateEmail: isUpdateEmail,
-                    email: isUpdateEmail ? $('#txtEmail').val().trim() : null,
-                    ignoreWindowsAD: ignoreWindowsAD
-                };
-
-                $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/UpdateUsers") %>',
-                    type: 'POST',
-                    contentType: 'application/json; charset=utf-8',
-                    dataType: 'json',
-                    data: JSON.stringify(payload),
-                    timeout: 300000,
-                    success: function(res) {
-                        var d = res.d || res;
-                        if (d && d.success) {
-                            runChunk(idx + 1);
-                        } else {
-                            updateInProgress = false;
-                            hideProgress();
-                            $('.ba-btn').prop('disabled', false);
-                            showToast(d && d.message ? d.message : 'Lỗi update users.', 'error');
-                        }
-                    },
-                    error: function(xhr, status, err) {
-                        updateInProgress = false;
-                        hideProgress();
-                        $('.ba-btn').prop('disabled', false);
-                        var msg = 'Lỗi kết nối hoặc timeout.';
-                        if (xhr.responseText) {
-                            try {
-                                var json = JSON.parse(xhr.responseText);
-                                if (json.d && json.d.message) msg = json.d.message;
-                                else if (json.message) msg = json.message;
-                            } catch(e) {}
-                        }
-                        showToast(msg, 'error');
+            var payload = {
+                k: hrToken,
+                userIds: targetIds,
+                isUpdatePassword: isUpdatePassword,
+                password: isUpdatePassword ? $('#txtPassword').val().trim() : null,
+                methodHash: parseInt($('#selMethodHash').val(), 10) || 256,
+                isUpdateEmail: isUpdateEmail,
+                email: isUpdateEmail ? $('#txtEmail').val().trim() : null,
+                ignoreWindowsAD: ignoreWindowsAD
+            };
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartHRHelperUpdateUserJob") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify(payload),
+                timeout: 30000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success) {
+                        $('#hrJobOverlay').addClass('show');
+                        showToast('Đã đưa update user vào hàng đợi. Job chạy nền.', 'success');
+                    } else {
+                        showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
                     }
-                });
-            }
-
-            runChunk(0);
+                },
+                error: function(xhr, status, err) {
+                    var msg = 'Lỗi kết nối hoặc timeout.';
+                    if (xhr.responseText) {
+                        try {
+                            var json = JSON.parse(xhr.responseText);
+                            if (json.d && json.d.message) msg = json.d.message;
+                            else if (json.message) msg = json.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
+                }
+            });
         }
 
         function getUpdateTargetEmployeeIds() {
@@ -3189,140 +3190,52 @@
         }
 
         function doUpdateEmployees(targetIds, updPersonal, updBusiness, updPayslip, payslipByEmp, updM1, updM2, updBasic) {
-            var chunks = [];
-            for (var i = 0; i < targetIds.length; i += UPDATE_CHUNK_SIZE) {
-                chunks.push(targetIds.slice(i, i + UPDATE_CHUNK_SIZE));
-            }
-            var totalChunks = chunks.length;
-            var total = targetIds.length;
-
-            var personalEmail = $('#txtPersonalEmail').val().trim();
-            var businessEmail = $('#txtBusinessEmail').val().trim();
-            var payslipCommon = $('#txtPayslipCommon').val().trim();
-            var m1 = $('#txtMobile1').val().trim();
-            var m2 = $('#txtMobile2').val().trim();
-            var basicSalary = parseFloat($('#txtBasicSalary').val()) || 0;
-
-            updateInProgress = true;
-            showProgress('Đang update employees...', 0, '0 / ' + total + ' employee');
-            $('.ba-btn').prop('disabled', true);
-
-            function runChunk(idx) {
-                if (idx >= totalChunks) {
-                    // All chunks completed - update session
-                    $.ajax({
-                        url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/UpdateEmployeesInSession") %>',
-                        type: 'POST',
-                        contentType: 'application/json; charset=utf-8',
-                        dataType: 'json',
-                        data: JSON.stringify({
-                            k: hrToken,
-                            companyID: employeeCompanyFilter,
-                            employeeIds: targetIds,
-                            updPersonal: updPersonal,
-                            personalEmail: personalEmail,
-                            updBusiness: updBusiness,
-                            businessEmail: businessEmail,
-                            updM1: updM1,
-                            m1: m1,
-                            updM2: updM2,
-                            m2: m2
-                        }),
-                        timeout: 30000,
-                        success: function(sessRes) {
-                            var sd = sessRes.d || sessRes;
-                            if (sd && sd.success) {
-                                // Update local employees array
-                                var empIdSet = new Set(targetIds);
-                                employees.forEach(function(e) {
-                                    if (empIdSet.has(e.employeeID)) {
-                                        if (updPersonal && personalEmail) e.personalEmail = personalEmail;
-                                        if (updBusiness && businessEmail) e.businessEmail = businessEmail;
-                                        if (updM1 && m1) e.mobilePhone1 = m1;
-                                        if (updM2 && m2) e.mobilePhone2 = m2;
-                                    }
-                                });
-                                renderEmployees();
-                            }
-                            showProgress('Hoàn thành', 100, total + ' / ' + total + ' employee');
-                            setTimeout(function() {
-                                updateInProgress = false;
-                                hideProgress();
-                                $('.ba-btn').prop('disabled', false);
-                                showToast('Đã update ' + total + ' employee thành công.', 'success');
-                            }, 400);
-                        },
-                        error: function() {
-                            showProgress('Hoàn thành', 100, total + ' / ' + total + ' employee');
-                            setTimeout(function() {
-                                updateInProgress = false;
-                                hideProgress();
-                                $('.ba-btn').prop('disabled', false);
-                                showToast('Đã update ' + total + ' employee thành công (session chưa cập nhật).', 'warning');
-                            }, 400);
-                        }
-                    });
-                    return;
-                }
-                var chunk = chunks[idx];
-                var doneSoFar = Math.min(idx * UPDATE_CHUNK_SIZE, total);
-                var pct = total > 0 ? Math.round((doneSoFar / total) * 100) : 0;
-                showProgress('Đang update employees...', Math.min(99, pct), doneSoFar + ' / ' + total + ' employee');
-
-                var payload = {
-                    k: hrToken,
-                    employeeIds: chunk,
-                    updPersonal: updPersonal,
-                    personalEmail: personalEmail,
-                    updBusiness: updBusiness,
-                    businessEmail: businessEmail,
-                    updPayslip: updPayslip,
-                    payslipCommon: payslipCommon,
-                    payslipByEmp: payslipByEmp,
-                    updM1: updM1,
-                    m1: m1,
-                    updM2: updM2,
-                    m2: m2,
-                    updBasic: updBasic,
-                    basicSalary: basicSalary
-                };
-
-                $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/UpdateEmployees") %>',
-                    type: 'POST',
-                    contentType: 'application/json; charset=utf-8',
-                    dataType: 'json',
-                    data: JSON.stringify(payload),
-                    timeout: 300000,
-                    success: function(res) {
-                        var d = res.d || res;
-                        if (d && d.success) {
-                            runChunk(idx + 1);
-                        } else {
-                            updateInProgress = false;
-                            hideProgress();
-                            $('.ba-btn').prop('disabled', false);
-                            showToast(d && d.message ? d.message : 'Lỗi update employees.', 'error');
-                        }
-                    },
-                    error: function(xhr, status, err) {
-                        updateInProgress = false;
-                        hideProgress();
-                        $('.ba-btn').prop('disabled', false);
-                        var msg = 'Lỗi kết nối hoặc timeout.';
-                        if (xhr.responseText) {
-                            try {
-                                var json = JSON.parse(xhr.responseText);
-                                if (json.d && json.d.message) msg = json.d.message;
-                                else if (json.message) msg = json.message;
-                            } catch(e) {}
-                        }
-                        showToast(msg, 'error');
+            var payload = {
+                k: hrToken,
+                companyID: employeeCompanyFilter,
+                employeeIds: targetIds,
+                updPersonal: updPersonal,
+                personalEmail: $('#txtPersonalEmail').val().trim(),
+                updBusiness: updBusiness,
+                businessEmail: $('#txtBusinessEmail').val().trim(),
+                updPayslip: updPayslip,
+                payslipCommon: $('#txtPayslipCommon').val().trim(),
+                payslipByEmp: payslipByEmp,
+                updM1: updM1,
+                m1: $('#txtMobile1').val().trim(),
+                updM2: updM2,
+                m2: $('#txtMobile2').val().trim(),
+                updBasic: updBasic,
+                basicSalary: parseFloat($('#txtBasicSalary').val()) || 0
+            };
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartHRHelperUpdateEmployeeJob") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify(payload),
+                timeout: 30000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success) {
+                        $('#hrJobOverlay').addClass('show');
+                        showToast('Đã đưa update employee vào hàng đợi. Job chạy nền.', 'success');
+                    } else {
+                        showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
                     }
-                });
-            }
-
-            runChunk(0);
+                },
+                error: function(xhr, status, err) {
+                    var msg = 'Lỗi kết nối hoặc timeout.';
+                    if (xhr.responseText) {
+                        try {
+                            var json = JSON.parse(xhr.responseText);
+                            if (json.d && json.d.message) msg = json.d.message;
+                            else if (json.message) msg = json.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
+                }
+            });
         }
 
         var companyTenants = [];
@@ -3564,30 +3477,96 @@
                     enableSSL: $('#chkCompanyEnableSSL').is(':checked'),
                     sslPort: parseInt($('#txtCompanySSLPort').val(), 10) || null
                 };
-                showProgress('Đang update...', 0, 'Đang cập nhật company info...');
                 $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/UpdateCompanyInfo") %>',
+                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartHRHelperUpdateOtherJob") %>',
                     type: 'POST',
                     contentType: 'application/json; charset=utf-8',
                     dataType: 'json',
                     data: JSON.stringify(payload),
-                    timeout: 300000,
+                    timeout: 30000,
                     success: function(res) {
                         var d = res.d || res;
                         if (d && d.success) {
-                            // Không toast thành công
+                            $('#hrJobOverlay').addClass('show');
+                            showToast('Đã đưa update company/other info vào hàng đợi. Job chạy nền.', 'success');
                         } else {
-                            showToast(d && d.message ? d.message : 'Lỗi update company info.', 'error');
+                            showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
                         }
-                        hideProgress();
                     },
                     error: function() {
-                        showToast('Lỗi kết nối khi update company info.', 'error');
-                        hideProgress();
+                        showToast('Lỗi kết nối khi tạo job.', 'error');
                     }
                 });
             });
         }
+        // Chuông thông báo (job Backup/Restore/HR Helper) - dùng GetJobs từ DatabaseSearch
+        (function() {
+            var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
+            var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
+            function parseDateSafe(v) {
+                if (v == null || v === '') return null;
+                if (typeof v === 'number') return new Date(v);
+                var s = (typeof v === 'string') ? v : String(v);
+                var n = Date.parse(s);
+                return isNaN(n) ? null : new Date(n);
+            }
+            var DISMISSED_JOBS_KEY = 'baDismissedJobIds';
+            function getDismissedJobIds() { try { var raw = localStorage.getItem(DISMISSED_JOBS_KEY); if (!raw) return []; var arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch (e) { return []; } }
+            function addDismissedJobId(id, type) { var key = (type === 'Backup' ? 'b:' : 'r:') + id; var arr = getDismissedJobIds(); if (arr.indexOf(key) < 0) { arr.push(key); localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(arr)); } }
+            function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
+            function formatNotifTime(v) { var dt = parseDateSafe(v); return dt ? dt.toLocaleString() : '—'; }
+            function showNotificationDetail(job) {
+                var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
+                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr></tbody></table>';
+                if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
+                $('#notificationDetailBody').html(html);
+                $('#notificationDetailModal').addClass('show');
+            }
+            $('#notificationDetailModal').on('click', function(e) { if (e.target === this) $('#notificationDetailModal').removeClass('show'); });
+            $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); $('#notificationDetailModal').removeClass('show'); });
+            var NOTIF_MSG_MAX_LEN = 120;
+            function loadRestoreJobsPanel() {
+                var $list = $('#restoreJobsList'); var $badge = $('#restoreJobsBadge');
+                if (!$list.length) return;
+                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                    success: function(res) {
+                        var d = res.d || res;
+                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
+                        var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
+                        if (!jobs.length) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
+                        $badge.text(jobs.length).addClass('visible');
+                        window.__notifJobsList = jobs;
+                        var html = '';
+                        jobs.forEach(function(j, idx) {
+                            var st = j.status || ''; var msg = (j.message || '').trim(); var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
+                            var jobType = j.type || 'Restore';
+                            var typeLabel = (j.typeLabel || jobType || 'Restore').replace(/</g, '&lt;');
+                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
+                            var startTimeStr = formatNotifTime(j.startTime);
+                            var endTimeStr = formatNotifTime(j.completedAt);
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span>' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
+                            if (st === 'Running') { row += '<div style="margin-top:4px;color:var(--primary);">Đang chạy</div>'; }
+                            else if (st === 'Failed') { row += '<div class="ba-notif-msg">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
+                            else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
+                            row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a></div>';
+                            html += row;
+                        });
+                        $list.html(html);
+                        $list.off('click.baNotif').on('click.baNotif', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); if (window.__notifJobsList && window.__notifJobsList[idx]) showNotificationDetail(window.__notifJobsList[idx]); });
+                        $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($item.data('job-id'), 10); var jobType = $item.data('job-type') || 'Restore'; if (jobId) { addDismissedJobId(jobId, jobType); $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }) }); $item.slideUp(200, function() { $(this).remove(); var left = $('#restoreJobsList .ba-notif-item').length; if (left) $badge.text(left).addClass('visible'); else { $badge.removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
+                    }
+                });
+            }
+            $(function() {
+                if ($('#restoreJobsBellWrap').length) {
+                    $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && d.jobs && d.jobs.length) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; }); if (jobs.length) $('#restoreJobsBadge').text(jobs.length).addClass('visible'); } } });
+                    $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) { $p.hide(); } else { loadRestoreJobsPanel(); $p.show(); } });
+                    $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
+                    $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
+                    if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { if ($('#restoreJobsPanel').is(':visible')) loadRestoreJobsPanel(); else { $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && d.jobs && d.jobs.length) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }); if (jobs.length) $('#restoreJobsBadge').text(jobs.length).addClass('visible'); } } }); } }); }
+                }
+            });
+        })();
     </script>
 </body>
 </html>

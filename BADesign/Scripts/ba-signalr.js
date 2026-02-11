@@ -12,6 +12,8 @@
     'use strict';
 
     var restoreJobsUpdatedHandlers = [];
+    var backupJobsUpdatedHandlers = [];
+    var jobsUpdatedHandlers = [];
 
     function doConnect() {
         if (typeof global.$ === 'undefined' || !global.$.connection || !global.$.connection.hub) return false;
@@ -23,6 +25,30 @@
                     if (global.console && global.console.error) global.console.error('BA_SignalR restoreJobsUpdated handler:', e);
                 }
             });
+            jobsUpdatedHandlers.forEach(function(fn) {
+                try { fn(); } catch (e) {
+                    if (global.console && global.console.error) global.console.error('BA_SignalR jobsUpdated handler:', e);
+                }
+            });
+        };
+        hub.client.backupJobsUpdated = function() {
+            backupJobsUpdatedHandlers.forEach(function(fn) {
+                try { fn(); } catch (e) {
+                    if (global.console && global.console.error) global.console.error('BA_SignalR backupJobsUpdated handler:', e);
+                }
+            });
+            jobsUpdatedHandlers.forEach(function(fn) {
+                try { fn(); } catch (e) {
+                    if (global.console && global.console.error) global.console.error('BA_SignalR jobsUpdated handler:', e);
+                }
+            });
+        };
+        hub.client.jobsUpdated = function() {
+            jobsUpdatedHandlers.forEach(function(fn) {
+                try { fn(); } catch (e) {
+                    if (global.console && global.console.error) global.console.error('BA_SignalR jobsUpdated handler:', e);
+                }
+            });
         };
         return true;
     }
@@ -30,6 +56,13 @@
     var api = {
         onRestoreJobsUpdated: function(callback) {
             if (typeof callback === 'function') restoreJobsUpdatedHandlers.push(callback);
+        },
+        onBackupJobsUpdated: function(callback) {
+            if (typeof callback === 'function') backupJobsUpdatedHandlers.push(callback);
+        },
+        /** Gọi khi bất kỳ job nào thay đổi (Restore, Backup, HRHelper...). Dùng để refresh chuông và overlay. */
+        onJobsUpdated: function(callback) {
+            if (typeof callback === 'function') jobsUpdatedHandlers.push(callback);
         },
         /**
          * @param {string} baseUrl - ResolveUrl("~/signalr")

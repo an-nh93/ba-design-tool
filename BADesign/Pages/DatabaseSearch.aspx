@@ -1,120 +1,22 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DatabaseSearch.aspx.cs"
     Inherits="BADesign.Pages.DatabaseSearch" %>
-
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
     <title>Database Search - UI Builder</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
+    <link href="../Content/ba-layout.css" rel="stylesheet" />
+    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/jquery.signalR.min.js"></script>
     <script src="../Scripts/ba-signalr.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
+    <script src="../Scripts/ba-layout.js"></script>
     <style>
-        :root {
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --primary-light: #0D9EFF;
-            --primary-soft: rgba(0, 120, 212, 0.1);
-            --bg-main: #1e1e1e;
-            --bg-dark: #1e1e1e;
-            --bg-darker: #161616;
-            --bg-card: #2d2d30;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --border-light: #464647;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-        .ba-container { display: flex; min-height: 100vh; overflow: hidden; }
-        .ba-sidebar {
-            width: 240px;
-            flex-shrink: 0;
-            background: var(--bg-darker);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 1000;
-            overflow-y: auto;
-            overflow-x: hidden;
-            display: flex;
-            flex-direction: column;
-            transition: width 0.25s ease;
-        }
-        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
-        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
-        .ba-sidebar.collapsed .ba-nav-item span { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
-        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .ba-sidebar-toggle:hover { color: var(--text-primary); }
-        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
-        .ba-sidebar-header {
-            padding: 0 1.5rem 1.5rem;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-        }
-        .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-nav-item {
-            display: flex;
-            align-items: center;
-            padding: 0.75rem 1.5rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            cursor: pointer;
-        }
-        .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-nav-item.active { background: var(--primary-soft); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main {
-            flex: 1;
-            margin-left: 240px;
-            min-height: 100vh;
-            transition: margin-left 0.25s ease;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
-        .ba-top-bar {
-            position: fixed;
-            top: 0;
-            left: 240px;
-            right: 0;
-            z-index: 100;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        .ba-sidebar.collapsed ~ .ba-main .ba-top-bar { left: 64px; }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
-        .ba-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0.5rem; margin-top: 57px; }
+        .ba-content { padding: 0.5rem; }
         .ba-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -162,6 +64,12 @@
         .ba-btn-danger { background: var(--danger); color: white; }
         .ba-btn-danger:hover { background: #dc2626; }
         .ba-btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+        .ba-btn-disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(0.3);
+        }
         .ba-table-wrap {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -379,109 +287,6 @@
         #restoreExplorerTable td:nth-child(2),
         #restoreExplorerTable td:nth-child(3),
         #restoreExplorerTable td:nth-child(4) { white-space: nowrap; }
-        #restoreJobsBellBtn { opacity: 1 !important; background: var(--bg-card) !important; color: var(--text-primary) !important; border: 1px solid var(--border) !important; }
-        #restoreJobsBellBtn:hover { background: var(--bg-hover) !important; }
-        .ba-notif-badge {
-            display: none;
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 4px;
-            border-radius: 9px;
-            background: #eb0b52;
-            color: #fff;
-            font-size: 0.7rem;
-            font-weight: 600;
-            line-height: 18px;
-            text-align: center;
-            box-sizing: border-box;
-        }
-        .ba-notif-badge.visible { display: inline-flex !important; align-items: center; justify-content: center; }
-        .ba-notif-panel {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 4px;
-            width: 380px;
-            max-height: 420px;
-            overflow: hidden;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-            z-index: 1001;
-        }
-        .ba-notif-panel .ba-notif-panel-title {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border);
-            font-weight: 600;
-            background: var(--bg-card);
-            color: var(--text-primary);
-        }
-        .ba-notif-list {
-            padding: 6px;
-            overflow-y: auto;
-            max-height: 380px;
-            background: var(--bg-card);
-        }
-        .ba-notif-item {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.8125rem;
-            background: var(--bg-card);
-            max-height: 120px;
-            overflow: hidden;
-        }
-        .ba-notif-item:last-child { border-bottom: none; }
-        .ba-notif-item .ba-notif-msg {
-            margin-top: 4px;
-            color: var(--danger);
-            font-size: 0.75rem;
-            line-height: 1.35;
-            max-height: 2.7em;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-        }
-        .ba-notif-item .ba-notif-detail-link {
-            margin-top: 4px;
-            font-size: 0.75rem;
-            color: var(--primary);
-            cursor: pointer;
-            text-decoration: none;
-        }
-        .ba-notif-item .ba-notif-detail-link:hover { text-decoration: underline; }
-        .ba-notif-item { position: relative; padding-right: 28px; }
-        .ba-notif-item .ba-notif-dismiss {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            width: 20px;
-            height: 20px;
-            padding: 0;
-            border: none;
-            background: transparent;
-            color: var(--text-muted);
-            font-size: 1rem;
-            line-height: 1;
-            cursor: pointer;
-            border-radius: 4px;
-        }
-        .ba-notif-item .ba-notif-dismiss:hover { color: var(--text-primary); background: var(--surface-hover, rgba(0,0,0,0.06)); }
-        /* Modal chi tiết thông báo */
-        #notificationDetailModal { position: fixed; inset: 0; z-index: 10002; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
-        #notificationDetailModal.show { display: flex; }
-        #notificationDetailModal .ba-modal-content { max-width: 520px; width: 96%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
-        #notificationDetailModal .ba-notif-detail-body { overflow-y: auto; padding: 1rem; font-size: 0.875rem; }
-        #notificationDetailModal .ba-notif-detail-body table { width: 100%; border-collapse: collapse; }
-        #notificationDetailModal .ba-notif-detail-body th { text-align: left; padding: 6px 10px; color: var(--text-muted); font-weight: 500; width: 120px; }
-        #notificationDetailModal .ba-notif-detail-body td { padding: 6px 10px; border-bottom: 1px solid var(--border-color); }
-        #notificationDetailModal .ba-notif-detail-body .ba-notif-full-msg { margin-top: 10px; padding: 10px; background: var(--surface-alt); border-radius: 6px; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
         /* Multi-DB loading overlay */
         .ba-multidb-overlay {
             position: fixed;
@@ -545,6 +350,8 @@
         }
         .restore-nav-item.active { background: var(--surface-hover, rgba(255,255,255,0.08)); color: var(--primary); }
         .restore-nav-item:hover { background: var(--surface-hover, rgba(255,255,255,0.06)); }
+        .backup-nav-item.active { background: var(--surface-hover, rgba(255,255,255,0.08)); color: var(--primary); }
+        .backup-nav-item:hover { background: var(--surface-hover, rgba(255,255,255,0.06)); }
         #restoreModalBackupSets table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
         #restoreModalBackupSets th, #restoreModalBackupSets td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
         #restoreModalBackupSets th { color: var(--text-muted); font-weight: 500; }
@@ -554,30 +361,9 @@
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <aside class="ba-sidebar" id="baSidebar">
-                <div class="ba-sidebar-header">
-                    <div class="ba-sidebar-title">UI Builder</div>
-                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
-                </div>
-                <asp:HyperLink ID="lnkHome" runat="server" CssClass="ba-nav-item" NavigateUrl="~/HomeRole" data-icon="🏠" title="Về trang chủ">
-                    <span>← Về trang chủ</span>
-                </asp:HyperLink>
-                <div class="ba-nav-item active" data-icon="🔍" title="Database Search"><span>🔍 Database Search</span></div>
-            </aside>
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" />
             <main class="ba-main">
-                <div class="ba-top-bar" style="display: flex; align-items: center; justify-content: space-between;">
-                    <h1 class="ba-top-bar-title">Database Search</h1>
-                    <% if (CanBackup || CanRestore) { %>
-                    <div id="restoreJobsBellWrap" style="position: relative;">
-                        <button type="button" id="restoreJobsBellBtn" class="ba-btn ba-btn-secondary" style="padding: 6px 10px; min-width: auto; opacity: 1; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-primary);" title="Tiến trình restore">🔔</button>
-                        <span id="restoreJobsBadge" class="ba-notif-badge">0</span>
-                        <div id="restoreJobsPanel" class="ba-notif-panel">
-                            <div class="ba-notif-panel-title">Thông báo</div>
-                            <div id="restoreJobsList" class="ba-notif-list"></div>
-                        </div>
-                    </div>
-                    <% } %>
-                </div>
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="ba-content">
                     <!-- Connection String (Guest + Logged-in) -->
                     <div class="ba-card" id="cardConnStr">
@@ -647,9 +433,9 @@
                         <div class="ba-card-body">
                             <p id="dbListDesc" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Kết quả sau khi quét. Bấm Connect để mở HR Helper (connection string không hiển thị/copy để bảo mật).</p>
                             <div style="margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-                                <% if (CanBackup) { %><button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="showBackupModal(); return false;" title="Backup database (chọn server + database)">Backup database</button><% } %>
-                                <% if (CanRestore) { %><button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="showRestoreModalStandalone(); return false;" title="Restore từ file backup lên server (database mới hoặc ghi đè)">Restore database</button><% } %>
-                                <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" id="btnLoadLogAll" onclick="loadLogInfoAll(); return false;" title="Lấy dung lượng log cho tất cả database trong danh sách">Lấy thông tin log (tất cả)</button>
+                                <button type="button" class="ba-btn ba-btn-primary ba-btn-sm <%= !CanBackup ? "ba-btn-disabled" : "" %>" id="btnBackupDb" onclick="if (typeof canBackup !== 'undefined' && !canBackup) return; showBackupModal(); return false;" title="<%= CanBackup ? "Backup database (chọn server + database)" : "Cần quyền Backup database" %>">Backup database</button>
+                                <button type="button" class="ba-btn ba-btn-primary ba-btn-sm <%= !CanRestore ? "ba-btn-disabled" : "" %>" id="btnRestoreDb" onclick="if (typeof canRestore !== 'undefined' && !canRestore) return; showRestoreModalStandalone(); return false;" title="<%= CanRestore ? "Restore từ file backup lên server" : "Cần quyền Restore database" %>">Restore database</button>
+                                <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm <%= !CanShrinkLog ? "ba-btn-disabled" : "" %>" id="btnLoadLogAll" onclick="if (typeof canShrinkLog !== 'undefined' && !canShrinkLog) return; loadLogInfoAll(); return false;" title="<%= CanShrinkLog ? "Lấy dung lượng log cho tất cả database" : "Cần quyền Shrink log" %>">Lấy thông tin log (tất cả)</button>
                             </div>
                             <div class="ba-table-wrap">
                                 <table class="ba-table">
@@ -703,8 +489,20 @@
                     </div>
                     <div class="ba-form-group">
                         <label class="ba-form-label">Đường dẫn backup (tùy chọn)</label>
-                        <input type="text" id="serverModalBackupPath" class="ba-input" placeholder="vd: E:\Backup hoặc \\server\share. Để trống = dùng mặc định Web.config" />
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Path trên <strong>máy SQL Server</strong> (vd: E:\...\Backup). Ứng dụng liệt kê file qua SQL Server (giống SQL Studio), chỉ cần SA; nếu cần bật xp_cmdshell trên SQL.</span>
+                        <input type="text" id="serverModalBackupPath" class="ba-input" placeholder="Path mà SQL Server có quyền Ghi (xem hướng dẫn bên dưới)" />
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Nơi ghi file .bak. <strong>Lệnh BACKUP chạy trên máy SQL Server</strong> — tài khoản dịch vụ SQL Server phải có quyền Ghi vào path này.</span>
+                    </div>
+                    <div class="ba-form-group">
+                        <label class="ba-form-label">Đường dẫn restore (tùy chọn)</label>
+                        <input type="text" id="serverModalRestorePath" class="ba-input" placeholder="vd: \\Hrs05\sqlbak — thư mục chứa file .bak" />
+                        <span style="font-size: 0.75rem; color: var(--text-muted);">Thư mục chứa file .bak khi chọn file restore. Để trống = dùng Đường dẫn backup.</span>
+                    </div>
+                    <div class="ba-form-group" style="margin-top: 12px; padding: 10px; background: var(--surface-alt); border-radius: 6px; border: 1px solid var(--border);">
+                        <strong style="font-size: 0.8125rem;">Nếu backup báo Access is denied:</strong>
+                        <ul style="margin: 6px 0 0 16px; padding: 0; font-size: 0.75rem; color: var(--text-secondary); line-height: 1.5;">
+                            <li><strong>Cách 1:</strong> Trong SSMS, khi Backup bạn chọn path nào (vd. E:\...\Backup hoặc \\Hrs05\sqldata2\...\Backup) — copy đúng path đó vào <strong>Đường dẫn backup</strong> ở trên rồi Lưu.</li>
+                            <li><strong>Cách 2:</strong> Cấp quyền Ghi cho tài khoản dịch vụ SQL Server (Services → SQL Server (SQL2022) → Log On) vào share/thư mục backup (vd. \\Hrs05\sqlbak\BACKUP).</li>
+                        </ul>
                     </div>
                 </div>
                 <div class="ba-modal-footer">
@@ -799,27 +597,93 @@
             </div>
         </div>
 
-        <!-- Backup database modal (giống SQL Studio: chọn server + database) -->
+        <!-- Backup database modal (giống MS SQL Server Studio: General + Options) -->
         <div id="backupModal" class="ba-modal">
-            <div class="ba-modal-content" style="max-width: 480px;">
+            <div class="ba-modal-content" style="max-width: 720px;">
                 <div class="ba-modal-header">
-                    <h3 class="ba-modal-title">Backup database</h3>
+                    <h3 class="ba-modal-title" id="backupModalTitle">Back Up Database</h3>
                     <button type="button" class="ba-modal-close" onclick="hideBackupModal(); return false;">×</button>
                 </div>
-                <div class="ba-modal-body">
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Server (đích backup)</label>
-                        <select id="backupModalServer" class="ba-input" style="min-height: 36px;"></select>
+                <div class="ba-modal-body" style="display: flex; gap: 16px; min-height: 380px;">
+                    <div id="backupModalNav" style="flex-shrink: 0; width: 140px; border-right: 1px solid var(--border); padding-right: 12px;">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">Select a page</div>
+                        <div id="backupNavGeneral" class="backup-nav-item active" data-page="general" style="padding: 6px 8px; cursor: pointer; border-radius: 4px;">General</div>
+                        <div id="backupNavOptions" class="backup-nav-item" data-page="options" style="padding: 6px 8px; cursor: pointer; border-radius: 4px;">Options</div>
                     </div>
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Database</label>
-                        <select id="backupModalDatabase" class="ba-input" style="min-height: 36px;"></select>
-                        <span id="backupModalNoDb" style="display:none; color: var(--text-muted); font-size: 0.8125rem;">Quét server trước để thấy danh sách database.</span>
+                    <div id="backupModalPages" style="flex: 1; overflow: auto;">
+                        <div id="backupPageGeneral" class="backup-page">
+                            <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;">Source</div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Server</label>
+                                <select id="backupModalServer" class="ba-input" style="min-height: 36px;"></select>
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Database</label>
+                                <select id="backupModalDatabase" class="ba-input" style="min-height: 36px;"></select>
+                                <span id="backupModalNoDb" style="display:none; color: var(--text-muted); font-size: 0.8125rem;">Quét server trước để thấy danh sách database.</span>
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Recovery model</label>
+                                <input type="text" id="backupModalRecoveryModel" class="ba-input" readonly style="background: var(--surface-alt); color: var(--text-muted);" value="—" />
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Backup type</label>
+                                <select id="backupModalType" class="ba-input" style="min-height: 36px;">
+                                    <option value="Full">Full</option>
+                                </select>
+                            </div>
+                            <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin: 16px 0 10px;">Backup set</div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Name</label>
+                                <input type="text" id="backupModalSetName" class="ba-input" placeholder="Tự động: Database-Full Database Backup" />
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Backup set will expire</label>
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="backupExpire" id="backupExpireAfter" checked /> After</label>
+                                    <input type="number" id="backupExpireDays" class="ba-input" value="0" min="0" style="width: 70px;" />
+                                    <span>days</span>
+                                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="backupExpire" id="backupExpireOn" /> On</label>
+                                    <input type="date" id="backupExpireDate" class="ba-input" style="width: 140px;" />
+                                </div>
+                            </div>
+                            <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin: 16px 0 10px;">Destination</div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label">Back up to</label>
+                                <div style="display: flex; gap: 8px; align-items: flex-start;">
+                                    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="backupDest" checked /> Disk</label>
+                                    <div style="flex:1; min-width:0;">
+                                        <div id="backupModalDestPath" style="padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-alt); font-size: 0.8125rem; color: var(--text-muted); min-height: 36px;">Theo cấu hình server (Sửa server → Đường dẫn backup)</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 6px;">Nếu gặp <strong>Access is denied</strong>: SQL Server cần quyền ghi vào đường dẫn backup. Kiểm tra share/UNC và tài khoản dịch vụ SQL Server.</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="backupPageOptions" class="backup-page" style="display: none;">
+                            <div class="ba-form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="backupModalCopyOnly" />
+                                    <span>Copy-only backup — Backup độc lập, không ảnh hưởng chain log</span>
+                                </label>
+                            </div>
+                            <div class="ba-form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="backupModalCompress" checked />
+                                    <span>Compression — Nén backup (mặc định)</span>
+                                </label>
+                            </div>
+                            <div class="ba-form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="backupModalShrinkLog" />
+                                    <span>Shrink log khi backup — Sau khi tạo file .bak, shrink log của database nguồn (giảm dung lượng log file)</span>
+                                </label>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="ba-modal-footer">
-                    <button type="button" class="ba-btn ba-btn-secondary" onclick="hideBackupModal(); return false;">Hủy</button>
-                    <button type="button" class="ba-btn ba-btn-primary" id="backupModalConfirm" onclick="doBackupFromModal(); return false;">Backup</button>
+                    <button type="button" class="ba-btn ba-btn-secondary" onclick="hideBackupModal(); return false;">Cancel</button>
+                    <button type="button" class="ba-btn ba-btn-primary" id="backupModalConfirm" onclick="doBackupFromModal(); return false;">OK</button>
                 </div>
             </div>
         </div>
@@ -939,17 +803,6 @@
             </div>
         </div>
 
-        <!-- Modal chi tiết thông báo (Restore / mở rộng sau) -->
-        <div id="notificationDetailModal" class="ba-modal">
-            <div class="ba-modal-content">
-                <div class="ba-modal-header">
-                    <h3 class="ba-modal-title">Chi tiết thông báo</h3>
-                    <button type="button" class="ba-modal-close" id="notificationDetailClose" title="Đóng">×</button>
-                </div>
-                <div id="notificationDetailBody" class="ba-notif-detail-body"></div>
-            </div>
-        </div>
-
         <!-- Confirm modal (giống Designer Home) -->
         <div id="confirmModal" class="ba-modal" style="display: none;">
             <div class="ba-modal-content" style="max-width: 440px;">
@@ -987,6 +840,8 @@
         var serverStatuses = {};
         var canBackup = <%= (CanBackup ? "true" : "false") %>;
         var canRestore = <%= (CanRestore ? "true" : "false") %>;
+        var canDelete = <%= (CanDelete ? "true" : "false") %>;
+        var canShrinkLog = <%= (CanShrinkLog ? "true" : "false") %>;
         var PAGE_SIZE_OPTS = [50, 100, 500, 1000, 5000, 10000];
         var serverPageSize = 100;
         var dbPageSize = 100;
@@ -1099,6 +954,7 @@
             $('#serverModalUsername').val('');
             $('#serverModalPassword').val('').attr('placeholder', 'Mật khẩu');
             $('#serverModalBackupPath').val('');
+            $('#serverModalRestorePath').val('');
             $('#serverModal').addClass('show');
         }
 
@@ -1112,6 +968,7 @@
             $('#serverModalUsername').val(s.username || '');
             $('#serverModalPassword').val('').attr('placeholder', 'Để trống nếu không đổi');
             $('#serverModalBackupPath').val(s.backupPath || '');
+            $('#serverModalRestorePath').val(s.restorePath || '');
             $('#serverModal').addClass('show');
         }
 
@@ -1128,6 +985,7 @@
             var username = $('#serverModalUsername').val().trim();
             var password = $('#serverModalPassword').val();
             var backupPath = ($('#serverModalBackupPath').val() || '').trim();
+            var restorePath = ($('#serverModalRestorePath').val() || '').trim();
 
             if (!serverName || !username) {
                 showToast('Server và Username không được trống.', 'error');
@@ -1142,8 +1000,8 @@
                 ? '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/UpdateServer") %>'
                 : '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/SaveServer") %>';
             var payload = isEdit
-                ? { id: parseInt(id, 10), serverName: serverName, port: port, username: username, password: password || '', backupPath: backupPath || '' }
-                : { serverName: serverName, port: port, username: username, password: password, backupPath: backupPath || '' };
+                ? { id: parseInt(id, 10), serverName: serverName, port: port, username: username, password: password || '', backupPath: backupPath || '', restorePath: restorePath || '' }
+                : { serverName: serverName, port: port, username: username, password: password, backupPath: backupPath || '', restorePath: restorePath || '' };
 
             $.ajax({
                 url: url,
@@ -2119,11 +1977,17 @@
             }
         }
 
-        function showBackupModal() {
+        function showBackupModal(serverId, databaseName) {
             fillBackupModalServerDropdown();
-            var firstId = servers.length ? servers[0].id : null;
-            $('#backupModalServer').val(firstId ? String(firstId) : '');
-            fillBackupModalDatabaseDropdown(firstId);
+            var sid = serverId != null ? serverId : (servers.length ? servers[0].id : null);
+            $('#backupModalServer').val(sid ? String(sid) : '');
+            fillBackupModalDatabaseDropdown(sid || null);
+            if (databaseName) $('#backupModalDatabase').val(databaseName);
+            var db = ($('#backupModalDatabase').val() || '').trim();
+            $('#backupModalTitle').text(db ? 'Back Up Database - ' + db : 'Back Up Database');
+            updateBackupModalSetName();
+            updateBackupModalRecoveryModel();
+            updateBackupModalDestPath();
             $('#backupModal').addClass('show');
         }
 
@@ -2131,9 +1995,30 @@
             $('#backupModal').removeClass('show');
         }
 
+        function updateBackupModalSetName() {
+            var db = ($('#backupModalDatabase').val() || '').trim();
+            var type = ($('#backupModalType').val() || 'Full');
+            if (db) $('#backupModalSetName').attr('placeholder', db + '-Full Database Backup');
+        }
+
+        function updateBackupModalRecoveryModel() {
+            var serverId = parseInt($('#backupModalServer').val(), 10);
+            var db = ($('#backupModalDatabase').val() || '').trim();
+            var r = results.find(function(x) { return x.serverId === serverId && (x.database || '') === db; });
+            $('#backupModalRecoveryModel').val(r && r.recoveryModel ? r.recoveryModel : '—');
+        }
+
+        function updateBackupModalDestPath() {
+            var serverId = parseInt($('#backupModalServer').val(), 10);
+            var s = servers.filter(function(x) { return x.id === serverId; })[0];
+            var path = (s && (s.backupPath || '').trim()) || '';
+            $('#backupModalDestPath').text(path || 'Chưa cấu hình — Sửa server → Đường dẫn backup (vd: \\\\Hrs05\\sqldata2\\SQL2022\\MSSQL16.SQL2022\\MSSQL\\Backup)');
+        }
+
         function doBackupFromModal() {
             var serverId = parseInt($('#backupModalServer').val(), 10);
             var databaseName = ($('#backupModalDatabase').val() || '').trim();
+            var withShrinkLog = $('#backupModalShrinkLog').is(':checked');
             if (!serverId) {
                 showToast('Chọn server.', 'error');
                 return;
@@ -2145,20 +2030,21 @@
             var $btn = $('#backupModalConfirm');
             $btn.prop('disabled', true);
             $.ajax({
-                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/BackupDatabase") %>',
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/StartBackup") %>',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
-                data: JSON.stringify({ serverId: serverId, databaseName: databaseName }),
-                timeout: 600000,
+                data: JSON.stringify({ serverId: serverId, databaseName: databaseName, withShrinkLog: withShrinkLog }),
+                timeout: 30000,
                 success: function(res) {
                     $btn.prop('disabled', false);
                     var d = res.d || res;
                     if (d && d.success) {
-                        showToast((d.message || 'Đã backup.') + (d.fileName ? ' File: ' + d.fileName : ''), 'success');
+                        showToast(d.message || 'Đã đưa backup vào hàng đợi. Xem chuông thông báo.', 'success');
                         hideBackupModal();
+                        if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
                     } else {
-                        showToast((d && d.message) ? d.message : 'Lỗi backup.', 'error');
+                        showToast((d && d.message) ? d.message : 'Lỗi.', 'error');
                     }
                 },
                 error: function(xhr) {
@@ -2505,11 +2391,11 @@
                 var actions = '';
                 if (hasServerId) {
                     actions += '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm ba-connect-btn" data-idx="' + globalIdx + '" title="Connect">Connect</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-load-log-btn" data-idx="' + globalIdx + '" title="Lấy dung lượng log">Lấy log</button> ';
-                    if (canBackup) actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-backup-btn" data-idx="' + globalIdx + '" title="Backup">Backup</button> ';
-                    if (canRestore) actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-restore-btn" data-idx="' + globalIdx + '" title="Restore">Restore</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-shrink-log-btn" data-idx="' + globalIdx + '" title="Shrink log">Shrink log</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm ba-delete-db-btn" data-idx="' + globalIdx + '" title="Xóa database">Xóa</button>';
+                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-load-log-btn ' + (canShrinkLog ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canShrinkLog ? 'Lấy dung lượng log' : 'Cần quyền Shrink log') + '">Lấy log</button> ';
+                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-backup-btn ' + (canBackup ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canBackup ? 'Backup' : 'Cần quyền Backup') + '">Backup</button> ';
+                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-restore-btn ' + (canRestore ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canRestore ? 'Restore' : 'Cần quyền Restore') + '">Restore</button> ';
+                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-shrink-log-btn ' + (canShrinkLog ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canShrinkLog ? 'Shrink log' : 'Cần quyền Shrink log') + '">Shrink log</button> ';
+                    actions += '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm ba-delete-db-btn ' + (canDelete ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canDelete ? 'Xóa database' : 'Cần quyền Xóa database') + '">Xóa</button>';
                 } else {
                     actions = '<span class="ba-badge ba-badge-fail">—</span>';
                 }
@@ -2545,30 +2431,35 @@
                 connectToDatabaseByServerAndDb(r.serverId, r.database);
             });
             $tb.find('.ba-backup-btn').on('click', function() {
+                if ($(this).hasClass('ba-btn-disabled')) return;
                 var idx = parseInt($(this).data('idx'), 10);
                 var r = results[idx];
                 if (!r || !r.serverId || !r.database) return;
-                backupDatabase(r.serverId, r.database, $(this));
+                showBackupModal(r.serverId, r.database);
             });
             $tb.find('.ba-restore-btn').on('click', function() {
+                if ($(this).hasClass('ba-btn-disabled')) return;
                 var idx = parseInt($(this).data('idx'), 10);
                 var r = results[idx];
                 if (!r || !r.serverId || !r.database) return;
                 showRestoreModal(r.serverId, r.database, (r.server || '') + ' / ' + (r.database || ''));
             });
             $tb.find('.ba-delete-db-btn').on('click', function() {
+                if ($(this).hasClass('ba-btn-disabled')) return;
                 var idx = parseInt($(this).data('idx'), 10);
                 var r = results[idx];
                 if (!r || !r.serverId || !r.database) return;
                 deleteDatabase(r.serverId, r.database, (r.server || '') + ' / ' + (r.database || ''));
             });
             $tb.find('.ba-load-log-btn').on('click', function() {
+                if ($(this).hasClass('ba-btn-disabled')) return;
                 var idx = parseInt($(this).data('idx'), 10);
                 var r = results[idx];
                 if (!r || !r.serverId || !r.database) return;
                 loadLogInfoOne(r.serverId, r.database, $(this));
             });
             $tb.find('.ba-shrink-log-btn').on('click', function() {
+                if ($(this).hasClass('ba-btn-disabled')) return;
                 var idx = parseInt($(this).data('idx'), 10);
                 var r = results[idx];
                 if (!r || !r.serverId || !r.database) return;
@@ -2712,6 +2603,22 @@
             $('#backupModalServer').on('change', function() {
                 var sid = parseInt($(this).val(), 10);
                 fillBackupModalDatabaseDropdown(sid || null);
+                updateBackupModalSetName();
+                updateBackupModalRecoveryModel();
+                updateBackupModalDestPath();
+            });
+            $('#backupModalDatabase').on('change', function() {
+                updateBackupModalSetName();
+                updateBackupModalRecoveryModel();
+                var db = ($(this).val() || '').trim();
+                $('#backupModalTitle').text(db ? 'Back Up Database - ' + db : 'Back Up Database');
+            });
+            $('#backupNavGeneral, #backupNavOptions').on('click', function() {
+                var page = $(this).data('page');
+                $('#backupModalNav .backup-nav-item').removeClass('active');
+                $(this).addClass('active');
+                $('.backup-page').hide();
+                $('#backupPage' + (page === 'general' ? 'General' : 'Options')).show();
             });
             $('#shrinkLogModal').on('click', function(e) { if (e.target === this) hideShrinkLogModal(); });
             $('#scanLogClose').on('click', closeScanLog);
@@ -2721,24 +2628,30 @@
             var loadRestoreJobsRequestId = 0;
             var lastKnownRestorePct = {};
             var NOTIF_MSG_MAX_LEN = 120;
-            var DISMISSED_JOBS_KEY = 'baDismissedRestoreJobIds';
+            var DISMISSED_JOBS_KEY = 'baDismissedJobIds';
             function getDismissedJobIds() {
                 try {
                     var raw = localStorage.getItem(DISMISSED_JOBS_KEY);
-                    return raw ? JSON.parse(raw) : [];
+                    if (!raw) return [];
+                    var arr = JSON.parse(raw);
+                    return Array.isArray(arr) ? arr : [];
                 } catch (e) { return []; }
             }
-            function addDismissedJobId(id) {
+            function addDismissedJobId(id, type) {
+                var key = (type === 'Backup' ? 'b:' : 'r:') + id;
                 var arr = getDismissedJobIds();
-                if (arr.indexOf(id) < 0) { arr.push(id); localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(arr)); }
+                if (arr.indexOf(key) < 0) { arr.push(key); localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(arr)); }
+            }
+            function isJobDismissed(job) {
+                var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || '');
+                return getDismissedJobIds().indexOf(key) >= 0;
             }
             if ($('#restoreJobsBellWrap').length) {
-                $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreJobs") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
                         var d = res.d || res;
                         if (d && d.jobs && d.jobs.length) {
-                            var dismissed = getDismissedJobIds();
-                            var jobs = (d.jobs || []).filter(function(j) { return j.id != null && dismissed.indexOf(j.id) < 0; });
+                            var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
                             if (jobs.length) $('#restoreJobsBadge').text(jobs.length).addClass('visible');
                         }
                     }
@@ -2777,7 +2690,7 @@
                 return dt ? dt.toLocaleString() : '—';
             }
             function showNotificationDetail(job) {
-                var typeLabel = (job.type === 'Restore' || !job.type) ? 'Restore database' : job.type;
+                var typeLabel = (job.type === 'Backup') ? 'Backup database' : ((job.type === 'Restore' || !job.type) ? 'Restore database' : job.type);
                 var startStr = formatNotifTime(job.startTime);
                 var endStr = formatNotifTime(job.completedAt);
                 var statusLabel = job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status));
@@ -2803,7 +2716,7 @@
                 if (!$list.length) return;
                 var requestId = ++loadRestoreJobsRequestId;
                 $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreJobs") %>',
+                    url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>',
                     type: 'POST',
                     contentType: 'application/json; charset=utf-8',
                     dataType: 'json',
@@ -2811,11 +2724,11 @@
                     success: function(res) {
                         if (requestId !== loadRestoreJobsRequestId) return;
                         var d = res.d || res;
-                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        var dismissed = getDismissedJobIds();
-                        var jobs = (d.jobs || []).filter(function(j) { return j.id != null && dismissed.indexOf(j.id) < 0; });
-                        var running = jobs.filter(function(j) { return j.status === 'Running'; });
-                        if (jobs.length) { $badge.text(jobs.length).addClass('visible'); } else { $badge.removeClass('visible'); }
+                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
+                        var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
+                        if (!jobs.length) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
+                        var running = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Restore' && j.sessionId; });
+                        $badge.text(jobs.length).addClass('visible');
                         window.__runningRestoreSessions = running.slice();
                         if (running.length) {
                             var progressUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreProgress") %>';
@@ -2848,7 +2761,6 @@
                         window.__notifJobsList = jobs;
                         var html = '';
                         jobs.forEach(function(j, idx) {
-                            j.type = 'Restore';
                             var key = (j.serverId || '') + '_' + (j.sessionId || '');
                             var serverPct = j.percentComplete != null ? j.percentComplete : 0;
                             var pct = Math.max(serverPct, lastKnownRestorePct[key] || 0);
@@ -2857,10 +2769,14 @@
                             var msg = (j.message || '').trim();
                             var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var startTimeStr = formatNotifTime(j.startTime);
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-server-id="' + (j.serverId || '') + '" data-session-id="' + (j.sessionId || '') + '">';
+                            var jobType = j.type || 'Restore';
+                            var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore');
+                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '" data-server-id="' + (j.serverId || '') + '" data-session-id="' + (j.sessionId || '') + '">';
                             row += '<button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button>';
-                            row += '<div style="font-weight:500;">' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>';
-                            row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + startTimeStr + '</div>';
+                            row += '<div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span>' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>';
+                            var endTimeStr = formatNotifTime(j.completedAt);
+                            row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
                             if (st === 'Running') {
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + pct + '%</span></div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
@@ -2869,6 +2785,7 @@
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                             } else if (st === 'Completed') {
                                 row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>';
+                                if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + (msgShort.replace(/</g, '&lt;')) + '</div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                             }
                             row += '</div>';
@@ -2885,15 +2802,10 @@
                             e.stopPropagation();
                             var $item = $(this).closest('.ba-notif-item');
                             var jobId = parseInt($item.data('job-id'), 10);
+                            var jobType = $item.data('job-type') || 'Restore';
                             if (!jobId) return;
-                            addDismissedJobId(jobId);
-                            $.ajax({
-                                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissRestoreJob") %>',
-                                type: 'POST',
-                                contentType: 'application/json; charset=utf-8',
-                                dataType: 'json',
-                                data: JSON.stringify({ jobId: jobId })
-                            });
+                            addDismissedJobId(jobId, jobType);
+                            $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }) });
                             $item.slideUp(200, function() {
                                 $(this).remove();
                                 var left = $('#restoreJobsList .ba-notif-item').length;
@@ -2940,6 +2852,9 @@
             // SignalR dùng chung: đăng ký handler restore jobs, rồi start
             if (typeof BA_SignalR !== 'undefined') {
                 BA_SignalR.onRestoreJobsUpdated(function() {
+                    if ($('#restoreJobsList').length) loadRestoreJobsPanel();
+                });
+                BA_SignalR.onBackupJobsUpdated(function() {
                     if ($('#restoreJobsList').length) loadRestoreJobsPanel();
                 });
                 BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');

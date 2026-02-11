@@ -6,6 +6,8 @@ using System.Linq;
 using System.Web;
 using System.Web.Services;
 using System.Web.Script.Services;
+using BADesign;
+using BADesign.Helpers;
 using BADesign.Helpers.Security;
 using BADesign.Helpers.Utils;
 
@@ -76,6 +78,7 @@ namespace BADesign.Pages
                 ConnectedServer = info.Server ?? "";
                 ConnectedDatabase = info.Database ?? "";
             }
+            ucBaTopBar.PageTitle = "HR Helper";
         }
 
         private static DatabaseSearch.HRConnInfo GetConnectionFromToken(string token)
@@ -134,6 +137,7 @@ namespace BADesign.Pages
             catch (Exception ex) { return new { success = false, message = ex.Message }; }
         }
 
+        /// <summary>Load user theo trang (server-side paging). Tránh load hết 50k+ user một lần gây treo.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object LoadUsersChunk(string k, int offset, int count)
@@ -239,32 +243,17 @@ namespace BADesign.Pages
             catch (Exception ex) { return new { success = false, message = ex.Message }; }
         }
 
-        [WebMethod(EnableSession = true)]
-        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object UpdateUsers(string k, List<long> userIds, bool isUpdatePassword, string password, int methodHash, bool isUpdateEmail, string email, bool ignoreWindowsAD)
+        /// <summary>Chạy update user (dùng nội bộ cho WebMethod và job nền).</summary>
+        private static Tuple<bool, string> ExecuteUpdateUsersCore(string connectionString, List<long> userIds, bool isUpdatePassword, string password, int methodHash, bool isUpdateEmail, string email, bool ignoreWindowsAD)
         {
+            var hashType = methodHash == 512 ? SimpleHash.HashType.SHA512 : SimpleHash.HashType.SHA256;
+            var chosenEmail = isUpdateEmail ? (email ?? "").Trim() : null;
+            var updateUsers = LoadUsersForUpdate(connectionString, userIds);
+            if (updateUsers == null || updateUsers.Count == 0)
+                return Tuple.Create(false, "Không tìm thấy user cần update.");
             try
             {
-                var info = GetConnectionFromToken(k);
-                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
-                var connectionString = info.ConnectionString;
-                if (userIds == null || userIds.Count == 0)
-                    return new { success = false, message = "Chọn ít nhất 1 user." };
-                if (!isUpdatePassword && !isUpdateEmail)
-                    return new { success = false, message = "Chọn ít nhất 1 option (Password hoặc Email)." };
-                if (isUpdatePassword && string.IsNullOrWhiteSpace(password))
-                    return new { success = false, message = "Nhập password khi update password." };
-
-                var hashType = methodHash == 512 ? SimpleHash.HashType.SHA512 : SimpleHash.HashType.SHA256;
-                var chosenEmail = isUpdateEmail ? (email ?? "").Trim() : null;
-
-                var updateUsers = LoadUsersForUpdate(connectionString, userIds);
-                if (updateUsers == null || updateUsers.Count == 0)
-                    return new { success = false, message = "Không tìm thấy user cần update." };
-
                 var userTable = BuildUserDataTable(updateUsers, isUpdatePassword, password, hashType, isUpdateEmail, chosenEmail, ignoreWindowsAD);
-
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
@@ -336,8 +325,7 @@ JOIN dbo.Security_Users U WITH (READCOMMITTED) ON U.UserName = UT.UserName COLLA
                     }
 
                     if (maxRowId == 0)
-                        return new { success = true, message = "Không có bản ghi nào cần update." };
-
+                        return Tuple.Create(true, "Không có bản ghi nào cần update.");
                     const int batchSize = 2000;
                     int totalBatches = (int)Math.Ceiling(maxRowId / (double)batchSize);
 
@@ -382,13 +370,116 @@ COMMIT TRAN;";
                         }
                     }
                 }
+                return Tuple.Create(true, "Đã update " + updateUsers.Count + " user.");
+            }
+            catch (Exception ex)
+            {
+                return Tuple.Create(false, ex.Message);
+            }
+        }
 
-                return new { success = true, message = "Đã update " + updateUsers.Count + " user." };
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object UpdateUsers(string k, List<long> userIds, bool isUpdatePassword, string password, int methodHash, bool isUpdateEmail, string email, bool ignoreWindowsAD)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
+                if (userIds == null || userIds.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 user." };
+                if (!isUpdatePassword && !isUpdateEmail)
+                    return new { success = false, message = "Chọn ít nhất 1 option (Password hoặc Email)." };
+                if (isUpdatePassword && string.IsNullOrWhiteSpace(password))
+                    return new { success = false, message = "Nhập password khi update password." };
+                var result = ExecuteUpdateUsersCore(info.ConnectionString, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email, ignoreWindowsAD);
+                return new { success = result.Item1, message = result.Item2 };
             }
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message };
             }
+        }
+
+        /// <summary>Đưa update user vào job nền; push SignalR khi xong. Client hiển thị overlay và chuông.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartHRHelperUpdateUserJob(string k, List<long> userIds, bool isUpdatePassword, string password, int methodHash, bool isUpdateEmail, string email, bool ignoreWindowsAD)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0 };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database.", jobId = 0 };
+                if (userIds == null || userIds.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 user.", jobId = 0 };
+                if (!isUpdatePassword && !isUpdateEmail)
+                    return new { success = false, message = "Chọn ít nhất 1 option (Password hoặc Email).", jobId = 0 };
+                if (isUpdatePassword && string.IsNullOrWhiteSpace(password))
+                    return new { success = false, message = "Nhập password khi update password.", jobId = 0 };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var connStr = info.ConnectionString;
+                var serverName = info.Server ?? "";
+                var databaseName = info.Database ?? "";
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
+VALUES (N'HRHelperUpdateUser', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", serverName);
+                    cmd.Parameters.AddWithValue("@db", databaseName);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                var detail = "database=" + databaseName + ", userIds=" + (userIds?.Count ?? 0);
+                if (isUpdatePassword) detail += ", password=updated";
+                if (isUpdateEmail && !string.IsNullOrWhiteSpace(email)) detail += ", email=" + email.Trim();
+                UserActionLogHelper.Log("HRHelper.UpdateUser", detail);
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var result = ExecuteUpdateUsersCore(connStr, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email, ignoreWindowsAD);
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", result.Item1, result.Item2);
+                    }
+                    catch (Exception ex)
+                    {
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", false, ex.Message);
+                    }
+                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUser", null, userId);
+                });
+                return new { success = true, jobId = jobId, message = "Đã đưa update user vào hàng đợi." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
+
+        private static void UpdateBaJobCompleted(int jobId, string jobType, bool success, string message)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = @jt";
+                    cmd.Parameters.AddWithValue("@st", success ? "Completed" : "Failed");
+                    cmd.Parameters.AddWithValue("@msg", (object)message ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    cmd.Parameters.AddWithValue("@jt", jobType);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            catch { }
         }
 
         private sealed class UserForUpdate
@@ -2016,7 +2107,28 @@ WHERE {0}";
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
-                using (var conn = new SqlConnection(info.ConnectionString))
+                var result = ExecuteUpdateCompanyInfoCore(info.ConnectionString, tenantID, companyID, isUpdateAll,
+                    useCommonEmail, commonEmail, hrEmailTo, hrEmailCC, payrollEmailTo, payrollEmailCC, contactEmail,
+                    outgoingServer, serverPort, accountName, userName, emailAddress, password, enableSSL, sslPort);
+                return new { success = result.Item1, message = result.Item2 };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Chạy update company info (trả về Tuple cho job nền).</summary>
+        private static Tuple<bool, string> ExecuteUpdateCompanyInfoCore(string connectionString,
+            int? tenantID, int? companyID, bool isUpdateAll,
+            bool useCommonEmail, string commonEmail,
+            string hrEmailTo, string hrEmailCC, string payrollEmailTo, string payrollEmailCC, string contactEmail,
+            string outgoingServer, int serverPort, string accountName, string userName, string emailAddress, string password,
+            bool enableSSL, int? sslPort)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     using (var cmd = conn.CreateCommand())
@@ -2054,41 +2166,23 @@ WHERE {0}";
                         cmd.Parameters.Clear();
                         var encryptedPassword = !string.IsNullOrWhiteSpace(password) ? DataSecurityWrapper.EncryptData(password, null) : null;
                         cmd.CommandText = @"
-                            -- INSERT cho các Company chưa có EmailServer
                             INSERT INTO Setting_EmailServers
                                 (ID, ServerTypeID, OutgoingMailServer, OutgoingMailServerPort, AccountID,
                                  IsEnableSSL, EmailAddress, SSLPort, PasswordPOP3, CompanyID, TenantID, SMTPDisplayName)
                             SELECT 
-                                dbo.NewGuidComb(NEWID()), 
-                                1,
-                                @valOutgoingMailServer,
-                                @valOutgoingMailServerPort,
-                                @valAccountID,
-                                @valIsEnableSSL,
-                                @valEmailAddress,
-                                @valSSLPort,
-                                @valPasswordPOP3,
-                                C.ID,
-                                C.TenantID,
-                                @valSMTPDisplayName
+                                dbo.NewGuidComb(NEWID()), 1,
+                                @valOutgoingMailServer, @valOutgoingMailServerPort, @valAccountID,
+                                @valIsEnableSSL, @valEmailAddress, @valSSLPort, @valPasswordPOP3,
+                                C.ID, C.TenantID, @valSMTPDisplayName
                             FROM MultiTenant_Companies AS C
                             LEFT JOIN Setting_EmailServers AS ES ON ES.CompanyID = C.ID
                             WHERE ES.ID IS NULL AND (@valIsUpdateAll = 1 OR C.ID = @valCompanyID) AND (@valTenantID IS NULL OR C.TenantID = @valTenantID);
 
-                            -- UPDATE theo điều kiện
                             UPDATE Setting_EmailServers
-                            SET 
-                                OutgoingMailServer = @valOutgoingMailServer,
-                                OutgoingMailServerPort = @valOutgoingMailServerPort,
-                                AccountID = @valAccountID,
-                                EmailAddress = @valEmailAddress,
-                                SSLPort = @valSSLPort,
-                                PasswordPOP3 = @valPasswordPOP3,
-                                SMTPDisplayName = @valSMTPDisplayName,
-                                IsEnableSSL = @valIsEnableSSL
-                            WHERE 
-                                (@valIsUpdateAll = 1 OR CompanyID = @valCompanyID)
-                                AND (@valTenantID IS NULL OR TenantID = @valTenantID);";
+                            SET OutgoingMailServer = @valOutgoingMailServer, OutgoingMailServerPort = @valOutgoingMailServerPort,
+                                AccountID = @valAccountID, EmailAddress = @valEmailAddress, SSLPort = @valSSLPort,
+                                PasswordPOP3 = @valPasswordPOP3, SMTPDisplayName = @valSMTPDisplayName, IsEnableSSL = @valIsEnableSSL
+                            WHERE (@valIsUpdateAll = 1 OR CompanyID = @valCompanyID) AND (@valTenantID IS NULL OR TenantID = @valTenantID);";
                         cmd.Parameters.AddWithValue("@valOutgoingMailServer", outgoingServer ?? "");
                         cmd.Parameters.AddWithValue("@valOutgoingMailServerPort", serverPort);
                         cmd.Parameters.AddWithValue("@valAccountID", userName ?? "");
@@ -2103,11 +2197,69 @@ WHERE {0}";
                         cmd.ExecuteNonQuery();
                     }
                 }
-                return new { success = true, message = "Đã update company info thành công." };
+                return Tuple.Create(true, "Đã update company info thành công.");
             }
             catch (Exception ex)
             {
-                return new { success = false, message = ex.Message };
+                return Tuple.Create(false, ex.Message);
+            }
+        }
+
+        /// <summary>Đưa update company/other info vào job nền.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartHRHelperUpdateOtherJob(string k, int? tenantID, int? companyID, bool isUpdateAll,
+            bool useCommonEmail, string commonEmail,
+            string hrEmailTo, string hrEmailCC, string payrollEmailTo, string payrollEmailCC, string contactEmail,
+            string outgoingServer, int serverPort, string accountName, string userName, string emailAddress, string password,
+            bool enableSSL, int? sslPort)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0 };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database.", jobId = 0 };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName2 = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var connStr = info.ConnectionString;
+                var serverName = info.Server ?? "";
+                var databaseName = info.Database ?? "";
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
+VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", serverName);
+                    cmd.Parameters.AddWithValue("@db", databaseName);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName2);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                UserActionLogHelper.Log("HRHelper.UpdateOther", "database=" + databaseName + ", tenantID=" + tenantID + ", companyID=" + companyID + " (update company/email config)");
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var result = ExecuteUpdateCompanyInfoCore(connStr, tenantID, companyID, isUpdateAll,
+                            useCommonEmail, commonEmail, hrEmailTo, hrEmailCC, payrollEmailTo, payrollEmailCC, contactEmail,
+                            outgoingServer, serverPort, accountName, userName, emailAddress, password, enableSSL, sslPort);
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", result.Item1, result.Item2);
+                    }
+                    catch (Exception ex)
+                    {
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", false, ex.Message);
+                    }
+                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateOther", null, userId);
+                });
+                return new { success = true, jobId = jobId, message = "Đã đưa update company/other info vào hàng đợi." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
             }
         }
 
@@ -2178,6 +2330,7 @@ WHERE {0}";
             catch (Exception ex) { return new { success = false, message = ex.Message }; }
         }
 
+        /// <summary>Load employee theo trang (server-side paging). Dùng paging để tránh treo khi DB có 50k+ bản ghi; không đưa load-data vào job trả về client.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object LoadEmployeesChunk(string k, int offset, int count, int? companyID = null)
@@ -2305,14 +2458,96 @@ WHERE {0}";
                 if (updPayslip && !payslipByEmp && string.IsNullOrWhiteSpace(payslipCommon))
                     return new { success = false, message = "Nhập Payslip Password Common khi bật Update Payslip mà không chọn Encrypt by Employee." };
 
-                var employees = LoadEmployeesForUpdate(info.ConnectionString, employeeIds);
+                var result = ExecuteUpdateEmployeesCore(info.ConnectionString, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
+                return new { success = result.Item1, message = result.Item2 };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Đưa update employee vào job nền.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartHRHelperUpdateEmployeeJob(string k, int? companyID, List<long> employeeIds,
+            bool updPersonal, string personalEmail, bool updBusiness, string businessEmail,
+            bool updPayslip, string payslipCommon, bool payslipByEmp,
+            bool updM1, string m1, bool updM2, string m2, bool updBasic, decimal basicSalary)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0 };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database.", jobId = 0 };
+                if (employeeIds == null || employeeIds.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 employee.", jobId = 0 };
+                if (!updPersonal && !updBusiness && !updPayslip && !updM1 && !updM2 && !updBasic)
+                    return new { success = false, message = "Chọn ít nhất 1 option.", jobId = 0 };
+                if (updPayslip && !payslipByEmp && string.IsNullOrWhiteSpace(payslipCommon))
+                    return new { success = false, message = "Nhập Payslip Password Common khi bật Update Payslip mà không chọn Encrypt by Employee.", jobId = 0 };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var connStr = info.ConnectionString;
+                var serverName = info.Server ?? "";
+                var databaseName = info.Database ?? "";
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
+VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", serverName);
+                    cmd.Parameters.AddWithValue("@db", databaseName);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                var empDetail = "database=" + databaseName + ", employeeIds=" + (employeeIds?.Count ?? 0);
+                if (updPersonal) empDetail += ", personalEmail" + (string.IsNullOrWhiteSpace(personalEmail) ? "" : "=" + personalEmail);
+                if (updBusiness) empDetail += ", businessEmail" + (string.IsNullOrWhiteSpace(businessEmail) ? "" : "=" + businessEmail);
+                if (updPayslip) empDetail += ", payslip";
+                if (updM1) empDetail += ", M1";
+                if (updM2) empDetail += ", M2";
+                if (updBasic) empDetail += ", basicSalary";
+                UserActionLogHelper.Log("HRHelper.UpdateEmployee", empDetail);
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, result.Item2);
+                    }
+                    catch (Exception ex)
+                    {
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, ex.Message);
+                    }
+                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
+                });
+                return new { success = true, jobId = jobId, message = "Đã đưa update employee vào hàng đợi." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
+
+        /// <summary>Chạy update employee (trả về Tuple cho job nền).</summary>
+        private static Tuple<bool, string> ExecuteUpdateEmployeesCore(string connectionString, List<long> employeeIds,
+            bool updPersonal, string personalEmail, bool updBusiness, string businessEmail,
+            bool updPayslip, string payslipCommon, bool payslipByEmp,
+            bool updM1, string m1, bool updM2, string m2, bool updBasic, decimal basicSalary)
+        {
+            try
+            {
+                var employees = LoadEmployeesForUpdate(connectionString, employeeIds);
                 if (employees == null || employees.Count == 0)
-                    return new { success = false, message = "Không tìm thấy employee cần update." };
-
-                var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail,
-                    updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
-
-                using (var conn = new SqlConnection(info.ConnectionString))
+                    return Tuple.Create(false, "Không tìm thấy employee cần update.");
+                var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
+                using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
                     using (var cmd = conn.CreateCommand())
@@ -2347,7 +2582,6 @@ CREATE TABLE #EmployeeTemp(
                         bulk.ColumnMappings.Add("BasicSalary", "BasicSalary");
                         bulk.WriteToServer(dt);
                     }
-
                     int maxRowId = 0;
                     using (var cmd = conn.CreateCommand())
                     {
@@ -2356,8 +2590,7 @@ CREATE TABLE #EmployeeTemp(
                         maxRowId = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt32(o);
                     }
                     if (maxRowId == 0)
-                        return new { success = true, message = "Không có bản ghi nào." };
-
+                        return Tuple.Create(true, "Không có bản ghi nào.");
                     const int batchSize = 2000;
                     int totalBatches = (int)Math.Ceiling(maxRowId / (double)batchSize);
                     for (int b = 0; b < totalBatches; b++)
@@ -2380,7 +2613,6 @@ IF OBJECT_ID('tempdb..#B') IS NOT NULL DROP TABLE #B;
 SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, BasicSalary
 INTO #B FROM #EmployeeTemp WHERE RowId BETWEEN @Start AND @End;
 CREATE NONCLUSTERED INDEX IX_B_EmployeeID ON #B(EmployeeID);
-
 UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),
     E.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,E.BusinessEmailAddress),
     E.PayslipPassword=COALESCE(B.PayslipPassword,E.PayslipPassword),
@@ -2389,14 +2621,12 @@ UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEm
 FROM #B B
 JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = B.EmployeeID
 WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.PayslipPassword IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL);
-
 IF OBJECT_ID('dbo.Staffing_EmployeeInformations','U') IS NOT NULL
 UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.PersonalEmailAddress),
     EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress)
 FROM #B B
 JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = B.EmployeeID
 WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL);
-
 IF EXISTS(SELECT 1 FROM #B WHERE BasicSalary IS NOT NULL)
 BEGIN
     IF OBJECT_ID('dbo.PAY_EmployeeSalaries','U') IS NOT NULL
@@ -2408,7 +2638,6 @@ BEGIN
     JOIN dbo.Staffing_Transactions T WITH (ROWLOCK, UPDLOCK) ON T.EmployeeID=B.EmployeeID AND T.IsActiveTransaction=1
     WHERE B.BasicSalary IS NOT NULL;
 END
-
 DROP TABLE #B;
 COMMIT TRAN;";
                                     cmd.ExecuteNonQuery();
@@ -2417,16 +2646,16 @@ COMMIT TRAN;";
                             }
                             catch (Exception ex)
                             {
-                                if (attempt == 3) throw new Exception("Batch update failed: " + ex.Message);
+                                if (attempt == 3) return Tuple.Create(false, "Batch update failed: " + ex.Message);
                             }
                         }
                     }
                 }
-                return new { success = true, message = "Đã update " + employees.Count + " employee." };
+                return Tuple.Create(true, "Đã update " + employees.Count + " employee.");
             }
             catch (Exception ex)
             {
-                return new { success = false, message = ex.Message };
+                return Tuple.Create(false, ex.Message);
             }
         }
 

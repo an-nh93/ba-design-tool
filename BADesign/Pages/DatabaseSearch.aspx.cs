@@ -8,6 +8,7 @@ using System.Web.Services;
 using System.Web.Script.Services;
 using System.Web.UI;
 using BADesign;
+using BADesign.Helpers;
 using BADesign.Helpers.Security;
 using BADesign.Hubs;
 using Microsoft.AspNet.SignalR;
@@ -28,6 +29,10 @@ namespace BADesign.Pages
         public bool CanBackup { get; private set; }
         /// <summary>True khi user có quyền restore database (DatabaseManageServers hoặc DatabaseRestore).</summary>
         public bool CanRestore { get; private set; }
+        /// <summary>True khi user có quyền xóa database (DatabaseManageServers hoặc DatabaseDelete, hoặc đã restore DB đó).</summary>
+        public bool CanDelete { get; private set; }
+        /// <summary>True khi user có quyền shrink log (DatabaseManageServers hoặc DatabaseShrinkLog).</summary>
+        public bool CanShrinkLog { get; private set; }
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -37,12 +42,31 @@ namespace BADesign.Pages
             CanUseServers = !IsGuest && UiAuthHelper.HasFeature("DatabaseSearch");
             CanBackup = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseBackup");
             CanRestore = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseRestore");
+            CanDelete = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseDelete");
+            CanShrinkLog = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseShrinkLog");
 
-            lnkHome.NavigateUrl = ResolveUrl(UiAuthHelper.GetHomeUrlByRole() ?? "~/");
+            ucBaSidebar.ActiveSection = "DatabaseSearch";
+            ucBaTopBar.PageTitle = "Database Search";
         }
 
         private static bool CanBackupStatic() { return UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseBackup"); }
         private static bool CanRestoreStatic() { return UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseRestore"); }
+        private static bool CanDeleteStatic() { return UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseDelete"); }
+        private static bool CanShrinkLogStatic() { return UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseShrinkLog"); }
+
+        /// <summary>True nếu user được phép shrink log database này (quyền DatabaseShrinkLog/ManageServers hoặc đã restore DB này).</summary>
+        private static bool CanShrinkDatabase(int serverId, string databaseName)
+        {
+            if (UiAuthHelper.IsSuperAdmin || UiAuthHelper.HasFeature("DatabaseManageServers"))
+                return true;
+            if (UiAuthHelper.HasFeature("DatabaseShrinkLog"))
+            {
+                var accessibleIds = GetAccessibleServerIds();
+                if (accessibleIds != null && accessibleIds.Contains(serverId))
+                    return true;
+            }
+            return CanViewDatabase(serverId, databaseName);
+        }
 
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -59,12 +83,12 @@ namespace BADesign.Pages
                 using (var cmd = conn.CreateCommand())
                 {
                     if (accessibleIds == null)
-                        cmd.CommandText = "SELECT Id, ServerName, Port, Username, BackupPath FROM BaDatabaseServer WHERE IsActive = 1 ORDER BY Id";
+                        cmd.CommandText = "SELECT Id, ServerName, Port, Username, BackupPath, RestorePath FROM BaDatabaseServer WHERE IsActive = 1 ORDER BY Id";
                     else if (accessibleIds.Count == 0)
-                        cmd.CommandText = "SELECT Id, ServerName, Port, Username, BackupPath FROM BaDatabaseServer WHERE 1=0";
+                        cmd.CommandText = "SELECT Id, ServerName, Port, Username, BackupPath, RestorePath FROM BaDatabaseServer WHERE 1=0";
                     else
                     {
-                        cmd.CommandText = "SELECT Id, ServerName, Port, Username, BackupPath FROM BaDatabaseServer WHERE IsActive = 1 AND Id IN (" + string.Join(",", accessibleIds) + ") ORDER BY Id";
+                        cmd.CommandText = "SELECT Id, ServerName, Port, Username, BackupPath, RestorePath FROM BaDatabaseServer WHERE IsActive = 1 AND Id IN (" + string.Join(",", accessibleIds) + ") ORDER BY Id";
                     }
                     conn.Open();
                     using (var r = cmd.ExecuteReader())
@@ -77,7 +101,8 @@ namespace BADesign.Pages
                                 serverName = r.IsDBNull(1) ? null : r.GetString(1),
                                 port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
                                 username = r.IsDBNull(3) ? null : r.GetString(3),
-                                backupPath = r.FieldCount > 4 && !r.IsDBNull(4) ? r.GetString(4) : null
+                                backupPath = r.FieldCount > 4 && !r.IsDBNull(4) ? r.GetString(4) : null,
+                                restorePath = r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : null
                             });
                         }
                     }
@@ -116,42 +141,11 @@ namespace BADesign.Pages
         /// <summary>Null = thấy tất cả (SuperAdmin hoặc DatabaseManageServers). Empty = không thấy server nào. Non-empty = chỉ các Id được phép.</summary>
         private static List<int> GetAccessibleServerIds()
         {
-            if (UiAuthHelper.IsSuperAdmin || UiAuthHelper.HasFeature("DatabaseManageServers"))
-                return null;
-            var userId = UiAuthHelper.CurrentUserId;
-            var roleId = UiAuthHelper.GetCurrentUserRoleId();
-            if (!userId.HasValue && !roleId.HasValue)
-                return new List<int>();
-            var ids = new HashSet<int>();
-            using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-            {
-                conn.Open();
-                if (roleId.HasValue)
-                {
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandText = "SELECT ServerId FROM UiRoleServerAccess WHERE RoleId = @rid";
-                        cmd.Parameters.AddWithValue("@rid", roleId.Value);
-                        using (var r = cmd.ExecuteReader())
-                        {
-                            while (r.Read()) ids.Add(r.GetInt32(0));
-                        }
-                    }
-                }
-                if (userId.HasValue)
-                {
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandText = "SELECT ServerId FROM UiUserServerAccess WHERE UserId = @uid";
-                        cmd.Parameters.AddWithValue("@uid", userId.Value);
-                        using (var r = cmd.ExecuteReader())
-                        {
-                            while (r.Read()) ids.Add(r.GetInt32(0));
-                        }
-                    }
-                }
-            }
-            return ids.Count > 0 ? new List<int>(ids) : new List<int>();
+            return Helpers.ServerAccessHelper.GetAccessibleServerIds(
+                UiAuthHelper.CurrentUserId,
+                UiAuthHelper.GetCurrentUserRoleId(),
+                UiAuthHelper.IsSuperAdmin,
+                UiAuthHelper.HasFeature("DatabaseManageServers"));
         }
 
         [WebMethod(EnableSession = true)]
@@ -219,7 +213,7 @@ WHERE IsActive = 1
 
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object SaveServer(string serverName, int? port, string username, string password, string backupPath = null)
+        public static object SaveServer(string serverName, int? port, string username, string password, string backupPath = null, string restorePath = null)
         {
             try
             {
@@ -271,17 +265,17 @@ WHERE IsActive = 1
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"
-INSERT INTO BaDatabaseServer (ServerName, Port, Username, Password, BackupPath, IsActive, CreatedAt)
-VALUES (@sn, @port, @u, @p, @backupPath, 1, SYSDATETIME());";
+INSERT INTO BaDatabaseServer (ServerName, Port, Username, Password, BackupPath, RestorePath, IsActive, CreatedAt)
+VALUES (@sn, @port, @u, @p, @backupPath, @restorePath, 1, SYSDATETIME());";
                     cmd.Parameters.AddWithValue("@sn", serverName.Trim());
                     cmd.Parameters.AddWithValue("@port", (object)port ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@u", username.Trim());
                     cmd.Parameters.AddWithValue("@p", password);
                     cmd.Parameters.AddWithValue("@backupPath", string.IsNullOrWhiteSpace(backupPath) ? (object)DBNull.Value : backupPath.Trim().TrimEnd('\\'));
+                    cmd.Parameters.AddWithValue("@restorePath", string.IsNullOrWhiteSpace(restorePath) ? (object)DBNull.Value : restorePath.Trim().TrimEnd('\\'));
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
-                UserActionLogHelper.Log("DatabaseSearch.SaveServer", "serverName=" + (serverName ?? "").Trim());
                 return new { success = true, message = "Đã thêm server." };
             }
             catch (Exception ex)
@@ -292,7 +286,7 @@ VALUES (@sn, @port, @u, @p, @backupPath, 1, SYSDATETIME());";
 
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object UpdateServer(int id, string serverName, int? port, string username, string password, string backupPath = null)
+        public static object UpdateServer(int id, string serverName, int? port, string username, string password, string backupPath = null, string restorePath = null)
         {
             try
             {
@@ -362,8 +356,8 @@ WHERE IsActive = 1
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = changePassword
-                    ? @"UPDATE BaDatabaseServer SET ServerName=@sn, Port=@port, Username=@u, Password=@p, BackupPath=@backupPath, UpdatedAt=SYSDATETIME() WHERE Id=@id AND IsActive=1"
-                    : @"UPDATE BaDatabaseServer SET ServerName=@sn, Port=@port, Username=@u, BackupPath=@backupPath, UpdatedAt=SYSDATETIME() WHERE Id=@id AND IsActive=1";
+                    ? @"UPDATE BaDatabaseServer SET ServerName=@sn, Port=@port, Username=@u, Password=@p, BackupPath=@backupPath, RestorePath=@restorePath, UpdatedAt=SYSDATETIME() WHERE Id=@id AND IsActive=1"
+                    : @"UPDATE BaDatabaseServer SET ServerName=@sn, Port=@port, Username=@u, BackupPath=@backupPath, RestorePath=@restorePath, UpdatedAt=SYSDATETIME() WHERE Id=@id AND IsActive=1";
                     if (changePassword)
                         cmd.Parameters.AddWithValue("@p", password);
                     cmd.Parameters.AddWithValue("@id", id);
@@ -371,12 +365,12 @@ WHERE IsActive = 1
                     cmd.Parameters.AddWithValue("@port", (object)port ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@u", username.Trim());
                     cmd.Parameters.AddWithValue("@backupPath", string.IsNullOrWhiteSpace(backupPath) ? (object)DBNull.Value : backupPath.Trim().TrimEnd('\\'));
+                    cmd.Parameters.AddWithValue("@restorePath", string.IsNullOrWhiteSpace(restorePath) ? (object)DBNull.Value : restorePath.Trim().TrimEnd('\\'));
                     conn.Open();
                     var n = cmd.ExecuteNonQuery();
                     if (n == 0)
                         return new { success = false, message = "Không tìm thấy server hoặc đã bị xóa." };
                 }
-                UserActionLogHelper.Log("DatabaseSearch.UpdateServer", "id=" + id);
                 return new { success = true, message = "Đã cập nhật server." };
             }
             catch (Exception ex)
@@ -402,7 +396,6 @@ WHERE IsActive = 1
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
-                UserActionLogHelper.Log("DatabaseSearch.DeleteServer", "id=" + id);
                 return new { success = true, message = "Đã xóa server." };
             }
             catch (Exception ex)
@@ -752,7 +745,6 @@ WHERE r.rn = 1";
                 if (ctx?.Session != null)
                     ctx.Session["HRConn_" + id] = new HRConnInfo { ConnectionString = connStr, Server = parsedServer, Database = databaseName.Trim() };
                 var token = DataSecurityWrapper.EncryptConnectId(id);
-                UserActionLogHelper.Log("DatabaseSearch.Connect", "serverId=" + serverId + ", database=" + databaseName.Trim());
                 return new { success = true, token = token };
             }
             catch (Exception ex)
@@ -827,6 +819,7 @@ WHERE r.rn = 1";
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object BackupDatabase(int serverId, string databaseName)
         {
+            string backupPath = null;
             try
             {
                 if (UiAuthHelper.IsAnonymous)
@@ -842,7 +835,7 @@ WHERE r.rn = 1";
                     return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được backup." };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
-                var backupPath = GetBackupPathForServer(serverId);
+                backupPath = GetBackupPathForServer(serverId);
                 if (string.IsNullOrEmpty(backupPath))
                     return new { success = false, message = "Chưa cấu hình đường dẫn backup: Sửa server, nhập \"Đường dẫn backup\", hoặc cấu hình DatabaseBackupPath trong Web.config." };
                 var dbSafe = databaseName.Trim().Replace("]", "]]");
@@ -863,13 +856,274 @@ WHERE r.rn = 1";
                         cmd.ExecuteNonQuery();
                     }
                 }
-                UserActionLogHelper.Log("DatabaseSearch.Backup", "serverId=" + serverId + ", database=" + databaseName + ", file=" + fileName);
+                UserActionLogHelper.Log("DatabaseSearch.Backup", "database=" + databaseName + " -> file=" + fileName);
                 return new { success = true, message = "Đã backup.", fileName = fileName, path = fullPath };
             }
             catch (Exception ex)
             {
-                return new { success = false, message = ex.Message };
+                var msg = ex.Message;
+                if (msg != null && (msg.IndexOf("Access is denied", StringComparison.OrdinalIgnoreCase) >= 0 || msg.IndexOf("error 5", StringComparison.OrdinalIgnoreCase) >= 0))
+                {
+                    msg += " [Đường dẫn đang dùng: " + (backupPath ?? "") + "] Gợi ý: Đổi Sửa server → Đường dẫn backup sang path mà SQL Server có quyền ghi (vd. cùng Đường dẫn restore: \\\\Hrs05\\sqldata2\\...\\Backup).";
+                }
+                return new { success = false, message = msg };
             }
+        }
+
+        /// <summary>Đưa backup vào job chạy nền, trả về jobId. withShrinkLog: sau khi backup xong shrink log database nguồn.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartBackup(int serverId, string databaseName, bool withShrinkLog = false)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0 };
+                if (!CanBackupStatic())
+                    return new { success = false, message = "Không có quyền backup database.", jobId = 0 };
+                var accessibleIds = GetAccessibleServerIds();
+                if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
+                    return new { success = false, message = "Không có quyền truy cập server này.", jobId = 0 };
+                if (string.IsNullOrWhiteSpace(databaseName))
+                    return new { success = false, message = "Chưa chọn database.", jobId = 0 };
+                if (!CanViewDatabase(serverId, databaseName))
+                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được backup.", jobId = 0 };
+                var s = GetServerInfo(serverId);
+                if (s == null) return new { success = false, message = "Không tìm thấy server.", jobId = 0 };
+                var backupPath = GetBackupPathForServer(serverId);
+                if (string.IsNullOrEmpty(backupPath))
+                    return new { success = false, message = "Chưa cấu hình đường dẫn backup.", jobId = 0 };
+
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var startedByName = "";
+                try
+                {
+                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = appConn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT FullName FROM UiUser WHERE UserId = @uid";
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        appConn.Open();
+                        var o = cmd.ExecuteScalar();
+                        startedByName = o != null && !(o is DBNull) ? o.ToString() : ("User " + userId);
+                    }
+                }
+                catch { startedByName = "User " + userId; }
+
+                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var backupConn = new SqlConnection(masterConn);
+                backupConn.Open();
+                int sessionId;
+                using (var cmd = backupConn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT @@SPID";
+                    var spidVal = cmd.ExecuteScalar();
+                    sessionId = spidVal == null || spidVal is DBNull ? 0 : Convert.ToInt32(spidVal);
+                }
+                BackupSessions.TryAdd(sessionId, backupConn);
+
+                int jobId = 0;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete)
+VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sid", serverId);
+                    cmd.Parameters.AddWithValue("@sname", (s.ServerName ?? "") + (s.Port.HasValue ? "," + s.Port.Value : ""));
+                    cmd.Parameters.AddWithValue("@db", databaseName.Trim());
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", startedByName);
+                    cmd.Parameters.AddWithValue("@sess", sessionId);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+
+                var jobIdCopy = jobId;
+                var sessionIdCopy = sessionId;
+                var serverIdCopy = serverId;
+                var databaseNameCopy = databaseName.Trim();
+                var withShrinkLogCopy = withShrinkLog;
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    SqlConnection conn = null;
+                    if (!BackupSessions.TryGetValue(sessionIdCopy, out conn))
+                        conn = null;
+                    string fileName = null;
+                    string status = "Failed";
+                    string message = null;
+                    try
+                    {
+                        if (conn == null)
+                        {
+                            message = "Mất kết nối backup.";
+                            return;
+                        }
+                        var path = GetBackupPathForServer(serverIdCopy);
+                        if (string.IsNullOrEmpty(path))
+                        {
+                            message = "Chưa cấu hình đường dẫn backup.";
+                            return;
+                        }
+                        var dbSafe = databaseNameCopy.Replace("]", "]]");
+                        var safeName = new string(databaseNameCopy.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '.').ToArray());
+                        if (string.IsNullOrEmpty(safeName)) safeName = "db";
+                        fileName = safeName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".bak";
+                        var fullPath = path.TrimEnd('\\') + "\\" + fileName;
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 3600;
+                            cmd.CommandText = "BACKUP DATABASE [" + dbSafe + "] TO DISK = @path WITH INIT, COMPRESSION";
+                            cmd.Parameters.AddWithValue("@path", fullPath);
+                            cmd.ExecuteNonQuery();
+                        }
+                        UserActionLogHelper.Log("DatabaseSearch.BackupJob", "database=" + databaseNameCopy + " -> file=" + fileName);
+                        status = "Completed";
+                        message = "Đã backup. File: " + fileName;
+                        if (withShrinkLogCopy)
+                        {
+                            try
+                            {
+                                RunShrinkLogForDatabase(serverIdCopy, databaseNameCopy, 1);
+                                message += " Đã shrink log.";
+                            }
+                            catch (Exception exShrink)
+                            {
+                                message += " Shrink log: " + exShrink.Message;
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        message = ex.Message ?? "Lỗi backup.";
+                    }
+                    finally
+                    {
+                        if (conn != null)
+                        {
+                            SqlConnection removed;
+                            BackupSessions.TryRemove(sessionIdCopy, out removed);
+                            try { conn.Dispose(); } catch { }
+                        }
+                    }
+                    try
+                    {
+                        using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                        using (var cmd = appConn.CreateCommand())
+                        {
+                            cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME(), FileName = @fname WHERE Id = @id AND JobType = N'Backup'";
+                            cmd.Parameters.AddWithValue("@st", status);
+                            cmd.Parameters.AddWithValue("@msg", (object)message ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@fname", (object)fileName ?? DBNull.Value);
+                            cmd.Parameters.AddWithValue("@id", jobIdCopy);
+                            appConn.Open();
+                            cmd.ExecuteNonQuery();
+                        }
+                        PushBackupJobsUpdated(serverIdCopy);
+                    }
+                    catch { }
+                });
+
+                lock (_restoreProgressUpdateTimerLock)
+                {
+                    if (_restoreProgressUpdateTimer == null)
+                        _restoreProgressUpdateTimer = new System.Threading.Timer(UpdateAllRestoreProgressCallback, null, 2000, 2000);
+                }
+                return new { success = true, message = "Đã đưa backup vào hàng đợi.", jobId = jobId };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
+
+        /// <summary>Danh sách job backup (đang chạy + mới xong). Hiển thị cùng chuông với restore.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetBackupJobs()
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobs = new List<object>() };
+                if (!CanBackupStatic() && !CanRestoreStatic())
+                    return new { success = false, message = "Không có quyền.", jobs = new List<object>() };
+                var jobs = new List<object>();
+                try
+                {
+                    using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                    {
+                        conn.Open();
+                        var sqlWithDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Message, CompletedAt, FileName
+FROM BaJob WHERE JobType = N'Backup' AND (DismissedAt IS NULL) AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
+                        var sqlWithoutDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Message, CompletedAt, FileName
+FROM BaJob WHERE JobType = N'Backup' AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
+                        try
+                        {
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandText = sqlWithDismiss;
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    while (r.Read())
+                                        jobs.Add(ReadBackupJobRow(r));
+                                }
+                            }
+                        }
+                        catch (SqlException)
+                        {
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandText = sqlWithoutDismiss;
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    while (r.Read())
+                                        jobs.Add(ReadBackupJobRow(r));
+                                }
+                            }
+                        }
+                    }
+                    return new { success = true, jobs = jobs };
+                }
+                catch
+                {
+                    return new { success = true, jobs = new List<object>() };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobs = new List<object>() };
+            }
+        }
+
+        private static object ReadBackupJobRow(SqlDataReader r)
+        {
+            var fileName = r.FieldCount > 11 && !r.IsDBNull(11) ? r.GetString(11) : "";
+            return new
+            {
+                id = r.GetInt32(0),
+                serverId = r.GetInt32(1),
+                serverName = r.IsDBNull(2) ? "" : r.GetString(2),
+                databaseName = r.IsDBNull(3) ? "" : r.GetString(3),
+                startedByUserId = r.GetInt32(4),
+                startedByUserName = r.IsDBNull(5) ? "" : r.GetString(5),
+                startTime = r.IsDBNull(6) ? (DateTime?)null : r.GetDateTime(6),
+                sessionId = (int?)null,
+                status = r.IsDBNull(8) ? "" : r.GetString(8),
+                percentComplete = r.IsDBNull(9) ? 0 : r.GetInt32(9),
+                message = r.IsDBNull(9) ? "" : r.GetString(9),
+                completedAt = r.FieldCount > 10 && !r.IsDBNull(10) ? (DateTime?)r.GetDateTime(10) : (DateTime?)null,
+                backupFileName = fileName
+            };
+        }
+
+        /// <summary>Đánh dấu job backup đã đọc. Giữ để tương thích; nên dùng DismissJob(jobId).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object DismissBackupJob(int jobId)
+        {
+            return DismissJob(jobId);
         }
 
         /// <summary>Lấy danh sách backup sets trong file .bak (RESTORE HEADERONLY). Path là đường dẫn đầy đủ mà SQL Server đọc được.</summary>
@@ -886,9 +1140,9 @@ WHERE r.rn = 1";
                     return new { success = false, message = "Không có quyền.", sets = new List<object>() };
                 if (string.IsNullOrWhiteSpace(backupFilePath))
                     return new { success = false, message = "Chưa chọn file backup.", sets = new List<object>() };
-                var backupPath = GetBackupPathForServer(serverId);
-                if (string.IsNullOrEmpty(backupPath)) return new { success = false, message = "Chưa cấu hình đường dẫn backup.", sets = new List<object>() };
-                var backupRoot = backupPath.Trim().TrimEnd('\\');
+                var restorePath = GetRestorePathForServer(serverId);
+                if (string.IsNullOrEmpty(restorePath)) return new { success = false, message = "Chưa cấu hình đường dẫn backup/restore.", sets = new List<object>() };
+                var backupRoot = restorePath.Trim().TrimEnd('\\');
                 var rel = NormalizeBackupRelativePath(backupFilePath);
                 if (rel.Contains("..") || rel.Contains("/")) return new { success = false, message = "Đường dẫn không hợp lệ.", sets = new List<object>() };
                 var fullPath = string.IsNullOrEmpty(rel) ? backupRoot : System.IO.Path.Combine(backupRoot, rel);
@@ -942,30 +1196,34 @@ WHERE r.rn = 1";
 
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, SqlConnection> RestoreSessions = new System.Collections.Concurrent.ConcurrentDictionary<int, SqlConnection>();
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, object> RestoreSessionStatus = new System.Collections.Concurrent.ConcurrentDictionary<int, object>();
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, SqlConnection> BackupSessions = new System.Collections.Concurrent.ConcurrentDictionary<int, SqlConnection>();
         private static System.Threading.Timer _restoreProgressUpdateTimer;
         private static readonly object _restoreProgressUpdateTimerLock = new object();
 
-        /// <summary>Timer callback: cập nhật PercentComplete cho mọi job Running từ sys.dm_exec_requests (trên server đích). Chạy trên server nên DB luôn được cập nhật dù client không poll.</summary>
+        /// <summary>Timer callback: cập nhật PercentComplete cho Restore và Backup đang chạy từ sys.dm_exec_requests.</summary>
         private static void UpdateAllRestoreProgressCallback(object state)
         {
             try
             {
                 string connStr = UiAuthHelper.ConnStr;
                 if (string.IsNullOrEmpty(connStr)) return;
-                var jobs = new List<Tuple<int, int, int>>();
+                var jobs = new List<Tuple<int, int, int, string>>();
                 using (var conn = new SqlConnection(connStr))
                 {
                     using (var cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT Id, ServerId, SessionId FROM BaRestoreJob WHERE Status = N'Running'";
+                        cmd.CommandText = "SELECT Id, ServerId, SessionId, JobType FROM BaJob WHERE JobType IN (N'Restore', N'Backup') AND Status = N'Running' AND SessionId IS NOT NULL";
                         conn.Open();
                         using (var r = cmd.ExecuteReader())
                         {
                             while (r.Read())
-                                jobs.Add(Tuple.Create(r.GetInt32(0), r.GetInt32(1), r.GetInt32(2)));
+                                jobs.Add(Tuple.Create(r.GetInt32(0), r.GetInt32(1), r.GetInt32(2), r.IsDBNull(3) ? "" : r.GetString(3)));
                         }
                     }
                 }
+                bool anyRestore = false, anyBackup = false;
+                var restoreServerIds = new List<int>();
+                var backupServerIds = new List<int>();
                 foreach (var j in jobs)
                 {
                     try
@@ -973,10 +1231,10 @@ WHERE r.rn = 1";
                         var s = GetServerInfo(j.Item2);
                         if (s == null) continue;
                         var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
-                        using (var conn = new SqlConnection(masterConn))
+                        using (var sqlConn = new SqlConnection(masterConn))
                         {
-                            conn.Open();
-                            using (var cmd = conn.CreateCommand())
+                            sqlConn.Open();
+                            using (var cmd = sqlConn.CreateCommand())
                             {
                                 cmd.CommandText = "SELECT percent_complete FROM sys.dm_exec_requests WHERE session_id = @sid";
                                 cmd.Parameters.AddWithValue("@sid", j.Item3);
@@ -987,33 +1245,52 @@ WHERE r.rn = 1";
                                     using (var appConn = new SqlConnection(connStr))
                                     using (var upd = appConn.CreateCommand())
                                     {
-                                        upd.CommandText = "UPDATE BaRestoreJob SET PercentComplete = @pct WHERE Id = @id";
+                                        upd.CommandText = "UPDATE BaJob SET PercentComplete = @pct WHERE Id = @id";
                                         upd.Parameters.AddWithValue("@pct", pct);
                                         upd.Parameters.AddWithValue("@id", j.Item1);
                                         appConn.Open();
                                         upd.ExecuteNonQuery();
                                     }
+                                    if (string.Equals(j.Item4, "Restore", StringComparison.OrdinalIgnoreCase)) { anyRestore = true; restoreServerIds.Add(j.Item2); }
+                                    else if (string.Equals(j.Item4, "Backup", StringComparison.OrdinalIgnoreCase)) { anyBackup = true; backupServerIds.Add(j.Item2); }
                                 }
                             }
                         }
                     }
-                    catch { /* bỏ qua lỗi từng job (server down, session đã thoát, v.v.) */ }
+                    catch { /* bỏ qua lỗi từng job */ }
                 }
-                if (jobs.Count > 0)
-                    PushRestoreJobsUpdated();
+                if (anyRestore) PushRestoreJobsUpdated(restoreServerIds.Distinct().ToList());
+                if (anyBackup) PushBackupJobsUpdated(backupServerIds.Distinct().ToList());
             }
             catch { /* tránh làm sập app pool */ }
         }
 
-        /// <summary>Push SignalR: báo cho mọi client refresh thông báo restore (badge/panel). Gọi khi cập nhật progress hoặc job completed.</summary>
-        private static void PushRestoreJobsUpdated()
+        /// <summary>Push SignalR: chỉ user có quyền server đó mới nhận (group server_*).</summary>
+        private static void PushRestoreJobsUpdated(int serverId)
         {
-            try
-            {
-                var ctx = GlobalHost.ConnectionManager.GetHubContext<RestoreNotificationHub>();
-                ctx?.Clients.All.RestoreJobsUpdated();
-            }
-            catch { /* SignalR chưa map hoặc lỗi kết nối */ }
+            Helpers.BaJobHubHelper.PushJobsUpdated("Restore", serverId, null);
+        }
+
+        /// <summary>Push SignalR: nhiều server (timer progress).</summary>
+        private static void PushRestoreJobsUpdated(System.Collections.Generic.IList<int> serverIds)
+        {
+            if (serverIds == null || serverIds.Count == 0) return;
+            foreach (var sid in serverIds)
+                Helpers.BaJobHubHelper.PushJobsUpdated("Restore", sid, null);
+        }
+
+        /// <summary>Push SignalR: chỉ user có quyền server đó mới nhận.</summary>
+        private static void PushBackupJobsUpdated(int serverId)
+        {
+            Helpers.BaJobHubHelper.PushJobsUpdated("Backup", serverId, null);
+        }
+
+        /// <summary>Push SignalR: nhiều server (timer).</summary>
+        private static void PushBackupJobsUpdated(System.Collections.Generic.IList<int> serverIds)
+        {
+            if (serverIds == null || serverIds.Count == 0) return;
+            foreach (var sid in serverIds)
+                Helpers.BaJobHubHelper.PushJobsUpdated("Backup", sid, null);
         }
 
         /// <summary>Bắt đầu restore chạy nền, trả về sessionId để client poll tiến độ. positions: thứ tự backup set (FILE=n), recoveryState: RECOVERY|NORECOVERY|STANDBY, withReplace: WITH REPLACE.</summary>
@@ -1033,15 +1310,15 @@ WHERE r.rn = 1";
                 if (string.IsNullOrWhiteSpace(databaseName) || string.IsNullOrWhiteSpace(backupFileName))
                     return new { success = false, message = "Nhập tên database đích và chọn file backup.", sessionId = 0, jobId = 0 };
                 databaseName = databaseName.Trim();
-                var backupPath = GetBackupPathForServer(serverId);
-                if (string.IsNullOrEmpty(backupPath))
-                    return new { success = false, message = "Chưa cấu hình đường dẫn backup.", sessionId = 0, jobId = 0 };
+                var restorePath = GetRestorePathForServer(serverId);
+                if (string.IsNullOrEmpty(restorePath))
+                    return new { success = false, message = "Chưa cấu hình đường dẫn backup/restore.", sessionId = 0, jobId = 0 };
                 var backupFileNameNorm = NormalizeBackupRelativePath(backupFileName);
                 if (backupFileNameNorm.Contains("..") || backupFileNameNorm.Contains("/"))
                     return new { success = false, message = "Tên file không hợp lệ.", sessionId = 0, jobId = 0 };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server.", sessionId = 0, jobId = 0 };
-                var backupRoot = backupPath.Trim().TrimEnd('\\');
+                var backupRoot = restorePath.Trim().TrimEnd('\\');
                 var fullPath = string.IsNullOrEmpty(backupFileNameNorm) ? backupRoot : System.IO.Path.Combine(backupRoot, backupFileNameNorm);
                 fullPath = System.IO.Path.GetFullPath(fullPath);
                 if (!fullPath.StartsWith(System.IO.Path.GetFullPath(backupRoot), StringComparison.OrdinalIgnoreCase))
@@ -1099,8 +1376,8 @@ WHERE r.rn = 1";
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
-                        cmd.CommandText = @"INSERT INTO BaRestoreJob (ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete)
-VALUES (@sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete)
+VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
                         cmd.Parameters.AddWithValue("@sid", serverId);
                         cmd.Parameters.AddWithValue("@sname", (s.ServerName ?? "") + (s.Port.HasValue ? "," + s.Port.Value : ""));
                         cmd.Parameters.AddWithValue("@db", databaseName);
@@ -1276,14 +1553,14 @@ VALUES (@sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running'
                             using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                             using (var cmd = appConn.CreateCommand())
                             {
-                                cmd.CommandText = "UPDATE BaRestoreJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE SessionId = @sess";
+                                cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE SessionId = @sess AND JobType = N'Restore'";
                                 cmd.Parameters.AddWithValue("@st", status);
                                 cmd.Parameters.AddWithValue("@msg", (object)msg ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@sess", sessionId);
                                 appConn.Open();
                                 cmd.ExecuteNonQuery();
                             }
-                            PushRestoreJobsUpdated();
+                            PushRestoreJobsUpdated(serverId);
                         }
                         catch { }
                     }
@@ -1305,7 +1582,7 @@ VALUES (@sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running'
                     appConn.Open();
                     cmd.ExecuteNonQuery();
                 }
-                UserActionLogHelper.Log("DatabaseSearch.StartRestore", "serverId=" + serverId + ", database=" + databaseName + ", file=" + backupFileName);
+                UserActionLogHelper.Log("DatabaseSearch.StartRestore", "file=" + backupFileName + " -> database=" + databaseName);
                 return new { success = true, sessionId = sessionId, jobId = jobId };
             }
             catch (Exception ex)
@@ -1314,7 +1591,136 @@ VALUES (@sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running'
             }
         }
 
-        /// <summary>Danh sách job restore (đang chạy + mới xong). Chỉ user có DatabaseBackup hoặc DatabaseRestore.</summary>
+        /// <summary>Danh sách job cho chuông: Restore/Backup = user có quyền server mới thấy; HR Helper = chỉ user làm mới thấy; đánh dấu đã đọc theo từng user.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetJobs()
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobs = new List<object>() };
+                if (!CanBackupStatic() && !CanRestoreStatic())
+                    return new { success = false, message = "Không có quyền.", jobs = new List<object>() };
+                var currentUserId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var accessibleIds = GetAccessibleServerIds();
+                var jobs = new List<object>();
+                try
+                {
+                    using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                    {
+                        conn.Open();
+                        // Restore/Backup: chỉ user có quyền server đó mới thấy. HR Helper: chỉ user làm (StartedByUserId) mới thấy. Đã đọc: theo BaJobDismissedByUser từng user.
+                        var serverFilter = accessibleIds == null
+                            ? "((J.JobType IN (N'Restore', N'Backup')))"
+                            : (accessibleIds.Count == 0
+                                ? "((J.JobType IN (N'Restore', N'Backup') AND 1=0))"
+                                : "((J.JobType IN (N'Restore', N'Backup') AND J.ServerId IN (" + string.Join(",", accessibleIds) + ")))");
+                        var sql = @"SELECT J.Id, J.JobType, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.FileName, J.SessionId, J.StartedByUserId, J.StartedByUserName, J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt
+FROM BaJob J
+WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther')
+  AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+  AND NOT EXISTS (SELECT 1 FROM BaJobDismissedByUser d WHERE d.JobId = J.Id AND d.UserId = @uid)
+  AND (" + serverFilter + @" OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther') AND J.StartedByUserId = @uid))
+ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = sql;
+                            cmd.Parameters.AddWithValue("@uid", currentUserId);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
+                                {
+                                    var jobType = r.IsDBNull(1) ? "" : r.GetString(1);
+                                    var typeLabel = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase) ? "Backup"
+                                        : string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) ? "Restore"
+                                        : string.Equals(jobType, "HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) ? "Update User"
+                                        : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? "Update Employee"
+                                        : string.Equals(jobType, "HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) ? "Update Company/Other"
+                                        : string.IsNullOrEmpty(jobType) ? "Job" : jobType;
+                                    var backupFileName = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase)
+                                        ? (r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "")
+                                        : (r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "");
+                                    jobs.Add(new
+                                    {
+                                        id = r.GetInt32(0),
+                                        type = jobType,
+                                        typeLabel = typeLabel,
+                                        serverId = r.FieldCount > 2 && !r.IsDBNull(2) ? r.GetInt32(2) : 0,
+                                        serverName = r.FieldCount > 3 && !r.IsDBNull(3) ? r.GetString(3) : "",
+                                        databaseName = r.FieldCount > 4 && !r.IsDBNull(4) ? r.GetString(4) : "",
+                                        backupFileName = backupFileName,
+                                        startedByUserId = r.FieldCount > 8 && !r.IsDBNull(8) ? r.GetInt32(8) : 0,
+                                        startedByUserName = r.FieldCount > 9 && !r.IsDBNull(9) ? r.GetString(9) : "",
+                                        startTime = r.FieldCount > 10 && !r.IsDBNull(10) ? r.GetDateTime(10).ToString("o") : null,
+                                        sessionId = r.FieldCount > 7 && !r.IsDBNull(7) ? (int?)r.GetInt32(7) : (int?)null,
+                                        status = r.FieldCount > 11 && !r.IsDBNull(11) ? r.GetString(11) : "",
+                                        percentComplete = r.FieldCount > 12 && !r.IsDBNull(12) ? r.GetInt32(12) : 0,
+                                        message = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : "",
+                                        completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null
+                                    });
+                                }
+                            }
+                        }
+                    }
+                    return new { success = true, jobs = jobs };
+                }
+                catch
+                {
+                    return new { success = true, jobs = new List<object>() };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobs = new List<object>() };
+            }
+        }
+
+        /// <summary>HR Helper: trả về job đang chạy của user hiện tại (update user/employee/other). Dùng để hiển thị overlay.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetMyRunningHRHelperJobs()
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", runningCount = 0, jobs = new List<object>() };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var jobs = new List<object>();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT Id, JobType, ServerName, DatabaseName, StartTime, Status, Message
+FROM BaJob WHERE JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther') AND StartedByUserId = @uid AND Status = N'Running'
+ORDER BY StartTime DESC";
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            jobs.Add(new
+                            {
+                                id = r.GetInt32(0),
+                                jobType = r.IsDBNull(1) ? "" : r.GetString(1),
+                                serverName = r.FieldCount > 2 && !r.IsDBNull(2) ? r.GetString(2) : "",
+                                databaseName = r.FieldCount > 3 && !r.IsDBNull(3) ? r.GetString(3) : "",
+                                startTime = r.FieldCount > 4 && !r.IsDBNull(4) ? (DateTime?)r.GetDateTime(4) : (DateTime?)null,
+                                status = r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "",
+                                message = r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : ""
+                            });
+                        }
+                    }
+                }
+                return new { success = true, runningCount = jobs.Count, jobs = jobs };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, runningCount = 0, jobs = new List<object>() };
+            }
+        }
+
+        /// <summary>Danh sách job restore (đang chạy + mới xong). Gọi từ BaJob, giữ để tương thích.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetRestoreJobs()
@@ -1332,10 +1738,10 @@ VALUES (@sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running'
                     {
                         conn.Open();
                         var sqlWithDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message, CompletedAt
-FROM BaRestoreJob WHERE (DismissedAt IS NULL) AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+FROM BaJob WHERE JobType = N'Restore' AND (DismissedAt IS NULL) AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
 ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                         var sqlWithoutDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message, CompletedAt
-FROM BaRestoreJob WHERE Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME()))
+FROM BaJob WHERE JobType = N'Restore' AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
 ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                         try
                         {
@@ -1409,37 +1815,47 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             }
         }
 
-        /// <summary>Đánh dấu thông báo đã đọc (ẩn khỏi danh sách). Cần chạy script AddBaRestoreJobDismissedAt.sql trước.</summary>
+        /// <summary>Đánh dấu job đã đọc cho user hiện tại (chỉ ẩn với user này, không ảnh hưởng user khác).</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object DismissRestoreJob(int jobId)
+        public static object DismissJob(int jobId)
         {
             try
             {
                 if (UiAuthHelper.IsAnonymous)
                     return new { success = false, message = "Cần đăng nhập." };
-                if (!CanBackupStatic() && !CanRestoreStatic())
-                    return new { success = false, message = "Không có quyền." };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "UPDATE BaRestoreJob SET DismissedAt = SYSDATETIME() WHERE Id = @id";
-                    cmd.Parameters.AddWithValue("@id", jobId);
+                    cmd.CommandText = @"MERGE BaJobDismissedByUser AS t
+USING (SELECT @jid AS JobId, @uid AS UserId) AS s ON t.JobId = s.JobId AND t.UserId = s.UserId
+WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SYSDATETIME());";
+                    cmd.Parameters.AddWithValue("@jid", jobId);
+                    cmd.Parameters.AddWithValue("@uid", userId);
                     conn.Open();
-                    var rows = cmd.ExecuteNonQuery();
-                    return new { success = rows > 0 };
+                    cmd.ExecuteNonQuery();
+                    return new { success = true };
                 }
             }
             catch (SqlException ex)
             {
-                if (ex.Message.IndexOf("DismissedAt", StringComparison.OrdinalIgnoreCase) >= 0)
-                    return new { success = false, message = "Chạy script AddBaRestoreJobDismissedAt.sql để bật tính năng đánh dấu đã đọc." };
+                if (ex.Message.IndexOf("BaJobDismissedByUser", StringComparison.OrdinalIgnoreCase) >= 0)
+                    return new { success = false, message = "Chưa tạo bảng BaJobDismissedByUser. Chạy script AddBaJobDismissedByUser.sql." };
                 return new { success = false, message = ex.Message };
             }
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message };
             }
+        }
+
+        /// <summary>Đánh dấu job restore đã đọc. Giữ để tương thích; nên dùng DismissJob(jobId).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object DismissRestoreJob(int jobId)
+        {
+            return DismissJob(jobId);
         }
 
         /// <summary>Lấy tiến độ restore (%) từ session đang chạy trên SQL Server. Cập nhật BaRestoreJob.PercentComplete.</summary>
@@ -1476,7 +1892,7 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                                     using (var upd = appConn.CreateCommand())
                                     {
-                                        upd.CommandText = "UPDATE BaRestoreJob SET PercentComplete = @pct WHERE SessionId = @sess";
+                                        upd.CommandText = "UPDATE BaJob SET PercentComplete = @pct WHERE SessionId = @sess AND JobType = N'Restore'";
                                         upd.Parameters.AddWithValue("@pct", pctInt);
                                         upd.Parameters.AddWithValue("@sess", sessionId);
                                         appConn.Open();
@@ -1525,15 +1941,15 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 if (string.IsNullOrWhiteSpace(databaseName) || string.IsNullOrWhiteSpace(backupFileName))
                     return new { success = false, message = "Nhập tên database đích và chọn file backup." };
                 databaseName = databaseName.Trim();
-                var backupPath = GetBackupPathForServer(serverId);
-                if (string.IsNullOrEmpty(backupPath))
-                    return new { success = false, message = "Chưa cấu hình đường dẫn backup." };
+                var restorePath = GetRestorePathForServer(serverId);
+                if (string.IsNullOrEmpty(restorePath))
+                    return new { success = false, message = "Chưa cấu hình đường dẫn backup/restore." };
                 var backupFileNameNorm = NormalizeBackupRelativePath(backupFileName);
                 if (backupFileNameNorm.Contains("..") || backupFileNameNorm.Contains("/"))
                     return new { success = false, message = "Tên file không hợp lệ." };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
-                var backupRoot = backupPath.Trim().TrimEnd('\\');
+                var backupRoot = restorePath.Trim().TrimEnd('\\');
                 var fullPath = string.IsNullOrEmpty(backupFileNameNorm) ? backupRoot : System.IO.Path.Combine(backupRoot, backupFileNameNorm);
                 fullPath = System.IO.Path.GetFullPath(fullPath);
                 if (!fullPath.StartsWith(System.IO.Path.GetFullPath(backupRoot), StringComparison.OrdinalIgnoreCase))
@@ -1597,7 +2013,7 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                     appConn.Open();
                     cmd.ExecuteNonQuery();
                 }
-                UserActionLogHelper.Log("DatabaseSearch.Restore", "serverId=" + serverId + ", database=" + databaseName + ", file=" + backupFileName);
+                UserActionLogHelper.Log("DatabaseSearch.Restore", "file=" + backupFileName + " -> database=" + databaseName);
                 return new { success = true, message = "Đã restore." };
             }
             catch (Exception ex)
@@ -1621,7 +2037,7 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
                     return new { success = false, message = "Không có quyền truy cập server này." };
 
-                var canDelete = UiAuthHelper.IsSuperAdmin || UiAuthHelper.HasFeature("DatabaseManageServers");
+                var canDelete = UiAuthHelper.IsSuperAdmin || UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseDelete");
                 if (!canDelete)
                 {
                     var uid = UiAuthHelper.CurrentUserId;
@@ -1663,7 +2079,7 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                         cmd.ExecuteNonQuery();
                     }
                 }
-                UserActionLogHelper.Log("DatabaseSearch.DeleteDatabase", "serverId=" + serverId + ", database=" + databaseName);
+                UserActionLogHelper.Log("DatabaseSearch.DeleteDatabase", "database=" + databaseName);
                 return new { success = true, message = "Đã xóa database." };
             }
             catch (Exception ex)
@@ -1738,24 +2154,24 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 var accessibleIds = GetAccessibleServerIds();
                 if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
                     return new { success = false, message = "Không có quyền.", files = new string[0] };
-                var backupPath = GetBackupPathForServer(serverId);
-                if (string.IsNullOrWhiteSpace(backupPath))
-                    return new { success = true, files = new string[0], message = "Chưa cấu hình đường dẫn backup. Sửa server → nhập Đường dẫn backup (path trên máy SQL), hoặc Web.config DatabaseBackupPath." };
-                backupPath = backupPath.Trim().TrimEnd('\\');
+                var restorePath = GetRestorePathForServer(serverId);
+                if (string.IsNullOrWhiteSpace(restorePath))
+                    return new { success = true, files = new string[0], message = "Chưa cấu hình đường dẫn backup/restore. Sửa server → Đường dẫn backup hoặc Đường dẫn restore." };
+                restorePath = restorePath.Trim().TrimEnd('\\');
                 var s = GetServerInfo(serverId);
 
                 // Ưu tiên: liệt kê trên máy SQL qua xp_cmdshell (giống SSMS, chỉ cần SA)
                 string[] files;
                 string msg;
-                if (TryListBackupFilesViaSqlServer(s, backupPath, out files, out msg))
+                if (TryListBackupFilesViaSqlServer(s, restorePath, out files, out msg))
                     return new { success = true, files = files, message = msg };
 
                 // Fallback: đọc từ máy chạy web (UNC hoặc path local — máy web cần truy cập được)
-                if (!System.IO.Directory.Exists(backupPath))
-                    return new { success = true, files = new string[0], message = "Thư mục không tồn tại trên máy chạy web: " + backupPath + ". Đường dẫn backup nên là path trên máy SQL (ứng dụng sẽ liệt kê qua SQL Server); nếu dùng path máy web thì dùng UNC (vd: \\\\TênMáySQL\\Share)." };
+                if (!System.IO.Directory.Exists(restorePath))
+                    return new { success = true, files = new string[0], message = "Thư mục không tồn tại trên máy chạy web: " + restorePath + ". Đường dẫn restore nên là path trên máy SQL hoặc UNC (vd: \\\\TênMáySQL\\Share)." };
                 try
                 {
-                    files = System.IO.Directory.GetFiles(backupPath, "*.bak")
+                    files = System.IO.Directory.GetFiles(restorePath, "*.bak")
                         .Select(System.IO.Path.GetFileName)
                         .OrderByDescending(f => f)
                         .Take(100)
@@ -1763,9 +2179,9 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 }
                 catch (UnauthorizedAccessException)
                 {
-                    return new { success = true, files = new string[0], message = "Không có quyền đọc thư mục (máy web): " + backupPath + "." };
+                    return new { success = true, files = new string[0], message = "Không có quyền đọc thư mục (máy web): " + restorePath + "." };
                 }
-                return new { success = true, files = files, message = files.Length == 0 ? "Không có file .bak trong thư mục: " + backupPath + "." : null };
+                return new { success = true, files = files, message = files.Length == 0 ? "Không có file .bak trong thư mục: " + restorePath + "." : null };
             }
             catch (Exception ex)
             {
@@ -1785,9 +2201,9 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 var accessibleIds = GetAccessibleServerIds();
                 if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
                     return new { success = false, message = "Không có quyền.", folders = new object[0], files = new object[0] };
-                var backupRoot = GetBackupPathForServer(serverId);
+                var backupRoot = GetRestorePathForServer(serverId);
                 if (string.IsNullOrWhiteSpace(backupRoot))
-                    return new { success = false, message = "Chưa cấu hình đường dẫn backup.", folders = new object[0], files = new object[0] };
+                    return new { success = false, message = "Chưa cấu hình đường dẫn backup/restore.", folders = new object[0], files = new object[0] };
                 backupRoot = System.IO.Path.GetFullPath(backupRoot.Trim().TrimEnd('\\'));
                 var sub = (subPath ?? "").Trim().Replace('/', '\\').TrimStart('\\');
                 var fullPath = string.IsNullOrEmpty(sub) ? backupRoot : System.IO.Path.Combine(backupRoot, sub);
@@ -1842,9 +2258,9 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 var accessibleIds = GetAccessibleServerIds();
                 if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
                     return new { success = false, message = "Không có quyền.", items = new List<object>() };
-                var backupRoot = GetBackupPathForServer(serverId);
+                var backupRoot = GetRestorePathForServer(serverId);
                 if (string.IsNullOrWhiteSpace(backupRoot))
-                    return new { success = false, message = "Chưa cấu hình đường dẫn backup.", items = new List<object>() };
+                    return new { success = false, message = "Chưa cấu hình đường dẫn backup/restore.", items = new List<object>() };
                 backupRoot = System.IO.Path.GetFullPath(backupRoot.Trim().TrimEnd('\\'));
                 var search = (searchText ?? "").Trim();
                 var results = new List<object>();
@@ -1887,6 +2303,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             {
                 if (UiAuthHelper.IsAnonymous)
                     return new { success = false, message = "Cần đăng nhập.", list = new List<object>() };
+                if (!CanShrinkLogStatic())
+                    return new { success = false, message = "Không có quyền lấy thông tin log.", list = new List<object>() };
                 var accessibleIds = GetAccessibleServerIds();
                 var list = new List<object>();
                 if (string.IsNullOrWhiteSpace(itemsJson))
@@ -1950,8 +2368,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 var accessibleIds = GetAccessibleServerIds();
                 if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
                     return new { success = false, message = "Không có quyền truy cập server này." };
-                if (!CanViewDatabase(serverId, databaseName))
-                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được shrink log." };
+                if (!CanShrinkDatabase(serverId, databaseName))
+                    return new { success = false, message = "Không có quyền shrink log database này." };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
                 var info = GetDatabaseLogInfo(s, databaseName.Trim());
@@ -1962,6 +2380,77 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Chạy shrink log cho database (dùng nội bộ sau backup khi withShrinkLog). Ném exception nếu lỗi.</summary>
+        private static void RunShrinkLogForDatabase(int serverId, string databaseName, int targetMb = 1)
+        {
+            var s = GetServerInfo(serverId);
+            if (s == null) throw new InvalidOperationException("Không tìm thấy server.");
+            var db = databaseName.Trim();
+            var dbSafe = db.Replace("]", "]]");
+            var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+            string recoveryBefore = null;
+            string logFileName = null;
+            using (var conn = new SqlConnection(masterConn))
+            {
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT recovery_model_desc FROM sys.databases WHERE name = @db";
+                    cmd.Parameters.AddWithValue("@db", db);
+                    recoveryBefore = cmd.ExecuteScalar() as string;
+                }
+            }
+            using (var connDb = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db)))
+            using (var cmd = connDb.CreateCommand())
+            {
+                cmd.CommandText = "SELECT name FROM sys.database_files WHERE type = 1";
+                connDb.Open();
+                var o = cmd.ExecuteScalar();
+                logFileName = o != null ? o.ToString() : null;
+            }
+            if (string.IsNullOrEmpty(logFileName))
+                throw new InvalidOperationException("Không tìm thấy file log.");
+            using (var conn = new SqlConnection(masterConn))
+            {
+                conn.Open();
+                var wasFull = string.Equals(recoveryBefore, "FULL", StringComparison.OrdinalIgnoreCase);
+                if (wasFull)
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "ALTER DATABASE [" + dbSafe + "] SET RECOVERY SIMPLE";
+                        cmd.CommandTimeout = 120;
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                try
+                {
+                    using (var connDb = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db)))
+                    {
+                        connDb.Open();
+                        using (var cmd = connDb.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 1800;
+                            cmd.CommandText = "DBCC SHRINKFILE (N'" + logFileName.Replace("'", "''") + "', " + targetMb + ")";
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                }
+                finally
+                {
+                    if (wasFull)
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = "ALTER DATABASE [" + dbSafe + "] SET RECOVERY FULL";
+                            cmd.CommandTimeout = 120;
+                            try { cmd.ExecuteNonQuery(); } catch { }
+                        }
+                    }
+                }
             }
         }
 
@@ -1977,8 +2466,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 var accessibleIds = GetAccessibleServerIds();
                 if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
                     return new { success = false, message = "Không có quyền truy cập server này." };
-                if (!CanViewDatabase(serverId, databaseName))
-                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được shrink log." };
+                if (!CanShrinkDatabase(serverId, databaseName))
+                    return new { success = false, message = "Không có quyền shrink log database này." };
                 if (targetSizeMb < 1 || targetSizeMb > 1024 * 100)
                     return new { success = false, message = "Target size phải từ 1 đến 102400 MB." };
                 var s = GetServerInfo(serverId);
@@ -2049,7 +2538,6 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                         }
                     }
                 }
-                UserActionLogHelper.Log("DatabaseSearch.ShrinkLog", "serverId=" + serverId + ", database=" + db + ", targetMb=" + targetSizeMb);
                 return new { success = true, message = "Đã shrink log. Dung lượng log đã giảm (chỉ thu hồi phần trống, không ảnh hưởng data)." };
             }
             catch (Exception ex)
@@ -2063,7 +2551,7 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
             using (var cmd = conn.CreateCommand())
             {
-                cmd.CommandText = "SELECT Id, ServerName, Port, Username, Password, BackupPath FROM BaDatabaseServer WHERE IsActive = 1 AND Id = @id";
+                cmd.CommandText = "SELECT Id, ServerName, Port, Username, Password, BackupPath, RestorePath FROM BaDatabaseServer WHERE IsActive = 1 AND Id = @id";
                 cmd.Parameters.AddWithValue("@id", serverId);
                 conn.Open();
                 using (var r = cmd.ExecuteReader())
@@ -2076,19 +2564,28 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                             Port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
                             Username = r.IsDBNull(3) ? "" : r.GetString(3),
                             Password = r.IsDBNull(4) ? "" : r.GetString(4),
-                            BackupPath = r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : null
+                            BackupPath = r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : null,
+                            RestorePath = r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : null
                         };
                 }
             }
             return null;
         }
 
-        /// <summary>Đường dẫn backup cho server: ưu tiên BackupPath của server, không có thì dùng Web.config.</summary>
+        /// <summary>Đường dẫn backup cho server: ưu tiên BackupPath của server, không có thì dùng Web.config. Dùng khi ghi file .bak.</summary>
         private static string GetBackupPathForServer(int serverId)
         {
             var s = GetServerInfo(serverId);
             var path = s != null && !string.IsNullOrWhiteSpace(s.BackupPath) ? s.BackupPath.Trim().TrimEnd('\\') : null;
             return path ?? GetDatabaseBackupPath();
+        }
+
+        /// <summary>Đường dẫn đọc file .bak khi restore: ưu tiên RestorePath, không có thì dùng BackupPath. Dùng khi liệt kê/chọn file restore.</summary>
+        private static string GetRestorePathForServer(int serverId)
+        {
+            var s = GetServerInfo(serverId);
+            var path = s != null && !string.IsNullOrWhiteSpace(s.RestorePath) ? s.RestorePath.Trim().TrimEnd('\\') : null;
+            return path ?? GetBackupPathForServer(serverId);
         }
 
         /// <summary>Chuẩn hóa path tương đối: bỏ đoạn cuối trùng (vd. A\B\B → A\B) để tránh lỗi path không tìm thấy.</summary>
@@ -2221,6 +2718,7 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             public string Username { get; set; }
             public string Password { get; set; }
             public string BackupPath { get; set; }
+            public string RestorePath { get; set; }
         }
 
         private class LogInfo

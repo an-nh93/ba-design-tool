@@ -1,221 +1,21 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="HomeRole.aspx.cs"
     Inherits="BADesign.Pages.HomeRole" %>
-
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
     <title>Home - UI Builder</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
+    <link href="../Content/ba-layout.css" rel="stylesheet" />
+    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/jquery.signalR.min.js"></script>
     <script src="../Scripts/ba-signalr.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
+    <script src="../Scripts/ba-layout.js"></script>
     <style>
-        :root {
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --primary-light: #0D9EFF;
-            --primary-soft: rgba(0, 120, 212, 0.1);
-            --bg-main: #1e1e1e;
-            --bg-dark: #1e1e1e;
-            --bg-darker: #161616;
-            --bg-card: #2d2d30;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --border-light: #464647;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
-        /* Light theme */
-        body.light-theme {
-            --bg-main: #ffffff;
-            --bg-dark: #f3f4f6;
-            --bg-darker: #f9fafb;
-            --bg-card: #ffffff;
-            --bg-hover: #f3f4f6;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --text-muted: #6b7280;
-            --border: #e5e7eb;
-            --border-light: #d1d5db;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        .ba-container { 
-            display: flex; 
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        .ba-sidebar {
-            width: 240px;
-            background: var(--bg-darker);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            overflow-x: hidden;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 1000;
-            transition: width 0.25s ease;
-        }
-        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
-        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item span { display: none; }
-        .ba-sidebar.collapsed .ba-nav-label { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; }
-        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
-        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .ba-sidebar-toggle:hover { color: var(--text-primary); }
-        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
-        .ba-sidebar-header {
-            padding: 0 1.5rem 1rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-        }
-        .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-nav { padding: 1rem 0; }
-        .ba-nav-item {
-            display: block;
-            padding: 0.75rem 1.5rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            margin-left: 240px;
-            transition: margin-left 0.25s ease;
-        }
-        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
-        .ba-top-bar {
-            padding: 1rem 2rem;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            flex-shrink: 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
-        .ba-top-bar-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-        .theme-switcher {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-        .theme-switcher:hover { background: var(--bg-hover); }
-        .theme-switcher-icon { font-size: 1rem; }
-        .user-menu { position: relative; }
-        .user-menu-trigger {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            border: none;
-        }
-        .user-menu-trigger:hover { background: var(--bg-hover); }
-        .user-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 600;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-sizing: border-box;
-            overflow: hidden;
-        }
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-        }
-        .user-menu-dropdown {
-            position: absolute;
-            top: calc(100% + 0.5rem);
-            right: 0;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            min-width: 200px;
-            z-index: 1000;
-            display: none;
-            overflow: hidden;
-        }
-        .user-menu-dropdown.show { display: block; }
-        .user-menu-dropdown .menu-item {
-            display: block;
-            padding: 0.75rem 1rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            border-bottom: 1px solid var(--border);
-        }
-        .user-menu-dropdown .menu-item:last-child { border-bottom: none; }
-        .user-menu-dropdown .menu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-content { 
-            flex: 1; 
-            overflow-y: auto; 
-            overflow-x: hidden; 
-            padding: 2rem;
-        }
         .ba-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -513,148 +313,15 @@
             color: white;
         }
         .btn-primary:hover { background: var(--primary-hover); }
-        /* Notification bell (trang chủ) */
-        .ba-notif-bell-btn {
-            padding: 6px 10px;
-            min-width: auto;
-            opacity: 1;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 1rem;
-        }
-        .ba-notif-bell-btn:hover { background: var(--bg-hover); }
-        .ba-notif-badge {
-            display: none;
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            min-width: 18px;
-            height: 18px;
-            padding: 0 4px;
-            border-radius: 9px;
-            background: #eb0b52;
-            color: #fff;
-            font-size: 0.7rem;
-            font-weight: 600;
-            line-height: 18px;
-            text-align: center;
-            box-sizing: border-box;
-        }
-        .ba-notif-badge.visible { display: inline-flex !important; align-items: center; justify-content: center; }
-        .ba-notif-panel {
-            display: none;
-            position: absolute;
-            top: 100%;
-            right: 0;
-            margin-top: 4px;
-            width: 380px;
-            max-height: 420px;
-            overflow: hidden;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-            z-index: 1001;
-        }
-        .ba-notif-panel .ba-notif-panel-title { padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 600; background: var(--bg-card); color: var(--text-primary); }
-        .ba-notif-list { padding: 6px; overflow-y: auto; max-height: 380px; background: var(--bg-card); }
-        .ba-notif-item { position: relative; padding: 10px 12px 10px 12px; padding-right: 28px; border-bottom: 1px solid var(--border); font-size: 0.8125rem; background: var(--bg-card); max-height: 120px; overflow: hidden; }
-        .ba-notif-item .ba-notif-dismiss { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; padding: 0; border: none; background: transparent; color: var(--text-muted); font-size: 1rem; line-height: 1; cursor: pointer; border-radius: 4px; }
-        .ba-notif-item .ba-notif-dismiss:hover { color: var(--text-primary); background: rgba(0,0,0,0.06); }
-        .ba-notif-item .ba-notif-msg { margin-top: 4px; color: #ef4444; font-size: 0.75rem; line-height: 1.35; max-height: 2.7em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-        .ba-notif-item .ba-notif-detail-link { margin-top: 4px; font-size: 0.75rem; color: var(--primary); cursor: pointer; text-decoration: none; }
-        .ba-notif-item .ba-notif-detail-link:hover { text-decoration: underline; }
-        #notificationDetailModal { position: fixed; inset: 0; z-index: 10002; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
-        #notificationDetailModal.show { display: flex; }
-        #notificationDetailModal .ba-notif-detail-body { overflow-y: auto; padding: 1rem; font-size: 0.875rem; background: var(--bg-card); border-radius: 8px; margin: 1rem; max-width: 520px; width: 96%; max-height: 85vh; }
-        #notificationDetailModal .ba-notif-detail-body table { width: 100%; border-collapse: collapse; }
-        #notificationDetailModal .ba-notif-detail-body th { text-align: left; padding: 6px 10px; color: var(--text-muted); font-weight: 500; width: 120px; }
-        #notificationDetailModal .ba-notif-detail-body td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
-        #notificationDetailModal .ba-notif-full-msg { margin-top: 10px; padding: 10px; background: var(--bg-darker); border-radius: 6px; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
     </style>
 </head>
 <body>
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <aside class="ba-sidebar" id="baSidebar">
-                <div class="ba-sidebar-header">
-                    <div class="ba-sidebar-title">UI Builder</div>
-                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
-                </div>
-                <nav class="ba-nav">
-                    <asp:HyperLink ID="lnkNavUIBuilder" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Home" data-icon="🛠" title="UI Builder">
-                        <span>🛠️ UI Builder</span>
-                    </asp:HyperLink>
-                    <asp:HyperLink ID="lnkNavDatabaseSearch" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DatabaseSearch" data-icon="🔍" title="Database Search">
-                        <span>🔍 Database Search</span>
-                    </asp:HyperLink>
-                    <asp:PlaceHolder ID="phNavEncryptDecrypt" runat="server" Visible="false">
-                        <asp:HyperLink ID="lnkNavEncryptDecrypt" runat="server" CssClass="ba-nav-item" NavigateUrl="~/EncryptDecrypt" data-icon="🔐" title="Encrypt/Decrypt">
-                            <span>🔐 Encrypt/Decrypt</span>
-                        </asp:HyperLink>
-                    </asp:PlaceHolder>
-                    <asp:PlaceHolder ID="phNavAppSettings" runat="server" Visible="false">
-                        <asp:HyperLink ID="lnkNavAppSettings" runat="server" CssClass="ba-nav-item" NavigateUrl="~/AppSettings" data-icon="⚙" title="App Settings">
-                            <span>⚙️ App Settings</span>
-                        </asp:HyperLink>
-                    </asp:PlaceHolder>
-                    <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool" data-icon="🧰" title="PGP Tool">
-                        <span>🧰 PGP Tool</span>
-                    </asp:HyperLink>
-                    <asp:PlaceHolder ID="phNavSuperAdmin" runat="server" Visible="false">
-                        <div class="ba-nav-item ba-nav-label" style="color: var(--text-muted); font-size: 0.75rem; padding-top: 1rem; padding-bottom: 0.25rem;">Super Admin</div>
-                        <asp:HyperLink ID="lnkNavUserManagement" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Users" data-icon="👥" title="User Management">
-                            <span>👥 User Management</span>
-                        </asp:HyperLink>
-                        <asp:HyperLink ID="lnkNavRolePermission" runat="server" CssClass="ba-nav-item" NavigateUrl="~/RolePermission" data-icon="🛡" title="Role Permission">
-                            <span>🛡 Role Permission</span>
-                        </asp:HyperLink>
-                        <asp:HyperLink ID="lnkNavLeaveManager" runat="server" CssClass="ba-nav-item" NavigateUrl="~/LeaveManager" data-icon="📅" title="Leave Manager">
-                            <span>📅 Leave Manager</span>
-                        </asp:HyperLink>
-                    </asp:PlaceHolder>
-                </nav>
-            </aside>
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" />
             <main class="ba-main">
-                <div class="ba-top-bar">
-                    <h1 class="ba-top-bar-title">
-                        <asp:Literal ID="litPageTitle" runat="server" />
-                    </h1>
-                    <div class="ba-top-bar-actions">
-                        <div id="restoreJobsBellWrap" style="position:relative;margin-right:8px;">
-                            <button type="button" id="restoreJobsBellBtn" class="ba-notif-bell-btn" title="Thông báo">🔔</button>
-                            <span id="restoreJobsBadge" class="ba-notif-badge">0</span>
-                            <div id="restoreJobsPanel" class="ba-notif-panel">
-                                <div class="ba-notif-panel-title">Thông báo</div>
-                                <div id="restoreJobsList" class="ba-notif-list"></div>
-                            </div>
-                        </div>
-                        <button class="theme-switcher" id="themeSwitcher" onclick="toggleTheme(event); return false;">
-                            <span class="theme-switcher-icon" id="themeIcon">🌙</span>
-                            <span id="themeText">Dark</span>
-                        </button>
-                        <div class="user-menu">
-                            <button class="user-menu-trigger" type="button" id="userMenuTrigger" onclick="toggleUserMenu(event); return false;">
-                                <div class="user-avatar">
-                                    <asp:Literal ID="litUserInitial" runat="server" />
-                                </div>
-                                <span><asp:Literal ID="litUserName" runat="server" /></span><asp:Literal ID="litRoleBadge" runat="server" Visible="false" />
-                                <span>▼</span>
-                            </button>
-                            <div class="user-menu-dropdown" id="userMenuDropdown">
-                                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('security'); return false;">🔒 Change Password</a>
-                                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('account'); return false;">⚙️ Account Settings</a>
-                                <div class="menu-item" style="border-top: 1px solid var(--border); margin-top: 0.25rem; padding-top: 0.75rem;">
-                                    <a href="~/Login?logout=1" runat="server" style="color: inherit; text-decoration: none;" onclick="closeUserMenu();">🚪 Logout</a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="ba-content">
                     <div class="ba-card">
                         <h2 class="ba-card-title">
@@ -723,11 +390,6 @@
             </main>
         </div>
 
-        <!-- Notification detail modal -->
-        <div id="notificationDetailModal" style="position:fixed;inset:0;z-index:10002;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);">
-            <div class="ba-notif-detail-body" id="notificationDetailBody" style="background:var(--bg-card);border-radius:8px;padding:1rem;max-width:520px;width:96%;max-height:85vh;overflow-y:auto;"></div>
-            <button type="button" id="notificationDetailClose" style="position:absolute;top:1rem;right:1rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1.25rem;">×</button>
-        </div>
         <!-- Account Settings Modal -->
         <div class="account-modal" id="accountModal">
             <div class="account-modal-content">
@@ -812,64 +474,6 @@
         </div>
     </form>
     <script>
-        (function() {
-            var key = 'baSidebarCollapsed';
-            var $sb = $('#baSidebar');
-            var $btn = $('#baSidebarToggle');
-            if ($sb.length && localStorage.getItem(key) === '1') $sb.addClass('collapsed');
-            if ($btn.length) $btn.on('click', function() {
-                $sb.toggleClass('collapsed');
-                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
-            });
-        })();
-        function toggleUserMenu(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            var dropdown = document.getElementById('userMenuDropdown');
-            dropdown.classList.toggle('show');
-            return false;
-        }
-        function closeUserMenu() {
-            document.getElementById('userMenuDropdown').classList.remove('show');
-        }
-        $(document).on('click', function(e) {
-            if (!$(e.target).closest('.user-menu').length) {
-                closeUserMenu();
-            }
-        });
-        function initTheme() {
-            var savedTheme = localStorage.getItem('theme') || 'dark';
-            applyTheme(savedTheme);
-        }
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                document.body.classList.remove('light-theme');
-                if (document.getElementById('themeIcon')) {
-                    document.getElementById('themeIcon').textContent = '☀️';
-                    document.getElementById('themeText').textContent = 'Light';
-                }
-            } else {
-                document.body.classList.add('light-theme');
-                if (document.getElementById('themeIcon')) {
-                    document.getElementById('themeIcon').textContent = '🌙';
-                    document.getElementById('themeText').textContent = 'Dark';
-                }
-            }
-            localStorage.setItem('theme', theme);
-        }
-        function toggleTheme(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            var currentTheme = localStorage.getItem('theme') || 'dark';
-            var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            applyTheme(newTheme);
-            return false;
-        }
-        initTheme();
         function showAccountModal(tab) {
             var modal = document.getElementById('accountModal');
             modal.classList.add('show');
@@ -1017,13 +621,6 @@
                         topBarAvatars.forEach(function(avatarEl) {
                             avatarEl.innerHTML = '<img src="' + avatarUrl + '" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />';
                         });
-                        var litUserInitialEl = document.querySelector('#<%= litUserInitial.ClientID %>');
-                        if (litUserInitialEl) {
-                            var parentAvatar = litUserInitialEl.closest('.user-avatar');
-                            if (parentAvatar) {
-                                parentAvatar.innerHTML = '<img src="' + avatarUrl + '" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />';
-                            }
-                        }
                     } else {
                         alert(response && response.message ? response.message : 'Failed to upload avatar.');
                     }
@@ -1099,10 +696,11 @@
         }
         (function() {
             var apiBase = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>';
-            var DISMISSED_KEY = 'baDismissedRestoreJobIds';
+            var DISMISSED_KEY = 'baDismissedJobIds';
             var MSG_MAX = 120;
             function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? JSON.parse(r) : []; } catch (e) { return []; } }
-            function addDismissed(id) { var a = getDismissed(); if (a.indexOf(id) < 0) { a.push(id); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
+            function addDismissed(id) { var a = getDismissed(); var key = 'j:' + id; if (a.indexOf(key) < 0) { a.push(key); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
+            function isDismissed(job) { return getDismissed().indexOf('j:' + (job.id || '')) >= 0; }
             function fmtTime(v) {
                 if (!v) return '—';
                 var m = String(v).match(/^\/Date\((\d+)\)\/$/);
@@ -1110,8 +708,9 @@
                 return isNaN(d.getTime()) ? v : d.toLocaleString();
             }
             function showDetail(job) {
+                var typeLabel = (job.type === 'Backup') ? 'Backup database' : ((job.type === 'Restore' || !job.type) ? 'Restore database' : (job.typeLabel || job.type));
                 var html = '<table><tbody>';
-                html += '<tr><th>Loại</th><td>Restore database</td></tr>';
+                html += '<tr><th>Loại</th><td>' + (typeLabel.replace(/</g, '&lt;')) + '</td></tr>';
                 html += '<tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr>';
                 html += '<tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>';
                 html += '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr>';
@@ -1128,20 +727,23 @@
             function loadPanel() {
                 var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
                 if (!$list.length) return;
-                $.ajax({ url: apiBase + '/GetRestoreJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                $.ajax({ url: apiBase + '/GetJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
                         var d = res.d || res;
                         if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        var jobs = (d.jobs || []).filter(function(j) { return j.id != null && getDismissed().indexOf(j.id) < 0; });
+                        var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = a.startTime ? new Date(a.startTime).getTime() : 0; var tb = b.startTime ? new Date(b.startTime).getTime() : 0; return tb - ta; });
                         if (jobs.length) $badge.text(jobs.length).addClass('visible'); else $badge.removeClass('visible');
                         window.__notifJobsList = jobs;
                         var html = '';
                         jobs.forEach(function(j, idx) {
                             var st = j.status || '', msg = (j.message || '').trim(), msgShort = msg.length > MSG_MAX ? msg.substring(0, MSG_MAX) + '…' : msg;
                             var pct = j.percentComplete != null ? j.percentComplete : 0;
+                            var jobType = j.type || 'Restore';
+                            var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore');
+                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
                             var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '">';
                             row += '<button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button>';
-                            row += '<div style="font-weight:500;">' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>';
+                            row += '<div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span>' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>';
                             row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime) + '</div>';
                             if (st === 'Running') row += '<div style="margin-top:6px;"><div style="background:var(--bg-darker);height:6px;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span>' + pct + '%</span></div>';
                             else if (st === 'Failed') { row += '<div class="ba-notif-msg">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
@@ -1156,7 +758,7 @@
                             var $item = $(this).closest('.ba-notif-item'), id = parseInt($item.data('job-id'), 10);
                             if (!id) return;
                             addDismissed(id);
-                            $.ajax({ url: apiBase + '/DismissRestoreJob', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) });
+                            $.ajax({ url: apiBase + '/DismissJob', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) });
                             $item.slideUp(200, function() { $(this).remove(); var n = $('#restoreJobsList .ba-notif-item').length; if (n) $('#restoreJobsBadge').text(n).addClass('visible'); else { $('#restoreJobsBadge').removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } });
                         });
                     }
@@ -1164,11 +766,11 @@
             }
             $(function() {
                 if (!$('#restoreJobsBellWrap').length) return;
-                $.ajax({ url: apiBase + '/GetRestoreJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                $.ajax({ url: apiBase + '/GetJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
                         var d = res.d || res;
                         if (d && d.jobs && d.jobs.length) {
-                            var jobs = (d.jobs || []).filter(function(j) { return j.id != null && getDismissed().indexOf(j.id) < 0; });
+                            var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); });
                             if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); }
                         }
                     }
@@ -1184,11 +786,23 @@
                 $('#notificationDetailModal').on('click', function(e) { if (e.target === this) $(this).removeClass('show').hide(); });
                 if (typeof BA_SignalR !== 'undefined') {
                     BA_SignalR.onRestoreJobsUpdated(function() {
-                        $.ajax({ url: apiBase + '/GetRestoreJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                        $.ajax({ url: apiBase + '/GetJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                             success: function(res) {
                                 var d = res.d || res;
                                 if (d && d.jobs) {
-                                    var jobs = (d.jobs || []).filter(function(j) { return j.id != null && getDismissed().indexOf(j.id) < 0; });
+                                    var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); });
+                                    if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
+                                }
+                            }
+                        });
+                        if ($('#restoreJobsPanel').is(':visible')) loadPanel();
+                    });
+                    BA_SignalR.onBackupJobsUpdated(function() {
+                        $.ajax({ url: apiBase + '/GetJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                            success: function(res) {
+                                var d = res.d || res;
+                                if (d && d.jobs) {
+                                    var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); });
                                     if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
                                 }
                             }

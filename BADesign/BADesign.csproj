@@ -271,20 +271,24 @@
     <Content Include="Pages\LeaveManager.aspx" />
     <Content Include="Pages\PgpTool.aspx" />
     <Content Include="Pages\AppSettings.aspx" />
+    <Content Include="Pages\AuditLog.aspx" />
     <Content Include="Scripts\AddAvatarPathColumn.sql" />
     <Content Include="Scripts\AddBaAppSetting.sql" />
     <Content Include="Scripts\AddBackupPathPerServer.sql" />
     <Content Include="Scripts\AddBaDatabaseSearch.sql" />
+    <Content Include="Scripts\AddBaJob.sql" />
     <Content Include="Scripts\AddBaRestoreJobDismissedAt.sql" />
     <Content Include="Scripts\AddDatabaseRestoreAndResetLog.sql" />
+    <Content Include="Scripts\AddAuditLogColumns.sql" />
     <Content Include="Scripts\AddPgptoolPermission.sql" />
     <Content Include="Scripts\AddProjectSupport.sql" />
+    <Content Include="Scripts\AddRestorePathPerServer.sql" />
     <Content Include="Scripts\AddUiRoles.sql" />
     <Content Include="Scripts\AddUiPermissions.sql" />
     <Content Include="Scripts\AddDatabaseBulkResetPermission.sql" />
     <Content Include="Scripts\AddDatabaseManageServersAndServerAccess.sql" />
     <Content Include="Scripts\AddDatabaseBackupRestorePermissions.sql" />
-    <Content Include="Scripts\AddBaRestoreJob.sql" />
+    <Content Include="Scripts\AddDatabaseDeleteAndShrinkLogPermissions.sql" />
     <Content Include="Scripts\ai.0.22.9-build00167.js" />
     <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
     <Content Include="Scripts\bootstrap.js" />
@@ -338,6 +342,9 @@
     <Content Include="Handlers\UploadAvatar.ashx" />
     <Content Include="Site.Master" />
     <Content Include="ViewSwitcher.ascx" />
+    <Content Include="NotificationBell.ascx" />
+    <Content Include="BaSidebar.ascx" />
+    <Content Include="BaTopBar.ascx" />
     <Content Include="Web.config" />
     <Content Include="Bundle.config" />
     <Content Include="packages.config" />
@@ -463,6 +470,8 @@
     <Compile Include="Common\UiAuthHelper.cs" />
     <Compile Include="Common\WindowsAuthHelper.cs" />
     <Compile Include="Hubs\RestoreNotificationHub.cs" />
+    <Compile Include="Helpers\BaJobHubHelper.cs" />
+    <Compile Include="Helpers\ServerAccessHelper.cs" />
     <Compile Include="Helpers\MyConvert.cs" />
     <Compile Include="Helpers\Security\AesHelper.cs" />
     <Compile Include="Helpers\Security\DataSecurityWrapper.cs" />
@@ -613,6 +622,13 @@
     <Compile Include="Pages\AppSettings.aspx.designer.cs">
       <DependentUpon>AppSettings.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Pages\AuditLog.aspx.cs">
+      <DependentUpon>AuditLog.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\AuditLog.aspx.designer.cs">
+      <DependentUpon>AuditLog.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Site.Master.cs">
       <DependentUpon>Site.Master</DependentUpon>
@@ -635,6 +651,27 @@
     </Compile>
     <Compile Include="ViewSwitcher.ascx.designer.cs">
       <DependentUpon>ViewSwitcher.ascx</DependentUpon>
+    </Compile>
+    <Compile Include="NotificationBell.ascx.cs">
+      <DependentUpon>NotificationBell.ascx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="NotificationBell.ascx.designer.cs">
+      <DependentUpon>NotificationBell.ascx</DependentUpon>
+    </Compile>
+    <Compile Include="BaSidebar.ascx.cs">
+      <DependentUpon>BaSidebar.ascx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="BaSidebar.ascx.designer.cs">
+      <DependentUpon>BaSidebar.ascx</DependentUpon>
+    </Compile>
+    <Compile Include="BaTopBar.ascx.cs">
+      <DependentUpon>BaTopBar.ascx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="BaTopBar.ascx.designer.cs">
+      <DependentUpon>BaTopBar.ascx</DependentUpon>
     </Compile>
   </ItemGroup>
   <ItemGroup>

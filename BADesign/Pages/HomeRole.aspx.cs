@@ -20,76 +20,43 @@ namespace BADesign.Pages
 
 			if (!IsPostBack)
 			{
-				// Load avatar
-				var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
-				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-				using (var cmd = conn.CreateCommand())
-				{
-					cmd.CommandText = "SELECT AvatarPath FROM UiUser WHERE UserId = @id";
-					cmd.Parameters.AddWithValue("@id", userId);
-					conn.Open();
-					var avatarPath = cmd.ExecuteScalar() as string;
-					if (!string.IsNullOrEmpty(avatarPath))
-					{
-						litUserInitial.Text = $"<img src=\"{VirtualPathUtility.ToAbsolute(avatarPath)}\" style=\"width: 100%; height: 100%; object-fit: cover; border-radius: 50%;\" />";
-					}
-					else
-					{
-						if (!string.IsNullOrEmpty(userName))
-							litUserInitial.Text = userName.Substring(0, 1).ToUpper();
-					}
-				}
-
-				// Set user info
-				litUserName.Text = userName;
-
-				// Role badge (so sánh không phân biệt hoa thường)
-				var roleName = roleUpper == "DEV" ? "Developer" :
-				               (roleUpper == "CONS" ? "Consultant" :
-				               (roleUpper == "BA" ? "Business Analyst" : (roleCode.Length > 0 ? roleCode : "User")));
-				litRoleBadge.Text = $"<span class=\"ba-role-badge\">{roleName}</span>";
-
-				// Page title and welcome based on role. Không redirect Home để tránh loop (BA/CONS/DEV hoặc không có role đều ở HomeRole).
+				ucBaSidebar.ActiveSection = "HomeRole";
+				// Page title (header) and welcome based on role.
 				if (roleUpper == "DEV")
 				{
-					litPageTitle.Text = "Developer Home";
+					ucBaTopBar.PageTitle = "Developer Home";
 					litWelcomeTitle.Text = "Chào mừng Developer";
 					litWelcomeDesc.Text = "Trang chủ dành cho Developer. Bạn có thể sử dụng các công cụ HR Helper để hỗ trợ cho công việc tại Cadena.";
 				}
 				else if (roleUpper == "CONS")
 				{
-					litPageTitle.Text = "Consultant Home";
+					ucBaTopBar.PageTitle = "Consultant Home";
 					litWelcomeTitle.Text = "Chào mừng Consultant";
 					litWelcomeDesc.Text = "Trang chủ dành cho Consultant. Bạn có thể sử dụng HR Helper để hỗ trợ cho công việc tại Cadena.";
 				}
 				else if (roleUpper == "QC")
 				{
-					litPageTitle.Text = "Quality Control Home";
+					ucBaTopBar.PageTitle = "Quality Control Home";
 					litWelcomeTitle.Text = "Chào mừng Quality Control";
 					litWelcomeDesc.Text = "Trang chủ dành cho Quality Control. Bạn có thể sử dụng HR Helper để hỗ trợ cho công việc tại Cadena.";
 				}
 				else if (roleUpper == "BA")
 				{
-					litPageTitle.Text = "Business Analyst Home";
+					ucBaTopBar.PageTitle = "Business Analyst Home";
 					litWelcomeTitle.Text = "Chào mừng Business Analyst";
 					litWelcomeDesc.Text = "Trang chủ dành cho Business Analyst. Bạn có thể sử dụng UI Builder để thiết kế giao diện và HR Helper để hỗ trợ cho công việc tại Cadena.";
 				}
 				else
 				{
-					litPageTitle.Text = "Home";
+					ucBaTopBar.PageTitle = "Home";
 					litWelcomeTitle.Text = "Chào mừng";
 					litWelcomeDesc.Text = "Bạn chưa được gán role (BA/CONS/DEV). Liên hệ Super Admin để được cấp quyền.";
 				}
 
-				phNavEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
 				phFeatureEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
-				lnkNavUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
-				lnkNavDatabaseSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
 				lnkFeatureUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
 				lnkFeatureDbSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
-				phNavSuperAdmin.Visible = UiAuthHelper.IsSuperAdmin;
 				phSuperAdminCards.Visible = UiAuthHelper.IsSuperAdmin;
-				phNavAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
 				phFeatureAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
 				phNoFeatures.Visible = !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("UIBuilder") && !UiAuthHelper.HasFeature("DatabaseSearch") && !UiAuthHelper.HasFeature("EncryptDecrypt") && !UiAuthHelper.HasFeature("PGPTool") && !UiAuthHelper.HasFeature("Settings");
 			}

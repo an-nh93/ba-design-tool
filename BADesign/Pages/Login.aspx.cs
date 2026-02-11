@@ -88,8 +88,6 @@ WHERE u.UserName = @u AND u.PasswordHash = @p";
 			if (chkRemember.Checked)
 				UiAuthHelper.SetRememberMeCookie((int)Session["UiUserId"]);
 
-			UserActionLogHelper.Log("Login", "UserId=" + Session["UiUserId"] + ", UserName=" + (Session["UiUserName"] ?? ""));
-
 			var returnUrl = Request.QueryString["returnUrl"];
 			if (!string.IsNullOrEmpty(returnUrl) && returnUrl.StartsWith("/"))
 			{

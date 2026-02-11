@@ -126,6 +126,12 @@ namespace BADesign
 				"AppSettings",
 				"~/Pages/AppSettings.aspx"
 			);
+
+			routes.MapPageRoute(
+				"AuditLogRoute",
+				"AuditLog",
+				"~/Pages/AuditLog.aspx"
+			);
 		}
 	}
 }
