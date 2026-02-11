@@ -8,6 +8,8 @@
     <title>Home - UI Builder</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
+    <script src="../Scripts/jquery.signalR.min.js"></script>
+    <script src="../Scripts/ba-signalr.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
     <style>
         :root {
@@ -511,6 +513,67 @@
             color: white;
         }
         .btn-primary:hover { background: var(--primary-hover); }
+        /* Notification bell (trang chủ) */
+        .ba-notif-bell-btn {
+            padding: 6px 10px;
+            min-width: auto;
+            opacity: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        .ba-notif-bell-btn:hover { background: var(--bg-hover); }
+        .ba-notif-badge {
+            display: none;
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            min-width: 18px;
+            height: 18px;
+            padding: 0 4px;
+            border-radius: 9px;
+            background: #eb0b52;
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 600;
+            line-height: 18px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .ba-notif-badge.visible { display: inline-flex !important; align-items: center; justify-content: center; }
+        .ba-notif-panel {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            width: 380px;
+            max-height: 420px;
+            overflow: hidden;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            z-index: 1001;
+        }
+        .ba-notif-panel .ba-notif-panel-title { padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 600; background: var(--bg-card); color: var(--text-primary); }
+        .ba-notif-list { padding: 6px; overflow-y: auto; max-height: 380px; background: var(--bg-card); }
+        .ba-notif-item { position: relative; padding: 10px 12px 10px 12px; padding-right: 28px; border-bottom: 1px solid var(--border); font-size: 0.8125rem; background: var(--bg-card); max-height: 120px; overflow: hidden; }
+        .ba-notif-item .ba-notif-dismiss { position: absolute; top: 8px; right: 8px; width: 20px; height: 20px; padding: 0; border: none; background: transparent; color: var(--text-muted); font-size: 1rem; line-height: 1; cursor: pointer; border-radius: 4px; }
+        .ba-notif-item .ba-notif-dismiss:hover { color: var(--text-primary); background: rgba(0,0,0,0.06); }
+        .ba-notif-item .ba-notif-msg { margin-top: 4px; color: #ef4444; font-size: 0.75rem; line-height: 1.35; max-height: 2.7em; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+        .ba-notif-item .ba-notif-detail-link { margin-top: 4px; font-size: 0.75rem; color: var(--primary); cursor: pointer; text-decoration: none; }
+        .ba-notif-item .ba-notif-detail-link:hover { text-decoration: underline; }
+        #notificationDetailModal { position: fixed; inset: 0; z-index: 10002; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
+        #notificationDetailModal.show { display: flex; }
+        #notificationDetailModal .ba-notif-detail-body { overflow-y: auto; padding: 1rem; font-size: 0.875rem; background: var(--bg-card); border-radius: 8px; margin: 1rem; max-width: 520px; width: 96%; max-height: 85vh; }
+        #notificationDetailModal .ba-notif-detail-body table { width: 100%; border-collapse: collapse; }
+        #notificationDetailModal .ba-notif-detail-body th { text-align: left; padding: 6px 10px; color: var(--text-muted); font-weight: 500; width: 120px; }
+        #notificationDetailModal .ba-notif-detail-body td { padding: 6px 10px; border-bottom: 1px solid var(--border); }
+        #notificationDetailModal .ba-notif-full-msg { margin-top: 10px; padding: 10px; background: var(--bg-darker); border-radius: 6px; font-size: 0.8125rem; white-space: pre-wrap; word-break: break-word; max-height: 200px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -562,6 +625,14 @@
                         <asp:Literal ID="litPageTitle" runat="server" />
                     </h1>
                     <div class="ba-top-bar-actions">
+                        <div id="restoreJobsBellWrap" style="position:relative;margin-right:8px;">
+                            <button type="button" id="restoreJobsBellBtn" class="ba-notif-bell-btn" title="Thông báo">🔔</button>
+                            <span id="restoreJobsBadge" class="ba-notif-badge">0</span>
+                            <div id="restoreJobsPanel" class="ba-notif-panel">
+                                <div class="ba-notif-panel-title">Thông báo</div>
+                                <div id="restoreJobsList" class="ba-notif-list"></div>
+                            </div>
+                        </div>
                         <button class="theme-switcher" id="themeSwitcher" onclick="toggleTheme(event); return false;">
                             <span class="theme-switcher-icon" id="themeIcon">🌙</span>
                             <span id="themeText">Dark</span>
@@ -652,6 +723,11 @@
             </main>
         </div>
 
+        <!-- Notification detail modal -->
+        <div id="notificationDetailModal" style="position:fixed;inset:0;z-index:10002;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,0.5);">
+            <div class="ba-notif-detail-body" id="notificationDetailBody" style="background:var(--bg-card);border-radius:8px;padding:1rem;max-width:520px;width:96%;max-height:85vh;overflow-y:auto;"></div>
+            <button type="button" id="notificationDetailClose" style="position:absolute;top:1rem;right:1rem;background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:1.25rem;">×</button>
+        </div>
         <!-- Account Settings Modal -->
         <div class="account-modal" id="accountModal">
             <div class="account-modal-content">
@@ -1021,6 +1097,108 @@
                 }
             });
         }
+        (function() {
+            var apiBase = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>';
+            var DISMISSED_KEY = 'baDismissedRestoreJobIds';
+            var MSG_MAX = 120;
+            function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? JSON.parse(r) : []; } catch (e) { return []; } }
+            function addDismissed(id) { var a = getDismissed(); if (a.indexOf(id) < 0) { a.push(id); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
+            function fmtTime(v) {
+                if (!v) return '—';
+                var m = String(v).match(/^\/Date\((\d+)\)\/$/);
+                var d = m ? new Date(parseInt(m[1], 10)) : new Date(v);
+                return isNaN(d.getTime()) ? v : d.toLocaleString();
+            }
+            function showDetail(job) {
+                var html = '<table><tbody>';
+                html += '<tr><th>Loại</th><td>Restore database</td></tr>';
+                html += '<tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr>';
+                html += '<tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>';
+                html += '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr>';
+                html += '<tr><th>Tiến trình</th><td>' + (job.percentComplete != null ? job.percentComplete + '%' : '—') + '</td></tr>';
+                html += '<tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr>';
+                html += '<tr><th>Bắt đầu</th><td>' + fmtTime(job.startTime) + '</td></tr>';
+                html += '<tr><th>Kết thúc</th><td>' + fmtTime(job.completedAt) + '</td></tr>';
+                if (job.backupFileName) html += '<tr><th>File backup</th><td>' + (job.backupFileName || '').replace(/</g, '&lt;') + '</td></tr>';
+                html += '</tbody></table>';
+                if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
+                $('#notificationDetailBody').html(html);
+                $('#notificationDetailModal').addClass('show').css('display', 'flex');
+            }
+            function loadPanel() {
+                var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
+                if (!$list.length) return;
+                $.ajax({ url: apiBase + '/GetRestoreJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                    success: function(res) {
+                        var d = res.d || res;
+                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
+                        var jobs = (d.jobs || []).filter(function(j) { return j.id != null && getDismissed().indexOf(j.id) < 0; });
+                        if (jobs.length) $badge.text(jobs.length).addClass('visible'); else $badge.removeClass('visible');
+                        window.__notifJobsList = jobs;
+                        var html = '';
+                        jobs.forEach(function(j, idx) {
+                            var st = j.status || '', msg = (j.message || '').trim(), msgShort = msg.length > MSG_MAX ? msg.substring(0, MSG_MAX) + '…' : msg;
+                            var pct = j.percentComplete != null ? j.percentComplete : 0;
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '">';
+                            row += '<button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button>';
+                            row += '<div style="font-weight:500;">' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>';
+                            row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime) + '</div>';
+                            if (st === 'Running') row += '<div style="margin-top:6px;"><div style="background:var(--bg-darker);height:6px;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span>' + pct + '%</span></div>';
+                            else if (st === 'Failed') { row += '<div class="ba-notif-msg">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
+                            else if (st === 'Completed') row += '<div style="margin-top:4px;color:#10b981;">Đã xong</div>';
+                            row += '<a class="ba-notif-detail-link" href="#">Xem chi tiết</a></div>';
+                            html += row;
+                        });
+                        $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
+                        $list.off('click.nb').on('click.nb', '.ba-notif-detail-link', function(e) { e.preventDefault(); var i = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); if (window.__notifJobsList && window.__notifJobsList[i]) showDetail(window.__notifJobsList[i]); });
+                        $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) {
+                            e.preventDefault(); e.stopPropagation();
+                            var $item = $(this).closest('.ba-notif-item'), id = parseInt($item.data('job-id'), 10);
+                            if (!id) return;
+                            addDismissed(id);
+                            $.ajax({ url: apiBase + '/DismissRestoreJob', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) });
+                            $item.slideUp(200, function() { $(this).remove(); var n = $('#restoreJobsList .ba-notif-item').length; if (n) $('#restoreJobsBadge').text(n).addClass('visible'); else { $('#restoreJobsBadge').removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } });
+                        });
+                    }
+                });
+            }
+            $(function() {
+                if (!$('#restoreJobsBellWrap').length) return;
+                $.ajax({ url: apiBase + '/GetRestoreJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                    success: function(res) {
+                        var d = res.d || res;
+                        if (d && d.jobs && d.jobs.length) {
+                            var jobs = (d.jobs || []).filter(function(j) { return j.id != null && getDismissed().indexOf(j.id) < 0; });
+                            if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); }
+                        }
+                    }
+                });
+                $('#restoreJobsBellBtn').on('click', function(e) {
+                    e.stopPropagation();
+                    var $p = $('#restoreJobsPanel');
+                    if ($p.is(':visible')) { $p.hide(); } else { loadPanel(); $p.show(); }
+                });
+                $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
+                $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
+                $('#notificationDetailClose').on('click', function() { $('#notificationDetailModal').removeClass('show').hide(); });
+                $('#notificationDetailModal').on('click', function(e) { if (e.target === this) $(this).removeClass('show').hide(); });
+                if (typeof BA_SignalR !== 'undefined') {
+                    BA_SignalR.onRestoreJobsUpdated(function() {
+                        $.ajax({ url: apiBase + '/GetRestoreJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                            success: function(res) {
+                                var d = res.d || res;
+                                if (d && d.jobs) {
+                                    var jobs = (d.jobs || []).filter(function(j) { return j.id != null && getDismissed().indexOf(j.id) < 0; });
+                                    if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
+                                }
+                            }
+                        });
+                        if ($('#restoreJobsPanel').is(':visible')) loadPanel();
+                    });
+                    BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');
+                }
+            });
+        })();
     </script>
 </body>
 </html>

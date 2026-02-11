@@ -23,11 +23,11 @@
                                EnableViewState="false" />
 
                     <div class="form-group">
-                        <label for="<%= txtUser.ClientID %>">Username</label>
+                        <label for="<%= txtUser.ClientID %>">Email hoặc Username</label>
                         <asp:TextBox runat="server"
                                      ID="txtUser"
                                      CssClass="login-input"
-                                     placeholder="your-email@company.com" />
+                                     placeholder="email@cadena.com.sg" />
                     </div>
 
                     <div class="form-group">

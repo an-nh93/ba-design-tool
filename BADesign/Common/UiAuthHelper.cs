@@ -98,6 +98,19 @@ namespace BADesign
 			}
 		}
 
+		/// <summary>Email domain được phép đăng nhập (CADENA).</summary>
+		private static readonly string[] AllowedLoginEmailDomains = { "@cadena.com.sg", "@cadena-hrmseries.com", "@cadena-it.com" };
+
+		/// <summary>Kiểm tra email có thuộc domain được phép đăng nhập không.</summary>
+		public static bool IsAllowedLoginEmail(string email)
+		{
+			if (string.IsNullOrWhiteSpace(email)) return false;
+			var e = email.Trim().ToLowerInvariant();
+			foreach (var domain in AllowedLoginEmailDomains)
+				if (e.EndsWith(domain, StringComparison.OrdinalIgnoreCase)) return true;
+			return false;
+		}
+
 		/// <summary>True khi chưa đăng nhập (dùng Database Search reset password).</summary>
 		public static bool IsAnonymous
 		{

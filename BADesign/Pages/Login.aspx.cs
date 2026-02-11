@@ -47,7 +47,7 @@ namespace UiBuilderFull
 			using (var cmd = conn.CreateCommand())
 			{
 				cmd.CommandText = @"
-SELECT u.UserId, u.UserName, u.IsSuperAdmin, u.IsActive, u.RoleId, r.Code AS RoleCode
+SELECT u.UserId, u.UserName, u.Email, u.IsSuperAdmin, u.IsActive, u.RoleId, r.Code AS RoleCode
 FROM UiUser u
 LEFT JOIN UiRole r ON r.RoleId = u.RoleId
 WHERE u.UserName = @u AND u.PasswordHash = @p";
@@ -69,6 +69,14 @@ WHERE u.UserName = @u AND u.PasswordHash = @p";
 						return;
 					}
 
+					// Chỉ cho phép đăng nhập bằng email CADENA (*@cadena.com.sg, *@cadena-hrmseries.com, *@cadena-it.com)
+					var email = rd["Email"] as string;
+					if (!UiAuthHelper.IsAllowedLoginEmail(email))
+					{
+						lblError.Text = "Chỉ tài khoản email CADENA (@cadena.com.sg, @cadena-hrmseries.com, @cadena-it.com) mới được đăng nhập.";
+						return;
+					}
+
 					Session["UiUserId"] = (int)rd["UserId"];
 					Session["UiUserName"] = (string)rd["UserName"];
 					Session["IsSuperAdmin"] = (bool)rd["IsSuperAdmin"];
@@ -79,6 +87,8 @@ WHERE u.UserName = @u AND u.PasswordHash = @p";
 
 			if (chkRemember.Checked)
 				UiAuthHelper.SetRememberMeCookie((int)Session["UiUserId"]);
+
+			UserActionLogHelper.Log("Login", "UserId=" + Session["UiUserId"] + ", UserName=" + (Session["UiUserName"] ?? ""));
 
 			var returnUrl = Request.QueryString["returnUrl"];
 			if (!string.IsNullOrEmpty(returnUrl) && returnUrl.StartsWith("/"))
