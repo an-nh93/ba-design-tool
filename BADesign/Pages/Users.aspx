@@ -745,6 +745,11 @@
             font-size: 0.875rem;
         }
         .perm-item input:disabled + span { color: var(--text-muted); }
+        .server-from-role-label {
+            color: var(--primary-light);
+            font-style: italic;
+            margin-left: 0.25rem;
+        }
         .user-form-row {
             display: flex;
             gap: 1rem;
@@ -1136,6 +1141,7 @@
         var rolesList = [];
         var permissionsList = [];
         var rolePermissionsMap = {};
+        var roleServerAccessMap = {}; // roleId -> [serverId] (server access theo Role)
         var currentUserPermissionIds = [];
         var serversList = [];
         var currentUserServerIds = [];
@@ -1182,7 +1188,17 @@
                 var d = res.d || res;
                 if (d && d.success && d.rolePermissions) rolePermissionsMap = d.rolePermissions;
             });
-            return $.when(reqPerm, reqRp);
+            var reqRsa = $.ajax({
+                url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/LoadRoleServerAccess") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: '{}'
+            }).done(function(res) {
+                var d = res.d || res;
+                if (d && d.success && d.roleServerAccess) roleServerAccessMap = d.roleServerAccess;
+            });
+            return $.when(reqPerm, reqRp, reqRsa);
         }
 
         function loadServers() {
@@ -1199,28 +1215,37 @@
             });
         }
 
-        function renderServerAccessCheckboxes(userServerIds) {
+        function renderServerAccessCheckboxes(roleIdVal, userServerIds) {
             userServerIds = userServerIds || [];
+            roleIdVal = roleIdVal || '0';
+            var roleServerIds = roleServerAccessMap[String(roleIdVal)] || [];
             var $list = $('#modalServerAccessList');
             $list.empty();
             if (!serversList.length) {
                 $list.html('<p style="font-size: 0.875rem; color: var(--text-muted);">Chưa có server. Thêm server trong Database Search.</p>');
-                updateServerAccessBadge(0);
+                updateServerAccessBadge(0, 0);
                 return;
             }
             var $grid = $('<div class="modal-server-access-grid"></div>');
+            var fromRoleCount = 0;
+            var extraCount = 0;
             serversList.forEach(function(s) {
-                var checked = userServerIds.indexOf(s.id) >= 0;
+                var fromRole = roleServerIds.indexOf(s.id) >= 0;
+                var fromUser = userServerIds.indexOf(s.id) >= 0;
+                var checked = fromRole || fromUser;
+                var disabled = fromRole;
+                if (fromRole) fromRoleCount++;
+                if (fromUser && !fromRole) extraCount++;
                 var disp = (s.serverName || '') + (s.port != null ? ':' + s.port : '') + ' (' + (s.username || '') + ')';
                 var searchText = disp.toLowerCase();
                 var $item = $('<label class="perm-item" data-search="' + searchText.replace(/"/g, '&quot;') + '"></label>');
-                $item.append('<input type="checkbox" class="perm-server-cb" data-sid="' + s.id + '" ' + (checked ? 'checked' : '') + ' />');
-                $item.append('<span>' + disp + '</span>');
+                $item.append('<input type="checkbox" class="perm-server-cb" data-sid="' + s.id + '" data-from-role="' + (fromRole ? '1' : '0') + '" ' + (checked ? 'checked' : '') + (disabled ? ' disabled' : '') + ' />');
+                $item.append('<span>' + disp + (fromRole ? ' <small class="server-from-role-label">(từ Role)</small>' : '') + '</span>');
                 $grid.append($item);
             });
             $list.append($grid);
             $('#modalServerSelectAll').prop('checked', false).prop('indeterminate', false);
-            updateServerAccessBadge(userServerIds.length);
+            updateServerAccessBadge(fromRoleCount, extraCount);
             filterModalServerRows();
         }
 
@@ -1238,9 +1263,18 @@
             $tog.toggleClass('rotated', $body.hasClass('collapsed'));
         }
 
-        function updateServerAccessBadge(count) {
+        function updateServerAccessBadge(fromRoleCount, extraCount) {
             var $badge = $('#serverAccessBadge');
-            $badge.text(count > 0 ? count + ' đã chọn' : '');
+            fromRoleCount = fromRoleCount || 0;
+            extraCount = extraCount != null ? extraCount : 0;
+            if (fromRoleCount > 0 && extraCount > 0)
+                $badge.text(fromRoleCount + ' từ Role, ' + extraCount + ' bổ sung');
+            else if (fromRoleCount > 0)
+                $badge.text(fromRoleCount + ' từ Role');
+            else if (extraCount > 0)
+                $badge.text(extraCount + ' bổ sung');
+            else
+                $badge.text('');
         }
 
         function filterModalServerRows() {
@@ -1256,18 +1290,22 @@
             var $all = $('#modalServerSelectAll');
             var $cbs = $('#modalServerAccessList .perm-server-cb');
             var $visible = $cbs.filter(function() { return $(this).closest('.perm-item').css('display') !== 'none'; });
+            var $visibleExtra = $visible.filter(function() { return !$(this).prop('disabled'); });
             var checked = $visible.filter(':checked').length;
-            if (checked === 0) {
+            var checkedExtra = $visibleExtra.filter(':checked').length;
+            if (checkedExtra === 0) {
                 $all.prop('checked', false);
                 $all.prop('indeterminate', false);
-            } else if (checked === $visible.length) {
+            } else if (checkedExtra === $visibleExtra.length) {
                 $all.prop('checked', true);
                 $all.prop('indeterminate', false);
             } else {
                 $all.prop('checked', false);
                 $all.prop('indeterminate', true);
             }
-            updateServerAccessBadge($('#modalServerAccessList .perm-server-cb:checked').length);
+            var fromRoleCount = $('#modalServerAccessList .perm-server-cb:disabled:checked').length;
+            var extraCount = $('#modalServerAccessList .perm-server-cb:not(:disabled):checked').length;
+            updateServerAccessBadge(fromRoleCount, extraCount);
         }
 
         $(document).on('change', '.perm-server-cb', function() {
@@ -1276,9 +1314,8 @@
 
         $('#modalServerSelectAll').on('change', function() {
             var checked = $(this).prop('checked');
-            $('#modalServerAccessList .perm-item:visible .perm-server-cb').prop('checked', checked);
-            updateServerAccessBadge(checked ? $('#modalServerAccessList .perm-server-cb').length : 0);
-            $('#modalServerSelectAll').prop('indeterminate', false);
+            $('#modalServerAccessList .perm-item:visible .perm-server-cb:not(:disabled)').prop('checked', checked);
+            updateServerSelectAllState();
         });
 
         function renderPermissionCheckboxes(roleIdVal, userPermissionIds) {
@@ -1338,7 +1375,7 @@
             currentUserPermissionIds = [];
             currentUserServerIds = [];
             renderPermissionCheckboxes(0, []);
-            renderServerAccessCheckboxes([]);
+            renderServerAccessCheckboxes('0', []);
 
             if (userId) {
                 $title.text('Edit User');
@@ -1375,7 +1412,7 @@
                                 currentUserPermissionIds = result.userPermissionIds || [];
                                 currentUserServerIds = result.userServerIds || [];
                                 renderPermissionCheckboxes(rid, currentUserPermissionIds);
-                                renderServerAccessCheckboxes(currentUserServerIds);
+                                renderServerAccessCheckboxes(rid, currentUserServerIds);
                             } else {
                                 $('#modalPermissionsLoading').hide();
                                 showToast(result && result.message ? result.message : 'Error loading user data.', 'error');
@@ -1400,7 +1437,7 @@
                 loadPerm.always(function() {
                     var rid = $('#modalRoleId').val() || '0';
                     renderPermissionCheckboxes(rid, []);
-                    renderServerAccessCheckboxes([]);
+                    renderServerAccessCheckboxes(rid, []);
                     $('#modalPermissionsLoading').hide();
                 });
             }
@@ -1415,7 +1452,9 @@
         $('#modalRoleId').on('change', function() {
             var rid = $(this).val();
             var uPids = currentEditUserId ? currentUserPermissionIds : [];
+            var uSrvIds = currentEditUserId ? currentUserServerIds : [];
             renderPermissionCheckboxes(rid, uPids);
+            renderServerAccessCheckboxes(rid, uSrvIds);
         });
 
         $('#pwToggle').on('click', function() {
@@ -1481,14 +1520,14 @@
                 data.roleId = roleIdVal;
                 data.extraPermissionIds = collectExtraPermissionIds();
                 data.extraServerIds = [];
-                $('#modalServerAccessList .perm-server-cb:checked').each(function() {
+                $('#modalServerAccessList .perm-server-cb:checked:not(:disabled)').each(function() {
                     data.extraServerIds.push(parseInt($(this).data('sid'), 10));
                 });
             } else {
                 data.roleId = roleIdVal === 0 ? null : roleIdVal;
                 data.extraPermissionIds = collectExtraPermissionIds();
                 data.extraServerIds = [];
-                $('#modalServerAccessList .perm-server-cb:checked').each(function() {
+                $('#modalServerAccessList .perm-server-cb:checked:not(:disabled)').each(function() {
                     data.extraServerIds.push(parseInt($(this).data('sid'), 10));
                 });
             }
