@@ -443,9 +443,10 @@
     <Compile Include="Account\VerifyPhoneNumber.aspx.designer.cs">
       <DependentUpon>VerifyPhoneNumber.aspx</DependentUpon>
     </Compile>
-    <Compile Include="App_Code\UiBuilderModels.cs" />
-    <Compile Include="App_Code\UiAuthHelper.cs" />
-    <Compile Include="App_Code\WindowsAuthHelper.cs" />
+    <Compile Include="Common\AppLogger.cs" />
+    <Compile Include="Common\UiBuilderModels.cs" />
+    <Compile Include="Common\UiAuthHelper.cs" />
+    <Compile Include="Common\WindowsAuthHelper.cs" />
     <Compile Include="Helpers\MyConvert.cs" />
     <Compile Include="Helpers\Security\AesHelper.cs" />
     <Compile Include="Helpers\Security\DataSecurityWrapper.cs" />

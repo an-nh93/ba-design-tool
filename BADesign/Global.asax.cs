@@ -25,5 +25,13 @@ namespace BADesign
             if (userId.HasValue)
                 UiAuthHelper.RestoreSessionFromUserId(userId.Value);
         }
+
+        protected void Application_Error(object sender, EventArgs e)
+        {
+            var ex = Server.GetLastError();
+            if (ex == null) return;
+            AppLogger.LogApplicationError(ex, Request);
+            // Không gọi Server.ClearError() để khi customErrors mode="Off" trình duyệt vẫn hiển thị lỗi chi tiết (YSOD) khi debug local.
+        }
     }
 }

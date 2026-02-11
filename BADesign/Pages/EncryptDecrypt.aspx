@@ -105,6 +105,22 @@
         .ba-tab-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
         .ba-source-radio { display: flex; gap: 1.5rem; margin-bottom: 1rem; }
         .ba-source-radio label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+        /* Collapsible card */
+        .ba-card-collapsible .ba-card-header-wrap { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; padding: 0; margin-bottom: 1rem; }
+        .ba-card-collapsible .ba-card-header-wrap .ba-card-title { margin-bottom: 0; }
+        .ba-card-collapsible .ba-card-toggle { color: var(--text-muted); font-size: 0.875rem; transition: transform 0.2s; }
+        .ba-card-collapsible.collapsed .ba-card-toggle { transform: rotate(-90deg); }
+        .ba-card-collapsible .ba-card-body { transition: opacity 0.15s; }
+        .ba-card-collapsible.collapsed .ba-card-body { display: none !important; }
+        /* Result grid: search, sort, resize */
+        .ba-table-search { margin-bottom: 0.5rem; }
+        .ba-table-search input { max-width: 280px; padding: 0.4rem 0.75rem; font-size: 0.875rem; }
+        .ba-table th.ba-sortable { cursor: pointer; user-select: none; white-space: nowrap; position: relative; padding-right: 1.5rem; }
+        .ba-table th.ba-sortable:hover { background: var(--bg-hover); }
+        .ba-table th .ba-sort-icon { margin-left: 4px; opacity: 0.7; font-size: 0.75rem; }
+        .ba-table th .ba-col-resize { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; }
+        .ba-table th .ba-col-resize:hover { background: var(--primary); opacity: 0.3; }
+        .ba-table-wrap.decrypt-result { position: relative; }
     </style>
 </head>
 <body>
@@ -209,31 +225,44 @@
 
                         <!-- Sub-tab: Giải mã hàng loạt (Phase 2a) -->
                         <div id="subDecryptgrid" class="ba-subtab">
-                            <div class="ba-card">
-                                <h2 class="ba-card-title">Giải mã để xem</h2>
-                                <p class="ba-warn">Dán dữ liệu từ SQL (CSV/TSV, có header). Chọn cột Key và các cột cần giải mã.</p>
-                                <div class="ba-form-group">
-                                    <label class="ba-form-label">Dữ liệu (CSV/TSV)</label>
-                                    <textarea id="txtDecryptGridCsv" class="ba-input" placeholder="EmployeeID,MobilePhone1,BusinessEmail&#10;26474,3OSo/+iDCY6...,abc123base64..." rows="6"></textarea>
+                            <div class="ba-card ba-card-collapsible" id="cardDecryptInput">
+                                <div class="ba-card-header-wrap" data-toggle="card">
+                                    <h2 class="ba-card-title">Giải mã để xem</h2>
+                                    <span class="ba-card-toggle" title="Thu gọn / Mở rộng">▼</span>
                                 </div>
-                                <div class="ba-form-group">
-                                    <label class="ba-form-label">Cột Key (dùng để giải mã)</label>
-                                    <select id="selDecryptKeyCol" class="ba-input" style="max-width: 200px;"><option value="">-- Chọn sau khi dán --</option></select>
+                                <div class="ba-card-body">
+                                    <p class="ba-warn">Dán dữ liệu từ SQL (CSV/TSV, có header). Cột Key (tùy chọn) dùng để giải mã theo từng dòng; nếu không chọn hoặc key null/trống thì dòng vẫn hiển thị (cột giải mã có thể để nguyên hoặc [key trống]). Chọn các cột cần giải mã.</p>
+                                    <div class="ba-form-group">
+                                        <label class="ba-form-label">Dữ liệu (CSV/TSV)</label>
+                                        <textarea id="txtDecryptGridCsv" class="ba-input" placeholder="EmployeeID,MobilePhone1,BusinessEmail&#10;26474,3OSo/+iDCY6...,abc123base64..." rows="6"></textarea>
+                                    </div>
+                                    <div class="ba-form-group">
+                                        <label class="ba-form-label">Cột Key (tùy chọn, dùng để giải mã theo dòng)</label>
+                                        <select id="selDecryptKeyCol" class="ba-input" style="max-width: 200px;"><option value="">-- Chọn sau khi dán --</option></select>
+                                    </div>
+                                    <div class="ba-form-group">
+                                        <label class="ba-form-label">Các cột cần giải mã</label>
+                                        <div id="chkDecryptCols" style="display: flex; flex-wrap: wrap; gap: 0.75rem;"></div>
+                                    </div>
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnParseDecrypt">Phân tích cột</button>
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnDecryptGrid" style="margin-left: 0.5rem;">Giải mã</button>
+                                    <div id="decryptGridErr" class="ba-err" style="display: none;"></div>
                                 </div>
-                                <div class="ba-form-group">
-                                    <label class="ba-form-label">Các cột cần giải mã</label>
-                                    <div id="chkDecryptCols" style="display: flex; flex-wrap: wrap; gap: 0.75rem;"></div>
-                                </div>
-                                <button type="button" class="ba-btn ba-btn-primary" id="btnParseDecrypt">Phân tích cột</button>
-                                <button type="button" class="ba-btn ba-btn-primary" id="btnDecryptGrid" style="margin-left: 0.5rem;">Giải mã</button>
-                                <div id="decryptGridErr" class="ba-err" style="display: none;"></div>
                             </div>
-                            <div class="ba-card" id="cardDecryptResult" style="display: none;">
-                                <h2 class="ba-card-title">Kết quả</h2>
-                                <div class="ba-table-wrap" style="max-height: 400px;">
-                                    <table class="ba-table" id="tblDecryptResult"></table>
+                            <div class="ba-card ba-card-collapsible" id="cardDecryptResult" style="display: none;">
+                                <div class="ba-card-header-wrap" data-toggle="card">
+                                    <h2 class="ba-card-title">Kết quả</h2>
+                                    <span class="ba-card-toggle" title="Thu gọn / Mở rộng">▼</span>
                                 </div>
-                                <button type="button" class="ba-btn ba-btn-secondary" id="btnCopyDecryptCsv" style="margin-top: 0.5rem;">Copy CSV</button>
+                                <div class="ba-card-body">
+                                    <div class="ba-table-search">
+                                        <input type="text" id="decryptResultSearch" class="ba-input" placeholder="Tìm trong lưới kết quả..." />
+                                    </div>
+                                    <div class="ba-table-wrap decrypt-result" style="max-height: 400px;">
+                                        <table class="ba-table" id="tblDecryptResult" style="table-layout: fixed;"></table>
+                                    </div>
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnDownloadDecryptCsv" style="margin-top: 0.5rem;">Download file CSV</button>
+                                </div>
                             </div>
                         </div>
 
@@ -541,53 +570,141 @@
                 if (decryptGridHeaders.length) showToast('Đã phân tích ' + decryptGridHeaders.length + ' cột.', 'success');
             });
 
+            // Expand/collapse card
+            $(document).on('click', '.ba-card-header-wrap[data-toggle="card"]', function () {
+                $(this).closest('.ba-card-collapsible').toggleClass('collapsed');
+            });
+
+            var decryptResultSortCol = -1, decryptResultSortDir = 1, decryptResultSearchQ = '';
+
+            function renderDecryptResultBody(rows) {
+                var tbl = $('#tblDecryptResult'), tbody = tbl.find('tbody');
+                if (!tbody.length) tbody = $('<tbody></tbody>');
+                tbody.empty();
+                (rows || []).forEach(function (row) {
+                    var tr = $('<tr></tr>');
+                    (row || []).forEach(function (cell) { tr.append($('<td></td>').text(cell || '')); });
+                    tbody.append(tr);
+                });
+                if (!tbody.parent().length) tbl.append(tbody);
+            }
+
+            function buildDecryptResultTable() {
+                var r = window._decryptGridResult;
+                if (!r || !r.headers || !r.rows) return;
+                var headers = r.headers, rows = r.rows;
+                var q = (decryptResultSearchQ || '').toLowerCase().trim();
+                var filtered = q ? rows.filter(function (row) {
+                    var line = (row || []).join(' ').toLowerCase();
+                    return line.indexOf(q) >= 0;
+                }) : rows.slice();
+                if (decryptResultSortCol >= 0 && decryptResultSortCol < headers.length) {
+                    filtered.sort(function (a, b) {
+                        var va = (a && a[decryptResultSortCol]) ? String(a[decryptResultSortCol]).toLowerCase() : '';
+                        var vb = (b && b[decryptResultSortCol]) ? String(b[decryptResultSortCol]).toLowerCase() : '';
+                        return decryptResultSortDir * va.localeCompare(vb);
+                    });
+                }
+                var tbl = $('#tblDecryptResult');
+                window._decryptGridColWidths = window._decryptGridColWidths || [];
+                tbl.empty();
+                var colgroup = $('<colgroup></colgroup>');
+                headers.forEach(function (_, i) {
+                    var w = window._decryptGridColWidths[i];
+                    colgroup.append($('<col>').css({ 'min-width': '80px', 'width': (w ? w + 'px' : '120px') }));
+                });
+                tbl.append(colgroup);
+                var thead = $('<thead></thead>'), htr = $('<tr></tr>');
+                headers.forEach(function (h, i) {
+                    var th = $('<th class="ba-sortable" data-col="' + i + '"></th>');
+                    th.append(document.createTextNode(h));
+                    th.append('<span class="ba-sort-icon"></span>');
+                    th.append('<span class="ba-col-resize" data-col="' + i + '" title="Kéo để đổi độ rộng"></span>');
+                    htr.append(th);
+                });
+                thead.append(htr);
+                tbl.append(thead);
+                renderDecryptResultBody(filtered);
+                tbl.find('th .ba-sort-icon').text('');
+                if (decryptResultSortCol >= 0) tbl.find('th[data-col="' + decryptResultSortCol + '"] .ba-sort-icon').text(decryptResultSortDir === 1 ? ' ↑' : ' ↓');
+            }
+
             $('#btnDecryptGrid').on('click', function () {
                 var txt = $('#txtDecryptGridCsv').val() || '';
                 var keyCol = $('#selDecryptKeyCol').val();
                 var decCols = [];
                 $('.chk-dec-col:checked').each(function () { decCols.push($(this).val()); });
                 if (!txt) { $('#decryptGridErr').text('Dán dữ liệu.').show(); return; }
-                if (!keyCol) { $('#decryptGridErr').text('Chọn cột Key.').show(); return; }
                 if (!decCols.length) { $('#decryptGridErr').text('Chọn ít nhất 1 cột giải mã.').show(); return; }
                 $('#decryptGridErr').hide();
                 showProgress();
                 $.ajax({
                     type: 'POST', url: decGridUrl,
-                    data: JSON.stringify({ csvText: txt, keyColumnName: keyCol, decryptColumnNames: decCols }),
+                    data: JSON.stringify({ csvText: txt, keyColumnName: keyCol || null, decryptColumnNames: decCols }),
                     contentType: 'application/json; charset=utf-8', dataType: 'json',
                     success: function (r) {
                         var d = r.d || r;
                         hideProgress();
                         if (!d || !d.success) { $('#decryptGridErr').text((d && d.message) || 'Lỗi').show(); return; }
-                        var tbl = $('#tblDecryptResult'), thead = $('<thead></thead>'), tbody = $('<tbody></tbody>');
-                        tbl.empty();
-                        var htr = $('<tr></tr>');
-                        (d.headers || []).forEach(function (h) { htr.append($('<th></th>').text(h)); });
-                        thead.append(htr);
-                        (d.rows || []).forEach(function (row) {
-                            var tr = $('<tr></tr>');
-                            (row || []).forEach(function (cell) { tr.append($('<td></td>').text(cell || '')); });
-                            tbody.append(tr);
-                        });
-                        tbl.append(thead).append(tbody);
-                        $('#cardDecryptResult').show();
                         window._decryptGridResult = { headers: d.headers, rows: d.rows };
+                        decryptResultSortCol = -1;
+                        decryptResultSortDir = 1;
+                        decryptResultSearchQ = '';
+                        $('#decryptResultSearch').val('');
+                        buildDecryptResultTable();
+                        $('#cardDecryptResult').show();
                     },
                     error: function () { hideProgress(); $('#decryptGridErr').text('Lỗi kết nối.').show(); }
                 });
             });
 
-            $('#btnCopyDecryptCsv').on('click', function () {
+            $('#decryptResultSearch').on('input', function () {
+                decryptResultSearchQ = $(this).val() || '';
+                buildDecryptResultTable();
+            });
+
+            $(document).on('click', '#tblDecryptResult th.ba-sortable', function (e) {
+                if ($(e.target).hasClass('ba-col-resize')) return;
+                var col = parseInt($(this).data('col'), 10);
+                if (decryptResultSortCol === col) decryptResultSortDir = -decryptResultSortDir; else { decryptResultSortCol = col; decryptResultSortDir = 1; }
+                buildDecryptResultTable();
+            });
+
+            (function () {
+                var resizing = null, startX = 0, startW = 0;
+                $(document).on('mousedown', '#tblDecryptResult .ba-col-resize', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var col = parseInt($(this).data('col'), 10);
+                    var $col = $('#tblDecryptResult colgroup col').eq(col);
+                    if (!$col.length) return;
+                    resizing = { col: col, $col: $col };
+                    startX = e.pageX;
+                    startW = $col.width() || 80;
+                });
+                $(document).on('mousemove', function (e) {
+                    if (!resizing) return;
+                    var dw = e.pageX - startX;
+                    var newW = Math.max(40, startW + dw);
+                    resizing.$col.css('width', newW + 'px');
+                    window._decryptGridColWidths = window._decryptGridColWidths || [];
+                    window._decryptGridColWidths[resizing.col] = newW;
+                });
+                $(document).on('mouseup', function () { resizing = null; });
+            })();
+
+            $('#btnDownloadDecryptCsv').on('click', function () {
                 var r = window._decryptGridResult;
                 if (!r || !r.headers || !r.rows) return;
                 var csv = r.headers.join(',') + '\n' + r.rows.map(function (row) { return (row || []).map(function (c) { return '"' + (c || '').replace(/"/g, '""') + '"'; }).join(','); }).join('\n');
-                var ta = document.createElement('textarea');
-                ta.value = csv;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand('copy');
-                document.body.removeChild(ta);
-                showToast('Đã copy CSV.', 'success');
+                var blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'DecryptResult_' + (new Date().toISOString().slice(0, 10)) + '.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Đã tải file CSV.', 'success');
             });
 
             $('#btnParseEncrypt').on('click', function () {

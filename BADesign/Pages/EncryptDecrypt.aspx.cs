@@ -506,8 +506,6 @@ WHERE T.IsActiveTransaction = 1";
             {
                 if (string.IsNullOrWhiteSpace(csvText))
                     return new { success = false, message = "Chưa dán dữ liệu." };
-                if (string.IsNullOrWhiteSpace(keyColumnName))
-                    return new { success = false, message = "Chọn cột Key." };
                 if (decryptColumnNames == null || decryptColumnNames.Count == 0)
                     return new { success = false, message = "Chọn ít nhất một cột cần giải mã." };
 
@@ -516,8 +514,8 @@ WHERE T.IsActiveTransaction = 1";
                     return new { success = false, message = "CSV không hợp lệ. Cần header và ít nhất một dòng dữ liệu." };
 
                 var headers = parsed.Headers;
-                var keyIdx = IndexOfColumn(headers, keyColumnName);
-                if (keyIdx < 0)
+                var keyIdx = string.IsNullOrWhiteSpace(keyColumnName) ? -1 : IndexOfColumn(headers, keyColumnName);
+                if (keyIdx < 0 && !string.IsNullOrWhiteSpace(keyColumnName))
                     return new { success = false, message = "Không tìm thấy cột Key: " + keyColumnName };
 
                 var decryptIndices = new List<int>();
@@ -538,9 +536,7 @@ WHERE T.IsActiveTransaction = 1";
                 {
                     var row = parsed.Rows[i];
                     var outRow = new List<string>(row);
-                    if (keyIdx >= row.Length) continue;
-                    var keyVal = row[keyIdx] == null ? "" : row[keyIdx].Trim();
-                    if (string.IsNullOrEmpty(keyVal)) continue;
+                    var keyVal = (keyIdx >= 0 && keyIdx < row.Length && row[keyIdx] != null) ? row[keyIdx].Trim() : "";
 
                     foreach (var colIdx in decryptIndices)
                     {
@@ -551,18 +547,56 @@ WHERE T.IsActiveTransaction = 1";
                             outRow[colIdx] = "";
                             continue;
                         }
-                        string dec;
-                        long keyNum;
-                        if (long.TryParse(keyVal, NumberStyles.Integer, CultureInfo.InvariantCulture, out keyNum))
-                            dec = DataSecurityWrapper.DecryptData<string>(enc, keyVal);
-                        else
-                            dec = DataSecurityWrapper.DecryptData<string>(enc, keyVal);
-                        outRow[colIdx] = dec ?? "[?]";
+                        try
+                        {
+                            // Thử giải mã với key (kể cả key rỗng - một số data dùng key trống hoặc key mặc định)
+                            var dec = DataSecurityWrapper.DecryptData<string>(enc, keyVal ?? "");
+                            outRow[colIdx] = dec ?? "[?]";
+                        }
+                        catch
+                        {
+                            outRow[colIdx] = string.IsNullOrEmpty(keyVal) ? "[key trống]" : "[?]";
+                        }
                     }
                     outRows.Add(outRow);
                 }
 
-                return new { success = true, headers = headers, rows = outRows };
+                // Thêm cột " (gốc)" cạnh mỗi cột đã giải mã để đối chiếu dữ liệu gốc với kết quả
+                var newHeaders = new List<string>();
+                for (var c = 0; c < headers.Length; c++)
+                {
+                    if (decryptIndices.Contains(c))
+                    {
+                        newHeaders.Add(headers[c] + " (gốc)");
+                        newHeaders.Add(headers[c]);
+                    }
+                    else
+                    {
+                        newHeaders.Add(headers[c]);
+                    }
+                }
+                var newRows = new List<List<string>>();
+                for (var i = 0; i < outRows.Count; i++)
+                {
+                    var row = parsed.Rows[i];
+                    var outRow = outRows[i];
+                    var newRow = new List<string>();
+                    for (var c = 0; c < row.Length; c++)
+                    {
+                        if (decryptIndices.Contains(c))
+                        {
+                            newRow.Add(row[c] ?? "");
+                            newRow.Add(outRow[c] ?? "");
+                        }
+                        else
+                        {
+                            newRow.Add(outRow[c] ?? "");
+                        }
+                    }
+                    newRows.Add(newRow);
+                }
+
+                return new { success = true, headers = newHeaders, rows = newRows };
             }
             catch (Exception ex)
             {
