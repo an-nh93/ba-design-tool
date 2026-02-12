@@ -618,8 +618,9 @@
                                 <select id="backupModalServer" class="ba-input" style="min-height: 36px;"></select>
                             </div>
                             <div class="ba-form-group">
-                                <label class="ba-form-label">Database</label>
-                                <select id="backupModalDatabase" class="ba-input" style="min-height: 36px;"></select>
+                                <label class="ba-form-label">Database (có thể chọn nhiều)</label>
+                                <div id="backupModalDatabaseList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--bg-darker);"></div>
+                                <div style="margin-top: 6px;"><a href="#" id="backupModalSelectAllDb" style="font-size: 0.8125rem;">Chọn tất cả</a> <span style="color: var(--text-muted);">|</span> <a href="#" id="backupModalDeselectAllDb" style="font-size: 0.8125rem;">Bỏ chọn</a></div>
                                 <span id="backupModalNoDb" style="display:none; color: var(--text-muted); font-size: 0.8125rem;">Quét server trước để thấy danh sách database.</span>
                             </div>
                             <div class="ba-form-group">
@@ -1979,20 +1980,19 @@
         }
 
         function fillBackupModalDatabaseDropdown(serverId) {
-            var $sel = $('#backupModalDatabase');
-            $sel.empty();
+            var $list = $('#backupModalDatabaseList');
+            $list.empty();
             if (!serverId) {
-                $sel.append('<option value="">Chọn server trước</option>');
                 $('#backupModalNoDb').show();
                 return;
             }
             var dbs = results.filter(function(r) { return r.serverId === serverId; });
             if (dbs.length === 0) {
-                $sel.append('<option value="">Không có database (quét server trước)</option>');
                 $('#backupModalNoDb').show();
             } else {
                 dbs.forEach(function(r) {
-                    $sel.append('<option value="' + (r.database || '').replace(/"/g, '&quot;') + '">' + (r.database || '') + '</option>');
+                    var db = (r.database || '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                    $list.append('<label style="display:block;padding:4px 0;cursor:pointer;"><input type="checkbox" name="backupModalDb" value="' + db + '" /> ' + (r.database || '').replace(/</g, '&lt;') + '</label>');
                 });
                 $('#backupModalNoDb').hide();
             }
@@ -2003,9 +2003,11 @@
             var sid = serverId != null ? serverId : (servers.length ? servers[0].id : null);
             $('#backupModalServer').val(sid ? String(sid) : '');
             fillBackupModalDatabaseDropdown(sid || null);
-            if (databaseName) $('#backupModalDatabase').val(databaseName);
-            var db = ($('#backupModalDatabase').val() || '').trim();
-            $('#backupModalTitle').text(db ? 'Back Up Database - ' + db : 'Back Up Database');
+            if (databaseName) {
+                $('#backupModalDatabaseList input[name=backupModalDb]').each(function() { $(this).prop('checked', $(this).val() === databaseName); });
+            }
+            var n = $('#backupModalDatabaseList input[name=backupModalDb]:checked').length;
+            $('#backupModalTitle').text(n ? ('Back Up Database' + (n > 1 ? ' (' + n + ' DB)' : '')) : 'Back Up Database');
             updateBackupModalSetName();
             updateBackupModalRecoveryModel();
             updateBackupModalDestPath();
@@ -2017,14 +2019,16 @@
         }
 
         function updateBackupModalSetName() {
-            var db = ($('#backupModalDatabase').val() || '').trim();
+            var first = $('#backupModalDatabaseList input[name=backupModalDb]:checked').first().val();
+            var db = (first || '').trim();
             var type = ($('#backupModalType').val() || 'Full');
             if (db) $('#backupModalSetName').attr('placeholder', db + '-Full Database Backup');
         }
 
         function updateBackupModalRecoveryModel() {
             var serverId = parseInt($('#backupModalServer').val(), 10);
-            var db = ($('#backupModalDatabase').val() || '').trim();
+            var first = $('#backupModalDatabaseList input[name=backupModalDb]:checked').first().val();
+            var db = (first || '').trim();
             var r = results.find(function(x) { return x.serverId === serverId && (x.database || '') === db; });
             $('#backupModalRecoveryModel').val(r && r.recoveryModel ? r.recoveryModel : '—');
         }
@@ -2038,46 +2042,47 @@
 
         function doBackupFromModal() {
             var serverId = parseInt($('#backupModalServer').val(), 10);
-            var databaseName = ($('#backupModalDatabase').val() || '').trim();
+            var selected = $('#backupModalDatabaseList input[name=backupModalDb]:checked').map(function() { return $(this).val().trim(); }).get().filter(Boolean);
             var withShrinkLog = $('#backupModalShrinkLog').is(':checked');
             if (!serverId) {
                 showToast('Chọn server.', 'error');
                 return;
             }
-            if (!databaseName) {
-                showToast('Chọn database.', 'error');
+            if (selected.length === 0) {
+                showToast('Chọn ít nhất một database.', 'error');
                 return;
             }
             var $btn = $('#backupModalConfirm');
             $btn.prop('disabled', true);
-            $.ajax({
-                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/StartBackup") %>',
-                type: 'POST',
-                contentType: 'application/json; charset=utf-8',
-                dataType: 'json',
-                data: JSON.stringify({ serverId: serverId, databaseName: databaseName, withShrinkLog: withShrinkLog }),
-                timeout: 30000,
-                success: function(res) {
+            var done = 0, failed = 0, total = selected.length;
+            function runNext(idx) {
+                if (idx >= total) {
                     $btn.prop('disabled', false);
-                    var d = res.d || res;
-                    if (d && d.success) {
-                        showToast(d.message || 'Đã đưa backup vào hàng đợi. Xem chuông thông báo.', 'success');
-                        hideBackupModal();
-                        if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
-                    } else {
-                        showToast((d && d.message) ? d.message : 'Lỗi.', 'error');
-                    }
-                },
-                error: function(xhr) {
-                    $btn.prop('disabled', false);
-                    var msg = 'Lỗi backup.';
-                    try {
-                        var j = JSON.parse(xhr.responseText);
-                        if (j.d && j.d.message) msg = j.d.message;
-                    } catch (e) {}
-                    showToast(msg, 'error');
+                    if (failed === 0)
+                        showToast('Đã đưa ' + total + ' database vào hàng đợi backup. Xem chuông thông báo.', 'success');
+                    else
+                        showToast('Đã đưa ' + (total - failed) + '/' + total + ' vào hàng đợi. ' + failed + ' lỗi.', failed === total ? 'error' : 'warning');
+                    hideBackupModal();
+                    if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
+                    return;
                 }
-            });
+                var databaseName = selected[idx];
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/StartBackup") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: 'json',
+                    data: JSON.stringify({ serverId: serverId, databaseName: databaseName, withShrinkLog: withShrinkLog }),
+                    timeout: 30000,
+                    success: function(res) {
+                        var d = res.d || res;
+                        if (d && d.success) done++; else failed++;
+                        runNext(idx + 1);
+                    },
+                    error: function() { failed++; runNext(idx + 1); }
+                });
+            }
+            runNext(0);
         }
 
         var shrinkLogServerId = null;
@@ -2631,11 +2636,24 @@
                 updateBackupModalRecoveryModel();
                 updateBackupModalDestPath();
             });
-            $('#backupModalDatabase').on('change', function() {
+            $('#backupModalDatabaseList').on('change', 'input[name=backupModalDb]', function() {
                 updateBackupModalSetName();
                 updateBackupModalRecoveryModel();
-                var db = ($(this).val() || '').trim();
-                $('#backupModalTitle').text(db ? 'Back Up Database - ' + db : 'Back Up Database');
+                var n = $('#backupModalDatabaseList input[name=backupModalDb]:checked').length;
+                $('#backupModalTitle').text(n ? ('Back Up Database' + (n > 1 ? ' (' + n + ' DB)' : '')) : 'Back Up Database');
+            });
+            $('#backupModalSelectAllDb').on('click', function(e) {
+                e.preventDefault();
+                $('#backupModalDatabaseList input[name=backupModalDb]').prop('checked', true);
+                var n = $('#backupModalDatabaseList input[name=backupModalDb]:checked').length;
+                $('#backupModalTitle').text(n ? ('Back Up Database (' + n + ' DB)') : 'Back Up Database');
+                updateBackupModalSetName(); updateBackupModalRecoveryModel();
+            });
+            $('#backupModalDeselectAllDb').on('click', function(e) {
+                e.preventDefault();
+                $('#backupModalDatabaseList input[name=backupModalDb]').prop('checked', false);
+                $('#backupModalTitle').text('Back Up Database');
+                updateBackupModalSetName(); updateBackupModalRecoveryModel();
             });
             $('#backupNavGeneral, #backupNavOptions').on('click', function() {
                 var page = $(this).data('page');
@@ -2810,12 +2828,15 @@
                         var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
                         if (!jobs.length) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
                         var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                        var running = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Restore' && (notifJobSessionId(j) != null && notifJobSessionId(j) !== ''); });
+                        var runningRestore = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Restore' && (notifJobSessionId(j) != null && notifJobSessionId(j) !== ''); });
+                        var runningBackup = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Backup'; });
+                        var hasRunningJobs = runningRestore.length > 0 || runningBackup.length > 0;
                         $badge.text(jobs.length).addClass('visible');
-                        window.__runningRestoreSessions = running.slice();
-                        if (running.length) {
+                        window.__runningRestoreSessions = runningRestore.slice();
+                        window.__hasRunningJobs = hasRunningJobs;
+                        if (runningRestore.length) {
                             var progressUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreProgress") %>';
-                            running.forEach(function(j) {
+                            runningRestore.forEach(function(j) {
                                 var sid = notifJobSessionId(j);
                                 var srvId = notifJobServerId(j);
                                 if (sid == null || srvId == null) return;
@@ -2845,8 +2866,8 @@
                                         }
                                     });
                             });
-                            if (!document.hidden && $('#restoreJobsPanel').is(':visible') && !restoreProgressTimer) {
-                                restoreProgressTimer = setInterval(pollRestoreProgressOnly, 2000);
+                            if (!document.hidden && $('#restoreJobsPanel').is(':visible') && !restoreProgressTimer && hasRunningJobs) {
+                                restoreProgressTimer = setInterval(loadRestoreJobsPanel, 2000);
                             }
                         } else {
                             if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
@@ -2889,12 +2910,12 @@
                             var endTimeStr = formatNotifTime(j.completedAt || j.CompletedAt);
                             row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || j.StartedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
                             var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : (j.StartedByUserId != null ? parseInt(j.StartedByUserId, 10) : 0);
-                            var canCancel = (jobType === 'Restore' && currentUserId && startedByUid === currentUserId);
+                            var canCancel = (jobType === 'Restore' || jobType === 'Backup') && currentUserId && startedByUid === currentUserId;
                             if (st === 'Running') {
                                 var progressLabel = (jobType === 'Restore' && phaseLabel) ? (pct + '% - ' + phaseLabel) : (pct + '%');
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
-                                if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện restore mới có thể hủy">Hủy</button>';
+                                if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
                             } else if (st === 'Failed') {
                                 row += '<div class="ba-notif-msg">' + (msgShort.replace(/</g, '&lt;')) + '</div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
@@ -2954,8 +2975,8 @@
                 var $p = $('#restoreJobsPanel');
                 if (!$p.length || !$p.is(':visible')) return;
                 if (!restoreJobsPanelTimer) restoreJobsPanelTimer = setInterval(loadRestoreJobsPanel, 6000);
-                if (window.__runningRestoreSessions && window.__runningRestoreSessions.length && !restoreProgressTimer)
-                    restoreProgressTimer = setInterval(pollRestoreProgressOnly, 2000);
+                if ((window.__runningRestoreSessions && window.__runningRestoreSessions.length) || window.__hasRunningJobs) && !restoreProgressTimer)
+                    restoreProgressTimer = setInterval(loadRestoreJobsPanel, 2000);
             }
             $('#restoreJobsBellBtn').on('click', function(e) {
                 e.stopPropagation();

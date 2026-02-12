@@ -132,6 +132,12 @@ namespace BADesign
 				"AuditLog",
 				"~/Pages/AuditLog.aspx"
 			);
+
+			routes.MapPageRoute(
+				"FunctionQueueRoute",
+				"FunctionQueue",
+				"~/Pages/FunctionQueue.aspx"
+			);
 		}
 	}
 }

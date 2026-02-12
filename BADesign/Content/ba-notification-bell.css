@@ -1,5 +1,5 @@
 /* Chuông thông báo (Backup/Restore jobs) - dùng chung cho HomeRole, DatabaseSearch, v.v. */
-#restoreJobsBellWrap { position: relative; margin-right: 8px; }
+#restoreJobsBellWrap { position: relative; margin-right: 8px; display: inline-flex; align-items: center; }
 .ba-notif-bell-btn {
     padding: 6px 10px;
     min-width: auto;
@@ -59,9 +59,21 @@
 .ba-notif-list {
     padding: 6px;
     overflow-y: auto;
-    max-height: min(540px, 70vh);
+    max-height: min(520px, 68vh);
     background: var(--bg-card);
 }
+.ba-notif-panel-footer {
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    background: var(--bg-card);
+    text-align: center;
+}
+.ba-notif-queue-link {
+    font-size: 0.8125rem;
+    color: var(--primary, #3b82f6);
+    text-decoration: none;
+}
+.ba-notif-queue-link:hover { text-decoration: underline; }
 .ba-notif-item {
     position: relative;
     padding: 10px 12px 12px;

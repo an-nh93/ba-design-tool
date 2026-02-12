@@ -470,7 +470,7 @@ VALUES (N'HRHelperUpdateUser', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runni
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = @jt";
+                    cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = @jt AND Status = N'Running'";
                     cmd.Parameters.AddWithValue("@st", success ? "Completed" : "Failed");
                     cmd.Parameters.AddWithValue("@msg", (object)message ?? DBNull.Value);
                     cmd.Parameters.AddWithValue("@id", jobId);

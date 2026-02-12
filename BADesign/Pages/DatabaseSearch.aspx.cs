@@ -1012,7 +1012,7 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                         using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                         using (var cmd = appConn.CreateCommand())
                         {
-                            cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME(), FileName = @fname WHERE Id = @id AND JobType = N'Backup'";
+                            cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME(), FileName = @fname WHERE Id = @id AND JobType = N'Backup' AND Status = N'Running'";
                             cmd.Parameters.AddWithValue("@st", status);
                             cmd.Parameters.AddWithValue("@msg", (object)message ?? DBNull.Value);
                             cmd.Parameters.AddWithValue("@fname", (object)fileName ?? DBNull.Value);
@@ -1905,10 +1905,10 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             catch { return false; }
         }
 
-        /// <summary>Hủy job Restore đang chạy. Chỉ người thực hiện restore (StartedByUserId) mới được hủy.</summary>
+        /// <summary>Hủy job đang chạy (Restore/Backup/HRHelper). Chỉ người thực hiện (StartedByUserId) mới được hủy. Dùng cho Function Queue và chuông.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object CancelRestoreJob(int jobId)
+        public static object CancelJob(int jobId)
         {
             try
             {
@@ -1918,7 +1918,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = @"UPDATE BaJob SET Status = N'Cancelled', Message = N'Đã hủy bởi người dùng', CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = N'Restore' AND Status = N'Running' AND StartedByUserId = @uid";
+                    cmd.CommandText = @"UPDATE BaJob SET Status = N'Cancelled', Message = N'Đã hủy bởi người dùng', CompletedAt = SYSDATETIME() WHERE Id = @id AND Status = N'Running' AND StartedByUserId = @uid AND JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther')";
                     cmd.Parameters.AddWithValue("@id", jobId);
                     cmd.Parameters.AddWithValue("@uid", uid);
                     conn.Open();
@@ -1931,6 +1931,114 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Hủy job Restore đang chạy. Chỉ người thực hiện restore (StartedByUserId) mới được hủy. Giữ để tương thích chuông; chuông có thể gọi CancelJob.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object CancelRestoreJob(int jobId)
+        {
+            return CancelJob(jobId);
+        }
+
+        /// <summary>Danh sách job cho Function Queue: Restore, Backup, HR Helper (không lọc Dismissed, có lịch sử 7 ngày). Cùng quyền xem như GetJobs.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetFunctionQueueJobs(string dateFrom, string dateTo, string jobTypeFilter)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobs = new List<object>(), currentUserId = 0 };
+                var currentUserId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var accessibleIds = GetAccessibleServerIds();
+                var jobs = new List<object>();
+                try
+                {
+                    var serverFilter = accessibleIds == null
+                        ? "((J.JobType IN (N'Restore', N'Backup')))"
+                        : (accessibleIds.Count == 0
+                            ? "((J.JobType IN (N'Restore', N'Backup') AND 1=0))"
+                            : "((J.JobType IN (N'Restore', N'Backup') AND J.ServerId IN (" + string.Join(",", accessibleIds) + ")))");
+                    var timeFilter = "(J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed', N'Cancelled') AND J.CompletedAt >= DATEADD(day, -7, SYSDATETIME())))";
+                    DateTime? fromDt = null, toDt = null;
+                    DateTime parsedFrom;
+                    if (!string.IsNullOrWhiteSpace(dateFrom) && DateTime.TryParse(dateFrom.Trim(), out parsedFrom)) fromDt = parsedFrom;
+                    DateTime parsedTo;
+                    if (!string.IsNullOrWhiteSpace(dateTo) && DateTime.TryParse(dateTo.Trim(), out parsedTo)) toDt = parsedTo.Date.AddDays(1);
+                    if (fromDt.HasValue) timeFilter += " AND J.StartTime >= @from";
+                    if (toDt.HasValue) timeFilter += " AND J.StartTime < @to";
+                    var typeFilter = "";
+                    if (!string.IsNullOrWhiteSpace(jobTypeFilter))
+                    {
+                        var typeVal = jobTypeFilter.Trim();
+                        if (typeVal == "Restore") typeFilter = " AND J.JobType = N'Restore'";
+                        else if (typeVal == "Backup") typeFilter = " AND J.JobType = N'Backup'";
+                        else if (typeVal == "HRHelperUpdateUser") typeFilter = " AND J.JobType = N'HRHelperUpdateUser'";
+                        else if (typeVal == "HRHelperUpdateEmployee") typeFilter = " AND J.JobType = N'HRHelperUpdateEmployee'";
+                        else if (typeVal == "HRHelperUpdateOther") typeFilter = " AND J.JobType = N'HRHelperUpdateOther'";
+                    }
+                    var sql = @"SELECT TOP 500 J.Id, J.JobType, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.FileName, J.SessionId, J.StartedByUserId, J.StartedByUserName, J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt
+FROM BaJob J
+WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther')
+  AND " + timeFilter + @"
+  AND (" + serverFilter + " OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther') AND J.StartedByUserId = @uid))" + typeFilter + @"
+ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
+                    using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = sql;
+                        cmd.Parameters.AddWithValue("@uid", currentUserId);
+                        if (fromDt.HasValue) cmd.Parameters.AddWithValue("@from", fromDt.Value);
+                        if (toDt.HasValue) cmd.Parameters.AddWithValue("@to", toDt.Value);
+                        conn.Open();
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                var jobType = r.IsDBNull(1) ? "" : r.GetString(1);
+                                var typeLabel = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase) ? "Backup"
+                                    : string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) ? "Restore"
+                                    : string.Equals(jobType, "HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) ? "Update User"
+                                    : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? "Update Employee"
+                                    : string.Equals(jobType, "HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) ? "Update Company/Other"
+                                    : string.IsNullOrEmpty(jobType) ? "Job" : jobType;
+                                var backupFileName = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase)
+                                    ? (r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "")
+                                    : (r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "");
+                                jobs.Add(new
+                                {
+                                    id = r.GetInt32(0),
+                                    type = jobType,
+                                    typeLabel = typeLabel,
+                                    serverId = r.FieldCount > 2 && !r.IsDBNull(2) ? r.GetInt32(2) : 0,
+                                    serverName = r.FieldCount > 3 && !r.IsDBNull(3) ? r.GetString(3) : "",
+                                    databaseName = r.FieldCount > 4 && !r.IsDBNull(4) ? r.GetString(4) : "",
+                                    backupFileName = backupFileName,
+                                    fileName = r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "",
+                                    startedByUserId = r.FieldCount > 8 && !r.IsDBNull(8) ? r.GetInt32(8) : 0,
+                                    startedByUserName = r.FieldCount > 9 && !r.IsDBNull(9) ? r.GetString(9) : "",
+                                    startTime = r.FieldCount > 10 && !r.IsDBNull(10) ? r.GetDateTime(10).ToString("o") : null,
+                                    sessionId = r.FieldCount > 7 && !r.IsDBNull(7) ? (int?)r.GetInt32(7) : (int?)null,
+                                    status = r.FieldCount > 11 && !r.IsDBNull(11) ? r.GetString(11) : "",
+                                    percentComplete = r.FieldCount > 12 && !r.IsDBNull(12) ? r.GetInt32(12) : 0,
+                                    message = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : "",
+                                    completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null
+                                });
+                            }
+                        }
+                    }
+                    return new { success = true, jobs = jobs, currentUserId = currentUserId };
+                }
+                catch
+                {
+                    return new { success = true, jobs = new List<object>(), currentUserId = currentUserId };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobs = new List<object>(), currentUserId = 0 };
             }
         }
 

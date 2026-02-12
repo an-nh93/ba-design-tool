@@ -17,6 +17,7 @@ namespace BADesign
             phNavAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
             lnkNavUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
             lnkNavDatabaseSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
+            lnkNavFunctionQueue.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
             phNavSuperAdmin.Visible = UiAuthHelper.IsSuperAdmin;
         }
 
@@ -27,6 +28,7 @@ namespace BADesign
             lnkNavHome.CssClass = (active == "HomeRole") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavUIBuilder.CssClass = (active == "Home") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavDatabaseSearch.CssClass = (active == "DatabaseSearch") ? "ba-nav-item active" : "ba-nav-item";
+            lnkNavFunctionQueue.CssClass = (active == "FunctionQueue") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavEncryptDecrypt.Visible)
                 lnkNavEncryptDecrypt.CssClass = (active == "EncryptDecrypt") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavAppSettings.Visible)

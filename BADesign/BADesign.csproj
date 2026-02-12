@@ -258,6 +258,7 @@
     </Content>
     <None Include="Scripts\jquery-1.10.2.intellisense.js" />
     <Content Include="Pages\AccessDenied.aspx" />
+    <Content Include="Pages\FunctionQueue.aspx" />
     <Content Include="Pages\Users.aspx" />
     <Content Include="Pages\Home.aspx" />
     <Content Include="Pages\Login.aspx" />
@@ -280,6 +281,7 @@
     <Content Include="Scripts\AddBackupPathPerServer.sql" />
     <Content Include="Scripts\AddBaDatabaseSearch.sql" />
     <Content Include="Scripts\AddBaJob.sql" />
+    <Content Include="Scripts\AddBaJobDismissedByUser.sql" />
     <Content Include="Scripts\AddBaRestoreJobDismissedAt.sql" />
     <Content Include="Scripts\AddDatabaseRestoreAndResetLog.sql" />
     <Content Include="Scripts\AddAuditLogColumns.sql" />
@@ -294,6 +296,7 @@
     <Content Include="Scripts\AddDatabaseDeleteAndShrinkLogPermissions.sql" />
     <Content Include="Scripts\ai.0.22.9-build00167.js" />
     <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
+    <Content Include="Scripts\ba-layout.js" />
     <Content Include="Scripts\bootstrap.js" />
     <Content Include="Scripts\bootstrap.min.js" />
     <Content Include="Scripts\ba-signalr.js" />
@@ -313,6 +316,7 @@
     <Content Include="Scripts\html2canvas.min.js" />
     <Content Include="Scripts\jquery-1.10.2.js" />
     <Content Include="Scripts\jquery-1.10.2.min.js" />
+    <Content Include="Scripts\MigrateRestoreAndBackupJobsToBaJob.sql" />
     <Content Include="Scripts\modernizr-2.6.2.js" />
     <Content Include="Scripts\respond.js" />
     <Content Include="Scripts\respond.min.js" />
@@ -520,6 +524,12 @@
     </Compile>
     <Compile Include="Pages\AccessDenied.aspx.designer.cs">
       <DependentUpon>AccessDenied.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\FunctionQueue.aspx.cs">
+      <DependentUpon>FunctionQueue.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\FunctionQueue.aspx.designer.cs">
+      <DependentUpon>FunctionQueue.aspx</DependentUpon>
     </Compile>
     <Compile Include="Pages\Users.aspx.cs">
       <DependentUpon>Users.aspx</DependentUpon>

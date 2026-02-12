@@ -5,6 +5,9 @@
     <div id="restoreJobsPanel" class="ba-notif-panel">
         <div class="ba-notif-panel-title">Thông báo</div>
         <div id="restoreJobsList" class="ba-notif-list"></div>
+        <div class="ba-notif-panel-footer">
+            <a href="<%= ResolveUrl("~/FunctionQueue") %>" class="ba-notif-queue-link" title="Xem tất cả job đang chạy và lịch sử">📋 Xem hàng đợi</a>
+        </div>
     </div>
 </div>
 <div id="notificationDetailModal" class="ba-notif-detail-modal">

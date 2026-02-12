@@ -5,6 +5,7 @@ namespace BADesign
         protected global::System.Web.UI.WebControls.HyperLink lnkNavHome;
         protected global::System.Web.UI.WebControls.HyperLink lnkNavUIBuilder;
         protected global::System.Web.UI.WebControls.HyperLink lnkNavDatabaseSearch;
+        protected global::System.Web.UI.WebControls.HyperLink lnkNavFunctionQueue;
         protected global::System.Web.UI.WebControls.PlaceHolder phNavEncryptDecrypt;
         protected global::System.Web.UI.WebControls.HyperLink lnkNavEncryptDecrypt;
         protected global::System.Web.UI.WebControls.PlaceHolder phNavAppSettings;
