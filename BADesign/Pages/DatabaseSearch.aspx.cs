@@ -1247,9 +1247,11 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
 
         private static readonly object _resetProgressLogLock = new object();
 
-        /// <summary>Ghi log debug tiến độ Reset Information ra file App_Data/BaRestoreProgress.log để debug % treo 0 rồi nhảy 100%. Dùng HostingEnvironment để chạy được từ background thread (restore task).</summary>
+        /// <summary>Ghi log debug tiến độ Reset Information ra file App_Data/BaRestoreProgress.log để debug % treo 0 rồi nhảy 100%. Dùng HostingEnvironment để chạy được từ background thread (restore task). Đã comment để tắt log; bỏ comment khi cần debug.</summary>
         private static void LogResetProgress(int jobId, string phase, int percent)
         {
+            // DEBUG: bỏ comment block dưới để bật ghi file log
+            /*
             try
             {
                 var path = HostingEnvironment.MapPath("~/App_Data/BaRestoreProgress.log");
@@ -1263,14 +1265,15 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 }
             }
             catch { }
+            */
         }
 
         private static void UpdateJobPhaseAndPercent(int jobId, string phaseMessage, int percent)
         {
             try
             {
-                if (string.Equals(phaseMessage, "Reset Information", StringComparison.OrdinalIgnoreCase))
-                    LogResetProgress(jobId, phaseMessage, percent);
+                // DEBUG: bỏ comment dòng dưới để bật log file Reset Information %
+                // if (string.Equals(phaseMessage, "Reset Information", StringComparison.OrdinalIgnoreCase)) LogResetProgress(jobId, phaseMessage, percent);
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
                 {
@@ -1854,6 +1857,12 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     if (_restoreProgressUpdateTimer == null)
                         _restoreProgressUpdateTimer = new System.Threading.Timer(UpdateAllRestoreProgressCallback, null, 2000, 2000);
                 }
+                var note = "File: " + backupFileName;
+                if (withAutoReset)
+                {
+                    var resetInfo = " | Reset: Email=" + (string.IsNullOrEmpty(emailForReset) ? "(mặc định)" : emailForReset) + ", Phone=" + (string.IsNullOrEmpty(phoneForReset) ? "(mặc định)" : phoneForReset) + ", Password=" + (string.IsNullOrEmpty(passwordForReset) ? "(mặc định)" : "***");
+                    note = (note + resetInfo).Length <= 500 ? (note + resetInfo) : note + " | Reset: đã đặt email/phone/password";
+                }
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
                 {
@@ -1861,11 +1870,15 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     cmd.Parameters.AddWithValue("@sid", serverId);
                     cmd.Parameters.AddWithValue("@db", databaseName);
                     cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@note", "File: " + backupFileName);
+                    cmd.Parameters.AddWithValue("@note", note);
                     appConn.Open();
                     cmd.ExecuteNonQuery();
                 }
-                UserActionLogHelper.Log("DatabaseSearch.StartRestore", "file=" + backupFileName + " -> database=" + databaseName);
+                var resetOption = withAutoReset ? "có reset" : "không reset";
+                var auditDetail = "file=" + backupFileName + " -> database=" + databaseName + ", autoReset=" + withAutoReset + ", option=" + resetOption;
+                if (withAutoReset)
+                    auditDetail += ", resetEmail=" + (string.IsNullOrEmpty(emailForReset) ? "(mặc định)" : emailForReset) + ", resetPhone=" + (string.IsNullOrEmpty(phoneForReset) ? "(mặc định)" : phoneForReset) + ", resetPassword=***";
+                UserActionLogHelper.Log("DatabaseSearch.StartRestore", auditDetail);
                 return new { success = true, sessionId = sessionId, jobId = jobId };
             }
             catch (Exception ex)
@@ -1918,6 +1931,41 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Lấy thông tin reset (email, phone, password đã che) của lần restore có reset gần nhất cho server+database. Dùng cho popup chi tiết thông báo.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetRestoreResetInfo(int serverId, string databaseName)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", resetDetail = (string)null };
+                if (string.IsNullOrWhiteSpace(databaseName))
+                    return new { success = false, message = "Thiếu database.", resetDetail = (string)null };
+                var accessibleIds = GetAccessibleServerIds();
+                if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
+                    return new { success = false, message = "Không có quyền truy cập server này.", resetDetail = (string)null };
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT TOP 1 Note FROM BaDatabaseRestoreLog WHERE ServerId = @sid AND DatabaseName = @db AND Note LIKE N'%Reset:%' ORDER BY RestoredAt DESC";
+                    cmd.Parameters.AddWithValue("@sid", serverId);
+                    cmd.Parameters.AddWithValue("@db", databaseName.Trim());
+                    conn.Open();
+                    var note = cmd.ExecuteScalar() as string;
+                    if (string.IsNullOrEmpty(note) || note.IndexOf("Reset:", StringComparison.OrdinalIgnoreCase) < 0)
+                        return new { success = true, resetDetail = (string)null };
+                    var idx = note.IndexOf(" | Reset:", StringComparison.OrdinalIgnoreCase);
+                    var resetPart = idx >= 0 ? note.Substring(idx + 3).Trim() : note; // "Reset: Email=..."
+                    return new { success = true, resetDetail = resetPart };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, resetDetail = (string)null };
             }
         }
 

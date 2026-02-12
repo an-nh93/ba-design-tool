@@ -709,10 +709,22 @@
             }
             function showDetail(job) {
                 var typeLabel = (job.type === 'Backup') ? 'Backup database' : ((job.type === 'Restore' || !job.type) ? 'Restore database' : (job.typeLabel || job.type));
+                var dbName = (job.databaseName || job.DatabaseName || '').trim();
+                var isRestore = (job.type === 'Restore' || !job.type);
+                var hasReset = isRestore && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0;
+                var resetBadge = '';
+                if (isRestore) {
+                    resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
+                    if (hasReset) {
+                        var srvId = job.serverId != null ? job.serverId : (job.ServerId != null ? job.ServerId : 0);
+                        resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
+                    }
+                }
                 var html = '<table><tbody>';
                 html += '<tr><th>Loại</th><td>' + (typeLabel.replace(/</g, '&lt;')) + '</td></tr>';
                 html += '<tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr>';
                 html += '<tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>';
+                html += '<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>';
                 html += '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr>';
                 html += '<tr><th>Tiến trình</th><td>' + (job.percentComplete != null ? job.percentComplete + '%' : '—') + '</td></tr>';
                 html += '<tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr>';
@@ -721,7 +733,37 @@
                 if (job.backupFileName) html += '<tr><th>File backup</th><td>' + (job.backupFileName || '').replace(/</g, '&lt;') + '</td></tr>';
                 html += '</tbody></table>';
                 if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
+                html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                 $('#notificationDetailBody').html(html);
+                $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
+                    e.preventDefault(); e.stopPropagation();
+                    var $btn = $(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
+                    var $popup = $('#baResetInfoPopup');
+                    if ($popup.length && serverId != null && dbName) {
+                        $popup.html('<span class="ba-reset-info-loading">Đang tải...</span>').show();
+                        $.ajax({ url: apiBase + '/GetRestoreResetInfo', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId, databaseName: dbName }) })
+                            .done(function(res) {
+                                var d = res.d || res;
+                                if (d && d.success && d.resetDetail) {
+                                    var raw = d.resetDetail.replace(/^Reset:\s*/i, '').trim();
+                                    var rows = [];
+                                    raw.split(/\s*,\s*/).forEach(function(pair) {
+                                        var idx = pair.indexOf('=');
+                                        if (idx > 0) {
+                                            var label = pair.substring(0, idx).trim();
+                                            var value = pair.substring(idx + 1).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                            var lbl = label === 'Email' ? 'Email' : label === 'Phone' ? 'Phone' : label === 'Password' ? 'Password' : label;
+                                            rows.push('<div class="ba-reset-info-row"><span class="ba-reset-info-label">' + lbl + '</span><span class="ba-reset-info-value">' + value + '</span></div>');
+                                        }
+                                    });
+                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">' + (rows.length ? rows.join('') : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>');
+                                } else
+                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không có thông tin reset.</div>');
+                            })
+                            .fail(function() { $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không tải được thông tin.</div>'); });
+                    }
+                });
+                $(document).off('click.baResetInfoClose').on('click.baResetInfoClose', function(ev) { if ($(ev.target).closest('#baResetInfoPopup').length === 0 && !$(ev.target).hasClass('ba-notif-reset-info-btn')) $('#baResetInfoPopup').hide(); });
                 $('#notificationDetailModal').addClass('show').css('display', 'flex');
             }
             function loadPanel() {

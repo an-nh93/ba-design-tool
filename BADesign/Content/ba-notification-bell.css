@@ -214,3 +214,72 @@
     max-height: 200px;
     overflow-y: auto;
 }
+
+/* Nút info và popup thông tin reset trong chi tiết thông báo */
+.ba-notif-reset-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 6px;
+    padding: 0;
+    border: 1px solid var(--primary, #3b82f6);
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--primary, #3b82f6);
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    vertical-align: middle;
+}
+.ba-notif-reset-info-btn:hover { background: rgba(59, 130, 246, 0.3); }
+
+/* Popup thông tin reset: căn giữa trong popup cha, giao diện rõ ràng */
+#notificationDetailBody { position: relative; min-height: 120px; }
+.ba-reset-info-popup {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 260px;
+    max-width: 360px;
+    padding: 14px 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+    z-index: 10003;
+    font-size: 0.8125rem;
+}
+.ba-reset-info-popup .ba-reset-info-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-primary);
+    text-align: center;
+}
+.ba-reset-info-popup .ba-reset-info-content { color: var(--text-primary); line-height: 1.5; }
+.ba-reset-info-popup .ba-reset-info-loading { color: var(--text-muted); text-align: center; padding: 8px 0; }
+/* Các dòng Email / Phone / Password hiển thị rõ nhãn và giá trị */
+.ba-reset-info-popup .ba-reset-info-row {
+    display: flex;
+    align-items: baseline;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--surface-alt, rgba(255,255,255,0.06));
+    gap: 10px;
+}
+.ba-reset-info-popup .ba-reset-info-row:last-child { border-bottom: none; }
+.ba-reset-info-popup .ba-reset-info-label {
+    flex: 0 0 75px;
+    font-weight: 500;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+.ba-reset-info-popup .ba-reset-info-value {
+    flex: 1;
+    word-break: break-all;
+    color: var(--text-primary);
+}
