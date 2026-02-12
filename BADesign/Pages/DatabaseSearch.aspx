@@ -786,6 +786,27 @@
                                     <span>Shrink log sau khi restore — Thu nhỏ file log (nếu backup không shrink trước đó)</span>
                                 </label>
                             </div>
+                            <div class="ba-form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="restoreModalAutoReset" />
+                                    <span>Sử dụng hệ thống tự động reset thông tin User, Employee, Company Info (sau khi restore xong)</span>
+                                </label>
+                            </div>
+                            <div id="restoreModalAutoResetFields" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem; padding: 0.75rem; background: var(--surface-alt); border-radius: 6px; border: 1px solid var(--border-color);">
+                                <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.75rem;">Nhập giá trị dùng khi reset. Để trống: Email = user đăng nhập@cadena.com.sg, Password = 1, Phone = 0987654321</p>
+                                <div class="ba-form-group" style="margin-bottom: 0.5rem;">
+                                    <label class="ba-form-label">Email</label>
+                                    <input type="text" id="restoreModalResetEmail" class="ba-input" placeholder="vd: an.nh@cadena.com.sg" />
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0.5rem;">
+                                    <label class="ba-form-label">Password</label>
+                                    <input type="text" id="restoreModalResetPassword" class="ba-input" placeholder="Mặc định: 1" />
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0;">
+                                    <label class="ba-form-label">Phone</label>
+                                    <input type="text" id="restoreModalResetPhone" class="ba-input" placeholder="Mặc định: 0987654321" />
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1835,6 +1856,7 @@
             $('#restoreModalSelectedFile').text('Chưa chọn file').css('color', 'var(--text-muted)');
             $('#restoreModalBackupSetsWrap').hide();
             $('#restoreModalProgressWrap').hide();
+            $('#restoreModalAutoResetFields').toggle($('#restoreModalAutoReset').prop('checked'));
             $('#restoreModal').addClass('show');
         }
 
@@ -1846,6 +1868,7 @@
             $('#restoreModalNoFiles').hide();
             $('#restoreModalBackupSetsWrap').hide();
             $('#restoreModalProgressWrap').hide();
+            $('#restoreModalAutoResetFields').toggle($('#restoreModalAutoReset').prop('checked'));
             $('#restoreModal').addClass('show');
         }
 
@@ -1878,6 +1901,10 @@
             var recoveryState = ($('#restoreModalRecovery').val() || 'RECOVERY').toUpperCase();
             var withReplace = $('#restoreModalReplace').prop('checked');
             var withShrinkLog = $('#restoreModalShrinkLog').prop('checked');
+            var withAutoReset = $('#restoreModalAutoReset').prop('checked');
+            var resetEmail = ($('#restoreModalResetEmail').val() || '').trim();
+            var resetPassword = ($('#restoreModalResetPassword').val() || '').trim();
+            var resetPhone = ($('#restoreModalResetPhone').val() || '').trim();
             $('#restoreModalConfirm').prop('disabled', true);
             $('#restoreModalProgressWrap').show();
             $('#restoreModalProgressBar').css('width', '0%');
@@ -1894,7 +1921,11 @@
                     positionsJson: JSON.stringify(positions),
                     recoveryState: recoveryState,
                     withReplace: withReplace,
-                    withShrinkLog: withShrinkLog
+                    withShrinkLog: withShrinkLog,
+                    withAutoReset: withAutoReset,
+                    resetEmail: resetEmail,
+                    resetPassword: resetPassword,
+                    resetPhone: resetPhone
                 }),
                 success: function(res) {
                     var d = res.d || res;
@@ -2600,6 +2631,9 @@
                 $('#restoreModalBackupSetsWrap').hide();
                 loadRestoreModalFolder(sid || null, '');
             });
+            $('#restoreModalAutoReset').on('change', function() {
+                $('#restoreModalAutoResetFields').toggle($(this).prop('checked'));
+            });
             $('#backupModalServer').on('change', function() {
                 var sid = parseInt($(this).val(), 10);
                 fillBackupModalDatabaseDropdown(sid || null);
@@ -2678,9 +2712,11 @@
                             } else if (d.percentComplete != null) {
                                 var cur = parseInt($row.find('.ba-notif-progress-pct').text(), 10) || 0;
                                 var pct = Math.max(cur, d.percentComplete);
+                                var phase = (d.phase && d.phase.trim()) ? d.phase.trim() : ($row.attr('data-phase') || 'Restore');
+                                if (d.phase) $row.attr('data-phase', d.phase);
                                 lastKnownRestorePct[j.serverId + '_' + j.sessionId] = pct;
                                 $row.find('.ba-notif-progress-bar').css('width', pct + '%');
-                                $row.find('.ba-notif-progress-pct').text(pct + '%');
+                                $row.find('.ba-notif-progress-pct').text(pct + '% - ' + phase);
                             }
                         });
                 });
@@ -2699,13 +2735,14 @@
                 html += '<tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr>';
                 html += '<tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>';
                 html += '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr>';
-                html += '<tr><th>Tiến trình</th><td>' + (job.percentComplete != null ? job.percentComplete + '%' : '—') + '</td></tr>';
+                var progressText = (job.percentComplete != null) ? (job.percentComplete + '%' + (job.message && (job.message === 'Restore' || job.message === 'Reset Information') ? ' - ' + job.message : '')) : '—';
+                html += '<tr><th>Tiến trình</th><td>' + progressText + '</td></tr>';
                 html += '<tr><th>Trạng thái</th><td>' + statusLabel + '</td></tr>';
                 html += '<tr><th>Bắt đầu</th><td>' + startStr + '</td></tr>';
                 html += '<tr><th>Kết thúc</th><td>' + endStr + '</td></tr>';
                 if (job.backupFileName) html += '<tr><th>File backup</th><td>' + (job.backupFileName || '').replace(/</g, '&lt;') + '</td></tr>';
                 html += '</tbody></table>';
-                if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
+                if (job.message && job.message !== 'Restore' && job.message !== 'Reset Information') html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                 $('#notificationDetailBody').html(html);
                 $('#notificationDetailModal').addClass('show');
             }
@@ -2745,9 +2782,11 @@
                                             } else if (d.percentComplete != null && $row.length) {
                                                 var cur = parseInt($row.find('.ba-notif-progress-pct').text(), 10) || 0;
                                                 var pct = Math.max(cur, d.percentComplete);
+                                                var phase = (d.phase && d.phase.trim()) ? d.phase.trim() : ($row.attr('data-phase') || 'Restore');
+                                                if (d.phase) $row.attr('data-phase', d.phase);
                                                 lastKnownRestorePct[j.serverId + '_' + j.sessionId] = pct;
                                                 $row.find('.ba-notif-progress-bar').css('width', pct + '%');
-                                                $row.find('.ba-notif-progress-pct').text(pct + '%');
+                                                $row.find('.ba-notif-progress-pct').text(pct + '% - ' + phase);
                                             }
                                         });
                                 }
@@ -2767,18 +2806,20 @@
                             if (j.status === 'Running') lastKnownRestorePct[key] = pct;
                             var st = j.status || '';
                             var msg = (j.message || '').trim();
-                            var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var startTimeStr = formatNotifTime(j.startTime);
                             var jobType = j.type || 'Restore';
                             var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore');
+                            var phaseLabel = (jobType === 'Restore') ? (msg || 'Restore') : '';
+                            var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '" data-server-id="' + (j.serverId || '') + '" data-session-id="' + (j.sessionId || '') + '">';
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '" data-server-id="' + (j.serverId || '') + '" data-session-id="' + (j.sessionId || '') + '" data-phase="' + (phaseLabel.replace(/"/g, '&quot;')) + '">';
                             row += '<button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button>';
                             row += '<div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span>' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>';
                             var endTimeStr = formatNotifTime(j.completedAt);
                             row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
                             if (st === 'Running') {
-                                row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + pct + '%</span></div>';
+                                var progressLabel = (jobType === 'Restore' && phaseLabel) ? (pct + '% - ' + phaseLabel) : (pct + '%');
+                                row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                             } else if (st === 'Failed') {
                                 row += '<div class="ba-notif-msg">' + (msgShort.replace(/</g, '&lt;')) + '</div>';

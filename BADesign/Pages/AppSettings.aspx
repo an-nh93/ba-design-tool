@@ -135,6 +135,36 @@
                             <% } %>
                         </div>
                     </div>
+                    <div class="ba-card">
+                        <h2 class="ba-card-title">SFTP Connection</h2>
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            Thông tin kết nối SFTP dùng khi tự động restore + reset database. Sẽ ghi vào bảng Setting_FolderConfigurations của database được restore (nếu có) để tránh nhầm SFTP production.
+                        </p>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Host</label>
+                            <input type="text" id="txtSftpHost" class="ba-input" placeholder="sftp.example.com" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Port</label>
+                            <input type="text" id="txtSftpPort" class="ba-input" placeholder="22" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">User</label>
+                            <input type="text" id="txtSftpUser" class="ba-input" placeholder="username" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Password</label>
+                            <input type="password" id="txtSftpPassword" class="ba-input" placeholder="••••••••" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div id="msgSftp" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveSftp" onclick="saveSftpConfig(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -191,6 +221,50 @@
                 });
             };
             loadEmailIgnore();
+            (function loadSftpConfig() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadSftpConfig") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#txtSftpHost').val(d.host || '');
+                        $('#txtSftpPort').val(d.port || '');
+                        $('#txtSftpUser').val(d.user || '');
+                        $('#txtSftpPassword').val(d.password || '');
+                    }
+                });
+            })();
+            window.saveSftpConfig = function () {
+                $('#msgSftp').hide();
+                $('#btnSaveSftp').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveSftpConfig") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({
+                        host: $('#txtSftpHost').val() || '',
+                        port: $('#txtSftpPort').val() || '',
+                        user: $('#txtSftpUser').val() || '',
+                        password: $('#txtSftpPassword').val() || ''
+                    }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgSftp').removeClass('error').addClass('success').text('Đã lưu.').show();
+                    } else {
+                        $('#msgSftp').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                    }
+                }).fail(function () {
+                    $('#msgSftp').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                }).always(function () {
+                    $('#btnSaveSftp').prop('disabled', false);
+                });
+            };
         })();
     </script>
 </body>

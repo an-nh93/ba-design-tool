@@ -1960,6 +1960,162 @@ WHERE {0}";
             }
         }
 
+        /// <summary>Reset Email và Phone trong database theo connection string (plain text, dùng cho Multi-DB reset). Trả về (tổng bản ghi cập nhật, lỗi nếu có).</summary>
+        public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone)
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+                return Tuple.Create(0, "Connection string trống.");
+            var emailTrim = (email ?? "").Trim();
+            var phoneTrim = (phone ?? "").Trim();
+            if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
+                return Tuple.Create(0, "Cần nhập Email và/hoặc Phone.");
+            try
+            {
+                var total = 0;
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    if (!string.IsNullOrEmpty(emailTrim))
+                        total += UpdateEmailValuesInDb(conn, emailTrim);
+                    if (!string.IsNullOrEmpty(phoneTrim))
+                        total += ResetPhoneColumnsInDb(conn, phoneTrim);
+                }
+                return Tuple.Create(total, (string)null);
+            }
+            catch (Exception ex)
+            {
+                return Tuple.Create(0, ex.Message ?? "Lỗi reset.");
+            }
+        }
+
+        /// <summary>Reset Email và Phone trong Staffing_Employees (và Staffing_EmployeeInformations) với mã hóa theo từng employee (dùng sau restore + auto-reset). progressCallback(doneChunks, totalChunks).</summary>
+        public static Tuple<int, string> ResetEmailAndPhoneEncryptedForRestore(string connectionString, string email, string phone, Action<int, int> progressCallback)
+        {
+            if (string.IsNullOrWhiteSpace(connectionString))
+                return Tuple.Create(0, "Connection string trống.");
+            var emailTrim = (email ?? "").Trim();
+            var phoneTrim = (phone ?? "").Trim();
+            if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
+                return Tuple.Create(0, "Cần nhập Email và/hoặc Phone.");
+            try
+            {
+                const int chunkSize = 5000;
+                int totalCount = 0;
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT COUNT(1) FROM dbo.Staffing_Employees";
+                        cmd.CommandTimeout = 60;
+                        var o = cmd.ExecuteScalar();
+                        totalCount = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt32(o);
+                    }
+                }
+                if (totalCount == 0)
+                    return Tuple.Create(0, (string)null);
+                int totalChunks = (int)Math.Ceiling(totalCount / (double)chunkSize);
+                var totalUpdated = 0;
+                for (int c = 0; c < totalChunks; c++)
+                {
+                    var offset = c * chunkSize;
+                    var employeeIds = new List<long>();
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = "SELECT ID FROM dbo.Staffing_Employees ORDER BY ID OFFSET @off ROWS FETCH NEXT @take ROWS ONLY";
+                            cmd.Parameters.AddWithValue("@off", offset);
+                            cmd.Parameters.AddWithValue("@take", chunkSize);
+                            cmd.CommandTimeout = 120;
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
+                                    employeeIds.Add(r.GetInt64(0));
+                            }
+                        }
+                    }
+                    if (employeeIds.Count == 0) continue;
+                    var employees = LoadEmployeesForUpdate(connectionString, employeeIds);
+                    if (employees == null || employees.Count == 0) continue;
+                    var dt = BuildEmployeeDataTable(employees,
+                        updPersonal: !string.IsNullOrEmpty(emailTrim), personalEmail: emailTrim,
+                        updBusiness: !string.IsNullOrEmpty(emailTrim), businessEmail: emailTrim,
+                        updPayslip: false, payslipCommon: null, payslipByEmp: false,
+                        updM1: !string.IsNullOrEmpty(phoneTrim), m1: phoneTrim,
+                        updM2: !string.IsNullOrEmpty(phoneTrim), m2: phoneTrim,
+                        updBasic: false, basicSalary: 0);
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 600;
+                            cmd.CommandText = @"
+SET NOCOUNT ON; SET XACT_ABORT ON; SET LOCK_TIMEOUT 5000;
+IF OBJECT_ID('tempdb..#EmployeeTemp') IS NOT NULL DROP TABLE #EmployeeTemp;
+CREATE TABLE #EmployeeTemp(
+    RowId INT IDENTITY(1,1) PRIMARY KEY,
+    EmployeeID BIGINT NOT NULL,
+    PersonalEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    BusinessEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    BasicSalary NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL
+);";
+                            cmd.ExecuteNonQuery();
+                        }
+                        using (var bulk = new SqlBulkCopy(conn))
+                        {
+                            bulk.DestinationTableName = "#EmployeeTemp";
+                            bulk.BulkCopyTimeout = 660;
+                            bulk.BatchSize = 5000;
+                            bulk.ColumnMappings.Add("EmployeeID", "EmployeeID");
+                            bulk.ColumnMappings.Add("PersonalEmailAddress", "PersonalEmailAddress");
+                            bulk.ColumnMappings.Add("BusinessEmailAddress", "BusinessEmailAddress");
+                            bulk.ColumnMappings.Add("PayslipPassword", "PayslipPassword");
+                            bulk.ColumnMappings.Add("MobilePhone1", "MobilePhone1");
+                            bulk.ColumnMappings.Add("MobilePhone2", "MobilePhone2");
+                            bulk.ColumnMappings.Add("BasicSalary", "BasicSalary");
+                            bulk.WriteToServer(dt);
+                        }
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 120;
+                            cmd.CommandText = @"
+SET LOCK_TIMEOUT 5000;
+BEGIN TRAN;
+UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),
+    E.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,E.BusinessEmailAddress),
+    E.MobilePhone1=COALESCE(B.MobilePhone1,E.MobilePhone1),
+    E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2)
+FROM #EmployeeTemp B
+JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = B.EmployeeID
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL);
+IF OBJECT_ID('dbo.Staffing_EmployeeInformations','U') IS NOT NULL
+UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.PersonalEmailAddress),
+    EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress)
+FROM #EmployeeTemp B
+JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = B.EmployeeID
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL);
+COMMIT TRAN;";
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
+                    totalUpdated += employees.Count;
+                    if (progressCallback != null)
+                        progressCallback(c + 1, totalChunks);
+                }
+                return Tuple.Create(totalUpdated, (string)null);
+            }
+            catch (Exception ex)
+            {
+                return Tuple.Create(0, ex.Message ?? "Lỗi reset.");
+            }
+        }
+
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object LoadTenants(string k)
