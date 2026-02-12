@@ -793,17 +793,17 @@
                                 </label>
                             </div>
                             <div id="restoreModalAutoResetFields" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem; padding: 0.75rem; background: var(--surface-alt); border-radius: 6px; border: 1px solid var(--border-color);">
-                                <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.75rem;">Nhập giá trị dùng khi reset. Để trống: Email = user đăng nhập@cadena.com.sg, Password = 1, Phone = 0987654321</p>
+                                <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.75rem;">Email (*) bắt buộc. Password và Phone tùy chọn; mặc định: Password = 1, Phone = 0987654321.</p>
                                 <div class="ba-form-group" style="margin-bottom: 0.5rem;">
-                                    <label class="ba-form-label">Email</label>
+                                    <label class="ba-form-label">Email <span style="color: var(--danger, #c00);">(*)</span></label>
                                     <input type="text" id="restoreModalResetEmail" class="ba-input" placeholder="vd: an.nh@cadena.com.sg" />
                                 </div>
                                 <div class="ba-form-group" style="margin-bottom: 0.5rem;">
-                                    <label class="ba-form-label">Password</label>
+                                    <label class="ba-form-label">Password (tùy chọn)</label>
                                     <input type="text" id="restoreModalResetPassword" class="ba-input" placeholder="Mặc định: 1" />
                                 </div>
                                 <div class="ba-form-group" style="margin-bottom: 0;">
-                                    <label class="ba-form-label">Phone</label>
+                                    <label class="ba-form-label">Phone (tùy chọn)</label>
                                     <input type="text" id="restoreModalResetPhone" class="ba-input" placeholder="Mặc định: 0987654321" />
                                 </div>
                             </div>
@@ -1848,6 +1848,21 @@
             });
         }
 
+        function resetRestoreModalOptions() {
+            $('#restoreModalRecovery').val('RECOVERY');
+            $('#restoreModalReplace').prop('checked', false);
+            $('#restoreModalShrinkLog').prop('checked', false);
+            $('#restoreModalAutoReset').prop('checked', false);
+            $('#restoreModalResetEmail').val('');
+            $('#restoreModalResetPassword').val('');
+            $('#restoreModalResetPhone').val('');
+            $('#restoreModalAutoResetFields').hide();
+            $('#restoreModalConfirm').prop('disabled', false);
+            $('#restoreModalProgressWrap').hide();
+            $('#restoreModalProgressBar').css('width', '0%');
+            $('#restoreModalProgressPct').text('0%');
+        }
+
         function showRestoreModal(serverId, databaseName, displayLabel) {
             fillRestoreModalServerDropdown();
             $('#restoreModalServer').val(serverId ? String(serverId) : '');
@@ -1855,8 +1870,7 @@
             $('#restoreModalFileValue').val('');
             $('#restoreModalSelectedFile').text('Chưa chọn file').css('color', 'var(--text-muted)');
             $('#restoreModalBackupSetsWrap').hide();
-            $('#restoreModalProgressWrap').hide();
-            $('#restoreModalAutoResetFields').toggle($('#restoreModalAutoReset').prop('checked'));
+            resetRestoreModalOptions();
             $('#restoreModal').addClass('show');
         }
 
@@ -1867,8 +1881,7 @@
             $('#restoreModalSelectedFile').text('Chưa chọn file').css('color', 'var(--text-muted)');
             $('#restoreModalNoFiles').hide();
             $('#restoreModalBackupSetsWrap').hide();
-            $('#restoreModalProgressWrap').hide();
-            $('#restoreModalAutoResetFields').toggle($('#restoreModalAutoReset').prop('checked'));
+            resetRestoreModalOptions();
             $('#restoreModal').addClass('show');
         }
 
@@ -1905,6 +1918,14 @@
             var resetEmail = ($('#restoreModalResetEmail').val() || '').trim();
             var resetPassword = ($('#restoreModalResetPassword').val() || '').trim();
             var resetPhone = ($('#restoreModalResetPhone').val() || '').trim();
+            if (withAutoReset) {
+                if (!resetEmail) {
+                    showToast('Vui lòng nhập Email khi chọn tích hợp reset.', 'error');
+                    return;
+                }
+                if (!resetPassword) resetPassword = '1';
+                if (!resetPhone) resetPhone = '0987654321';
+            }
             $('#restoreModalConfirm').prop('disabled', true);
             $('#restoreModalProgressWrap').show();
             $('#restoreModalProgressBar').css('width', '0%');
@@ -1936,39 +1957,8 @@
                         return;
                     }
                     hideRestoreModal();
-                    showToast('Restore đang chạy trong nền. Xem tiến độ tại biểu tượng chuông.', 'info');
+                    showToast('Restore đã bắt đầu. Xem tiến độ tại biểu tượng chuông.', 'info');
                     if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
-                    var sessionId = d.sessionId;
-                    var poll = function() {
-                        $.ajax({
-                            url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreProgress") %>',
-                            type: 'POST',
-                            contentType: 'application/json; charset=utf-8',
-                            dataType: 'json',
-                            data: JSON.stringify({ serverId: serverId, sessionId: sessionId }),
-                            success: function(pr) {
-                                var p = pr.d || pr;
-                                var percent = (p && p.percentComplete != null) ? p.percentComplete : 0;
-                                $('#restoreModalProgressBar').css('width', percent + '%');
-                                $('#restoreModalProgressPct').text(percent + '%');
-                                if (percent >= 100 || (p && p.completed)) {
-                                    $('#restoreModalConfirm').prop('disabled', false);
-                                    $('#restoreModalProgressWrap').hide();
-                                    if (p && p.success === false && p.message) {
-                                        showToast(p.message, 'error');
-                                    } else {
-                                        showToast('Đã restore xong.', 'success');
-                                        hideRestoreModal();
-                                    }
-                                    if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
-                                    return;
-                                }
-                                setTimeout(poll, 1500);
-                            },
-                            error: function() { setTimeout(poll, 2000); }
-                        });
-                    };
-                    setTimeout(poll, 800);
                 },
                 error: function(xhr) {
                     $('#restoreModalConfirm').prop('disabled', false);
@@ -2691,6 +2681,8 @@
                     }
                 });
             }
+            function notifJobSessionId(j) { return j.sessionId != null ? j.sessionId : (j.SessionId != null ? j.SessionId : null); }
+            function notifJobServerId(j) { return j.serverId != null ? j.serverId : (j.ServerId != null ? j.ServerId : null); }
             function pollRestoreProgressOnly() {
                 var sessions = window.__runningRestoreSessions;
                 if (!sessions || !sessions.length) return;
@@ -2698,27 +2690,37 @@
                 if (!$list.length || !$('#restoreJobsPanel').is(':visible')) return;
                 var progressUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreProgress") %>';
                 sessions.forEach(function(j) {
-                    if (!j.sessionId || !j.serverId) return;
-                    $.ajax({ url: progressUrl, type: 'POST', contentType: 'application/json', dataType: 'json',
-                        data: JSON.stringify({ serverId: j.serverId, sessionId: j.sessionId }) })
-                        .done(function(prog) {
-                            var d = prog.d || prog;
-                            if (!d) return;
-                            var $row = $list.find('.ba-notif-item[data-server-id="' + j.serverId + '"][data-session-id="' + (j.sessionId || '') + '"]');
-                            if (!$row.length) return;
-                            if (d.completed) {
-                                $row.find('.ba-notif-progress-wrap').replaceWith('<div style="margin-top:4px;color:var(--success);">Đã xong</div>');
-                                window.__runningRestoreSessions = (window.__runningRestoreSessions || []).filter(function(s) { return !(s.serverId === j.serverId && s.sessionId === j.sessionId); });
-                            } else if (d.percentComplete != null) {
-                                var cur = parseInt($row.find('.ba-notif-progress-pct').text(), 10) || 0;
-                                var pct = Math.max(cur, d.percentComplete);
-                                var phase = (d.phase && d.phase.trim()) ? d.phase.trim() : ($row.attr('data-phase') || 'Restore');
-                                if (d.phase) $row.attr('data-phase', d.phase);
-                                lastKnownRestorePct[j.serverId + '_' + j.sessionId] = pct;
-                                $row.find('.ba-notif-progress-bar').css('width', pct + '%');
-                                $row.find('.ba-notif-progress-pct').text(pct + '% - ' + phase);
-                            }
-                        });
+                    var sid = notifJobSessionId(j);
+                    var srvId = notifJobServerId(j);
+                    if (sid == null || sid === '' || srvId == null) return;
+                    var sidStr = String(sid);
+                    var srvIdStr = String(srvId);
+                    (function(serverId, sessionId) {
+                        $.ajax({ url: progressUrl, type: 'POST', contentType: 'application/json', dataType: 'json',
+                            data: JSON.stringify({ serverId: serverId, sessionId: sessionId }) })
+                            .done(function(prog) {
+                                var d = prog.d || prog;
+                                if (!d) return;
+                                var $row = $list.find('.ba-notif-item[data-server-id="' + srvIdStr + '"][data-session-id="' + sidStr + '"]');
+                                if (!$row.length) return;
+                                if (d.completed) {
+                                    $row.find('.ba-notif-progress-wrap').replaceWith('<div style="margin-top:4px;color:var(--success);">Đã xong</div>');
+                                    window.__runningRestoreSessions = (window.__runningRestoreSessions || []).filter(function(s) { var s2 = notifJobSessionId(s), srv = notifJobServerId(s); return !(String(srv) === srvIdStr && String(s2) === sidStr); });
+                                } else if (d.percentComplete != null) {
+                                    var phase = (d.phase && d.phase.trim()) ? d.phase.trim() : ($row.attr('data-phase') || 'Restore');
+                                    var isResetJob = $row.attr('data-has-reset') === '1';
+                                    if (phase === 'Restore' && d.percentComplete === 100 && isResetJob) { phase = 'Reset Information'; d.percentComplete = 0; }
+                                    var cur = parseInt($row.find('.ba-notif-progress-pct').text(), 10) || 0;
+                                    var pct = (phase === 'Reset Information') ? d.percentComplete : Math.max(cur, d.percentComplete);
+                                    if (phase === 'Reset Information' && typeof console !== 'undefined' && console.log) console.log('[BaRestore] Reset Information: ' + pct + '% (session ' + sidStr + ')');
+                                    if (phase === 'Reset Information') $row.attr('data-phase', 'Reset Information');
+                                    else if (d.phase) $row.attr('data-phase', d.phase);
+                                    lastKnownRestorePct[srvIdStr + '_' + sidStr] = pct;
+                                    $row.find('.ba-notif-progress-bar').css('width', pct + '%');
+                                    $row.find('.ba-notif-progress-pct').text(pct + '% - ' + phase);
+                                }
+                            });
+                    })(srvId, sid);
                 });
             }
             function formatNotifTime(v) {
@@ -2764,32 +2766,40 @@
                         if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
                         var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
                         if (!jobs.length) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
-                        var running = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Restore' && j.sessionId; });
+                        var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
+                        var running = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Restore' && (notifJobSessionId(j) != null && notifJobSessionId(j) !== ''); });
                         $badge.text(jobs.length).addClass('visible');
                         window.__runningRestoreSessions = running.slice();
                         if (running.length) {
                             var progressUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreProgress") %>';
                             running.forEach(function(j) {
-                                if (j.sessionId && j.serverId) {
-                                    $.ajax({ url: progressUrl, type: 'POST', contentType: 'application/json', dataType: 'json',
-                                        data: JSON.stringify({ serverId: j.serverId, sessionId: j.sessionId }) })
-                                        .done(function(prog) {
-                                            var d = prog.d || prog;
-                                            if (!d) return;
-                                            var $row = $list.find('.ba-notif-item[data-server-id="' + j.serverId + '"][data-session-id="' + (j.sessionId || '') + '"]');
-                                            if (d.completed) {
-                                                $row.find('.ba-notif-progress-wrap').replaceWith('<div style="margin-top:4px;color:var(--success);">Đã xong</div>');
-                                            } else if (d.percentComplete != null && $row.length) {
-                                                var cur = parseInt($row.find('.ba-notif-progress-pct').text(), 10) || 0;
-                                                var pct = Math.max(cur, d.percentComplete);
-                                                var phase = (d.phase && d.phase.trim()) ? d.phase.trim() : ($row.attr('data-phase') || 'Restore');
-                                                if (d.phase) $row.attr('data-phase', d.phase);
-                                                lastKnownRestorePct[j.serverId + '_' + j.sessionId] = pct;
-                                                $row.find('.ba-notif-progress-bar').css('width', pct + '%');
-                                                $row.find('.ba-notif-progress-pct').text(pct + '% - ' + phase);
-                                            }
-                                        });
-                                }
+                                var sid = notifJobSessionId(j);
+                                var srvId = notifJobServerId(j);
+                                if (sid == null || srvId == null) return;
+                                var sidStr = String(sid);
+                                var srvIdStr = String(srvId);
+                                $.ajax({ url: progressUrl, type: 'POST', contentType: 'application/json', dataType: 'json',
+                                    data: JSON.stringify({ serverId: srvId, sessionId: sid }) })
+                                    .done(function(prog) {
+                                        var d = prog.d || prog;
+                                        if (!d) return;
+                                        var $row = $list.find('.ba-notif-item[data-server-id="' + srvIdStr + '"][data-session-id="' + sidStr + '"]');
+                                        if (d.completed) {
+                                            $row.find('.ba-notif-progress-wrap').replaceWith('<div style="margin-top:4px;color:var(--success);">Đã xong</div>');
+                                        } else if (d.percentComplete != null && $row.length) {
+                                            var phase = (d.phase && d.phase.trim()) ? d.phase.trim() : ($row.attr('data-phase') || 'Restore');
+                                            var isResetJob = $row.attr('data-has-reset') === '1';
+                                            if (phase === 'Restore' && d.percentComplete === 100 && isResetJob) { phase = 'Reset Information'; d.percentComplete = 0; }
+                                            var cur = parseInt($row.find('.ba-notif-progress-pct').text(), 10) || 0;
+                                            var pct = (phase === 'Reset Information') ? d.percentComplete : Math.max(cur, d.percentComplete);
+                                            if (phase === 'Reset Information' && typeof console !== 'undefined' && console.log) console.log('[BaRestore] Reset Information: ' + pct + '% (session ' + sidStr + ')');
+                                            if (phase === 'Reset Information') $row.attr('data-phase', 'Reset Information');
+                                            else if (d.phase) $row.attr('data-phase', d.phase);
+                                            lastKnownRestorePct[srvIdStr + '_' + sidStr] = pct;
+                                            $row.find('.ba-notif-progress-bar').css('width', pct + '%');
+                                            $row.find('.ba-notif-progress-pct').text(pct + '% - ' + phase);
+                                        }
+                                    });
                             });
                             if (!document.hidden && $('#restoreJobsPanel').is(':visible') && !restoreProgressTimer) {
                                 restoreProgressTimer = setInterval(pollRestoreProgressOnly, 2000);
@@ -2800,27 +2810,47 @@
                         window.__notifJobsList = jobs;
                         var html = '';
                         jobs.forEach(function(j, idx) {
-                            var key = (j.serverId || '') + '_' + (j.sessionId || '');
-                            var serverPct = j.percentComplete != null ? j.percentComplete : 0;
-                            var pct = Math.max(serverPct, lastKnownRestorePct[key] || 0);
-                            if (j.status === 'Running') lastKnownRestorePct[key] = pct;
+                            var sid = notifJobSessionId(j);
+                            var srvId = notifJobServerId(j);
+                            var key = String(srvId != null ? srvId : '') + '_' + String(sid != null ? sid : '');
+                            var serverPct = (j.percentComplete != null ? j.percentComplete : (j.PercentComplete != null ? j.PercentComplete : 0));
                             var st = j.status || '';
-                            var msg = (j.message || '').trim();
-                            var startTimeStr = formatNotifTime(j.startTime);
+                            var msg = (j.message || j.Message || '').trim();
+                            var phaseLabel = (j.type === 'Restore') ? (msg || 'Restore') : '';
+                            var startTimeStr = formatNotifTime(j.startTime || j.StartTime);
                             var jobType = j.type || 'Restore';
                             var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore');
-                            var phaseLabel = (jobType === 'Restore') ? (msg || 'Restore') : '';
+                            var dbName = (j.databaseName || j.DatabaseName || '').trim();
+                            var hasReset = (jobType === 'Restore' && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0);
+                            // Restore có reset: khi server báo 100% Restore thì client chuyển ngay sang 0% Reset Information (tránh treo 100% chờ server cập nhật phase)
+                            if (jobType === 'Restore' && hasReset && serverPct === 100 && phaseLabel === 'Restore') {
+                                phaseLabel = 'Reset Information';
+                                serverPct = 0;
+                                lastKnownRestorePct[key] = 0;
+                            }
+                            var pct;
+                            if (phaseLabel === 'Reset Information') {
+                                pct = serverPct;
+                                lastKnownRestorePct[key] = serverPct;
+                            } else {
+                                pct = Math.max(serverPct, lastKnownRestorePct[key] || 0);
+                                if (st === 'Running') lastKnownRestorePct[key] = pct;
+                            }
                             var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '" data-server-id="' + (j.serverId || '') + '" data-session-id="' + (j.sessionId || '') + '" data-phase="' + (phaseLabel.replace(/"/g, '&quot;')) + '">';
+                            var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có tích hợp Reset thông tin">Có Reset' : 'ba-notif-no-reset-tag" title="Restore không reset">Không Reset') + '</span> ') : '';
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '" data-server-id="' + (srvId != null ? String(srvId) : '') + '" data-session-id="' + (sid != null ? String(sid) : '') + '" data-phase="' + (phaseLabel.replace(/"/g, '&quot;')) + '" data-has-reset="' + (hasReset ? '1' : '0') + '">';
                             row += '<button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button>';
-                            row += '<div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span>' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>';
-                            var endTimeStr = formatNotifTime(j.completedAt);
-                            row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
+                            row += '<div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || j.ServerName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || j.DatabaseName || '').replace(/</g, '&lt;') + '</div>';
+                            var endTimeStr = formatNotifTime(j.completedAt || j.CompletedAt);
+                            row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || j.StartedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
+                            var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : (j.StartedByUserId != null ? parseInt(j.StartedByUserId, 10) : 0);
+                            var canCancel = (jobType === 'Restore' && currentUserId && startedByUid === currentUserId);
                             if (st === 'Running') {
                                 var progressLabel = (jobType === 'Restore' && phaseLabel) ? (pct + '% - ' + phaseLabel) : (pct + '%');
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
+                                if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện restore mới có thể hủy">Hủy</button>';
                             } else if (st === 'Failed') {
                                 row += '<div class="ba-notif-msg">' + (msgShort.replace(/</g, '&lt;')) + '</div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
@@ -2852,6 +2882,20 @@
                                 var left = $('#restoreJobsList .ba-notif-item').length;
                                 if (left) $('#restoreJobsBadge').text(left).addClass('visible');
                                 else { $('#restoreJobsBadge').removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); }
+                            });
+                        });
+                        $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) {
+                            e.preventDefault();
+                            var jobId = parseInt($(this).data('job-id'), 10);
+                            if (!jobId) return;
+                            var $btn = $(this).prop('disabled', true);
+                            $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }),
+                                success: function(r) {
+                                    var d = r.d || r;
+                                    if (d && d.success) { if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel(); }
+                                    else { $btn.prop('disabled', false); showToast((d && d.message) ? d.message : 'Không thể hủy.', 'error'); }
+                                },
+                                error: function() { $btn.prop('disabled', false); showToast('Lỗi kết nối.', 'error'); }
                             });
                         });
                     }

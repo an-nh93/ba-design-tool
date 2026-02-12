@@ -40,8 +40,8 @@
     top: 100%;
     right: 0;
     margin-top: 4px;
-    width: 380px;
-    max-height: 420px;
+    width: 400px;
+    max-height: min(600px, 75vh);
     overflow: hidden;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -59,18 +59,29 @@
 .ba-notif-list {
     padding: 6px;
     overflow-y: auto;
-    max-height: 380px;
+    max-height: min(540px, 70vh);
     background: var(--bg-card);
 }
 .ba-notif-item {
     position: relative;
-    padding: 10px 12px;
+    padding: 10px 12px 12px;
     padding-right: 28px;
     border-bottom: 1px solid var(--border, var(--border-color));
     font-size: 0.8125rem;
     background: var(--bg-card);
-    max-height: 120px;
-    overflow: hidden;
+    min-height: 88px;
+}
+.ba-notif-item .ba-notif-progress-wrap {
+    margin-top: 6px;
+    min-height: 24px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+}
+.ba-notif-item .ba-notif-progress-wrap .ba-notif-progress-pct {
+    font-size: 0.75rem;
+    color: var(--text-muted);
 }
 .ba-notif-item:last-child { border-bottom: none; }
 .ba-notif-item .ba-notif-dismiss {
@@ -116,7 +127,22 @@
 .ba-notif-type-hr-user { background: #4ac5f5; color: #fff; }
 .ba-notif-type-hr-employee { background: #8757f7; color: #fff; }
 .ba-notif-type-hr-other { background: rgba(135, 87, 247, 0.5); color: #fff; }
-.ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
+.ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other):not(.ba-notif-reset-tag):not(.ba-notif-no-reset-tag) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
+/* Tag Có Reset / Không Reset: dùng !important để không bị đè bởi rule .ba-notif-type-badge phía trên */
+.ba-notif-type-badge.ba-notif-reset-tag { background: rgba(16, 185, 129, 0.25) !important; color: #10b981 !important; }
+.ba-notif-type-badge.ba-notif-no-reset-tag { background: rgba(239, 68, 68, 0.2) !important; color: #ef4444 !important; }
+.ba-notif-item .ba-notif-cancel-btn {
+    margin-left: 8px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    border: 1px solid var(--danger, #ef4444);
+    background: transparent;
+    color: var(--danger, #ef4444);
+    border-radius: 4px;
+    cursor: pointer;
+}
+.ba-notif-item .ba-notif-cancel-btn:hover:not(:disabled) { background: var(--danger, #ef4444); color: #fff; }
+.ba-notif-item .ba-notif-cancel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
 /* Modal chi tiết thông báo */
 #notificationDetailModal,

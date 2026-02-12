@@ -1988,8 +1988,8 @@ WHERE {0}";
             }
         }
 
-        /// <summary>Reset Email và Phone trong Staffing_Employees (và Staffing_EmployeeInformations) với mã hóa theo từng employee (dùng sau restore + auto-reset). progressCallback(doneChunks, totalChunks).</summary>
-        public static Tuple<int, string> ResetEmailAndPhoneEncryptedForRestore(string connectionString, string email, string phone, Action<int, int> progressCallback)
+        /// <summary>Reset Email và Phone trong Staffing_Employees (và Staffing_EmployeeInformations) với mã hóa theo từng employee (dùng sau restore + auto-reset). progressCallback(doneChunks, totalChunks). isCancelled: nếu trả về true thì dừng và trả về "Đã hủy".</summary>
+        public static Tuple<int, string> ResetEmailAndPhoneEncryptedForRestore(string connectionString, string email, string phone, Action<int, int> progressCallback, Func<bool> isCancelled = null)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 return Tuple.Create(0, "Connection string trống.");
@@ -1999,7 +1999,6 @@ WHERE {0}";
                 return Tuple.Create(0, "Cần nhập Email và/hoặc Phone.");
             try
             {
-                const int chunkSize = 5000;
                 int totalCount = 0;
                 using (var conn = new SqlConnection(connectionString))
                 {
@@ -2014,10 +2013,17 @@ WHERE {0}";
                 }
                 if (totalCount == 0)
                     return Tuple.Create(0, (string)null);
+                // Chunk động theo số record: dự án nhỏ (500 NV) ~ 10 lần cập nhật, lớn (50k NV) ~ 60 lần
+                int desiredChunks = Math.Min(60, Math.Max(10, totalCount / 500));
+                int chunkSize = (int)Math.Ceiling(totalCount / (double)desiredChunks);
+                int minChunk = totalCount < 1000 ? 50 : 100;
+                if (chunkSize < minChunk) chunkSize = minChunk;
                 int totalChunks = (int)Math.Ceiling(totalCount / (double)chunkSize);
                 var totalUpdated = 0;
                 for (int c = 0; c < totalChunks; c++)
                 {
+                    if (isCancelled != null && isCancelled())
+                        return Tuple.Create(totalUpdated, "Đã hủy");
                     var offset = c * chunkSize;
                     var employeeIds = new List<long>();
                     using (var conn = new SqlConnection(connectionString))

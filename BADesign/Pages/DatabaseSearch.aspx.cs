@@ -2,11 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
+using System.IO;
 using System.Linq;
 using System.Web;
 using System.Web.Services;
 using System.Web.Script.Services;
 using System.Web.UI;
+using System.Web.Hosting;
 using BADesign;
 using BADesign.Helpers;
 using BADesign.Helpers.Security;
@@ -1243,10 +1245,32 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             catch { }
         }
 
+        private static readonly object _resetProgressLogLock = new object();
+
+        /// <summary>Ghi log debug tiến độ Reset Information ra file App_Data/BaRestoreProgress.log để debug % treo 0 rồi nhảy 100%. Dùng HostingEnvironment để chạy được từ background thread (restore task).</summary>
+        private static void LogResetProgress(int jobId, string phase, int percent)
+        {
+            try
+            {
+                var path = HostingEnvironment.MapPath("~/App_Data/BaRestoreProgress.log");
+                if (string.IsNullOrEmpty(path)) path = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "App_Data", "BaRestoreProgress.log");
+                var dir = Path.GetDirectoryName(path);
+                if (!string.IsNullOrEmpty(dir) && !Directory.Exists(dir)) Directory.CreateDirectory(dir);
+                var line = string.Format("[{0:yyyy-MM-dd HH:mm:ss}] JobId={1}, Phase={2}, Percent={3}\r\n", DateTime.Now, jobId, phase ?? "", percent);
+                lock (_resetProgressLogLock)
+                {
+                    File.AppendAllText(path, line);
+                }
+            }
+            catch { }
+        }
+
         private static void UpdateJobPhaseAndPercent(int jobId, string phaseMessage, int percent)
         {
             try
             {
+                if (string.Equals(phaseMessage, "Reset Information", StringComparison.OrdinalIgnoreCase))
+                    LogResetProgress(jobId, phaseMessage, percent);
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
                 {
@@ -1261,24 +1285,30 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             catch { }
         }
 
-        /// <summary>Cập nhật Setting_FolderConfigurations trong database đích (Host, Port, UserNameSourceFolder, PasswordSourceFolder) nếu bảng tồn tại.</summary>
+        /// <summary>Cập nhật Setting_FolderConfigurations trong database đích (Host, Port, UserNameSourceFolder, PasswordSourceFolder) từ cấu hình SFTP App Settings. Chạy khi có bất kỳ giá trị nào.</summary>
         private static void UpdateSettingFolderConfigurationsIfExists(string targetDbConnStr, string host, string port, string userName, string password)
         {
             if (string.IsNullOrEmpty(targetDbConnStr)) return;
+            if (string.IsNullOrWhiteSpace(host) && string.IsNullOrWhiteSpace(port) && string.IsNullOrWhiteSpace(userName) && string.IsNullOrWhiteSpace(password))
+                return;
             try
             {
                 using (var conn = new SqlConnection(targetDbConnStr))
                 {
                     conn.Open();
+                    string schema = null;
                     using (var cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT 1 FROM sys.tables WHERE name = N'Setting_FolderConfigurations'";
-                        if (cmd.ExecuteScalar() == null) return;
+                        cmd.CommandText = "SELECT OBJECT_SCHEMA_NAME(t.object_id) FROM sys.tables t WHERE t.name = N'Setting_FolderConfigurations'";
+                        var o = cmd.ExecuteScalar();
+                        if (o == null || o == DBNull.Value || string.IsNullOrWhiteSpace(o.ToString())) return;
+                        schema = o.ToString().Trim();
                     }
+                    var quotedTable = "[" + schema.Replace("]", "]]") + "].[Setting_FolderConfigurations]";
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandTimeout = 30;
-                        cmd.CommandText = @"UPDATE dbo.Setting_FolderConfigurations SET Host = @h, Port = @p, UserNameSourceFolder = @u, PasswordSourceFolder = @pw WHERE (1=1)";
+                        cmd.CommandText = "UPDATE " + quotedTable + " SET Host = @h, Port = @p, UserNameSourceFolder = @u, PasswordSourceFolder = @pw WHERE (1=1)";
                         cmd.Parameters.AddWithValue("@h", (object)host ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@p", (object)port ?? DBNull.Value);
                         cmd.Parameters.AddWithValue("@u", (object)userName ?? DBNull.Value);
@@ -1287,8 +1317,91 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                     }
                 }
             }
-            catch { /* bảng có thể khác schema hoặc thiếu cột */ }
+            catch { /* bảng có thể thiếu cột hoặc quyền */ }
         }
+
+        /// <summary>Đọc cấu hình Email Server từ BaAppSetting (EmailServer_*). Dùng cho restore và HR Helper Cadena button.</summary>
+        private static void GetEmailServerConfigFromAppSettings(string appConnStr, out string outgoingServer, out string port, out string accountName, out string username, out string emailAddress, out string password, out bool enableSSL, out string sslPort)
+        {
+            outgoingServer = port = accountName = username = emailAddress = password = sslPort = "";
+            enableSSL = false;
+            if (string.IsNullOrEmpty(appConnStr)) return;
+            try
+            {
+                using (var conn = new SqlConnection(appConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT [Key], [Value] FROM BaAppSetting WHERE [Key] IN (
+                        N'EmailServer_OutgoingServer', N'EmailServer_Port', N'EmailServer_AccountName', N'EmailServer_Username',
+                        N'EmailServer_EmailAddress', N'EmailServer_Password', N'EmailServer_EnableSSL', N'EmailServer_SSLPort')";
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var k = r.GetString(0);
+                            var v = r.IsDBNull(1) ? null : r.GetString(1);
+                            if (k == "EmailServer_OutgoingServer") outgoingServer = v ?? "";
+                            else if (k == "EmailServer_Port") port = v ?? "";
+                            else if (k == "EmailServer_AccountName") accountName = v ?? "";
+                            else if (k == "EmailServer_Username") username = v ?? "";
+                            else if (k == "EmailServer_EmailAddress") emailAddress = v ?? "";
+                            else if (k == "EmailServer_Password") password = v ?? "";
+                            else if (k == "EmailServer_EnableSSL") enableSSL = (v == "1" || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase));
+                            else if (k == "EmailServer_SSLPort") sslPort = v ?? "";
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>Cập nhật Setting_EmailServers trong database đích từ giá trị đã đọc (cùng cột như HR Helper: OutgoingMailServer, OutgoingMailServerPort, AccountID, SMTPDisplayName, EmailAddress, PasswordPOP3, IsEnableSSL, SSLPort).</summary>
+        private static void UpdateSettingEmailServersIfExists(string targetDbConnStr, string outgoingServer, string port, string accountName, string username, string emailAddress, string password, bool enableSSL, string sslPort)
+        {
+            if (string.IsNullOrEmpty(targetDbConnStr)) return;
+            if (string.IsNullOrWhiteSpace(outgoingServer) && string.IsNullOrWhiteSpace(username) && string.IsNullOrWhiteSpace(emailAddress))
+                return;
+            try
+            {
+                int serverPort = 25;
+                int.TryParse(port ?? "", out serverPort);
+                int? sslPortInt = null;
+                int tmpSsl;
+                if (int.TryParse(sslPort ?? "", out tmpSsl) && tmpSsl > 0) sslPortInt = tmpSsl;
+                var encryptedPassword = !string.IsNullOrWhiteSpace(password) ? DataSecurityWrapper.EncryptData(password, null) : null;
+
+                using (var conn = new SqlConnection(targetDbConnStr))
+                {
+                    conn.Open();
+                    string schema = null;
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT OBJECT_SCHEMA_NAME(t.object_id) FROM sys.tables t WHERE t.name = N'Setting_EmailServers'";
+                        var o = cmd.ExecuteScalar();
+                        if (o == null || o == DBNull.Value || string.IsNullOrWhiteSpace(o.ToString())) return;
+                        schema = o.ToString().Trim();
+                    }
+                    var quotedTable = "[" + schema.Replace("]", "]]") + "].[Setting_EmailServers]";
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 30;
+                        cmd.CommandText = "UPDATE " + quotedTable + " SET OutgoingMailServer = @out, OutgoingMailServerPort = @port, AccountID = @acc, SMTPDisplayName = @disp, EmailAddress = @email, IsEnableSSL = @ssl, SSLPort = @sslPort" + (encryptedPassword != null ? ", PasswordPOP3 = @pw" : "") + " WHERE (1=1)";
+                        cmd.Parameters.AddWithValue("@out", (object)outgoingServer ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@port", serverPort);
+                        cmd.Parameters.AddWithValue("@acc", (object)username ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@disp", (object)accountName ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@email", (object)emailAddress ?? DBNull.Value);
+                        cmd.Parameters.AddWithValue("@ssl", enableSSL ? 1 : 0);
+                        cmd.Parameters.AddWithValue("@sslPort", sslPortInt.HasValue ? (object)sslPortInt.Value : DBNull.Value);
+                        if (encryptedPassword != null) cmd.Parameters.AddWithValue("@pw", encryptedPassword);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch { /* bảng có thể thiếu cột hoặc quyền */ }
+        }
+
         private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, SqlConnection> BackupSessions = new System.Collections.Concurrent.ConcurrentDictionary<int, SqlConnection>();
         private static System.Threading.Timer _restoreProgressUpdateTimer;
         private static readonly object _restoreProgressUpdateTimerLock = new object();
@@ -1300,17 +1413,17 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
             {
                 string connStr = UiAuthHelper.ConnStr;
                 if (string.IsNullOrEmpty(connStr)) return;
-                var jobs = new List<Tuple<int, int, int, string>>();
+                var jobs = new List<Tuple<int, int, int, string, string>>();
                 using (var conn = new SqlConnection(connStr))
                 {
                     using (var cmd = conn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT Id, ServerId, SessionId, JobType FROM BaJob WHERE JobType IN (N'Restore', N'Backup') AND Status = N'Running' AND SessionId IS NOT NULL";
+                        cmd.CommandText = "SELECT Id, ServerId, SessionId, JobType, ISNULL(Message, N'') FROM BaJob WHERE JobType IN (N'Restore', N'Backup') AND Status = N'Running' AND SessionId IS NOT NULL";
                         conn.Open();
                         using (var r = cmd.ExecuteReader())
                         {
                             while (r.Read())
-                                jobs.Add(Tuple.Create(r.GetInt32(0), r.GetInt32(1), r.GetInt32(2), r.IsDBNull(3) ? "" : r.GetString(3)));
+                                jobs.Add(Tuple.Create(r.GetInt32(0), r.GetInt32(1), r.GetInt32(2), r.IsDBNull(3) ? "" : r.GetString(3), r.IsDBNull(4) ? "" : r.GetString(4)));
                         }
                     }
                 }
@@ -1321,6 +1434,11 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 {
                     try
                     {
+                        var jobType = j.Item4;
+                        var message = (j.Item5 ?? "").Trim();
+                        // Phase "Reset Information": % do callback C# cập nhật, không lấy từ dm_exec_requests (RESTORE đã xong, session có thể trả 0/100 và ghi đè)
+                        if (string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) && message == "Reset Information")
+                            continue;
                         var s = GetServerInfo(j.Item2);
                         if (s == null) continue;
                         var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
@@ -1344,8 +1462,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                                         appConn.Open();
                                         upd.ExecuteNonQuery();
                                     }
-                                    if (string.Equals(j.Item4, "Restore", StringComparison.OrdinalIgnoreCase)) { anyRestore = true; restoreServerIds.Add(j.Item2); }
-                                    else if (string.Equals(j.Item4, "Backup", StringComparison.OrdinalIgnoreCase)) { anyBackup = true; backupServerIds.Add(j.Item2); }
+                                    if (string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase)) { anyRestore = true; restoreServerIds.Add(j.Item2); }
+                                    else if (string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase)) { anyBackup = true; backupServerIds.Add(j.Item2); }
                                 }
                             }
                         }
@@ -1409,12 +1527,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 var phoneForReset = (resetPhone ?? "").Trim();
                 if (withAutoReset)
                 {
-                    if (string.IsNullOrEmpty(emailForReset))
-                    {
-                        var loginName = (HttpContext.Current != null && HttpContext.Current.Session != null && HttpContext.Current.Session["UiUserName"] != null)
-                            ? HttpContext.Current.Session["UiUserName"].ToString() : "user";
-                        emailForReset = loginName + "@cadena.com.sg";
-                    }
+                    if (string.IsNullOrWhiteSpace(emailForReset))
+                        return new { success = false, message = "Vui lòng nhập Email khi chọn tích hợp reset.", sessionId = 0, jobId = 0 };
                     if (string.IsNullOrEmpty(passwordForReset)) passwordForReset = "1";
                     if (string.IsNullOrEmpty(phoneForReset)) phoneForReset = "0987654321";
                 }
@@ -1510,6 +1624,8 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                 {
                     try
                     {
+                        if (IsJobCancelled(jobId))
+                            return;
                         bool isNewDb = false;
                         using (var cmd = conn.CreateCommand())
                         {
@@ -1601,6 +1717,11 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                                 cmd.Parameters.AddWithValue("@path", fullPath);
                                 cmd.ExecuteNonQuery();
                             }
+                            if (IsJobCancelled(jobId))
+                            {
+                                RestoreSessionStatus.TryAdd(sessionId, new { status = "cancelled", message = "Đã hủy bởi người dùng" });
+                                return;
+                            }
                         }
                         if (shrinkLog)
                         {
@@ -1637,28 +1758,48 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                                 try { cmd.ExecuteNonQuery(); } catch { }
                             }
                         }
-                        // Auto-reset: cập nhật SFTP từ App Settings, rồi reset Email/Phone có mã hóa theo từng employee; push tiến độ 0-100% Reset Information
-                        if (doAutoReset && jobId > 0)
+                        // Auto-reset: (1) SFTP từ App Settings; (2) Reset plain Email/Phone cho User + Other (kể cả Setting_EmailServers); (3) Ghi đè Setting_EmailServers bằng App Settings nếu có (ưu tiên app setting); (4) Reset có mã hóa cho Employee
+                        if (doAutoReset && jobId > 0 && !IsJobCancelled(jobId))
                         {
                             try
                             {
                                 var restoredConnStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, databaseName);
                                 string sftpHost, sftpPort, sftpUser, sftpPassword;
                                 GetSftpConfigFromAppSettings(appConnStr, out sftpHost, out sftpPort, out sftpUser, out sftpPassword);
-                                if (!string.IsNullOrWhiteSpace(sftpHost) || !string.IsNullOrWhiteSpace(sftpUser))
-                                    UpdateSettingFolderConfigurationsIfExists(restoredConnStr, sftpHost, sftpPort, sftpUser, sftpPassword);
+                                UpdateSettingFolderConfigurationsIfExists(restoredConnStr, sftpHost ?? "", sftpPort ?? "", sftpUser ?? "", sftpPassword ?? "");
                                 UpdateJobPhaseAndPercent(jobId, "Reset Information", 0);
                                 PushRestoreJobsUpdated(serverId);
-                                var resetResult = HRHelper.ResetEmailAndPhoneEncryptedForRestore(restoredConnStr, autoResetEmail, autoResetPhone, (doneChunks, totalChunks) =>
+                                var plainResult = HRHelper.ResetEmailAndPhoneInDatabase(restoredConnStr, autoResetEmail, autoResetPhone);
+                                if (plainResult.Item2 != null)
                                 {
-                                    var pct = totalChunks > 0 ? (doneChunks * 100) / totalChunks : 100;
-                                    UpdateJobPhaseAndPercent(jobId, "Reset Information", Math.Min(100, pct));
+                                    RestoreSessionStatus.TryAdd(sessionId, new { status = "failed", message = "Restore xong nhưng reset User/Other lỗi: " + plainResult.Item2 });
+                                }
+                                else if (!IsJobCancelled(jobId))
+                                {
+                                    // Cập nhật % ngay sau plain (User + Other) để client thấy tiến độ, không treo 0%
+                                    UpdateJobPhaseAndPercent(jobId, "Reset Information", 10);
                                     PushRestoreJobsUpdated(serverId);
-                                });
-                                if (resetResult.Item2 != null)
-                                    RestoreSessionStatus.TryAdd(sessionId, new { status = "failed", message = "Restore xong nhưng reset lỗi: " + resetResult.Item2 });
-                                else
-                                    UpdateJobPhaseAndPercent(jobId, null, 100);
+                                    // Ưu tiên App Settings cho Email Server: ghi đè Setting_EmailServers sau plain reset để Email Address (*) và các cột khác lấy từ app setting
+                                    string emailOutgoing, emailPort, emailAccountName, emailUsername, emailEmailAddress, emailPassword, emailSslPort;
+                                    bool emailEnableSSL;
+                                    GetEmailServerConfigFromAppSettings(appConnStr, out emailOutgoing, out emailPort, out emailAccountName, out emailUsername, out emailEmailAddress, out emailPassword, out emailEnableSSL, out emailSslPort);
+                                    UpdateSettingEmailServersIfExists(restoredConnStr, emailOutgoing, emailPort, emailAccountName, emailUsername, emailEmailAddress, emailPassword, emailEnableSSL, emailSslPort);
+                                    // Bước plain + email server xong → 20%; bước Employee (chunks) chiếm 20%→100%
+                                    UpdateJobPhaseAndPercent(jobId, "Reset Information", 20);
+                                    PushRestoreJobsUpdated(serverId);
+                                    var resetResult = HRHelper.ResetEmailAndPhoneEncryptedForRestore(restoredConnStr, autoResetEmail, autoResetPhone, (doneChunks, totalChunks) =>
+                                    {
+                                        var pct = totalChunks > 0 ? 20 + (80 * doneChunks) / totalChunks : 100;
+                                        UpdateJobPhaseAndPercent(jobId, "Reset Information", Math.Min(100, pct));
+                                        PushRestoreJobsUpdated(serverId);
+                                    }, () => IsJobCancelled(jobId));
+                                    if (resetResult.Item2 != null)
+                                        RestoreSessionStatus.TryAdd(sessionId, new { status = "failed", message = resetResult.Item2 == "Đã hủy" ? "Đã hủy bởi người dùng" : ("Restore xong nhưng reset Employee (mã hóa) lỗi: " + resetResult.Item2) });
+                                    else if (!IsJobCancelled(jobId))
+                                        UpdateJobPhaseAndPercent(jobId, null, 100);
+                                }
+                                if (IsJobCancelled(jobId) && !RestoreSessionStatus.ContainsKey(sessionId))
+                                    RestoreSessionStatus.TryAdd(sessionId, new { status = "cancelled", message = "Đã hủy bởi người dùng" });
                             }
                             catch (Exception exReset)
                             {
@@ -1695,7 +1836,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                             using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                             using (var cmd = appConn.CreateCommand())
                             {
-                                cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE SessionId = @sess AND JobType = N'Restore'";
+                                cmd.CommandText = "UPDATE BaJob SET Status = @st, PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
                                 cmd.Parameters.AddWithValue("@st", status);
                                 cmd.Parameters.AddWithValue("@msg", (object)msg ?? DBNull.Value);
                                 cmd.Parameters.AddWithValue("@sess", sessionId);
@@ -1730,6 +1871,53 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message, sessionId = 0, jobId = 0 };
+            }
+        }
+
+        /// <summary>Kiểm tra job Restore đã bị hủy chưa (dùng trong background restore để thoát sớm).</summary>
+        private static bool IsJobCancelled(int jobId)
+        {
+            if (jobId <= 0) return false;
+            try
+            {
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT 1 FROM BaJob WHERE Id = @id AND JobType = N'Restore' AND Status = N'Cancelled'";
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    conn.Open();
+                    return cmd.ExecuteScalar() != null;
+                }
+            }
+            catch { return false; }
+        }
+
+        /// <summary>Hủy job Restore đang chạy. Chỉ người thực hiện restore (StartedByUserId) mới được hủy.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object CancelRestoreJob(int jobId)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập." };
+                var uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"UPDATE BaJob SET Status = N'Cancelled', Message = N'Đã hủy bởi người dùng', CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = N'Restore' AND Status = N'Running' AND StartedByUserId = @uid";
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    cmd.Parameters.AddWithValue("@uid", uid);
+                    conn.Open();
+                    int n = cmd.ExecuteNonQuery();
+                    if (n == 0)
+                        return new { success = false, message = "Không thể hủy (job không tồn tại, đã xong hoặc không phải người thực hiện)." };
+                }
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
             }
         }
 
@@ -1805,11 +1993,11 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                             }
                         }
                     }
-                    return new { success = true, jobs = jobs };
+                    return new { success = true, jobs = jobs, currentUserId = currentUserId };
                 }
                 catch
                 {
-                    return new { success = true, jobs = new List<object>() };
+                    return new { success = true, jobs = new List<object>(), currentUserId = currentUserId };
                 }
             }
             catch (Exception ex)
@@ -2014,6 +2202,32 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                     return new { success = false, percentComplete = 0, completed = false };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, percentComplete = 0, completed = false };
+                // Nếu job đang ở phase "Reset Information" thì % do callback C# cập nhật; không lấy từ dm_exec_requests (session còn mở nhưng RESTORE đã xong, percent_complete không còn ý nghĩa)
+                string currentMessage = null;
+                int currentPctFromJob = 0;
+                try
+                {
+                    using (var appConnCheck = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmdCheck = appConnCheck.CreateCommand())
+                    {
+                        cmdCheck.CommandText = "SELECT Message, PercentComplete FROM BaJob WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
+                        cmdCheck.Parameters.AddWithValue("@sess", sessionId);
+                        appConnCheck.Open();
+                        using (var rCheck = cmdCheck.ExecuteReader())
+                        {
+                            if (rCheck.Read())
+                            {
+                                if (!rCheck.IsDBNull(0)) currentMessage = rCheck.GetString(0);
+                                if (!rCheck.IsDBNull(1)) currentPctFromJob = rCheck.GetInt32(1);
+                            }
+                        }
+                    }
+                }
+                catch { }
+                if (!string.IsNullOrEmpty(currentMessage) && currentMessage.Trim() == "Reset Information")
+                {
+                    return new { success = true, percentComplete = currentPctFromJob, phase = currentMessage, completed = false };
+                }
                 var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
                 {

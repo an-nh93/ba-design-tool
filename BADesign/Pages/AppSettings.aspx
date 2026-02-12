@@ -59,23 +59,43 @@
         }
         .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
         .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main { flex: 1; display: flex; flex-direction: column; overflow: auto; margin-left: 240px; transition: margin-left 0.25s ease; }
-        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
+        /* Main không dùng margin-left: sidebar và main nằm trong flex, main tự sát sidebar; khi thu nhỏ sidebar 64px thì main vẫn sát, không thêm margin để tránh hở */
+        .ba-main { flex: 1; display: flex; flex-direction: column; overflow: auto; min-width: 0; }
         .ba-top-bar {
-            padding: 1rem 2rem; background: var(--bg-card);
+            padding: 1rem 2rem;
+            background: var(--bg-card);
             border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
             flex-shrink: 0;
         }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; }
-        .ba-content { flex: 1; padding: 2rem; overflow: auto; }
+        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; margin: 0; color: var(--text-primary); }
+        .ba-content { flex: 1; padding: 0.5rem 2rem 1rem; overflow: auto; }
         .ba-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.75rem;
             max-width: 700px;
+            overflow: hidden;
         }
+        .ba-card-collapsible .ba-card-header {
+            display: flex; align-items: center; gap: 8px;
+            padding: 0.75rem 1rem;
+            cursor: pointer;
+            user-select: none;
+            font-size: 1.0625rem; font-weight: 600;
+            color: var(--text-primary);
+            transition: background 0.15s;
+        }
+        .ba-card-collapsible .ba-card-header:hover { background: var(--bg-hover); }
+        .ba-card-collapsible .ba-card-header .ba-card-toggle {
+            width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
+            color: var(--text-muted); font-size: 0.75rem; transition: transform 0.2s;
+        }
+        .ba-card-collapsible.collapsed .ba-card-header .ba-card-toggle { transform: rotate(-90deg); }
+        .ba-card-collapsible .ba-card-body { padding: 0.75rem 1rem 1rem; }
+        .ba-card-collapsible.collapsed .ba-card-body { display: none; }
         .ba-card-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; }
         .ba-input {
             width: 100%; padding: 0.5rem 0.75rem;
@@ -120,8 +140,12 @@
                     <h1 class="ba-top-bar-title">App Settings</h1>
                 </div>
                 <div class="ba-content">
-                    <div class="ba-card">
-                        <h2 class="ba-card-title">Email Ignore (HR Multi-DB)</h2>
+                    <div class="ba-card ba-card-collapsible" id="cardEmailIgnore" data-collapse-key="appSettings_emailIgnore">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailIgnore'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>Email Ignore (HR Multi-DB)</span>
+                        </div>
+                        <div class="ba-card-body">
                         <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
                             Các email/pattern trong danh sách được coi là nội bộ (đã reset). HR Helper Multi-DB sẽ load config từ đây. Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix.
                         </p>
@@ -134,11 +158,75 @@
                             <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
+                        </div>
                     </div>
-                    <div class="ba-card">
-                        <h2 class="ba-card-title">SFTP Connection</h2>
+                    <div class="ba-card ba-card-collapsible" id="cardEmailServer" data-collapse-key="appSettings_emailServer">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailServer'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>Email Server Settings</span>
+                        </div>
+                        <div class="ba-card-body">
                         <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Thông tin kết nối SFTP dùng khi tự động restore + reset database. Sẽ ghi vào bảng Setting_FolderConfigurations của database được restore (nếu có) để tránh nhầm SFTP production.
+                            Cấu hình SMTP dùng khi restore + reset (ghi vào Setting_EmailServers) và dùng cho nút &quot;Cadena Email Server&quot; trong HR Helper (load vào form Company Info).
+                        </p>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.5rem;">
+                            <div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="ba-form-label">Outgoing Email Server (*)</label>
+                                    <input type="text" id="txtEmailServerOutgoing" class="ba-input" placeholder="xmail.example.com" <%= !CanEditSettings ? "readonly" : "" %> />
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="ba-form-label">Port (*)</label>
+                                    <input type="text" id="txtEmailServerPort" class="ba-input" placeholder="25" <%= !CanEditSettings ? "readonly" : "" %> />
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="ba-form-label">Account Name (*)</label>
+                                    <input type="text" id="txtEmailServerAccountName" class="ba-input" placeholder="CADENA" <%= !CanEditSettings ? "readonly" : "" %> />
+                                </div>
+                            </div>
+                            <div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="ba-form-label">Username (*)</label>
+                                    <input type="text" id="txtEmailServerUsername" class="ba-input" placeholder="user@example.com" <%= !CanEditSettings ? "readonly" : "" %> />
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="ba-form-label">Email Address (*)</label>
+                                    <input type="text" id="txtEmailServerEmailAddress" class="ba-input" placeholder="user@example.com" <%= !CanEditSettings ? "readonly" : "" %> />
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="ba-form-label">Password (*)</label>
+                                    <input type="password" id="txtEmailServerPassword" class="ba-input" placeholder="••••••••" <%= !CanEditSettings ? "readonly" : "" %> />
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <div class="ba-checkbox" style="display: flex; align-items: center; gap: 8px;">
+                                        <input type="checkbox" id="chkEmailServerSSL" <%= !CanEditSettings ? "disabled" : "" %> />
+                                        <label for="chkEmailServerSSL" style="margin: 0;">Enable SSL</label>
+                                    </div>
+                                </div>
+                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                    <label class="ba-form-label">SSL Port</label>
+                                    <input type="number" id="txtEmailServerSSLPort" class="ba-input" placeholder="465" min="1" max="65535" <%= !CanEditSettings ? "readonly" : "" %> />
+                                </div>
+                            </div>
+                        </div>
+                        <div id="msgEmailServer" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveEmailServer" onclick="saveEmailServerConfig(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="ba-card ba-card-collapsible" id="cardSftp" data-collapse-key="appSettings_sftp">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardSftp'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>SFTP Connection</span>
+                        </div>
+                        <div class="ba-card-body">
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            Thông tin kết nối SFTP dùng khi tự động restore + reset database.
                         </p>
                         <div class="ba-form-group" style="margin-bottom: 0.75rem;">
                             <label class="ba-form-label">Host</label>
@@ -164,12 +252,28 @@
                             <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </form>
     <script>
+        function toggleAppSettingsCard(cardId) {
+            var $card = $('#' + cardId);
+            if (!$card.length) return;
+            $card.toggleClass('collapsed');
+            var key = 'appSettings_collapse_' + ($card.attr('data-collapse-key') || cardId);
+            try { localStorage.setItem(key, $card.hasClass('collapsed') ? '1' : '0'); } catch (e) {}
+        }
+        (function restoreAppSettingsCollapse() {
+            $('.ba-card-collapsible').each(function() {
+                var key = 'appSettings_collapse_' + ($(this).attr('data-collapse-key') || this.id);
+                try {
+                    if (localStorage.getItem(key) === '1') $(this).addClass('collapsed');
+                } catch (e) {}
+            });
+        })();
         (function() {
             var key = 'baSidebarCollapsed';
             var $sb = $('#baSidebar');
@@ -221,6 +325,58 @@
                 });
             };
             loadEmailIgnore();
+            (function loadEmailServerConfig() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadEmailServerConfig") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#txtEmailServerOutgoing').val(d.outgoingServer || '');
+                        $('#txtEmailServerPort').val(d.port || '');
+                        $('#txtEmailServerAccountName').val(d.accountName || '');
+                        $('#txtEmailServerUsername').val(d.username || '');
+                        $('#txtEmailServerEmailAddress').val(d.emailAddress || '');
+                        $('#txtEmailServerPassword').val(d.password || '');
+                        $('#chkEmailServerSSL').prop('checked', !!d.enableSSL);
+                        $('#txtEmailServerSSLPort').val(d.sslPort != null && d.sslPort !== '' ? d.sslPort : '');
+                    }
+                });
+            })();
+            window.saveEmailServerConfig = function () {
+                $('#msgEmailServer').hide();
+                $('#btnSaveEmailServer').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveEmailServerConfig") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({
+                        outgoingServer: $('#txtEmailServerOutgoing').val() || '',
+                        port: $('#txtEmailServerPort').val() || '',
+                        accountName: $('#txtEmailServerAccountName').val() || '',
+                        username: $('#txtEmailServerUsername').val() || '',
+                        emailAddress: $('#txtEmailServerEmailAddress').val() || '',
+                        password: $('#txtEmailServerPassword').val() || '',
+                        enableSSL: $('#chkEmailServerSSL').prop('checked'),
+                        sslPort: $('#txtEmailServerSSLPort').val() || ''
+                    }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgEmailServer').removeClass('error').addClass('success').text('Đã lưu.').show();
+                    } else {
+                        $('#msgEmailServer').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                    }
+                }).fail(function () {
+                    $('#msgEmailServer').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                }).always(function () {
+                    $('#btnSaveEmailServer').prop('disabled', false);
+                });
+            };
             (function loadSftpConfig() {
                 $.ajax({
                     url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadSftpConfig") %>',

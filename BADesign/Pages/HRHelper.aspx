@@ -3386,15 +3386,32 @@
 
         function loadCadenaEmailServer() {
             showProgress('Đang xử lý...', 0, 'Cadena Email Server...');
-            $('#txtCompanyOutgoingServer').val('ns3.cadena-it.com');
-            $('#txtCompanyUserName').val('test-noreply@cadena-hrmseries.com');
-            $('#txtCompanyEmailAddress').val('test-noreply@cadena-hrmseries.com');
-            $('#txtCompanyPassword').val('JOg7DBCMfjI5RZ05');
-            $('#txtCompanyAccountName').val('CADENA');
-            $('#txtCompanyServerPort').val('587');
-            $('#chkCompanyEnableSSL').prop('checked', false);
-            $('#txtCompanySSLPort').val('0').prop('disabled', true);
-            setTimeout(function() { hideProgress(); }, 80);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadEmailServerConfig") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: '{}',
+                dataType: 'json'
+            }).done(function(r) {
+                var d = (typeof r.d !== 'undefined') ? r.d : r;
+                if (d && d.success) {
+                    $('#txtCompanyOutgoingServer').val(d.outgoingServer || '');
+                    $('#txtCompanyServerPort').val(d.port || '');
+                    $('#txtCompanyAccountName').val(d.accountName || '');
+                    $('#txtCompanyUserName').val(d.username || '');
+                    $('#txtCompanyEmailAddress').val(d.emailAddress || '');
+                    $('#txtCompanyPassword').val(d.password || '');
+                    $('#chkCompanyEnableSSL').prop('checked', !!d.enableSSL);
+                    var sslPort = (d.sslPort != null && d.sslPort !== '') ? d.sslPort : '0';
+                    $('#txtCompanySSLPort').val(sslPort).prop('disabled', !d.enableSSL);
+                } else {
+                    showToast((d && d.message) ? d.message : 'Không load được Email Server Settings. Cấu hình tại App Settings.', 'error');
+                }
+            }).fail(function() {
+                showToast('Không load được Email Server Settings. Cấu hình tại App Settings.', 'error');
+            }).always(function() {
+                hideProgress();
+            });
         }
 
         function clearCompanyValidation() {
