@@ -2975,7 +2975,7 @@
                 var $p = $('#restoreJobsPanel');
                 if (!$p.length || !$p.is(':visible')) return;
                 if (!restoreJobsPanelTimer) restoreJobsPanelTimer = setInterval(loadRestoreJobsPanel, 6000);
-                if ((window.__runningRestoreSessions && window.__runningRestoreSessions.length) || window.__hasRunningJobs) && !restoreProgressTimer)
+                if (((window.__runningRestoreSessions && window.__runningRestoreSessions.length) || window.__hasRunningJobs) && !restoreProgressTimer)
                     restoreProgressTimer = setInterval(loadRestoreJobsPanel, 2000);
             }
             $('#restoreJobsBellBtn').on('click', function(e) {
