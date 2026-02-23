@@ -115,6 +115,21 @@ body {
         text-decoration: underline;
     }
 
+/* Link đăng ký */
+.register-link {
+    margin-top: 12px;
+    text-align: center;
+    font-size: 13px;
+    color: #7a7c88;
+}
+.register-link a {
+    color: rgba(10, 117, 186, 1);
+    text-decoration: none;
+}
+.register-link a:hover {
+    text-decoration: underline;
+}
+
 /* Nút Login + Guest */
 .form-actions {
     margin-top: 4px;

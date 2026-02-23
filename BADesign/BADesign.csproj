@@ -266,6 +266,8 @@
     <Content Include="Pages\Preview.aspx" />
     <Content Include="Pages\WordExport.aspx" />
     <Content Include="Pages\ChangePassword.aspx" />
+    <Content Include="Pages\Register.aspx" />
+    <Content Include="Pages\ForgotPassword.aspx" />
     <Content Include="Pages\AccountSettings.aspx" />
     <Content Include="Pages\DatabaseSearch.aspx" />
     <Content Include="Pages\HRHelper.aspx" />
@@ -278,6 +280,8 @@
     <Content Include="Pages\AuditLog.aspx" />
     <Content Include="Scripts\AddAvatarPathColumn.sql" />
     <Content Include="Scripts\AddBaAppSetting.sql" />
+    <Content Include="Scripts\AddUiPasswordResetToken.sql" />
+    <Content Include="Scripts\AddUiPasswordResetTokenShortCode.sql" />
     <Content Include="Scripts\AddBackupPathPerServer.sql" />
     <Content Include="Scripts\AddBaDatabaseSearch.sql" />
     <Content Include="Scripts\AddBaJob.sql" />
@@ -472,6 +476,8 @@
       <DependentUpon>VerifyPhoneNumber.aspx</DependentUpon>
     </Compile>
     <Compile Include="Common\AppLogger.cs" />
+    <Compile Include="Common\EmailHelper.cs" />
+    <Compile Include="Common\TelegramHelper.cs" />
     <Compile Include="Common\UserActionLogHelper.cs" />
     <Compile Include="Common\UiBuilderModels.cs" />
     <Compile Include="Common\UiAuthHelper.cs" />
@@ -527,6 +533,7 @@
     </Compile>
     <Compile Include="Pages\FunctionQueue.aspx.cs">
       <DependentUpon>FunctionQueue.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Pages\FunctionQueue.aspx.designer.cs">
       <DependentUpon>FunctionQueue.aspx</DependentUpon>
@@ -575,6 +582,20 @@
     </Compile>
     <Compile Include="Pages\ChangePassword.aspx.designer.cs">
       <DependentUpon>ChangePassword.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\Register.aspx.cs">
+      <DependentUpon>Register.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\Register.aspx.designer.cs">
+      <DependentUpon>Register.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\ForgotPassword.aspx.cs">
+      <DependentUpon>ForgotPassword.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\ForgotPassword.aspx.designer.cs">
+      <DependentUpon>ForgotPassword.aspx</DependentUpon>
     </Compile>
     <Compile Include="Pages\AccountSettings.aspx.cs">
       <DependentUpon>AccountSettings.aspx</DependentUpon>

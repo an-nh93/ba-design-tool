@@ -9,9 +9,22 @@
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
     <style>
+        :root {
+            --primary: #0078d4;
+            --primary-hover: #006bb3;
+            --bg-main: #1e1e1e;
+            --bg-card: #2d2d30;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #969696;
+            --border: #3e3e42;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--bg-main);
+            color: var(--text-primary);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -20,9 +33,10 @@
         }
 
         .password-container {
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
             max-width: 500px;
             width: 100%;
             padding: 2.5rem;
@@ -36,12 +50,12 @@
         .password-header h1 {
             font-size: 1.75rem;
             font-weight: 700;
-            color: #111827;
+            color: var(--text-primary);
             margin-bottom: 0.5rem;
         }
 
         .password-header p {
-            color: #6b7280;
+            color: var(--text-muted);
             font-size: 0.875rem;
         }
 
@@ -52,7 +66,7 @@
         .form-group label {
             display: block;
             font-weight: 600;
-            color: #374151;
+            color: var(--text-secondary);
             margin-bottom: 0.5rem;
             font-size: 0.875rem;
         }
@@ -60,16 +74,18 @@
         .form-control {
             width: 100%;
             padding: 0.75rem;
-            border: 2px solid #e5e7eb;
+            border: 1px solid var(--border);
             border-radius: 0.5rem;
             font-size: 0.875rem;
+            background: var(--bg-main);
+            color: var(--text-primary);
             transition: all 0.2s ease;
         }
 
         .form-control:focus {
             outline: none;
-            border-color: #0078d4;
-            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.2);
         }
 
         .btn {
@@ -84,12 +100,12 @@
         }
 
         .btn-primary {
-            background: #0078d4;
+            background: var(--primary);
             color: white;
         }
 
         .btn-primary:hover {
-            background: #006bb3;
+            background: var(--primary-hover);
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
         }
@@ -101,19 +117,19 @@
         }
 
         .alert-success {
-            background: #d1fae5;
-            color: #065f46;
-            border: 1px solid #10b981;
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid var(--success);
         }
 
         .alert-danger {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #ef4444;
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid var(--danger);
         }
 
         .text-danger {
-            color: #ef4444;
+            color: var(--danger);
             font-size: 0.8125rem;
             margin-top: 0.25rem;
             display: block;
@@ -125,7 +141,7 @@
         }
 
         .back-link a {
-            color: #0078d4;
+            color: var(--primary);
             text-decoration: none;
             font-size: 0.875rem;
         }
@@ -139,13 +155,14 @@
     <form id="form1" runat="server">
         <div class="password-container">
             <div class="password-header">
-                <h1>🔒 Change Password</h1>
-                <p>Update your account password</p>
+                <h1>🔒 <asp:Literal ID="litTitle" runat="server" Text="Change Password" /></h1>
+                <p><asp:Literal ID="litSubtitle" runat="server" Text="Update your account password" /></p>
             </div>
 
             <asp:PlaceHolder ID="phSuccess" runat="server" Visible="false">
                 <div class="alert alert-success">
-                    <strong>Success!</strong> Your password has been changed successfully.
+                    <strong><asp:Literal ID="litSuccessTitle" runat="server" Text="Success!" /></strong>
+                    <asp:Literal ID="litSuccessMsg" runat="server" Text="Your password has been changed successfully." />
                 </div>
             </asp:PlaceHolder>
 
@@ -155,6 +172,7 @@
                 </div>
             </asp:PlaceHolder>
 
+            <asp:PlaceHolder ID="phCurrentPassword" runat="server">
             <div class="form-group">
                 <label for="txtCurrentPassword">Current Password</label>
                 <asp:TextBox ID="txtCurrentPassword" runat="server" TextMode="Password" CssClass="form-control" />
@@ -164,6 +182,7 @@
                     CssClass="text-danger"
                     Display="Dynamic" />
             </div>
+            </asp:PlaceHolder>
 
             <div class="form-group">
                 <label for="txtNewPassword">New Password</label>
@@ -203,7 +222,7 @@
             </div>
 
             <div class="back-link">
-                <a href="~/Home" runat="server">← Back to Home</a>
+                <asp:HyperLink ID="lnkBack" runat="server" NavigateUrl="~/Home">← Back to Home</asp:HyperLink>
             </div>
         </div>
     </form>

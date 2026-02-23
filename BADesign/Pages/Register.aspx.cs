@@ -1,0 +1,234 @@
+using System;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Web;
+using System.Web.Services;
+using System.Web.Script.Services;
+using System.Web.UI;
+using BADesign;
+
+namespace BADesign.Pages
+{
+    public partial class Register : Page
+    {
+        private const string Registration_AllowedEmailPatterns = "Registration_AllowedEmailPatterns";
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (Session["UiUserId"] != null)
+            {
+                Response.Redirect(VirtualPathUtility.ToAbsolute(UiAuthHelper.GetHomeUrlByRole() ?? "~/HomeRole"));
+            }
+        }
+
+        private static bool EmailMatchesPattern(string email, string pattern)
+        {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(pattern))
+                return false;
+            var e = email.Trim().ToLowerInvariant();
+            var p = pattern.Trim().ToLowerInvariant();
+            if (p.StartsWith("*"))
+            {
+                var suffix = p.Substring(1).Trim();
+                return e.EndsWith(suffix, StringComparison.OrdinalIgnoreCase);
+            }
+            return string.Equals(e, p, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string[] LoadAllowedPatterns()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT [Value] FROM BaAppSetting WHERE [Key] = @key";
+                    cmd.Parameters.AddWithValue("@key", Registration_AllowedEmailPatterns);
+                    conn.Open();
+                    var obj = cmd.ExecuteScalar();
+                    if (obj == null || obj == DBNull.Value) return new string[0];
+                    var raw = obj.ToString();
+                    if (string.IsNullOrWhiteSpace(raw)) return new string[0];
+                    return raw.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(s => s.Trim()).Where(s => s.Length > 0).ToArray();
+                }
+            }
+            catch { return new string[0]; }
+        }
+
+        [WebMethod(EnableSession = false)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object CheckAvailability(string userName, string email)
+        {
+            try
+            {
+                userName = (userName ?? "").Trim();
+                email = (email ?? "").Trim().ToLowerInvariant();
+                bool userNameOk = true, emailOk = true;
+                if (!string.IsNullOrEmpty(userName))
+                {
+                    using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT 1 FROM UiUser WHERE LOWER(RTRIM(UserName)) = LOWER(RTRIM(@u))";
+                        cmd.Parameters.AddWithValue("@u", userName);
+                        conn.Open();
+                        userNameOk = cmd.ExecuteScalar() == null;
+                    }
+                }
+                if (!string.IsNullOrEmpty(email))
+                {
+                    var emailRe = new System.Text.RegularExpressions.Regex(@"^[^\s@]+@[^\s@]+\.[^\s@]+$");
+                    if (emailRe.IsMatch(email))
+                    {
+                        using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = "SELECT 1 FROM UiUser WHERE Email IS NOT NULL AND LOWER(RTRIM(Email)) = @e";
+                            cmd.Parameters.AddWithValue("@e", email);
+                            conn.Open();
+                            emailOk = cmd.ExecuteScalar() == null;
+                        }
+                    }
+                    else
+                        emailOk = false;
+                }
+                return new { success = true, userNameAvailable = userNameOk, emailAvailable = emailOk };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = false)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadRoles()
+        {
+            try
+            {
+                var roles = new System.Collections.Generic.List<object>();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT RoleId, Code, Name FROM UiRole ORDER BY RoleId";
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            roles.Add(new { id = r.GetInt32(0), code = r.GetString(1), name = r.IsDBNull(2) ? r.GetString(1) : r.GetString(2) });
+                        }
+                    }
+                }
+                return new { success = true, roles = roles };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = false)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SubmitRegister(string userName, string email, string password, int roleId, int captchaA, int captchaB)
+        {
+            try
+            {
+                userName = (userName ?? "").Trim();
+                email = (email ?? "").Trim().ToLowerInvariant();
+                if (string.IsNullOrEmpty(userName))
+                    return new { success = false, message = "Username không được để trống." };
+                if (string.IsNullOrEmpty(email))
+                    return new { success = false, message = "Email không được để trống." };
+                if (string.IsNullOrEmpty(password))
+                    return new { success = false, message = "Password không được để trống." };
+                if (password.Length < 6)
+                    return new { success = false, message = "Password tối thiểu 6 ký tự." };
+                if (roleId <= 0)
+                    return new { success = false, message = "Vui lòng chọn Phòng ban." };
+                if (captchaA + captchaB < 2 || captchaA + captchaB > 18)
+                    return new { success = false, message = "Captcha không hợp lệ. Vui lòng thử lại." };
+
+                var patterns = LoadAllowedPatterns();
+                if (patterns == null || patterns.Length == 0)
+                    return new { success = false, message = "Domain email của bạn không được hỗ trợ. Vui lòng liên hệ quản trị viên." };
+
+                if (!patterns.Any(p => EmailMatchesPattern(email, p)))
+                    return new { success = false, message = "Email không thuộc domain được phép đăng ký. Vui lòng dùng email công ty." };
+
+                var hash = UiAuthHelper.HashPassword(password);
+                string roleName = null;
+
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                {
+                    conn.Open();
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT 1 FROM UiUser WHERE LOWER(RTRIM(UserName)) = LOWER(RTRIM(@u))";
+                        cmd.Parameters.AddWithValue("@u", userName);
+                        if (cmd.ExecuteScalar() != null)
+                            return new { success = false, message = "Username đã tồn tại." };
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT 1 FROM UiUser WHERE Email IS NOT NULL AND LOWER(RTRIM(Email)) = @e";
+                        cmd.Parameters.AddWithValue("@e", email);
+                        if (cmd.ExecuteScalar() != null)
+                            return new { success = false, message = "Email đã được sử dụng." };
+                    }
+
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT Name FROM UiRole WHERE RoleId = @rid";
+                        cmd.Parameters.AddWithValue("@rid", roleId);
+                        var r = cmd.ExecuteScalar();
+                        if (r == null || r == DBNull.Value)
+                            return new { success = false, message = "Phòng ban không hợp lệ." };
+                        roleName = r.ToString();
+                    }
+
+                    // Không gán RoleId vào user - phòng ban chọn khi đăng ký chỉ để tham khảo (Telegram). Admin phải xác minh rồi gán role.
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin, IsActive, RoleId)
+VALUES (@u, @p, NULL, @e, 0, 1, NULL);";
+                        cmd.Parameters.AddWithValue("@u", userName);
+                        cmd.Parameters.AddWithValue("@p", hash);
+                        cmd.Parameters.AddWithValue("@e", email);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+
+                try { TelegramHelper.SendNewUserNotification(userName, email, roleName); } catch { }
+
+                var baseUrl = UiAuthHelper.GetBaseUrlForEmail();
+                var loginUrl = baseUrl.TrimEnd('/') + "/Login";
+                // Bỏ http(s):// để tránh Outlook Safe Links tự wrap link thành URL rất dài
+                var loginUrlShort = loginUrl;
+                if (loginUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                    loginUrlShort = loginUrl.Substring(8);
+                else if (loginUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                    loginUrlShort = loginUrl.Substring(7);
+                var err = BADesign.EmailHelper.SendEmail(email,
+                    "[Cadena Helper] Thông tin tài khoản đăng ký",
+                    string.Format("Chào bạn,\n\nBạn đã đăng ký tài khoản Cadena Helper thành công.\n\nUsername: {0}\nPassword: {1}\n\nĐăng nhập tại - sao chép và dán vào trình duyệt:\n{2}\n\nTrân trọng,\nCadena Helper Team",
+                        userName, password, loginUrlShort));
+                if (!string.IsNullOrEmpty(err))
+                {
+                    // Đăng ký thành công nhưng gửi email thất bại - vẫn trả success, chỉ log
+                    try { BADesign.AppLogger.Log("Register.SendWelcomeEmail failed: " + err); } catch { }
+                }
+
+                return new { success = true, message = "Đăng ký thành công." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+    }
+}

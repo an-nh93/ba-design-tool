@@ -50,7 +50,7 @@ namespace BADesign.Pages
 				{
 					ucBaTopBar.PageTitle = "Home";
 					litWelcomeTitle.Text = "Chào mừng";
-					litWelcomeDesc.Text = "Bạn chưa được gán role (BA/CONS/DEV). Liên hệ Super Admin để được cấp quyền.";
+					litWelcomeDesc.Text = "Bạn chưa được gán role (BA/CONS/DEV/QC/CSS/Other). Liên hệ Super Admin để được cấp quyền.";
 				}
 
 				phFeatureEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");

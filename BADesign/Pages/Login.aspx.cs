@@ -19,7 +19,6 @@ namespace UiBuilderFull
 				}
 				else if (Session["UiUserId"] != null)
 				{
-					// Đã login (vd. từ Remember cookie) thì chuyển về trang chủ
 					Response.Redirect(VirtualPathUtility.ToAbsolute(UiAuthHelper.GetHomeUrlByRole() ?? "~/HomeRole"));
 					return;
 				}
@@ -27,6 +26,8 @@ namespace UiBuilderFull
 				{
 					Session.Clear();
 				}
+				if (Request.QueryString["m"] == "ResetPwdSuccess" && phSuccess != null)
+					phSuccess.Visible = true;
 			}
 		}
 
@@ -42,11 +43,18 @@ namespace UiBuilderFull
 			}
 
 			var hash = UiAuthHelper.HashPassword(pass);
+			var isEmail = user.Contains("@");
 
 			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 			using (var cmd = conn.CreateCommand())
 			{
-				cmd.CommandText = @"
+				cmd.CommandText = isEmail
+					? @"
+SELECT u.UserId, u.UserName, u.Email, u.IsSuperAdmin, u.IsActive, u.RoleId, r.Code AS RoleCode
+FROM UiUser u
+LEFT JOIN UiRole r ON r.RoleId = u.RoleId
+WHERE u.Email IS NOT NULL AND LOWER(RTRIM(u.Email)) = LOWER(@u) AND u.PasswordHash = @p"
+					: @"
 SELECT u.UserId, u.UserName, u.Email, u.IsSuperAdmin, u.IsActive, u.RoleId, r.Code AS RoleCode
 FROM UiUser u
 LEFT JOIN UiRole r ON r.RoleId = u.RoleId
@@ -69,12 +77,16 @@ WHERE u.UserName = @u AND u.PasswordHash = @p";
 						return;
 					}
 
-					// Chỉ cho phép đăng nhập bằng email CADENA (*@cadena.com.sg, *@cadena-hrmseries.com, *@cadena-it.com)
-					var email = rd["Email"] as string;
-					if (!UiAuthHelper.IsAllowedLoginEmail(email))
+					// Chỉ cho phép đăng nhập bằng email CADENA (*@cadena.com.sg, *@cadena-hrmseries.com, *@cadena-it.com). Super admin bỏ qua rule này.
+					var isSuperAdmin = (bool)rd["IsSuperAdmin"];
+					if (!isSuperAdmin)
 					{
-						lblError.Text = "Chỉ tài khoản email CADENA (@cadena.com.sg, @cadena-hrmseries.com, @cadena-it.com) mới được đăng nhập.";
-						return;
+						var email = rd["Email"] as string;
+						if (!UiAuthHelper.IsAllowedLoginEmail(email))
+						{
+							lblError.Text = "Chỉ tài khoản email CADENA (@cadena.com.sg, @cadena-hrmseries.com, @cadena-it.com) mới được đăng nhập.";
+							return;
+						}
 					}
 
 					Session["UiUserId"] = (int)rd["UserId"];

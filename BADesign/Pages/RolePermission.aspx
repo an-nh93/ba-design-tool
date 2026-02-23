@@ -162,11 +162,13 @@
                         <table class="rp-table" id="tblRolePermission">
                             <thead>
                                 <tr>
-                                    <th>Chức năng</th>
+                                    <th class="rp-sortable" data-col="name" id="thPermName"><span>Chức năng <span class="rp-sort-icon"></span></span></th>
                                     <th id="thRoleBa">BA</th>
                                     <th id="thRoleCons">CONS</th>
                                     <th id="thRoleDev">DEV</th>
                                     <th id="thRoleQC">QC</th>
+                                    <th id="thRoleCSS">CSS</th>
+                                    <th id="thRoleOther">Other</th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyRolePermission"></tbody>
@@ -221,6 +223,8 @@
         var roleServerAccess = {}; // roleId -> [serverId]
         var serverSortCol = 'server';
         var serverSortDir = 1;
+        var permSortCol = 'name';
+        var permSortDir = 1;
 
         function toggleRpCard(id) {
             $('#' + id).toggleClass('collapsed');
@@ -310,7 +314,12 @@
         function render() {
             var $tb = $('#tbodyRolePermission');
             $tb.empty();
-            permissions.forEach(function(p) {
+            var sortedPerms = permissions.slice().sort(function(a, b) {
+                var va = ((a.name || a.code) || '').toLowerCase();
+                var vb = ((b.name || b.code) || '').toLowerCase();
+                return permSortDir * va.localeCompare(vb);
+            });
+            sortedPerms.forEach(function(p) {
                 var searchText = ((p.name || '') + ' ' + (p.code || '')).toLowerCase().replace(/"/g, '&quot;');
                 var $tr = $('<tr data-search="' + searchText + '"></tr>');
                 $tr.append('<td>' + (p.name || p.code) + '</td>');
@@ -324,6 +333,8 @@
                 $tb.append($tr);
             });
             filterPermissionRows();
+            $('#tblRolePermission th.rp-sortable .rp-sort-icon').text('');
+            $('#tblRolePermission th.rp-sortable[data-col="' + permSortCol + '"] .rp-sort-icon').text(permSortDir === 1 ? '↑' : '↓');
             var $trHead = $('#trRoleServerAccessHead');
             $trHead.find('th:not(:first)').remove();
             $trHead.find('th:first').replaceWith('<th class="rp-sortable" data-col="server"><span>Server <span class="rp-sort-icon"></span></span></th>');
@@ -447,6 +458,11 @@
             if (localStorage.getItem('rpCard_cardServerAccess') === '1') $('#cardServerAccess').addClass('collapsed');
             $('#searchServersRp').on('input', filterServerRows);
             $('#searchPermissionsRp').on('input', filterPermissionRows);
+            $('#tblRolePermission').on('click', 'th.rp-sortable', function() {
+                var col = $(this).data('col');
+                if (col === permSortCol) permSortDir = -permSortDir; else { permSortCol = col; permSortDir = 1; }
+                render();
+            });
             $('#tblRoleServerAccess').on('click', 'th.rp-sortable', function() {
                 syncRoleServerAccessFromDom();
                 var col = $(this).data('col');

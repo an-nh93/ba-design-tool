@@ -7,12 +7,8 @@ namespace BADesign
 	{
 		public static void RegisterRoutes(RouteCollection routes)
 		{
-			// 1. Friendly URLs (ẩn .aspx cho các trang hiện có, ví dụ /Pages/Login)
-			var settings = new FriendlyUrlSettings();
-			settings.AutoRedirectMode = RedirectMode.Off;
-			routes.EnableFriendlyUrls(settings);
-
-			// 2. Route riêng cho Login: /Login -> ~/Pages/Login.aspx
+			// MapPageRoute phải đăng ký TRƯỚC EnableFriendlyUrls, nếu không query string có thể bị mất (vd: /ChangePassword?code=xxx)
+			// 1. Route riêng cho Login: /Login -> ~/Pages/Login.aspx
 			routes.MapPageRoute(
 				"LoginRoute",          // tên route
 				"Login",               // URL user gõ
@@ -122,6 +118,18 @@ namespace BADesign
 			);
 
 			routes.MapPageRoute(
+				"RegisterRoute",
+				"Register",
+				"~/Pages/Register.aspx"
+			);
+
+			routes.MapPageRoute(
+				"ForgotPasswordRoute",
+				"ForgotPassword",
+				"~/Pages/ForgotPassword.aspx"
+			);
+
+			routes.MapPageRoute(
 				"AppSettingsRoute",
 				"AppSettings",
 				"~/Pages/AppSettings.aspx"
@@ -138,6 +146,11 @@ namespace BADesign
 				"FunctionQueue",
 				"~/Pages/FunctionQueue.aspx"
 			);
+
+			// Friendly URLs đăng ký SAU tất cả MapPageRoute để giữ query string
+			var settings = new FriendlyUrlSettings();
+			settings.AutoRedirectMode = RedirectMode.Off;
+			routes.EnableFriendlyUrls(settings);
 		}
 	}
 }

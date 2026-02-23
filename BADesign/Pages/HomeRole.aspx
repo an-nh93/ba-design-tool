@@ -352,7 +352,7 @@
                                 <asp:HyperLink ID="lnkFeatureAppSettings" runat="server" CssClass="ba-feature-card" NavigateUrl="~/AppSettings">
                                     <div class="ba-feature-icon">⚙️</div>
                                     <div class="ba-feature-title">App Settings</div>
-                                    <div class="ba-feature-desc">Cấu hình hệ thống: Email Ignore (HR Multi-DB), v.v.</div>
+                                    <div class="ba-feature-desc">Cấu hình hệ thống: Email Server, SFTP, Telegram, Public URL, ...</div>
                                 </asp:HyperLink>
                             </asp:PlaceHolder>
                             <asp:HyperLink ID="lnkFeaturePgpTool" runat="server" CssClass="ba-feature-card" NavigateUrl="~/PgpTool">

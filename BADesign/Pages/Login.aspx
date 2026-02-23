@@ -18,6 +18,9 @@
                         Nhập thông tin tài khoản để tiếp tục sử dụng UI Builder.
                     </p>
 
+                    <asp:PlaceHolder runat="server" ID="phSuccess" Visible="false">
+                        <div class="login-error" style="color:#10b981; margin-bottom:12px;">Đặt lại mật khẩu thành công. Bạn có thể đăng nhập với mật khẩu mới.</div>
+                    </asp:PlaceHolder>
                     <asp:Label runat="server" ID="lblError"
                                CssClass="login-error"
                                EnableViewState="false" />
@@ -44,7 +47,7 @@
                             <asp:CheckBox runat="server" ID="chkRemember" />
                             <span>Remember me (30 day)</span>
                         </label>
-                        <a href="#" class="forgot-link">Forgot password</a>
+                        <a href="<%= ResolveUrl("~/ForgotPassword") %>" class="forgot-link">Forgot password</a>
                     </div>
 
                     <div class="form-actions">
@@ -54,6 +57,9 @@
                                     CssClass="btn-login"
                                     OnClick="btnLogin_Click" />
                         <a href="<%= ResolveUrl("~/") %>" class="btn-guest">Use with Guest User</a>
+                        <div class="register-link" style="margin-top: 12px;">
+                            Chưa có tài khoản? <a href="<%= ResolveUrl("~/Register") %>">Đăng ký</a>
+                        </div>
                     </div>
                 </div>
             </div>

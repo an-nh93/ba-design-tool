@@ -26,11 +26,17 @@ namespace BADesign.Pages
         /// <summary>
         /// phSuccess control.
         /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
         protected global::System.Web.UI.WebControls.PlaceHolder phSuccess;
+
+        /// <summary>
+        /// litSuccessTitle control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litSuccessTitle;
+
+        /// <summary>
+        /// litSuccessMsg control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litSuccessMsg;
 
         /// <summary>
         /// phError control.
@@ -40,6 +46,26 @@ namespace BADesign.Pages
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.PlaceHolder phError;
+
+        /// <summary>
+        /// phCurrentPassword control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.PlaceHolder phCurrentPassword;
+
+        /// <summary>
+        /// litTitle control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litTitle;
+
+        /// <summary>
+        /// litSubtitle control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litSubtitle;
+
+        /// <summary>
+        /// lnkBack control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.HyperLink lnkBack;
 
         /// <summary>
         /// litError control.

@@ -160,6 +160,49 @@
                         </div>
                         </div>
                     </div>
+                    <div class="ba-card ba-card-collapsible" id="cardPublicBaseUrl" data-collapse-key="appSettings_publicBaseUrl">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardPublicBaseUrl'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>Public URL</span>
+                        </div>
+                        <div class="ba-card-body">
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            URL công khai để user trong mạng nội bộ truy cập (ví dụ IP nội bộ). Link trong email đăng ký và forgot password sẽ dùng URL này thay vì localhost. Ví dụ: <code>https://192.168.42.82:1717</code> (không ghi /Login ở cuối).
+                        </p>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Public Base URL</label>
+                            <input type="url" id="txtPublicBaseUrl" class="ba-input" placeholder="https://192.168.42.82:1717" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div id="msgPublicBaseUrl" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSavePublicBaseUrl" onclick="savePublicBaseUrl(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="ba-card ba-card-collapsible" id="cardRegAllowedDomains" data-collapse-key="appSettings_regAllowedDomains">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardRegAllowedDomains'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>Email domain - Đăng ký</span>
+                        </div>
+                        <div class="ba-card-body">
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            Chỉ email có đuôi trong danh sách mới được đăng ký tài khoản mới. Mỗi dòng 1 pattern. Dùng <code>*@domain.com</code> cho suffix, ví dụ: <code>*@cadena.com.sg</code>, <code>*@cadena-hrmseries.com</code>, <code>*@cadena-it.com</code>.
+                        </p>
+                        <textarea id="txtRegAllowedDomains" class="ba-input" rows="5" placeholder="*@cadena.com.sg&#10;*@cadena-hrmseries.com&#10;*@cadena-it.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
+                        <div id="msgRegAllowedDomains" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveRegAllowedDomains" onclick="saveRegAllowedDomains(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
                     <div class="ba-card ba-card-collapsible" id="cardEmailServer" data-collapse-key="appSettings_emailServer">
                         <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailServer'); return false;">
                             <span class="ba-card-toggle">▼</span>
@@ -209,10 +252,45 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="ba-form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                            <label class="ba-form-label">Test Email Sent To</label>
+                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                                <input type="email" id="txtTestEmailTo" class="ba-input" placeholder="email@example.com" style="max-width: 280px;" <%= !CanEditSettings ? "readonly" : "" %> />
+                                <button type="button" class="ba-btn ba-btn-secondary" id="btnTestEmailConnection" onclick="testEmailConnection(); return false;" <%= !CanEditSettings ? "disabled" : "" %>>Test Connection</button>
+                            </div>
+                            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.35rem;">Nhập email nhận thử. Sẽ gửi email test dùng cấu hình trên (chưa lưu cũng được).</p>
+                        </div>
                         <div id="msgEmailServer" class="ba-msg" style="display:none;"></div>
                         <div class="ba-actions" style="margin-top: 0.75rem;">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSaveEmailServer" onclick="saveEmailServerConfig(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="ba-card ba-card-collapsible" id="cardTelegram" data-collapse-key="appSettings_telegram">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardTelegram'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>Telegram - Notification</span>
+                        </div>
+                        <div class="ba-card-body">
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            Gửi tin nhắn thông báo tới nhóm Telegram khi có user mới đăng ký. Hệ thống không tự gán quyền; admin xác minh phòng ban thực tế rồi gán role phù hợp (phòng ban chọn khi đăng ký chỉ để tham khảo). Tạo Bot qua <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>, thêm Bot vào nhóm và lấy Chat ID (group) bằng cách forward tin nhắn vào <a href="https://t.me/getidsbot" target="_blank" rel="noopener">@getidsbot</a>. Nếu chat not found thử: -100{số}, -{số} hoặc {số}.
+                        </p>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Telegram Bot API Key (Bot Token) (*)</label>
+                            <input type="text" id="txtTelegramBotToken" class="ba-input" placeholder="1234567890:AAHxxxx..." autocomplete="off" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Telegram Group ID (Chat ID) (*)</label>
+                            <input type="text" id="txtTelegramChatId" class="ba-input" placeholder="-1001234567890 hoặc -1234567890" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div id="msgTelegram" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveTelegram" onclick="saveTelegramConfig(); return false;">Lưu</button>
                             <% } else { %>
                             <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
@@ -325,6 +403,78 @@
                 });
             };
             loadEmailIgnore();
+            (function loadPublicBaseUrl() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadPublicBaseUrl") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#txtPublicBaseUrl').val(d.value || '');
+                    }
+                });
+            })();
+            window.savePublicBaseUrl = function () {
+                $('#msgPublicBaseUrl').hide();
+                $('#btnSavePublicBaseUrl').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SavePublicBaseUrl") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({ value: $('#txtPublicBaseUrl').val() || '' }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgPublicBaseUrl').removeClass('error').addClass('success').text('Đã lưu.').show();
+                    } else {
+                        $('#msgPublicBaseUrl').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                    }
+                }).fail(function () {
+                    $('#msgPublicBaseUrl').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                }).always(function () {
+                    $('#btnSavePublicBaseUrl').prop('disabled', false);
+                });
+            };
+            (function loadRegAllowedDomains() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadRegAllowedDomains") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#txtRegAllowedDomains').val(d.value || '');
+                    }
+                });
+            })();
+            window.saveRegAllowedDomains = function () {
+                $('#msgRegAllowedDomains').hide();
+                $('#btnSaveRegAllowedDomains').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveRegAllowedDomains") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({ value: $('#txtRegAllowedDomains').val() || '' }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgRegAllowedDomains').removeClass('error').addClass('success').text('Đã lưu.').show();
+                    } else {
+                        $('#msgRegAllowedDomains').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                    }
+                }).fail(function () {
+                    $('#msgRegAllowedDomains').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                }).always(function () {
+                    $('#btnSaveRegAllowedDomains').prop('disabled', false);
+                });
+            };
             (function loadEmailServerConfig() {
                 $.ajax({
                     url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadEmailServerConfig") %>',
@@ -375,6 +525,88 @@
                     $('#msgEmailServer').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
                 }).always(function () {
                     $('#btnSaveEmailServer').prop('disabled', false);
+                });
+            };
+            window.testEmailConnection = function () {
+                var to = ($('#txtTestEmailTo').val() || '').trim();
+                if (!to) {
+                    $('#msgEmailServer').removeClass('success').addClass('error').text('Vui lòng nhập email nhận thử.').show();
+                    return;
+                }
+                $('#msgEmailServer').hide();
+                $('#btnTestEmailConnection').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/TestEmailConnection") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({
+                        testEmailTo: to,
+                        outgoingServer: $('#txtEmailServerOutgoing').val() || '',
+                        port: $('#txtEmailServerPort').val() || '',
+                        accountName: $('#txtEmailServerAccountName').val() || '',
+                        username: $('#txtEmailServerUsername').val() || '',
+                        emailAddress: $('#txtEmailServerEmailAddress').val() || '',
+                        password: $('#txtEmailServerPassword').val() || '',
+                        enableSSL: $('#chkEmailServerSSL').prop('checked'),
+                        sslPort: $('#txtEmailServerSSLPort').val() || ''
+                    }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgEmailServer').removeClass('error').addClass('success').text('Đã gửi email test đến ' + to + '.').show();
+                    } else {
+                        $('#msgEmailServer').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Không gửi được.').show();
+                    }
+                }).fail(function (xhr) {
+                    var msg = 'Lỗi khi test.';
+                    try {
+                        var j = xhr.responseJSON && (xhr.responseJSON.d || xhr.responseJSON);
+                        if (j && j.message) msg = j.message;
+                    } catch (e) {}
+                    $('#msgEmailServer').removeClass('success').addClass('error').text(msg).show();
+                }).always(function () {
+                    $('#btnTestEmailConnection').prop('disabled', false);
+                });
+            };
+            (function loadTelegramConfig() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadTelegramConfig") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#txtTelegramBotToken').val(d.botToken || '');
+                        $('#txtTelegramChatId').val(d.chatId || '');
+                    }
+                });
+            })();
+            window.saveTelegramConfig = function () {
+                $('#msgTelegram').hide();
+                $('#btnSaveTelegram').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveTelegramConfig") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({
+                        botToken: $('#txtTelegramBotToken').val() || '',
+                        chatId: $('#txtTelegramChatId').val() || ''
+                    }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgTelegram').removeClass('error').addClass('success').text('Đã lưu.').show();
+                    } else {
+                        $('#msgTelegram').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                    }
+                }).fail(function () {
+                    $('#msgTelegram').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                }).always(function () {
+                    $('#btnSaveTelegram').prop('disabled', false);
                 });
             };
             (function loadSftpConfig() {

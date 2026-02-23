@@ -13,6 +13,28 @@ namespace BADesign
 		public static string ConnStr
 			=> ConfigurationManager.ConnectionStrings["UiBuilderDb"].ConnectionString;
 
+		/// <summary>Base URL dùng trong email (đăng ký, forgot password). Nếu cấu hình App_PublicBaseUrl thì dùng; không thì lấy từ request hiện tại.</summary>
+		public static string GetBaseUrlForEmail()
+		{
+			try
+			{
+				using (var conn = new SqlConnection(ConnStr))
+				using (var cmd = conn.CreateCommand())
+				{
+					cmd.CommandText = "SELECT [Value] FROM BaAppSetting WHERE [Key] = N'App_PublicBaseUrl'";
+					conn.Open();
+					var obj = cmd.ExecuteScalar();
+					var val = obj != null && obj != DBNull.Value ? (obj.ToString() ?? "").Trim() : "";
+					if (!string.IsNullOrEmpty(val))
+						return val.TrimEnd('/');
+				}
+			}
+			catch { }
+			var ctx = HttpContext.Current;
+			if (ctx?.Request?.Url == null) return "";
+			return ctx.Request.Url.GetLeftPart(UriPartial.Authority) + VirtualPathUtility.ToAbsolute("~/").TrimEnd('/');
+		}
+
 		public static string HashPassword(string plain)
 		{
 			using (var sha = SHA256.Create())

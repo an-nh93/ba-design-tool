@@ -33,7 +33,7 @@ namespace UiBuilderFull.Admin
 				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 				using (var cmd = conn.CreateCommand())
 				{
-					cmd.CommandText = "SELECT PermissionId, Code, Name FROM UiPermission ORDER BY PermissionId";
+					cmd.CommandText = "SELECT PermissionId, Code, Name FROM UiPermission ORDER BY ISNULL(Name, Code)";
 					conn.Open();
 					using (var r = cmd.ExecuteReader())
 					{

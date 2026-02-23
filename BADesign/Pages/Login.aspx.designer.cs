@@ -24,6 +24,11 @@ namespace UiBuilderFull
 		protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
 		/// <summary>
+		/// phSuccess control.
+		/// </summary>
+		protected global::System.Web.UI.WebControls.PlaceHolder phSuccess;
+
+		/// <summary>
 		/// lblError control.
 		/// </summary>
 		/// <remarks>

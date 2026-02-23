@@ -28,6 +28,10 @@ BEGIN
         INSERT INTO dbo.UiRole (Code, Name) VALUES (N'DEV', N'Developer');
     IF NOT EXISTS (SELECT 1 FROM dbo.UiRole WHERE Code = N'QC')
         INSERT INTO dbo.UiRole (Code, Name) VALUES (N'QC', N'Quality Control');
+    IF NOT EXISTS (SELECT 1 FROM dbo.UiRole WHERE Code = N'CSS')
+        INSERT INTO dbo.UiRole (Code, Name) VALUES (N'CSS', N'Customer Service');
+    IF NOT EXISTS (SELECT 1 FROM dbo.UiRole WHERE Code = N'O')
+        INSERT INTO dbo.UiRole (Code, Name) VALUES (N'O', N'Other');
         
     PRINT 'UiRole seeded if missing.';
 END
