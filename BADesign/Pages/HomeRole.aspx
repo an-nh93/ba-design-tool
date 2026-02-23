@@ -364,7 +364,7 @@
                                 <div class="ba-feature-card disabled" style="grid-column: 1 / -1; text-align: center; opacity: 1;">
                                     <div class="ba-feature-icon">📋</div>
                                     <div class="ba-feature-title">Chưa có quyền chức năng</div>
-                                    <div class="ba-feature-desc">Bạn chưa được gán quyền nào. Liên hệ Super Admin để được cấp quyền (Role hoặc quyền riêng lẻ trong Edit User).</div>
+                                    <div class="ba-feature-desc">Bạn chưa được gán quyền nào. Liên hệ Super Admin để được cấp quyền sử dụng nhiều tính năng của HR Helper.</div>
                                 </div>
                             </asp:PlaceHolder>
                             <asp:PlaceHolder ID="phSuperAdminCards" runat="server" Visible="false">
