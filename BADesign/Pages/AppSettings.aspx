@@ -130,8 +130,6 @@
                 </div>
                 <div class="ba-nav">
                     <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">Về trang chủ</a>
-                    <a href="<%= ResolveUrl("~/DatabaseSearch") %>" class="ba-nav-item" data-icon="🔍" title="Database Search">Database Search</a>
-                    <a href="<%= ResolveUrl("~/HRHelper") %>" class="ba-nav-item" data-icon="👥" title="HR Helper">HR Helper</a>
                     <a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item active" data-icon="⚙" title="App Settings">App Settings</a>
                 </div>
             </nav>
@@ -277,7 +275,7 @@
                         </div>
                         <div class="ba-card-body">
                         <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Gửi tin nhắn thông báo tới nhóm Telegram khi có user mới đăng ký. Hệ thống không tự gán quyền; admin xác minh phòng ban thực tế rồi gán role phù hợp (phòng ban chọn khi đăng ký chỉ để tham khảo). Tạo Bot qua <a href="https://t.me/BotFather" target="_blank" rel="noopener">@BotFather</a>, thêm Bot vào nhóm và lấy Chat ID (group) bằng cách forward tin nhắn vào <a href="https://t.me/getidsbot" target="_blank" rel="noopener">@getidsbot</a>. Nếu chat not found thử: -100{số}, -{số} hoặc {số}.
+                            Gửi tin nhắn thông báo tới nhóm Telegram. Nếu chat not found thử: -100{số}, -{số} hoặc {số}.
                         </p>
                         <div class="ba-form-group" style="margin-bottom: 0.75rem;">
                             <label class="ba-form-label">Telegram Bot API Key (Bot Token) (*)</label>
