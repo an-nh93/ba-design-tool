@@ -637,6 +637,9 @@
             animation: slideInRight 0.3s ease;
         }
         .toast.show { display: flex; }
+        .toast { position: relative; padding-right: 2rem; padding-top: 0.25rem; }
+        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; flex-shrink: 0; }
+        .toast .toast-close:hover { color: var(--text-primary); }
         .toast.success { border-left: 4px solid var(--success); }
         .toast.error { border-left: 4px solid var(--danger); }
         .toast.info { border-left: 4px solid var(--primary); }
@@ -1532,10 +1535,11 @@
             var icons = { success: '✓', error: '✕', info: 'ℹ' };
             var titles = { success: 'Thành công', error: 'Lỗi', info: 'Thông báo' };
             var duration = type === 'error' ? 10000 : (type === 'success' ? 5000 : 4000);
-            var $t = $('<div class="toast ' + type + '"><span>' + (icons[type] || 'ℹ') + '</span> ' + (titles[type] || '') + ': ' + msg + '</div>');
+            var $t = $('<div class="toast ' + type + '"><button type="button" class="toast-close" title="Đóng">&times;</button><span>' + (icons[type] || 'ℹ') + '</span> ' + (titles[type] || '') + ': ' + msg + '</div>');
             $('#toastContainer').append($t);
             setTimeout(function() { $t.addClass('show'); }, 10);
-            setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, duration);
+            var tmr = setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, duration);
+            $t.find('.toast-close').on('click', function() { clearTimeout(tmr); $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); });
         }
 
         /** Gọi GetMyRunningHRHelperJobs: nếu có job đang chạy thì show overlay, không thì hide (và toast khi vừa xong). */
@@ -3536,7 +3540,7 @@
                 var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
                 var dbName = (job.databaseName || job.DatabaseName || '').trim();
                 var isRestore = (job.type === 'Restore' || !job.type);
-                var hasReset = isRestore && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0;
+                var hasReset = isRestore && (job.withAutoReset === true || (job.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                 var resetBadge = '';
                 if (isRestore) {
                     resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
@@ -3604,7 +3608,7 @@
                             var endTimeStr = formatNotifTime(j.completedAt);
                             var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span>' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
                             if (st === 'Running') { row += '<div style="margin-top:4px;color:var(--primary);">Đang chạy</div>'; }
-                            else if (st === 'Failed') { row += '<div class="ba-notif-msg">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
+                            else if (st === 'Failed') { row += '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
                             else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
                             row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a></div>';
                             html += row;

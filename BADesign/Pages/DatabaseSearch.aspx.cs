@@ -56,6 +56,25 @@ namespace BADesign.Pages
         private static bool CanDeleteStatic() { return UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseDelete"); }
         private static bool CanShrinkLogStatic() { return UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseShrinkLog"); }
 
+        private static bool EmailMatchesAnyPattern(string email, System.Collections.Generic.List<string> patterns)
+        {
+            if (string.IsNullOrWhiteSpace(email) || patterns == null) return false;
+            var e = email.Trim().ToLowerInvariant();
+            foreach (var p in patterns)
+            {
+                if (string.IsNullOrWhiteSpace(p)) continue;
+                var pt = p.Trim().ToLowerInvariant();
+                if (pt.StartsWith("*"))
+                {
+                    var suffix = pt.Substring(1).Trim();
+                    if (e.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) return true;
+                }
+                else if (string.Equals(e, pt, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
+
         /// <summary>True nếu user được phép shrink log database này (quyền DatabaseShrinkLog/ManageServers hoặc đã restore DB này).</summary>
         private static bool CanShrinkDatabase(int serverId, string databaseName)
         {
@@ -833,18 +852,24 @@ WHERE r.rn = 1";
                     return new { success = false, message = "Không có quyền truy cập server này." };
                 if (string.IsNullOrWhiteSpace(databaseName))
                     return new { success = false, message = "Chưa chọn database." };
-                if (!CanViewDatabase(serverId, databaseName))
-                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được backup." };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
                 backupPath = GetBackupPathForServer(serverId);
                 if (string.IsNullOrEmpty(backupPath))
                     return new { success = false, message = "Chưa cấu hình đường dẫn backup: Sửa server, nhập \"Đường dẫn backup\", hoặc cấu hình DatabaseBackupPath trong Web.config." };
                 var dbSafe = databaseName.Trim().Replace("]", "]]");
-                var fileName = new string(databaseName.Trim().Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '.').ToArray());
-                if (string.IsNullOrEmpty(fileName)) fileName = "db";
-                fileName += "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".bak";
+                var baseName = new string(databaseName.Trim().Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '.').ToArray());
+                if (string.IsNullOrEmpty(baseName)) baseName = "db";
+                var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                var fileName = baseName + "_" + stamp + ".bak";
                 var fullPath = backupPath + "\\" + fileName;
+                int suffix = 0;
+                while (System.IO.File.Exists(fullPath))
+                {
+                    suffix++;
+                    fileName = baseName + "_" + stamp + "_" + suffix + ".bak";
+                    fullPath = backupPath + "\\" + fileName;
+                }
 
                 var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
@@ -872,11 +897,45 @@ WHERE r.rn = 1";
             }
         }
 
-        /// <summary>Đưa backup vào job chạy nền, trả về jobId. withShrinkLog: sau khi backup xong shrink log database nguồn.</summary>
+        /// <summary>Đưa backup vào job chạy nền, trả về jobId. Tham số: serverId, databaseName, withShrinkLog, expireDays, expireDate, copyOnly, compression, checksum, verifyBackup, continueOnError.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object StartBackup(int serverId, string databaseName, bool withShrinkLog = false)
+        public static object StartBackup(string requestJson)
         {
+            int serverId = 0;
+            string databaseName = null;
+            bool withShrinkLog = false;
+            int expireDays = 0;
+            string expireDate = null;
+            bool copyOnly = false;
+            bool compression = true;
+            bool checksum = false;
+            bool verifyBackup = false;
+            bool continueOnError = false;
+            try
+            {
+                if (!string.IsNullOrWhiteSpace(requestJson))
+                {
+                    var dict = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string, Newtonsoft.Json.Linq.JToken>>(requestJson);
+                    if (dict != null)
+                    {
+                        if (dict.ContainsKey("serverId") && dict["serverId"] != null) serverId = dict["serverId"].ToObject<int>();
+                        if (dict.ContainsKey("databaseName") && dict["databaseName"] != null) databaseName = dict["databaseName"].ToObject<string>();
+                        if (dict.ContainsKey("withShrinkLog") && dict["withShrinkLog"] != null) withShrinkLog = dict["withShrinkLog"].ToObject<bool>();
+                        if (dict.ContainsKey("expireDays") && dict["expireDays"] != null) expireDays = Math.Max(0, dict["expireDays"].ToObject<int>());
+                        if (dict.ContainsKey("expireDate") && dict["expireDate"] != null) expireDate = dict["expireDate"].ToObject<string>();
+                        if (dict.ContainsKey("copyOnly") && dict["copyOnly"] != null) copyOnly = dict["copyOnly"].ToObject<bool>();
+                        if (dict.ContainsKey("compression") && dict["compression"] != null) compression = dict["compression"].ToObject<bool>();
+                        if (dict.ContainsKey("checksum") && dict["checksum"] != null) checksum = dict["checksum"].ToObject<bool>();
+                        if (dict.ContainsKey("verifyBackup") && dict["verifyBackup"] != null) verifyBackup = dict["verifyBackup"].ToObject<bool>();
+                        if (dict.ContainsKey("continueOnError") && dict["continueOnError"] != null) continueOnError = dict["continueOnError"].ToObject<bool>();
+                    }
+                }
+            }
+            catch (Exception parseEx)
+            {
+                return new { success = false, message = "Lỗi tham số: " + parseEx.Message, jobId = 0 };
+            }
             try
             {
                 if (UiAuthHelper.IsAnonymous)
@@ -888,8 +947,6 @@ WHERE r.rn = 1";
                     return new { success = false, message = "Không có quyền truy cập server này.", jobId = 0 };
                 if (string.IsNullOrWhiteSpace(databaseName))
                     return new { success = false, message = "Chưa chọn database.", jobId = 0 };
-                if (!CanViewDatabase(serverId, databaseName))
-                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được backup.", jobId = 0 };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server.", jobId = 0 };
                 var backupPath = GetBackupPathForServer(serverId);
@@ -903,11 +960,11 @@ WHERE r.rn = 1";
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT FullName FROM UiUser WHERE UserId = @uid";
+                        cmd.CommandText = "SELECT ISNULL(NULLIF(RTRIM(FullName),N''), UserName) FROM UiUser WHERE UserId = @uid";
                         cmd.Parameters.AddWithValue("@uid", userId);
                         appConn.Open();
                         var o = cmd.ExecuteScalar();
-                        startedByName = o != null && !(o is DBNull) ? o.ToString() : ("User " + userId);
+                        startedByName = (o != null && !(o is DBNull) && !string.IsNullOrWhiteSpace(o.ToString())) ? o.ToString().Trim() : ("User " + userId);
                     }
                 }
                 catch { startedByName = "User " + userId; }
@@ -945,6 +1002,13 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                 var serverIdCopy = serverId;
                 var databaseNameCopy = databaseName.Trim();
                 var withShrinkLogCopy = withShrinkLog;
+                var expireDaysCopy = Math.Max(0, expireDays);
+                var expireDateCopy = string.IsNullOrWhiteSpace(expireDate) ? null : expireDate.Trim();
+                var copyOnlyCopy = copyOnly;
+                var compressionCopy = compression;
+                var checksumCopy = checksum;
+                var verifyBackupCopy = verifyBackup;
+                var continueOnErrorCopy = continueOnError;
                 System.Threading.Tasks.Task.Run(() =>
                 {
                     SqlConnection conn = null;
@@ -969,18 +1033,53 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                         var dbSafe = databaseNameCopy.Replace("]", "]]");
                         var safeName = new string(databaseNameCopy.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '.').ToArray());
                         if (string.IsNullOrEmpty(safeName)) safeName = "db";
-                        fileName = safeName + "_" + DateTime.Now.ToString("yyyyMMdd_HHmmss") + ".bak";
+                        var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                        fileName = safeName + "_" + stamp + ".bak";
                         var fullPath = path.TrimEnd('\\') + "\\" + fileName;
+                        int suffix = 0;
+                        while (System.IO.File.Exists(fullPath))
+                        {
+                            suffix++;
+                            fileName = safeName + "_" + stamp + "_" + suffix + ".bak";
+                            fullPath = path.TrimEnd('\\') + "\\" + fileName;
+                        }
+                        var withClauses = new List<string> { "INIT" };
+                        withClauses.Add(compressionCopy ? "COMPRESSION" : "NO_COMPRESSION");
+                        if (copyOnlyCopy) withClauses.Add("COPY_ONLY");
+                        if (checksumCopy) withClauses.Add("CHECKSUM");
+                        if (continueOnErrorCopy) withClauses.Add("CONTINUE_AFTER_ERROR");
+                        if (!string.IsNullOrEmpty(expireDateCopy))
+                            withClauses.Add("EXPIREDATE = N'" + expireDateCopy.Replace("'", "''") + "'");
+                        else if (expireDaysCopy > 0)
+                            withClauses.Add("RETAINDAYS = " + expireDaysCopy.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                        var withClause = string.Join(", ", withClauses);
                         using (var cmd = conn.CreateCommand())
                         {
                             cmd.CommandTimeout = 3600;
-                            cmd.CommandText = "BACKUP DATABASE [" + dbSafe + "] TO DISK = @path WITH INIT, COMPRESSION";
+                            cmd.CommandText = "BACKUP DATABASE [" + dbSafe + "] TO DISK = @path WITH " + withClause;
                             cmd.Parameters.AddWithValue("@path", fullPath);
                             cmd.ExecuteNonQuery();
                         }
                         UserActionLogHelper.Log("DatabaseSearch.BackupJob", "database=" + databaseNameCopy + " -> file=" + fileName);
                         status = "Completed";
                         message = "Đã backup. File: " + fileName;
+                        if (verifyBackupCopy)
+                        {
+                            try
+                            {
+                                using (var cmdVerify = conn.CreateCommand())
+                                {
+                                    cmdVerify.CommandTimeout = 600;
+                                    cmdVerify.CommandText = "RESTORE VERIFYONLY FROM DISK = @path";
+                                    cmdVerify.Parameters.AddWithValue("@path", fullPath);
+                                    cmdVerify.ExecuteNonQuery();
+                                }
+                            }
+                            catch (Exception exVerify)
+                            {
+                                message = "Đã backup nhưng verify lỗi: " + exVerify.Message;
+                            }
+                        }
                         if (withShrinkLogCopy)
                         {
                             try
@@ -1055,12 +1154,20 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                     using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                     {
                         conn.Open();
-                        var sqlWithDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Message, CompletedAt, FileName
-FROM BaJob WHERE JobType = N'Backup' AND (DismissedAt IS NULL) AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
-ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
-                        var sqlWithoutDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Message, CompletedAt, FileName
-FROM BaJob WHERE JobType = N'Backup' AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
-ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
+                        var sqlWithDismiss = @"SELECT J.Id, J.ServerId, J.ServerName, J.DatabaseName, J.StartedByUserId,
+  (CASE WHEN J.StartedByUserName IS NULL OR LTRIM(RTRIM(J.StartedByUserName)) = N'' OR J.StartedByUserName = N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))
+    THEN ISNULL(U.UserName, N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))) ELSE J.StartedByUserName END) AS StartedByUserName,
+  J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.FileName
+FROM BaJob J LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
+WHERE J.JobType = N'Backup' AND (J.DismissedAt IS NULL) AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
+                        var sqlWithoutDismiss = @"SELECT J.Id, J.ServerId, J.ServerName, J.DatabaseName, J.StartedByUserId,
+  (CASE WHEN J.StartedByUserName IS NULL OR LTRIM(RTRIM(J.StartedByUserName)) = N'' OR J.StartedByUserName = N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))
+    THEN ISNULL(U.UserName, N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))) ELSE J.StartedByUserName END) AS StartedByUserName,
+  J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.FileName
+FROM BaJob J LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
+WHERE J.JobType = N'Backup' AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                         try
                         {
                             using (var cmd = conn.CreateCommand())
@@ -1532,6 +1639,14 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 {
                     if (string.IsNullOrWhiteSpace(emailForReset))
                         return new { success = false, message = "Vui lòng nhập Email khi chọn tích hợp reset.", sessionId = 0, jobId = 0 };
+                    var emailIgnorePatterns = HRHelper.LoadEmailIgnoreFromDb();
+                    if (emailIgnorePatterns == null || emailIgnorePatterns.Count == 0)
+                        return new { success = false, message = "Chưa cấu hình Email Ignore (HR Multi-DB) trong App Settings. Vui lòng thêm domain email được phép.", sessionId = 0, jobId = 0 };
+                    if (!EmailMatchesAnyPattern(emailForReset, emailIgnorePatterns))
+                    {
+                        var domainList = string.Join(", ", emailIgnorePatterns);
+                        return new { success = false, message = "Email phải thuộc một trong các domain: " + domainList, sessionId = 0, jobId = 0 };
+                    }
                     if (string.IsNullOrEmpty(passwordForReset)) passwordForReset = "1";
                     if (string.IsNullOrEmpty(phoneForReset)) phoneForReset = "0987654321";
                 }
@@ -1567,6 +1682,18 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                 var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
                 var conn = new SqlConnection(masterConn);
                 conn.Open();
+                bool isNewDbCheck;
+                using (var cmdCheck = conn.CreateCommand())
+                {
+                    cmdCheck.CommandText = "SELECT name FROM sys.databases WHERE name = @db";
+                    cmdCheck.Parameters.AddWithValue("@db", databaseName);
+                    isNewDbCheck = cmdCheck.ExecuteScalar() == null;
+                }
+                if (!isNewDbCheck && !CanViewDatabase(serverId, databaseName))
+                {
+                    try { conn.Dispose(); } catch { }
+                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được restore (ghi đè). Database đích đã tồn tại do user khác restore.", sessionId = 0, jobId = 0 };
+                }
                 int sessionId;
                 using (var cmd = conn.CreateCommand())
                 {
@@ -1583,11 +1710,11 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT FullName FROM UiUser WHERE UserId = @uid";
+                        cmd.CommandText = "SELECT ISNULL(NULLIF(RTRIM(FullName),N''), UserName) FROM UiUser WHERE UserId = @uid";
                         cmd.Parameters.AddWithValue("@uid", userId);
                         appConn.Open();
                         var o = cmd.ExecuteScalar();
-                        startedByName = o != null && !(o is DBNull) ? o.ToString() : ("User " + userId);
+                        startedByName = (o != null && !(o is DBNull) && !string.IsNullOrWhiteSpace(o.ToString())) ? o.ToString().Trim() : ("User " + userId);
                     }
                 }
                 catch (Exception ex)
@@ -1601,8 +1728,9 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
-                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message)
-VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0, N'Restore'); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        var payloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(new Dictionary<string, object> { { "withAutoReset", withAutoReset } });
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message, Payload)
+VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0, N'Restore', @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
                         cmd.Parameters.AddWithValue("@sid", serverId);
                         cmd.Parameters.AddWithValue("@sname", (s.ServerName ?? "") + (s.Port.HasValue ? "," + s.Port.Value : ""));
                         cmd.Parameters.AddWithValue("@db", databaseName);
@@ -1610,6 +1738,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         cmd.Parameters.AddWithValue("@uid", userId);
                         cmd.Parameters.AddWithValue("@uname", startedByName);
                         cmd.Parameters.AddWithValue("@sess", sessionId);
+                        cmd.Parameters.AddWithValue("@payload", (object)payloadJson ?? DBNull.Value);
                         appConn.Open();
                         jobId = (int)cmd.ExecuteScalar();
                     }
@@ -1934,6 +2063,19 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             }
         }
 
+        /// <summary>Lấy withAutoReset từ Payload JSON của Restore job. Null nếu không có hoặc parse lỗi.</summary>
+        private static bool? ParseWithAutoResetFromPayload(string payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(payloadJson)) return null;
+            try
+            {
+                var obj = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                var tok = obj["withAutoReset"];
+                return tok != null ? tok.ToObject<bool>() : (bool?)null;
+            }
+            catch { return null; }
+        }
+
         /// <summary>Hủy job Restore đang chạy. Chỉ người thực hiện restore (StartedByUserId) mới được hủy. Giữ để tương thích chuông; chuông có thể gọi CancelJob.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -1979,8 +2121,12 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         else if (typeVal == "HRHelperUpdateEmployee") typeFilter = " AND J.JobType = N'HRHelperUpdateEmployee'";
                         else if (typeVal == "HRHelperUpdateOther") typeFilter = " AND J.JobType = N'HRHelperUpdateOther'";
                     }
-                    var sql = @"SELECT TOP 500 J.Id, J.JobType, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.FileName, J.SessionId, J.StartedByUserId, J.StartedByUserName, J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt
+                    var sql = @"SELECT TOP 500 J.Id, J.JobType, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.FileName, J.SessionId, J.StartedByUserId,
+  (CASE WHEN J.StartedByUserName IS NULL OR LTRIM(RTRIM(J.StartedByUserName)) = N'' OR J.StartedByUserName = N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))
+    THEN ISNULL(U.UserName, N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))) ELSE J.StartedByUserName END) AS StartedByUserName,
+  J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.Payload
 FROM BaJob J
+LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
 WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther')
   AND " + timeFilter + @"
   AND (" + serverFilter + " OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther') AND J.StartedByUserId = @uid))" + typeFilter + @"
@@ -2007,6 +2153,8 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                 var backupFileName = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase)
                                     ? (r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "")
                                     : (r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "");
+                                var payloadStr = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null;
+                                var withAutoReset = ParseWithAutoResetFromPayload(payloadStr);
                                 jobs.Add(new
                                 {
                                     id = r.GetInt32(0),
@@ -2024,7 +2172,8 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     status = r.FieldCount > 11 && !r.IsDBNull(11) ? r.GetString(11) : "",
                                     percentComplete = r.FieldCount > 12 && !r.IsDBNull(12) ? r.GetInt32(12) : 0,
                                     message = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : "",
-                                    completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null
+                                    completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null,
+                                    withAutoReset = withAutoReset
                                 });
                             }
                         }
@@ -2102,8 +2251,12 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                             : (accessibleIds.Count == 0
                                 ? "((J.JobType IN (N'Restore', N'Backup') AND 1=0))"
                                 : "((J.JobType IN (N'Restore', N'Backup') AND J.ServerId IN (" + string.Join(",", accessibleIds) + ")))");
-                        var sql = @"SELECT J.Id, J.JobType, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.FileName, J.SessionId, J.StartedByUserId, J.StartedByUserName, J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt
+                        var sql = @"SELECT J.Id, J.JobType, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.FileName, J.SessionId, J.StartedByUserId,
+  (CASE WHEN J.StartedByUserName IS NULL OR LTRIM(RTRIM(J.StartedByUserName)) = N'' OR J.StartedByUserName = N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))
+    THEN ISNULL(U.UserName, N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))) ELSE J.StartedByUserName END) AS StartedByUserName,
+  J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.Payload
 FROM BaJob J
+LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
 WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther')
   AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
   AND NOT EXISTS (SELECT 1 FROM BaJobDismissedByUser d WHERE d.JobId = J.Id AND d.UserId = @uid)
@@ -2127,6 +2280,8 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     var backupFileName = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase)
                                         ? (r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "")
                                         : (r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "");
+                                    var payloadStr = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null;
+                                    var withAutoReset = ParseWithAutoResetFromPayload(payloadStr);
                                     jobs.Add(new
                                     {
                                         id = r.GetInt32(0),
@@ -2143,7 +2298,8 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                         status = r.FieldCount > 11 && !r.IsDBNull(11) ? r.GetString(11) : "",
                                         percentComplete = r.FieldCount > 12 && !r.IsDBNull(12) ? r.GetInt32(12) : 0,
                                         message = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : "",
-                                        completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null
+                                        completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null,
+                                        withAutoReset = withAutoReset
                                     });
                                 }
                             }
@@ -2223,12 +2379,20 @@ ORDER BY StartTime DESC";
                     using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                     {
                         conn.Open();
-                        var sqlWithDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message, CompletedAt
-FROM BaJob WHERE JobType = N'Restore' AND (DismissedAt IS NULL) AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
-ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
-                        var sqlWithoutDismiss = @"SELECT Id, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message, CompletedAt
-FROM BaJob WHERE JobType = N'Restore' AND (Status = N'Running' OR (Status IN (N'Completed', N'Failed') AND CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
-ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
+                        var sqlWithDismiss = @"SELECT J.Id, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.StartedByUserId,
+  (CASE WHEN J.StartedByUserName IS NULL OR LTRIM(RTRIM(J.StartedByUserName)) = N'' OR J.StartedByUserName = N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))
+    THEN ISNULL(U.UserName, N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))) ELSE J.StartedByUserName END) AS StartedByUserName,
+  J.StartTime, J.SessionId, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.Payload
+FROM BaJob J LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
+WHERE J.JobType = N'Restore' AND (J.DismissedAt IS NULL) AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
+                        var sqlWithoutDismiss = @"SELECT J.Id, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.StartedByUserId,
+  (CASE WHEN J.StartedByUserName IS NULL OR LTRIM(RTRIM(J.StartedByUserName)) = N'' OR J.StartedByUserName = N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))
+    THEN ISNULL(U.UserName, N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))) ELSE J.StartedByUserName END) AS StartedByUserName,
+  J.StartTime, J.SessionId, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.Payload
+FROM BaJob J LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
+WHERE J.JobType = N'Restore' AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
+ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                         try
                         {
                             using (var cmd = conn.CreateCommand())
@@ -2238,6 +2402,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                                 {
                                     while (r.Read())
                                     {
+                                        var payloadStr = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : null;
+                                        var withAutoReset = ParseWithAutoResetFromPayload(payloadStr);
                                         jobs.Add(new
                                         {
                                             id = r.GetInt32(0),
@@ -2252,7 +2418,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                                             status = r.IsDBNull(9) ? "" : r.GetString(9),
                                             percentComplete = r.IsDBNull(10) ? 0 : r.GetInt32(10),
                                             message = r.IsDBNull(11) ? "" : r.GetString(11),
-                                            completedAt = r.IsDBNull(12) ? (DateTime?)null : r.GetDateTime(12)
+                                            completedAt = r.IsDBNull(12) ? (DateTime?)null : r.GetDateTime(12),
+                                            withAutoReset = withAutoReset
                                         });
                                     }
                                 }
@@ -2267,6 +2434,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                                 {
                                     while (r.Read())
                                     {
+                                        var payloadStr = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : null;
+                                        var withAutoReset = ParseWithAutoResetFromPayload(payloadStr);
                                         jobs.Add(new
                                         {
                                             id = r.GetInt32(0),
@@ -2281,7 +2450,8 @@ ORDER BY CASE WHEN Status = N'Running' THEN 0 ELSE 1 END, StartTime DESC";
                                             status = r.IsDBNull(9) ? "" : r.GetString(9),
                                             percentComplete = r.IsDBNull(10) ? 0 : r.GetInt32(10),
                                             message = r.IsDBNull(11) ? "" : r.GetString(11),
-                                            completedAt = r.IsDBNull(12) ? (DateTime?)null : r.GetDateTime(12)
+                                            completedAt = r.IsDBNull(12) ? (DateTime?)null : r.GetDateTime(12),
+                                            withAutoReset = withAutoReset
                                         });
                                     }
                                 }
@@ -2504,9 +2674,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                     }
                 }
                 if (!isNewDatabase && !CanViewDatabase(serverId, databaseName))
-                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được restore (ghi đè)." };
-                if (isNewDatabase && !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("DatabaseManageServers"))
-                    return new { success = false, message = "Chỉ Admin mới được restore lên database mới." };
+                    return new { success = false, message = "Chỉ Admin hoặc người đã restore database này mới được restore (ghi đè). Database N1 đã tồn tại do user khác restore." };
                 var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
                 using (var conn = new SqlConnection(masterConn))
                 {

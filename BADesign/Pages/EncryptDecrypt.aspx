@@ -93,7 +93,10 @@
         .ba-progress-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10001; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; color: var(--text-primary); }
         .ba-progress-overlay.show { display: flex; }
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10002; display: flex; flex-direction: column; gap: 0.5rem; }
-        .toast { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; align-items: center; gap: 0.75rem; }
+        .toast { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 2.5rem 1rem 1.25rem; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; align-items: flex-start; gap: 0.75rem; }
+        .toast .toast-msg { flex: 1; }
+        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; flex-shrink: 0; }
+        .toast .toast-close:hover { color: var(--text-primary); }
         .toast.show { display: flex; }
         .toast.error { border-left: 4px solid var(--danger); }
         .toast.success { border-left: 4px solid var(--success); }
@@ -406,7 +409,7 @@
         <div class="ba-progress-overlay" id="progressOverlay">
             <div>Đang xử lý…</div>
         </div>
-        <div class="toast-container"><div id="toast" class="toast"></div></div>
+        <div class="toast-container"><div id="toast" class="toast" style="display:none;"><button type="button" class="toast-close" title="Đóng">&times;</button><span class="toast-msg"></span></div></div>
     </form>
     <script>
         (function() {
@@ -431,9 +434,11 @@
             var companiesUrl = '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadCompanies") %>';
 
             function showToast(msg, type) {
-                var t = $('#toast').removeClass('success error').addClass(type || 'info').text(msg);
+                var t = $('#toast').removeClass('success error').addClass(type || 'info');
+                t.find('.toast-msg').text(msg);
                 t.show();
-                setTimeout(function () { t.hide(); }, 4000);
+                var tmr = setTimeout(function () { t.hide(); }, 4000);
+                t.off('click.toastclose').on('click.toastclose', '.toast-close', function () { clearTimeout(tmr); t.hide(); });
             }
             function showProgress() { $('#progressOverlay').addClass('show'); }
             function hideProgress() { $('#progressOverlay').removeClass('show'); }

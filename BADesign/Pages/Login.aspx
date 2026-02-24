@@ -56,7 +56,7 @@
                                     Text="Log in"
                                     CssClass="btn-login"
                                     OnClick="btnLogin_Click" />
-                        <a href="<%= ResolveUrl("~/") %>" class="btn-guest">Use with Guest User</a>
+                        <%--<a href="<%= ResolveUrl("~/") %>" class="btn-guest">Use with Guest User</a>--%>
                         <div class="register-link" style="margin-top: 12px;">
                             Chưa có tài khoản? <a href="<%= ResolveUrl("~/Register") %>">Đăng ký</a>
                         </div>

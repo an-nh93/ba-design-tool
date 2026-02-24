@@ -308,7 +308,7 @@
                 var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
                 var dbName = (job.databaseName || job.DatabaseName || '').trim();
                 var isRestore = (job.type === 'Restore' || !job.type);
-                var hasReset = isRestore && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0;
+                var hasReset = isRestore && (job.withAutoReset === true || (job.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                 var resetBadge = '';
                 if (isRestore) {
                     resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
@@ -375,13 +375,13 @@
                             var typeLabel = (j.typeLabel || jobType || 'Restore').replace(/</g, '&lt;');
                             var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
                             var dbName = (j.databaseName || j.DatabaseName || '').trim();
-                            var hasReset = (jobType === 'Restore' && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0);
+                            var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                             var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có tích hợp Reset thông tin">Có Reset' : 'ba-notif-no-reset-tag" title="Restore không reset">Không Reset') + '</span> ') : '';
                             var startTimeStr = formatNotifTime(j.startTime);
                             var endTimeStr = formatNotifTime(j.completedAt);
                             var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
                             if (st === 'Running') { row += '<div style="margin-top:4px;color:var(--primary);">Đang chạy</div>'; }
-                            else if (st === 'Failed') { row += '<div class="ba-notif-msg">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
+                            else if (st === 'Failed') { row += '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
                             else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
                             row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a></div>';
                             html += row;

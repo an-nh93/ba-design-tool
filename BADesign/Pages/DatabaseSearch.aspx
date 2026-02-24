@@ -145,7 +145,10 @@
             transform: translateX(100%);
             transition: opacity 0.3s, transform 0.3s;
         }
-        .toast.show { opacity: 1; transform: translateX(0); }
+        .toast { position: relative; padding-right: 2rem; padding-top: 0.25rem; }
+        .toast.show { opacity: 1; transform: translateX(0); pointer-events: auto; }
+        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; }
+        .toast .toast-close:hover { color: var(--text-primary); }
         .toast.success .toast-icon { color: var(--success); }
         .toast.error .toast-icon { color: var(--danger); }
         .toast.info .toast-icon { color: var(--primary); }
@@ -553,6 +556,15 @@
             </div>
         </div>
 
+        <!-- Restore loading overlay (che trang khi bấm Restore, ẩn khi có kết quả) -->
+        <div id="restoreOverlay" class="ba-multidb-overlay">
+            <div class="ba-multidb-overlay-content">
+                <div class="ba-multidb-spinner"></div>
+                <div class="ba-multidb-overlay-title">Đang bắt đầu Restore</div>
+                <div class="ba-multidb-overlay-text">Vui lòng chờ, không bấm nhiều lần.<br />Restore chạy nền — xem tiến độ tại biểu tượng chuông.</div>
+            </div>
+        </div>
+
         <!-- Shrink log progress overlay -->
         <div id="shrinkLogOverlay" class="ba-multidb-overlay">
             <div class="ba-multidb-overlay-content">
@@ -621,6 +633,7 @@
                                 <label class="ba-form-label">Database (có thể chọn nhiều)</label>
                                 <div id="backupModalDatabaseList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--bg-darker);"></div>
                                 <div style="margin-top: 6px;"><a href="#" id="backupModalSelectAllDb" style="font-size: 0.8125rem;">Chọn tất cả</a> <span style="color: var(--text-muted);">|</span> <a href="#" id="backupModalDeselectAllDb" style="font-size: 0.8125rem;">Bỏ chọn</a></div>
+                                <p style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">Mỗi database backup ra 1 file riêng. Tên file: <code>{tên_db}_{ngày_giờ}.bak</code></p>
                                 <span id="backupModalNoDb" style="display:none; color: var(--text-muted); font-size: 0.8125rem;">Quét server trước để thấy danh sách database.</span>
                             </div>
                             <div class="ba-form-group">
@@ -635,18 +648,15 @@
                             </div>
                             <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin: 16px 0 10px;">Backup set</div>
                             <div class="ba-form-group">
-                                <label class="ba-form-label">Name</label>
-                                <input type="text" id="backupModalSetName" class="ba-input" placeholder="Tự động: Database-Full Database Backup" />
-                            </div>
-                            <div class="ba-form-group">
                                 <label class="ba-form-label">Backup set will expire</label>
                                 <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="backupExpire" id="backupExpireAfter" checked /> After</label>
                                     <input type="number" id="backupExpireDays" class="ba-input" value="0" min="0" style="width: 70px;" />
-                                    <span>days</span>
+                                    <span>days (0 = không hết hạn)</span>
                                     <label style="display:flex;align-items:center;gap:6px;cursor:pointer;"><input type="radio" name="backupExpire" id="backupExpireOn" /> On</label>
                                     <input type="date" id="backupExpireDate" class="ba-input" style="width: 140px;" />
                                 </div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Áp dụng cho tất cả database được chọn.</div>
                             </div>
                             <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin: 16px 0 10px;">Destination</div>
                             <div class="ba-form-group">
@@ -661,6 +671,26 @@
                             </div>
                         </div>
                         <div id="backupPageOptions" class="backup-page" style="display: none;">
+                            <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 10px;">Reliability</div>
+                            <div class="ba-form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="backupModalVerify" />
+                                    <span>Verify backup when finished — Kiểm tra tính toàn vẹn file .bak sau khi backup</span>
+                                </label>
+                            </div>
+                            <div class="ba-form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="backupModalChecksum" />
+                                    <span>Perform checksum before writing — Tính checksum trước khi ghi (bảo đảm dữ liệu)</span>
+                                </label>
+                            </div>
+                            <div class="ba-form-group">
+                                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                    <input type="checkbox" id="backupModalContinueOnError" />
+                                    <span>Continue on error — Tiếp tục backup dù phát hiện lỗi (dùng kèm checksum)</span>
+                                </label>
+                            </div>
+                            <div style="font-size: 0.8125rem; font-weight: 600; color: var(--text-secondary); margin: 16px 0 10px;">Backup options</div>
                             <div class="ba-form-group">
                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                     <input type="checkbox" id="backupModalCopyOnly" />
@@ -794,7 +824,7 @@
                                 </label>
                             </div>
                             <div id="restoreModalAutoResetFields" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem; padding: 0.75rem; background: var(--surface-alt); border-radius: 6px; border: 1px solid var(--border-color);">
-                                <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.75rem;">Email (*) bắt buộc. Password và Phone tùy chọn; mặc định: Password = 1, Phone = 0987654321.</p>
+                                <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.75rem;">Email (*) bắt buộc, phải thuộc domain trong Email Ignore (HR Multi-DB) tại App Settings. Password và Phone tùy chọn; mặc định: Password = 1, Phone = 0987654321.</p>
                                 <div class="ba-form-group" style="margin-bottom: 0.5rem;">
                                     <label class="ba-form-label">Email <span style="color: var(--danger, #c00);">(*)</span></label>
                                     <input type="text" id="restoreModalResetEmail" class="ba-input" placeholder="vd: an.nh@cadena.com.sg" />
@@ -810,13 +840,6 @@
                             </div>
                         </div>
                     </div>
-                </div>
-                <div id="restoreModalProgressWrap" style="display: none; padding: 0 24px 12px; border-top: 1px solid var(--border-color);">
-                    <div style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 6px;">Tiến độ restore</div>
-                    <div style="background: var(--surface-alt); border-radius: 6px; height: 24px; overflow: hidden;">
-                        <div id="restoreModalProgressBar" style="height: 100%; width: 0%; background: var(--primary); transition: width 0.3s;"></div>
-                    </div>
-                    <div id="restoreModalProgressPct" style="font-size: 0.8125rem; margin-top: 4px;">0%</div>
                 </div>
                 <div class="ba-modal-footer">
                     <button type="button" class="ba-btn ba-btn-secondary" onclick="hideRestoreModal(); return false;">Hủy</button>
@@ -874,11 +897,12 @@
             type = type || 'info';
             var icons = { success: '✓', error: '✕', info: 'ℹ' };
             var titles = { success: 'Thành công', error: 'Lỗi', info: 'Thông báo' };
-            var $t = $('<div class="toast ' + type + '"><span class="toast-icon">' + (icons[type] || 'ℹ') + '</span> ' + (titles[type] || '') + ': ' + msg + '</div>');
+            var $t = $('<div class="toast ' + type + '"><button type="button" class="toast-close" title="Đóng">&times;</button><span class="toast-icon">' + (icons[type] || 'ℹ') + '</span> ' + (titles[type] || '') + ': ' + msg + '</div>');
             $('#toastContainer').append($t);
             $t[0].offsetHeight;
             setTimeout(function() { $t.addClass('show'); }, 10);
-            setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, 4000);
+            var tmr = setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, 4000);
+            $t.find('.toast-close').on('click', function() { clearTimeout(tmr); $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); });
         }
 
         function filteredServers() {
@@ -1859,9 +1883,6 @@
             $('#restoreModalResetPhone').val('');
             $('#restoreModalAutoResetFields').hide();
             $('#restoreModalConfirm').prop('disabled', false);
-            $('#restoreModalProgressWrap').hide();
-            $('#restoreModalProgressBar').css('width', '0%');
-            $('#restoreModalProgressPct').text('0%');
         }
 
         function showRestoreModal(serverId, databaseName, displayLabel) {
@@ -1928,9 +1949,7 @@
                 if (!resetPhone) resetPhone = '0987654321';
             }
             $('#restoreModalConfirm').prop('disabled', true);
-            $('#restoreModalProgressWrap').show();
-            $('#restoreModalProgressBar').css('width', '0%');
-            $('#restoreModalProgressPct').text('0%');
+            $('#restoreOverlay').addClass('show');
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/StartRestore") %>',
                 type: 'POST',
@@ -1951,9 +1970,9 @@
                 }),
                 success: function(res) {
                     var d = res.d || res;
+                    $('#restoreOverlay').removeClass('show');
+                    $('#restoreModalConfirm').prop('disabled', false);
                     if (!d || !d.success || !d.sessionId) {
-                        $('#restoreModalConfirm').prop('disabled', false);
-                        $('#restoreModalProgressWrap').hide();
                         showToast((d && d.message) ? d.message : 'Không thể bắt đầu restore.', 'error');
                         return;
                     }
@@ -1962,8 +1981,8 @@
                     if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
                 },
                 error: function(xhr) {
+                    $('#restoreOverlay').removeClass('show');
                     $('#restoreModalConfirm').prop('disabled', false);
-                    $('#restoreModalProgressWrap').hide();
                     showToast((xhr.responseJSON && xhr.responseJSON.d && xhr.responseJSON.d.message) ? xhr.responseJSON.d.message : 'Lỗi bắt đầu restore.', 'error');
                 }
             });
@@ -2008,7 +2027,6 @@
             }
             var n = $('#backupModalDatabaseList input[name=backupModalDb]:checked').length;
             $('#backupModalTitle').text(n ? ('Back Up Database' + (n > 1 ? ' (' + n + ' DB)' : '')) : 'Back Up Database');
-            updateBackupModalSetName();
             updateBackupModalRecoveryModel();
             updateBackupModalDestPath();
             $('#backupModal').addClass('show');
@@ -2016,13 +2034,6 @@
 
         function hideBackupModal() {
             $('#backupModal').removeClass('show');
-        }
-
-        function updateBackupModalSetName() {
-            var first = $('#backupModalDatabaseList input[name=backupModalDb]:checked').first().val();
-            var db = (first || '').trim();
-            var type = ($('#backupModalType').val() || 'Full');
-            if (db) $('#backupModalSetName').attr('placeholder', db + '-Full Database Backup');
         }
 
         function updateBackupModalRecoveryModel() {
@@ -2044,6 +2055,14 @@
             var serverId = parseInt($('#backupModalServer').val(), 10);
             var selected = $('#backupModalDatabaseList input[name=backupModalDb]:checked').map(function() { return $(this).val().trim(); }).get().filter(Boolean);
             var withShrinkLog = $('#backupModalShrinkLog').is(':checked');
+            var expireDays = parseInt($('#backupExpireDays').val(), 10);
+            var expireDate = $('#backupExpireOn').is(':checked') ? ($('#backupExpireDate').val() || '') : '';
+            if (!$('#backupExpireOn').is(':checked')) expireDate = '';
+            var copyOnly = $('#backupModalCopyOnly').is(':checked');
+            var compression = $('#backupModalCompress').is(':checked');
+            var checksum = $('#backupModalChecksum').is(':checked');
+            var verifyBackup = $('#backupModalVerify').is(':checked');
+            var continueOnError = $('#backupModalContinueOnError').is(':checked');
             if (!serverId) {
                 showToast('Chọn server.', 'error');
                 return;
@@ -2052,34 +2071,74 @@
                 showToast('Chọn ít nhất một database.', 'error');
                 return;
             }
+            if ($('#backupExpireOn').is(':checked') && !expireDate) {
+                showToast('Chọn ngày hết hạn (Backup set will expire → On).', 'error');
+                return;
+            }
             var $btn = $('#backupModalConfirm');
             $btn.prop('disabled', true);
             var done = 0, failed = 0, total = selected.length;
+            var firstErrorMsg = '';
             function runNext(idx) {
                 if (idx >= total) {
                     $btn.prop('disabled', false);
                     if (failed === 0)
                         showToast('Đã đưa ' + total + ' database vào hàng đợi backup. Xem chuông thông báo.', 'success');
-                    else
-                        showToast('Đã đưa ' + (total - failed) + '/' + total + ' vào hàng đợi. ' + failed + ' lỗi.', failed === total ? 'error' : 'warning');
+                    else {
+                        var msg = 'Đã đưa ' + (total - failed) + '/' + total + ' vào hàng đợi. ' + failed + ' lỗi.';
+                        if (firstErrorMsg) msg += ' ' + firstErrorMsg;
+                        showToast(msg, failed === total ? 'error' : 'warning');
+                    }
                     hideBackupModal();
                     if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
                     return;
                 }
                 var databaseName = selected[idx];
+                var payload = {
+                    serverId: serverId,
+                    databaseName: databaseName,
+                    withShrinkLog: withShrinkLog,
+                    expireDays: isNaN(expireDays) ? 0 : Math.max(0, expireDays),
+                    expireDate: expireDate || null,
+                    copyOnly: copyOnly,
+                    compression: compression,
+                    checksum: checksum,
+                    verifyBackup: verifyBackup,
+                    continueOnError: continueOnError
+                };
                 $.ajax({
                     url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/StartBackup") %>',
                     type: 'POST',
                     contentType: 'application/json; charset=utf-8',
                     dataType: 'json',
-                    data: JSON.stringify({ serverId: serverId, databaseName: databaseName, withShrinkLog: withShrinkLog }),
+                    data: JSON.stringify({ requestJson: JSON.stringify(payload) }),
                     timeout: 30000,
                     success: function(res) {
                         var d = res.d || res;
-                        if (d && d.success) done++; else failed++;
+                        if (d && d.success) { done++; }
+                        else {
+                            failed++;
+                            if (!firstErrorMsg && d && d.message) firstErrorMsg = d.message;
+                        }
                         runNext(idx + 1);
                     },
-                    error: function() { failed++; runNext(idx + 1); }
+                    error: function(xhr, status, err) {
+                        failed++;
+                        var errText = '';
+                        if (xhr.responseJSON) {
+                            errText = xhr.responseJSON.Message || xhr.responseJSON.message || xhr.responseJSON.ExceptionMessage || '';
+                        }
+                        if (!errText && xhr.responseText) {
+                            var t = xhr.responseText.substring(0, 300);
+                            if (t.indexOf('"Message"') >= 0) {
+                                var m = t.match(/"Message"\s*:\s*"([^"]*)"/);
+                                if (m) errText = m[1];
+                            }
+                            if (!errText) errText = t.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().substring(0, 120);
+                        }
+                        if (!firstErrorMsg && errText) firstErrorMsg = errText;
+                        runNext(idx + 1);
+                    }
                 });
             }
             runNext(0);
@@ -2632,12 +2691,10 @@
             $('#backupModalServer').on('change', function() {
                 var sid = parseInt($(this).val(), 10);
                 fillBackupModalDatabaseDropdown(sid || null);
-                updateBackupModalSetName();
                 updateBackupModalRecoveryModel();
                 updateBackupModalDestPath();
             });
             $('#backupModalDatabaseList').on('change', 'input[name=backupModalDb]', function() {
-                updateBackupModalSetName();
                 updateBackupModalRecoveryModel();
                 var n = $('#backupModalDatabaseList input[name=backupModalDb]:checked').length;
                 $('#backupModalTitle').text(n ? ('Back Up Database' + (n > 1 ? ' (' + n + ' DB)' : '')) : 'Back Up Database');
@@ -2647,13 +2704,13 @@
                 $('#backupModalDatabaseList input[name=backupModalDb]').prop('checked', true);
                 var n = $('#backupModalDatabaseList input[name=backupModalDb]:checked').length;
                 $('#backupModalTitle').text(n ? ('Back Up Database (' + n + ' DB)') : 'Back Up Database');
-                updateBackupModalSetName(); updateBackupModalRecoveryModel();
+                updateBackupModalRecoveryModel();
             });
             $('#backupModalDeselectAllDb').on('click', function(e) {
                 e.preventDefault();
                 $('#backupModalDatabaseList input[name=backupModalDb]').prop('checked', false);
                 $('#backupModalTitle').text('Back Up Database');
-                updateBackupModalSetName(); updateBackupModalRecoveryModel();
+                updateBackupModalRecoveryModel();
             });
             $('#backupNavGeneral, #backupNavOptions').on('click', function() {
                 var page = $(this).data('page');
@@ -2750,7 +2807,7 @@
                 var typeLabel = (job.type === 'Backup') ? 'Backup database' : ((job.type === 'Restore' || !job.type) ? 'Restore database' : job.type);
                 var dbName = (job.databaseName || job.DatabaseName || '').trim();
                 var isRestore = (job.type === 'Restore' || !job.type);
-                var hasReset = isRestore && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0;
+                var hasReset = isRestore && (job.withAutoReset === true || (job.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                 var startStr = formatNotifTime(job.startTime);
                 var endStr = formatNotifTime(job.completedAt);
                 var statusLabel = job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status));
@@ -2886,7 +2943,7 @@
                             var jobType = j.type || 'Restore';
                             var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore');
                             var dbName = (j.databaseName || j.DatabaseName || '').trim();
-                            var hasReset = (jobType === 'Restore' && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0);
+                            var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                             // Restore có reset: khi server báo 100% Restore thì client chuyển ngay sang 0% Reset Information (tránh treo 100% chờ server cập nhật phase)
                             if (jobType === 'Restore' && hasReset && serverPct === 100 && phaseLabel === 'Restore') {
                                 phaseLabel = 'Reset Information';
@@ -2917,7 +2974,7 @@
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                                 if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
                             } else if (st === 'Failed') {
-                                row += '<div class="ba-notif-msg">' + (msgShort.replace(/</g, '&lt;')) + '</div>';
+                                row += '<div class="ba-notif-msg ba-notif-msg-error">' + (msgShort.replace(/</g, '&lt;')) + '</div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                             } else if (st === 'Completed') {
                                 row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>';

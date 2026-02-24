@@ -114,7 +114,7 @@
 .ba-notif-item .ba-notif-dismiss:hover { color: var(--text-primary); background: var(--surface-hover, rgba(0,0,0,0.06)); }
 .ba-notif-item .ba-notif-msg {
     margin-top: 4px;
-    color: var(--danger, #ef4444);
+    color: #51dd1a;
     font-size: 0.75rem;
     line-height: 1.35;
     max-height: 2.7em;
@@ -124,6 +124,7 @@
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
 }
+.ba-notif-item .ba-notif-msg.ba-notif-msg-error { color: var(--danger, #ef4444); }
 .ba-notif-item .ba-notif-detail-link {
     margin-top: 4px;
     font-size: 0.75rem;

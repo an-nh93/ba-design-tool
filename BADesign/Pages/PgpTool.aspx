@@ -65,6 +65,9 @@
         .ba-progress-text { color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem; }
         .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10002; }
         .toast { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; min-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; }
+        .toast { position: relative; padding-right: 2rem; padding-top: 0.25rem; }
+        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; }
+        .toast .toast-close:hover { color: var(--text-primary); }
         .toast.show { display: block; }
         .toast.error { border-left: 4px solid var(--danger); }
         .toast.success { border-left: 4px solid var(--success); }
@@ -209,7 +212,7 @@
                 <div class="ba-progress-text" id="progressText">Vui lòng đợi trong giây lát</div>
             </div>
         </div>
-        <div class="toast-container"><div id="toast" class="toast"></div></div>
+        <div class="toast-container"><div id="toast" class="toast" style="display:none;"><button type="button" class="toast-close" title="Đóng">&times;</button><span class="toast-msg"></span></div></div>
     </form>
     <script>
         (function() {
@@ -228,8 +231,11 @@
             var encryptUrl = '<%= ResolveUrl("~/Pages/PgpTool.aspx/EncryptPgp") %>';
 
             function showToast(msg, type) {
-                var t = $('#toast').removeClass('success error').addClass(type || 'info').text(msg).show();
-                setTimeout(function () { t.hide(); }, 4000);
+                var t = $('#toast').removeClass('success error').addClass(type || 'info');
+                t.find('.toast-msg').text(msg);
+                t.show();
+                var tmr = setTimeout(function () { t.hide(); }, 4000);
+                t.off('click.toastclose').on('click.toastclose', '.toast-close', function () { clearTimeout(tmr); t.hide(); });
             }
             function showProgress(title, text) {
                 $('#progressTitle').text(title || 'Đang xử lý...');

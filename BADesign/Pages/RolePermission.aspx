@@ -124,6 +124,9 @@
             transition: opacity 0.3s, transform 0.3s;
         }
         .toast.show { opacity: 1; transform: translateX(0); }
+        .toast { position: relative; padding-right: 2rem; padding-top: 0.25rem; }
+        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; }
+        .toast .toast-close:hover { color: var(--text-primary); }
         .toast.success { border-left: 4px solid var(--success); }
         .toast.error { border-left: 4px solid var(--danger); }
     </style>
@@ -234,14 +237,12 @@
 
         function showToast(msg, type) {
             type = type || 'info';
-            var $t = $('<div class="toast ' + type + '">' + msg + '</div>');
+            var $t = $('<div class="toast ' + type + '"><button type="button" class="toast-close" title="Đóng">&times;</button>' + msg + '</div>');
             $('#toastContainer').append($t);
             $t[0].offsetHeight;
             setTimeout(function() { $t.addClass('show'); }, 10);
-            setTimeout(function() {
-                $t.removeClass('show');
-                setTimeout(function() { $t.remove(); }, 300);
-            }, 4000);
+            var tmr = setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, 4000);
+            $t.find('.toast-close').on('click', function() { clearTimeout(tmr); $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); });
         }
 
         function load() {
