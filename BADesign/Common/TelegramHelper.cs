@@ -53,6 +53,25 @@ namespace BADesign
             return SendMessage(botToken, chatId, msg);
         }
 
+        /// <summary>Gửi tin nhắn thông báo bug được mở lại (Reopen). Trả về true nếu gửi thành công.</summary>
+        public static bool SendReopenNotification(int feedbackId, string title, string reopenedByUserName, string reopenNote)
+        {
+            string botToken;
+            string chatId;
+            LoadConfig(out botToken, out chatId);
+            if (string.IsNullOrWhiteSpace(botToken) || string.IsNullOrWhiteSpace(chatId))
+                return false;
+
+            var msg = "🔄 <b>Bug được mở lại (Cadena Helper)</b>\n\n";
+            msg += "📌 #" + feedbackId + " " + EscapeHtml(title ?? "(Không có tiêu đề)") + "\n";
+            msg += "👤 <b>Mở lại bởi:</b> " + EscapeHtml(reopenedByUserName ?? "User") + "\n";
+            if (!string.IsNullOrWhiteSpace(reopenNote))
+                msg += "💬 " + EscapeHtml(reopenNote) + "\n";
+            msg += "🕐 " + DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            return SendMessage(botToken, chatId, msg);
+        }
+
         /// <summary>Gửi tin nhắn thông báo user mới đăng ký. Trả về true nếu gửi thành công.</summary>
         public static bool SendNewUserNotification(string userName, string email, string roleName)
         {

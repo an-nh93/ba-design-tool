@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Web;
 using System.Web.Services;
 using System.Web.Script.Services;
 using System.Web.UI;
@@ -76,7 +77,7 @@ namespace BADesign.Pages
 ISNULL(NULLIF(RTRIM(U.FullName),''), U.UserName) AS UserName
 FROM UiFeedback F
 LEFT JOIN UiUser U ON U.UserId = F.UserId
-WHERE F.Category = N'Bug' AND (F.Status IN (N'New', N'Read', N'InProgress') OR F.UpdatedAt >= DATEADD(day, -30, SYSDATETIME()))
+WHERE F.Category = N'Bug' AND (F.Status IN (N'New', N'Read', N'InProgress', N'Reopen') OR F.UpdatedAt >= DATEADD(day, -30, SYSDATETIME()))
 AND (@kw IS NULL OR @kw = '' OR F.Title LIKE N'%' + @kw + N'%')
 ORDER BY F.CreatedAt DESC";
                     cmd.Parameters.AddWithValue("@top", Math.Min(Math.Max(top, 1), 50));
@@ -318,7 +319,104 @@ WHERE F.Id = @id";
             }
         }
 
-        /// <summary>Mở lại góp ý/bug (chỉ tác giả). Trạng thái phải là Resolved hoặc Closed.</summary>
+        /// <summary>Lịch sử trạng thái (chỉ tác giả hoặc admin).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetFeedbackStatusHistoryForView(int id)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, list = new List<object>() };
+                var userId = UiAuthHelper.CurrentUserId;
+                if (!userId.HasValue) return new { success = false, list = new List<object>() };
+                if (!UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("FeedbackManage"))
+                {
+                    using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT UserId FROM UiFeedback WHERE Id = @id";
+                        cmd.Parameters.AddWithValue("@id", id);
+                        conn.Open();
+                        var o = cmd.ExecuteScalar();
+                        if (o == null || o == DBNull.Value || (int)o != userId.Value)
+                            return new { success = false, list = new List<object>() };
+                    }
+                }
+                var list = new List<object>();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT H.FromStatus, H.ToStatus, H.ChangedAt, H.Note, ISNULL(NULLIF(RTRIM(U.FullName),''), U.UserName) AS ChangedByUserName
+FROM UiFeedbackStatusHistory H LEFT JOIN UiUser U ON U.UserId = H.ChangedByUserId WHERE H.FeedbackId = @id ORDER BY H.ChangedAt DESC";
+                    cmd.Parameters.AddWithValue("@id", id);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var changedAt = r.IsDBNull(2) ? (DateTime?)null : r.GetDateTime(2);
+                            list.Add(new { fromStatus = r.IsDBNull(0) ? "" : r.GetString(0), toStatus = r.IsDBNull(1) ? "" : r.GetString(1), changedAt = changedAt.HasValue ? changedAt.Value.ToString("o") : (string)null, note = r.IsDBNull(3) ? "" : r.GetString(3), changedByUserName = r.IsDBNull(4) ? "" : r.GetString(4) });
+                        }
+                    }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, list = new List<object>() };
+            }
+        }
+
+        /// <summary>Comment của góp ý (chỉ tác giả hoặc admin).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetFeedbackCommentsForView(int id)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, list = new List<object>() };
+                var userId = UiAuthHelper.CurrentUserId;
+                if (!userId.HasValue) return new { success = false, list = new List<object>() };
+                if (!UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("FeedbackManage"))
+                {
+                    using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT UserId FROM UiFeedback WHERE Id = @id";
+                        cmd.Parameters.AddWithValue("@id", id);
+                        conn.Open();
+                        var o = cmd.ExecuteScalar();
+                        if (o == null || o == DBNull.Value || (int)o != userId.Value)
+                            return new { success = false, list = new List<object>() };
+                    }
+                }
+                var list = new List<object>();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT C.Content, C.CreatedAt, ISNULL(NULLIF(RTRIM(U.FullName),''), U.UserName) AS UserName FROM UiFeedbackComment C LEFT JOIN UiUser U ON U.UserId = C.UserId WHERE C.FeedbackId = @id ORDER BY C.CreatedAt ASC";
+                    cmd.Parameters.AddWithValue("@id", id);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var createdAt = r.IsDBNull(1) ? (DateTime?)null : r.GetDateTime(1);
+                            list.Add(new { content = r.IsDBNull(0) ? "" : r.GetString(0), createdAt = createdAt.HasValue ? createdAt.Value.ToString("o") : (string)null, userName = r.IsDBNull(2) ? "" : r.GetString(2) });
+                        }
+                    }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, list = new List<object>() };
+            }
+        }
+
+        /// <summary>Mở lại góp ý/bug (chỉ tác giả). Trạng thái phải là Resolved, Closed hoặc NotABug. Ghi vào UiFeedbackStatusHistory để hiển thị rõ ai mở lại.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object ReopenFeedback(int id, string reopenNote)
@@ -330,20 +428,50 @@ WHERE F.Id = @id";
                 var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
                 var note = (reopenNote ?? "").Trim();
                 if (note.Length > 2000) note = note.Substring(0, 2000);
-                var reopenLabel = "[Reopen " + DateTime.Now.ToString("yyyy-MM-dd HH:mm") + ": " + (string.IsNullOrEmpty(note) ? "(không ghi chú)" : note) + "]";
+                string currentStatus = null;
+                string feedbackTitle = null;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = @"UPDATE UiFeedback SET Status = N'New', UpdatedAt = SYSDATETIME(), AdminNote = ISNULL(AdminNote, N'') + @reopenLabel
-WHERE Id = @id AND UserId = @uid AND Status IN (N'Resolved', N'Closed')";
-                    cmd.Parameters.AddWithValue("@id", id);
-                    cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@reopenLabel", "\r\n" + reopenLabel);
                     conn.Open();
-                    var updated = cmd.ExecuteNonQuery();
-                    if (updated == 0)
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "SELECT Status, Title FROM UiFeedback WHERE Id = @id AND UserId = @uid AND Status IN (N'Resolved', N'Closed', N'NotABug')";
+                        cmd.Parameters.AddWithValue("@id", id);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            if (r.Read())
+                            {
+                                currentStatus = r.IsDBNull(0) ? null : r.GetString(0);
+                                feedbackTitle = r.IsDBNull(1) ? null : r.GetString(1);
+                            }
+                        }
+                    }
+                    if (string.IsNullOrEmpty(currentStatus))
                         return new { success = false, message = "Không thể mở lại. Chỉ tác giả mới mở lại được và trạng thái phải là Đã xử lý hoặc Đóng." };
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO UiFeedbackStatusHistory (FeedbackId, FromStatus, ToStatus, ChangedByUserId, Note) VALUES (@id, @from, N'Reopen', @uid, @note)";
+                        cmd.Parameters.AddWithValue("@id", id);
+                        cmd.Parameters.AddWithValue("@from", currentStatus);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@note", string.IsNullOrEmpty(note) ? (object)DBNull.Value : note);
+                        cmd.ExecuteNonQuery();
+                    }
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "UPDATE UiFeedback SET Status = N'Reopen', UpdatedAt = SYSDATETIME() WHERE Id = @id AND UserId = @uid";
+                        cmd.Parameters.AddWithValue("@id", id);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.ExecuteNonQuery();
+                    }
                 }
+                try
+                {
+                    var userName = (HttpContext.Current?.Session?["UiUserName"] as string) ?? "User";
+                    TelegramHelper.SendReopenNotification(id, feedbackTitle ?? "", userName, note);
+                }
+                catch { }
                 return new { success = true };
             }
             catch (Exception ex)

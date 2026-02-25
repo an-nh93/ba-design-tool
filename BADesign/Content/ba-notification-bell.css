@@ -158,6 +158,8 @@
 .ba-feedback-status-inprogress { background: rgba(245, 158, 11, 0.25); color: #f59e0b; }
 .ba-feedback-status-resolved { background: rgba(16, 185, 129, 0.25); color: #10b981; }
 .ba-feedback-status-closed { background: rgba(100, 116, 139, 0.3); color: #64748b; }
+.ba-feedback-status-notabug { background: rgba(100, 116, 139, 0.25); color: #94a3b8; }
+.ba-feedback-status-reopen { background: rgba(168, 85, 247, 0.25); color: #a855f7; }
 .ba-notif-item .ba-notif-cancel-btn {
     margin-left: 8px;
     padding: 2px 8px;

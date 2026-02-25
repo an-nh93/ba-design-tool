@@ -38,11 +38,13 @@
         .ba-badge-read { background: rgba(113, 113, 122, 0.2); color: var(--text-muted); }
         .ba-badge-inprogress { background: rgba(245, 158, 11, 0.25); color: #f59e0b; }
         .ba-badge-resolved { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .ba-badge-reopen { background: rgba(168, 85, 247, 0.25); color: #a855f7; }
+        .ba-badge-notabug { background: rgba(100, 116, 139, 0.25); color: #64748b; }
         .ba-modal { display: none; position: fixed; inset: 0; z-index: 10002; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); padding: 1rem; }
         .ba-modal.show { display: flex; }
         .ba-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 960px; width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
         .ba-modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .ba-modal-body { padding: 1rem 1.25rem; overflow-y: auto; flex: 1; }
+        .ba-modal-body { padding: 0; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
         .ba-modal-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); flex-shrink: 0; }
         .ba-feedback-detail-title { font-weight: 600; margin-bottom: 0.5rem; }
         .ba-feedback-detail-meta { font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 1rem; }
@@ -51,6 +53,27 @@
         .ba-feedback-detail-label { font-size: 0.8125rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.35rem; }
         .ba-feedback-detail-note { margin-top: 1rem; }
         .ba-feedback-detail-note textarea { width: 100%; min-height: 180px; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-darker); color: var(--text-primary); font-size: 0.875rem; resize: vertical; }
+        .ba-history-list, .ba-comments-list { list-style: none; padding: 0; margin: 0 0 0.75rem 0; font-size: 0.8125rem; }
+        .ba-history-list li { padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+        .ba-comments-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--border); }
+        .ba-comment-add { margin-top: 0.5rem; }
+        .ba-comment-add textarea { width: 100%; min-height: 70px; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-darker); color: var(--text-primary); font-size: 0.875rem; resize: vertical; }
+        /* Tabs trong modal */
+        .ba-modal-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); flex-shrink: 0; background: var(--bg-darker); }
+        .ba-modal-tab { padding: 0.6rem 1rem; font-size: 0.875rem; font-weight: 500; color: var(--text-muted); cursor: pointer; border: none; background: none; border-bottom: 2px solid transparent; }
+        .ba-modal-tab:hover { color: var(--text-primary); }
+        .ba-modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); background: var(--bg-card); }
+        .ba-modal-pane { display: none; padding: 1rem 1.25rem; overflow-y: auto; flex: 1; min-height: 0; }
+        .ba-modal-pane.active { display: flex; flex-direction: column; }
+        #detailPaneView { overflow-y: auto; }
+        .ba-detail-edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
+        .ba-detail-edit-grid .ba-form-group { margin-bottom: 0; }
+        .ba-collapse-header { font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; padding: 0.5rem 0; display: flex; align-items: center; gap: 0.35rem; user-select: none; }
+        .ba-collapse-header:hover { color: var(--primary); }
+        .ba-collapse-header::before { content: '▶'; font-size: 0.7rem; transition: transform 0.2s; }
+        .ba-collapse-header.open::before { transform: rotate(90deg); }
+        .ba-collapse-body { display: none; margin-bottom: 1rem; }
+        .ba-collapse-body.open { display: block; }
     </style>
 </head>
 <body>
@@ -71,8 +94,10 @@
                                 <option value="New">Mới</option>
                                 <option value="Read">Đã đọc</option>
                                 <option value="InProgress">Đang xử lý</option>
+                                <option value="Reopen">Mở lại</option>
                                 <option value="Resolved">Đã xử lý</option>
                                 <option value="Closed">Đóng</option>
+                                <option value="NotABug">Đã đóng (không phải bug)</option>
                             </select>
                         </div>
                         <div class="ba-form-group">
@@ -82,6 +107,14 @@
                         <div class="ba-form-group">
                             <label class="ba-form-label">Đến ngày</label>
                             <input type="date" id="filterDateTo" class="ba-input" />
+                        </div>
+                        <div class="ba-form-group" style="min-width: 160px;">
+                            <label class="ba-form-label">Từ khóa</label>
+                            <input type="text" id="filterKeyword" class="ba-input" placeholder="Tiêu đề, nội dung, ghi chú..." />
+                        </div>
+                        <div class="ba-form-group" style="min-width: 140px;">
+                            <label class="ba-form-label">Tags</label>
+                            <input type="text" id="filterTags" class="ba-input" placeholder="critical, ui, ..." />
                         </div>
                         <div class="ba-form-group">
                             <button type="button" id="btnLoad" class="ba-btn ba-btn-primary">Tải lại</button>
@@ -95,6 +128,7 @@
                                     <th class="col-title">Tiêu đề</th>
                                     <th>Loại</th>
                                     <th>Trạng thái</th>
+                                    <th>Tags</th>
                                     <th>Người gửi</th>
                                     <th class="col-date">Ngày gửi</th>
                                     <th></th>
@@ -107,36 +141,54 @@
             </div>
         </main>
         <div id="feedbackDetailModal" class="ba-modal">
-            <div class="ba-modal-content">
+            <div class="ba-modal-content" style="max-height: 85vh;">
                 <div class="ba-modal-header">
                     <span id="detailModalTitle" class="ba-feedback-detail-title"></span>
                     <button type="button" class="ba-btn ba-btn-secondary" id="detailModalClose">×</button>
                 </div>
-                <div class="ba-modal-body" id="feedbackDetailBody"></div>
-                <div class="ba-modal-footer">
-                    <label class="ba-feedback-detail-label">Trạng thái</label>
-                    <select id="detailStatus" class="ba-input" style="max-width: 160px; margin-bottom: 8px;">
-                        <option value="New">Mới</option>
-                        <option value="Read">Đã đọc</option>
-                        <option value="InProgress">Đang xử lý</option>
-                        <option value="Resolved">Đã xử lý</option>
-                        <option value="Closed">Đóng</option>
-                    </select>
-                    <div class="ba-form-group" style="margin-bottom: 8px;">
-                        <label class="ba-feedback-detail-label">Bắt đầu xử lý</label>
-                        <input type="date" id="detailStartedAt" class="ba-input" style="max-width: 180px;" />
+                <div class="ba-modal-tabs">
+                    <button type="button" class="ba-modal-tab active" data-pane="view">Xem</button>
+                    <button type="button" class="ba-modal-tab" data-pane="edit">Cập nhật</button>
+                </div>
+                <div class="ba-modal-body" style="display: flex; flex-direction: column; min-height: 0; flex: 1;">
+                    <div id="detailPaneView" class="ba-modal-pane active">
+                        <div id="feedbackDetailBody"></div>
                     </div>
-                    <div class="ba-form-group" style="margin-bottom: 8px;">
-                        <label class="ba-feedback-detail-label">Dự kiến fix</label>
-                        <input type="date" id="detailExpectedFixAt" class="ba-input" style="max-width: 180px;" />
-                    </div>
-                    <div class="ba-feedback-detail-note">
-                        <label class="ba-feedback-detail-label">Ghi chú (phản hồi)</label>
-                        <textarea id="detailAdminNote" class="ba-input" placeholder="Ghi chú hoặc phản hồi cho người gửi..."></textarea>
-                    </div>
-                    <div style="margin-top: 10px;">
-                        <button type="button" id="btnSaveDetail" class="ba-btn ba-btn-primary">Lưu</button>
-                        <button type="button" id="btnCloseDetail" class="ba-btn ba-btn-secondary">Đóng</button>
+                    <div id="detailPaneEdit" class="ba-modal-pane">
+                        <div class="ba-detail-edit-grid">
+                            <div class="ba-form-group">
+                                <label class="ba-feedback-detail-label">Trạng thái</label>
+                                <select id="detailStatus" class="ba-input">
+                                    <option value="New">Mới</option>
+                                    <option value="Read">Đã đọc</option>
+                                    <option value="InProgress">Đang xử lý</option>
+                                    <option value="Reopen">Mở lại</option>
+                                    <option value="Resolved">Đã xử lý</option>
+                                    <option value="Closed">Đóng</option>
+                                    <option value="NotABug">Đã đóng (không phải bug)</option>
+                                    </select>
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-feedback-detail-label">Bắt đầu xử lý</label>
+                                <input type="date" id="detailStartedAt" class="ba-input" />
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-feedback-detail-label">Dự kiến fix</label>
+                                <input type="date" id="detailExpectedFixAt" class="ba-input" />
+                            </div>
+                            <div class="ba-form-group" style="grid-column: 1 / -1;">
+                                <label class="ba-feedback-detail-label">Tags (phân cách bằng dấu phẩy)</label>
+                                <input type="text" id="detailTags" class="ba-input" placeholder="critical, ui, backend" />
+                            </div>
+                        </div>
+                        <div class="ba-form-group">
+                            <label class="ba-feedback-detail-label">Ghi chú (phản hồi)</label>
+                            <textarea id="detailAdminNote" class="ba-input" placeholder="Ghi chú hoặc phản hồi cho người gửi..." style="min-height: 100px;"></textarea>
+                        </div>
+                        <div style="margin-top: 1rem;">
+                            <button type="button" id="btnSaveDetail" class="ba-btn ba-btn-primary">Lưu</button>
+                            <button type="button" id="btnCloseDetail" class="ba-btn ba-btn-secondary">Đóng</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -147,6 +199,9 @@
             var listUrl = '<%= ResolveUrl("~/Pages/FeedbackManage.aspx/GetFeedbackList") %>';
             var detailUrl = '<%= ResolveUrl("~/Pages/FeedbackManage.aspx/GetFeedbackDetail") %>';
             var updateUrl = '<%= ResolveUrl("~/Pages/FeedbackManage.aspx/UpdateFeedback") %>';
+            var historyUrl = '<%= ResolveUrl("~/Pages/FeedbackManage.aspx/GetFeedbackStatusHistory") %>';
+            var commentsUrl = '<%= ResolveUrl("~/Pages/FeedbackManage.aspx/GetFeedbackComments") %>';
+            var addCommentUrl = '<%= ResolveUrl("~/Pages/FeedbackManage.aspx/AddFeedbackComment") %>';
             var currentId = null;
 
             function setDefaultDateRange() {
@@ -164,8 +219,10 @@
                 if (st === 'New') return '<span class="' + c + 'ba-badge-new">Mới</span>';
                 if (st === 'Read') return '<span class="' + c + 'ba-badge-read">Đã đọc</span>';
                 if (st === 'InProgress') return '<span class="' + c + 'ba-badge-inprogress">Đang xử lý</span>';
+                if (st === 'Reopen') return '<span class="' + c + 'ba-badge-reopen">Mở lại</span>';
                 if (st === 'Resolved') return '<span class="' + c + 'ba-badge-resolved">Đã xử lý</span>';
                 if (st === 'Closed') return '<span class="' + c + 'ba-badge-read">Đóng</span>';
+                if (st === 'NotABug') return '<span class="' + c + 'ba-badge-notabug">Đã đóng (không phải bug)</span>';
                 return '<span class="' + c + '">' + (st || '') + '</span>';
             }
 
@@ -173,33 +230,83 @@
                 var status = $('#filterStatus').val() || '';
                 var dateFrom = $('#filterDateFrom').val() || '';
                 var dateTo = $('#filterDateTo').val() || '';
+                var keyword = ($('#filterKeyword').val() || '').trim();
+                var tags = ($('#filterTags').val() || '').trim();
                 $.ajax({
                     url: listUrl,
                     type: 'POST',
                     contentType: 'application/json',
                     dataType: 'json',
-                    data: JSON.stringify({ status: status, dateFrom: dateFrom, dateTo: dateTo }),
+                    data: JSON.stringify({ status: status, dateFrom: dateFrom, dateTo: dateTo, keyword: keyword, tags: tags }),
                     success: function (res) {
                         var d = res.d || res;
                         if (!d || !d.success) {
-                            $('#feedbackListBody').html('<tr><td colspan="7" style="padding:1.5rem;color:var(--text-muted);">Không tải được danh sách.</td></tr>');
+                            $('#feedbackListBody').html('<tr><td colspan="8" style="padding:1.5rem;color:var(--text-muted);">Không tải được danh sách.</td></tr>');
                             return;
                         }
                         var rows = d.list || [];
                         if (rows.length === 0) {
-                            $('#feedbackListBody').html('<tr><td colspan="7" style="padding:1.5rem;color:var(--text-muted);">Không có góp ý nào.</td></tr>');
+                            $('#feedbackListBody').html('<tr><td colspan="8" style="padding:1.5rem;color:var(--text-muted);">Không có góp ý nào.</td></tr>');
                             return;
                         }
                         var html = '';
                         rows.forEach(function (r) {
                             var created = r.createdAt ? new Date(r.createdAt).toLocaleString() : '—';
-                            html += '<tr><td>' + (r.id || '') + '</td><td class="col-title">' + (r.title || '').replace(/</g, '&lt;') + '</td><td>' + (r.category || '—').replace(/</g, '&lt;') + '</td><td>' + statusBadge(r.status) + '</td><td>' + (r.userName || '—').replace(/</g, '&lt;') + '</td><td class="col-date">' + created + '</td><td><a href="#" class="ba-link view-detail" data-id="' + (r.id || '') + '">Xem</a></td></tr>';
+                            var tagsStr = (r.tags || '').replace(/</g, '&lt;');
+                            html += '<tr><td>' + (r.id || '') + '</td><td class="col-title">' + (r.title || '').replace(/</g, '&lt;') + '</td><td>' + (r.category || '—').replace(/</g, '&lt;') + '</td><td>' + statusBadge(r.status) + '</td><td style="max-width:120px;word-break:break-word;">' + tagsStr + '</td><td>' + (r.userName || '—').replace(/</g, '&lt;') + '</td><td class="col-date">' + created + '</td><td><a href="#" class="ba-link view-detail" data-id="' + (r.id || '') + '">Xem</a></td></tr>';
                         });
                         $('#feedbackListBody').html(html);
                     }
                 });
             }
 
+            function loadHistory(feedbackId) {
+                $.ajax({
+                    url: historyUrl,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: JSON.stringify({ id: feedbackId }),
+                    success: function (res) {
+                        var d = res.d || res;
+                        var list = (d && d.success && d.list) ? d.list : [];
+                        var html = '<ul class="ba-history-list">';
+                        if (list.length === 0) html += '<li style="color:var(--text-muted);">Chưa có lịch sử.</li>';
+                        else list.forEach(function (h) {
+                            var t = h.changedAt ? new Date(h.changedAt).toLocaleString() : '';
+                            html += '<li>' + (h.fromStatus || '—') + ' → ' + (h.toStatus || '').replace(/</g, '&lt;') + ' · ' + (h.changedByUserName || '—').replace(/</g, '&lt;') + ' · ' + t + (h.note ? ' · ' + (h.note || '').replace(/</g, '&lt;') : '') + '</li>';
+                        });
+                        html += '</ul>';
+                        $('#detailHistorySection').html(html);
+                    }
+                });
+            }
+            function initCollapse() {
+                $(document).off('click', '.ba-collapse-header').on('click', '.ba-collapse-header', function () {
+                    var $h = $(this), $b = $h.next('.ba-collapse-body');
+                    $h.toggleClass('open'); $b.toggleClass('open');
+                });
+            }
+            function loadComments(feedbackId) {
+                $.ajax({
+                    url: commentsUrl,
+                    type: 'POST',
+                    contentType: 'application/json',
+                    dataType: 'json',
+                    data: JSON.stringify({ id: feedbackId }),
+                    success: function (res) {
+                        var d = res.d || res;
+                        var list = (d && d.success && d.list) ? d.list : [];
+                        var html = '';
+                        if (list.length === 0) html = '<li style="color:var(--text-muted);">Chưa có comment.</li>';
+                        else list.forEach(function (c) {
+                            var t = c.createdAt ? new Date(c.createdAt).toLocaleString() : '';
+                            html += '<li><strong>' + (c.userName || '—').replace(/</g, '&lt;') + '</strong> ' + t + '<br/>' + (c.content || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</li>';
+                        });
+                        $('#detailCommentsList').html(html);
+                    }
+                });
+            }
             function openDetail(id) {
                 currentId = id;
                 $.ajax({
@@ -216,11 +323,33 @@
                         var i = d.item;
                         $('#detailModalTitle').text((i.title || '').replace(/</g, '&lt;'));
                         var meta = 'Gửi bởi: ' + (i.userName || '—').replace(/</g, '&lt;') + ' · ' + (i.createdAt ? new Date(i.createdAt).toLocaleString() : '') + (i.pageUrl ? ' · <a href="' + (i.pageUrl || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '" target="_blank" rel="noopener">Trang gửi</a>' : '');
-                        $('#feedbackDetailBody').html('<div class="ba-feedback-detail-meta">' + meta + '</div><div class="ba-feedback-detail-label">Nội dung</div><div class="ba-feedback-detail-content">' + (i.content || '') + '</div>');
+                        var bodyHtml = '<div class="ba-feedback-detail-meta">' + meta + '</div><div class="ba-feedback-detail-label">Nội dung</div><div class="ba-feedback-detail-content" style="max-height: 35vh;">' + (i.content || '') + '</div>';
+                        bodyHtml += '<div class="ba-collapse-header" data-collapse="history">Lịch sử trạng thái</div><div id="detailHistorySection" class="ba-collapse-body"><ul class="ba-history-list"><li style="color:var(--text-muted);">Đang tải...</li></ul></div>';
+                        bodyHtml += '<div class="ba-collapse-header open" data-collapse="comments">Comment</div><div class="ba-collapse-body open"><ul id="detailCommentsList" class="ba-comments-list"><li style="color:var(--text-muted);">Đang tải...</li></ul><div class="ba-comment-add"><textarea id="detailNewComment" placeholder="Thêm phản hồi..."></textarea><button type="button" id="btnAddComment" class="ba-btn ba-btn-primary" style="margin-top:6px;">Thêm comment</button></div></div>';
+                        $('#feedbackDetailBody').html(bodyHtml);
+                        initCollapse();
                         $('#detailStatus').val(i.status || 'New');
                         $('#detailAdminNote').val(i.adminNote || '');
                         $('#detailStartedAt').val(i.startedAt ? new Date(i.startedAt).toISOString().slice(0, 10) : '');
                         $('#detailExpectedFixAt').val(i.expectedFixAt ? new Date(i.expectedFixAt).toISOString().slice(0, 10) : '');
+                        $('#detailTags').val(i.tags || '');
+                        loadHistory(id);
+                        loadComments(id);
+                        $('#btnAddComment').off('click').on('click', function () {
+                            var content = ($('#detailNewComment').val() || '').trim();
+                            if (!content) return;
+                            $.ajax({
+                                url: addCommentUrl,
+                                type: 'POST',
+                                contentType: 'application/json',
+                                dataType: 'json',
+                                data: JSON.stringify({ feedbackId: id, content: content }),
+                                success: function (res) {
+                                    var r = res.d || res;
+                                    if (r && r.success) { $('#detailNewComment').val(''); loadComments(id); }
+                                }
+                            });
+                        });
                         $('#feedbackDetailModal').addClass('show');
                     }
                 });
@@ -232,11 +361,16 @@
                 var id = $(this).data('id');
                 if (id) openDetail(id);
             });
+            $('.ba-modal-tab').on('click', function () {
+                var pane = $(this).data('pane');
+                $('.ba-modal-tab').removeClass('active');
+                $('.ba-modal-pane').removeClass('active');
+                $(this).addClass('active');
+                if (pane === 'view') $('#detailPaneView').addClass('active');
+                else $('#detailPaneEdit').addClass('active');
+            });
             $('#detailModalClose, #btnCloseDetail').on('click', function () {
                 $('#feedbackDetailModal').removeClass('show');
-            });
-            $('#feedbackDetailModal').on('click', function (e) {
-                if (e.target === this) $(this).removeClass('show');
             });
             $('#btnSaveDetail').on('click', function () {
                 if (currentId == null) return;
@@ -244,22 +378,23 @@
                 var adminNote = ($('#detailAdminNote').val() || '').trim();
                 var startedAt = $('#detailStartedAt').val() || '';
                 var expectedFixAt = $('#detailExpectedFixAt').val() || '';
+                var tags = ($('#detailTags').val() || '').trim();
                 $.ajax({
                     url: updateUrl,
                     type: 'POST',
                     contentType: 'application/json',
                     dataType: 'json',
-                    data: JSON.stringify({ id: currentId, status: status, adminNote: adminNote, startedAt: startedAt, expectedFixAt: expectedFixAt }),
+                    data: JSON.stringify({ id: currentId, status: status, adminNote: adminNote, startedAt: startedAt, expectedFixAt: expectedFixAt, tags: tags }),
                     success: function (res) {
                         var d = res.d || res;
                         if (d && d.success) {
+                            loadHistory(currentId);
                             loadList();
                             $('#feedbackDetailModal').removeClass('show');
                         }
                     }
                 });
             });
-
             setDefaultDateRange();
             loadList();
 

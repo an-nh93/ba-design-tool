@@ -27,6 +27,8 @@
         .ba-btn-primary { background: var(--primary); color: white; }
         .ba-btn-primary:hover { background: var(--primary-hover); }
         .ba-btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
+        .ba-btn-secondary:hover { background: var(--border); }
         .ba-feedback-success { padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 6px; color: var(--success, #10b981); margin-bottom: 1rem; display: none; flex-shrink: 0; }
         .ba-feedback-error { padding: 12px; background: rgba(239, 68, 68, 0.15); border-radius: 6px; color: var(--danger, #ef4444); margin-bottom: 1rem; display: none; flex-shrink: 0; }
         .ba-card .ba-form-group:not(:has(.note-editor)) { flex-shrink: 0; }
@@ -106,6 +108,8 @@
         .ba-timeline-v2-comment-box { margin-top: 8px; padding: 10px; background: var(--bg-darker); border-radius: 6px; border-left: 3px solid var(--primary); font-size: 0.8125rem; color: var(--text-primary); white-space: pre-wrap; }
         .ba-timeline-reopen { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
         .ba-timeline-reopen-btn { margin-top: 8px; }
+        /* Badge Mở lại (Reopen) - màu tím phân biệt với Mới (xanh) */
+        .ba-feedback-status-reopen { background: rgba(168, 85, 247, 0.25); color: #a855f7; }
     </style>
 </head>
 <body>
@@ -221,6 +225,8 @@
             var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
             var getFeedbackListUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/GetFeedbackList") %>';
             var getFeedbackDetailUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/GetFeedbackDetailForView") %>';
+            var getHistoryUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/GetFeedbackStatusHistoryForView") %>';
+            var getCommentsUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/GetFeedbackCommentsForView") %>';
             var reopenFeedbackUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/ReopenFeedback") %>';
 
             $(function () {
@@ -345,12 +351,14 @@
 
             function statusLabel(st) {
                 if (st === 'New') return 'Mới'; if (st === 'Read') return 'Đã đọc'; if (st === 'InProgress') return 'Đang xử lý';
-                if (st === 'Resolved') return 'Đã xử lý'; if (st === 'Closed') return 'Đóng'; return st || '—';
+                if (st === 'Reopen') return 'Mở lại'; if (st === 'Resolved') return 'Đã xử lý'; if (st === 'Closed') return 'Đóng'; if (st === 'NotABug') return 'Đã đóng (không phải bug)';
+                return st || '—';
             }
             function statusBadgeClass(st) {
                 if (st === 'New') return 'ba-feedback-status-new'; if (st === 'Read') return 'ba-feedback-status-read';
-                if (st === 'InProgress') return 'ba-feedback-status-inprogress'; if (st === 'Resolved') return 'ba-feedback-status-resolved';
-                if (st === 'Closed') return 'ba-feedback-status-closed'; return 'ba-feedback-status-read';
+                if (st === 'InProgress') return 'ba-feedback-status-inprogress'; if (st === 'Reopen') return 'ba-feedback-status-reopen';
+                if (st === 'Resolved') return 'ba-feedback-status-resolved'; if (st === 'Closed') return 'ba-feedback-status-closed'; if (st === 'NotABug') return 'ba-feedback-status-notabug';
+                return 'ba-feedback-status-read';
             }
             function defaultMonthRange(force) {
                 var now = new Date();
@@ -495,25 +503,78 @@
                             var i = d.item;
                             $('#bugDetailTitle').text((i.title || '').replace(/</g, '&lt;'));
                             var meta = 'Gửi bởi: ' + (i.userName || '—').replace(/</g, '&lt;') + ' · ' + (i.createdAt ? new Date(i.createdAt).toLocaleString() : '') + ' · ' + statusLabel(i.status || '');
-                            $('#bugDetailBody').html('<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.75rem;">' + meta + '</div><div class="ba-feedback-detail-content">' + (i.content || '') + '</div>');
+                            var bodyHtml = '<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.75rem;">' + meta + '</div><div class="ba-feedback-detail-content">' + (i.content || '') + '</div>';
+                            (function () {
+                                var raw = (i.adminNote || '').trim();
+                                var adminOnly = raw.replace(/\s*\[Reopen[^\]]*\]\s*/g, '').trim();
+                                if (adminOnly) bodyHtml += '<div style="margin-top:0.75rem;"><strong>Phản hồi từ admin:</strong><div class="ba-feedback-detail-content" style="margin-top:4px;">' + adminOnly.replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div></div>';
+                            })();
+                            bodyHtml += '<div style="margin-top:1rem;"><div style="font-size:0.8125rem;font-weight:600;margin-bottom:4px;">Lịch sử trạng thái</div><ul id="viewDetailHistoryList" style="list-style:none;padding:0;margin:0;font-size:0.8125rem;"></ul></div>';
+                            bodyHtml += '<div style="margin-top:0.75rem;"><div style="font-size:0.8125rem;font-weight:600;margin-bottom:4px;">Comment</div><ul id="viewDetailCommentsList" style="list-style:none;padding:0;margin:0;font-size:0.8125rem;"></ul></div>';
+                            $('#bugDetailBody').html(bodyHtml);
                             $('#bugDetailModal').addClass('show');
+                            $.ajax({ url: getHistoryUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ id: id }),
+                                success: function (hr) {
+                                    var hd = hr.d || hr;
+                                    var list = (hd && hd.success && hd.list) ? hd.list : [];
+                                    var html = '';
+                                    if (list.length === 0) html = '<li style="color:var(--text-muted);">Chưa có.</li>';
+                                    else list.forEach(function (h) { var t = h.changedAt ? new Date(h.changedAt).toLocaleString() : ''; var who = (h.changedByUserName || '—').replace(/</g, '&lt;'); var note = (h.note || '').trim(); var notePart = note ? ' · <span style="color:var(--text-secondary);">' + note.replace(/</g, '&lt;').replace(/\n/g, ' ') + '</span>' : ''; html += '<li>' + (h.fromStatus || '—') + ' → ' + (h.toStatus || '').replace(/</g, '&lt;') + ' · <strong>' + who + '</strong> · ' + t + notePart + '</li>'; });
+                                    $('#viewDetailHistoryList').html(html);
+                                }
+                            });
+                            $.ajax({ url: getCommentsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ id: id }),
+                                success: function (cr) {
+                                    var cd = cr.d || cr;
+                                    var list = (cd && cd.success && cd.list) ? cd.list : [];
+                                    var html = '';
+                                    if (list.length === 0) html = '<li style="color:var(--text-muted);">Chưa có.</li>';
+                                    else list.forEach(function (c) { var t = c.createdAt ? new Date(c.createdAt).toLocaleString() : ''; html += '<li><strong>' + (c.userName || '—').replace(/</g, '&lt;') + '</strong> ' + t + '<br/>' + (c.content || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</li>'; });
+                                    $('#viewDetailCommentsList').html(html);
+                                }
+                            });
                         }
                     });
                 });
                 var timelineCurrentId = null;
                 function fmtDate(d) { return d ? new Date(d).toLocaleString() : '—'; }
-                function buildTimelineHtml(i) {
-                    var created = fmtDate(i.createdAt);
-                    var started = fmtDate(i.startedAt);
-                    var expected = fmtDate(i.expectedFixAt);
-                    var resolved = (i.status === 'Resolved' || i.status === 'Closed') && i.updatedAt ? fmtDate(i.updatedAt) : '—';
-                    var hasNote = (i.adminNote || '').trim().length > 0;
-                    var noteEsc = (i.adminNote || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>');
+                function buildTimelineHtml(i, historyList) {
+                    var rawNote = (i.adminNote || '').trim();
+                    var adminOnly = rawNote.replace(/\s*\[Reopen[^\]]*\]\s*/g, '').trim();
+                    var hasNote = adminOnly.length > 0;
+                    var noteEsc = adminOnly.replace(/</g, '&lt;').replace(/\n/g, '<br/>');
+                    var history = (historyList || []).slice().sort(function (a, b) { return new Date(a.changedAt || 0) - new Date(b.changedAt || 0); });
+                    var events = [];
+                    if (i.createdAt) events.push({ type: 'submit', at: i.createdAt });
+                    history.forEach(function (h) { events.push({ type: 'history', at: h.changedAt, fromStatus: h.fromStatus, toStatus: h.toStatus, who: h.changedByUserName, note: h.note }); });
+                    events.sort(function (a, b) { return new Date(a.at || 0) - new Date(b.at || 0); });
                     var html = '<div class="ba-timeline-v2">';
-                    html += '<div class="ba-timeline-v2-item done"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + created + '</div><div class="ba-timeline-v2-title">Gửi góp ý</div><div class="ba-timeline-v2-desc">Người gửi báo góp ý / bug.</div></div></div>';
-                    html += '<div class="ba-timeline-v2-item' + (started !== '—' ? ' done' : '') + '"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + started + '</div><div class="ba-timeline-v2-title">Bắt đầu xử lý</div><div class="ba-timeline-v2-desc">Dev bắt đầu xử lý.</div></div></div>';
-                    html += '<div class="ba-timeline-v2-item' + (expected !== '—' ? ' done' : '') + '"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + expected + '</div><div class="ba-timeline-v2-title">Dự kiến fix</div><div class="ba-timeline-v2-desc">Thời gian dự kiến hoàn thành.</div></div></div>';
-                    html += '<div class="ba-timeline-v2-item' + (resolved !== '—' ? ' done' : '') + '"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + resolved + '</div><div class="ba-timeline-v2-title">Đã xử lý / Đóng</div><div class="ba-timeline-v2-desc">Trạng thái đã xử lý hoặc đóng.</div></div></div>';
+                    events.forEach(function (ev) {
+                        var t = fmtDate(ev.at);
+                        if (ev.type === 'submit') {
+                            html += '<div class="ba-timeline-v2-item done"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + t + '</div><div class="ba-timeline-v2-title">Gửi góp ý</div><div class="ba-timeline-v2-desc">Người gửi báo góp ý / bug.</div></div></div>';
+                            if (i.expectedFixAt) {
+                                var expectedT = fmtDate(i.expectedFixAt);
+                                html += '<div class="ba-timeline-v2-item done"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + expectedT + '</div><div class="ba-timeline-v2-title">Dự kiến fix (lần xử lý đầu)</div><div class="ba-timeline-v2-desc">Thời gian dự kiến hoàn thành khi admin đặt cho lần fix đầu tiên.</div></div></div>';
+                            }
+                            return;
+                        }
+                        var to = ev.toStatus || '', from = ev.fromStatus || '';
+                        var who = (ev.who || '').replace(/</g, '&lt;');
+                        if (to === 'InProgress') {
+                            html += '<div class="ba-timeline-v2-item done"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + t + '</div><div class="ba-timeline-v2-title">Bắt đầu xử lý</div><div class="ba-timeline-v2-desc">' + (who ? who + ' bắt đầu xử lý.' : 'Dev bắt đầu xử lý.') + '</div></div></div>';
+                            return;
+                        }
+                        if (to === 'Resolved' || to === 'Closed' || to === 'NotABug') {
+                            var notePart = (ev.note || '').trim() ? ' · ' + (ev.note || '').replace(/</g, '&lt;') : '';
+                            html += '<div class="ba-timeline-v2-item done"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + t + '</div><div class="ba-timeline-v2-title">Đã xử lý / Đóng</div><div class="ba-timeline-v2-desc">' + (who ? who + notePart : 'Trạng thái đã xử lý hoặc đóng.') + '</div></div></div>';
+                            return;
+                        }
+                        if ((from === 'Resolved' || from === 'Closed' || from === 'NotABug') && (to === 'New' || to === 'Reopen')) {
+                            var desc = (ev.note || '').trim() ? (who + ': ' + (ev.note || '').replace(/</g, '&lt;')) : (who || 'User') + ' mở lại góp ý';
+                            html += '<div class="ba-timeline-v2-item done"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">' + t + '</div><div class="ba-timeline-v2-title">Mở lại (Reopen)</div><div class="ba-timeline-v2-desc">' + desc + '</div></div></div>';
+                        }
+                    });
                     if (hasNote) {
                         html += '<div class="ba-timeline-v2-item done"><div class="ba-timeline-v2-dot"></div><div class="ba-timeline-v2-body"><div class="ba-timeline-v2-time">Phản hồi từ dev/admin</div><div class="ba-timeline-v2-title">Comment</div><a class="ba-timeline-v2-comment-toggle" href="#" data-toggle="comment">Xem comment</a><div class="ba-timeline-v2-comment-box" style="display:none;">' + noteEsc + '</div></div></div>';
                     }
@@ -531,11 +592,18 @@
                             var i = d.item;
                             timelineCurrentId = id;
                             $('#timelineModalTitle').text((i.title || '').replace(/</g, '&lt;'));
-                            $('#timelineModalContent').html(buildTimelineHtml(i));
-                            var canReopen = (i.status === 'Resolved' || i.status === 'Closed');
+                            $('#timelineModalContent').html(buildTimelineHtml(i, []));
+                            var canReopen = (i.status === 'Resolved' || i.status === 'Closed' || i.status === 'NotABug');
                             $('#timelineReopenSection').toggle(canReopen);
                             $('#timelineReopenNote').val('');
                             $('#timelineModal').addClass('show');
+                            $.ajax({ url: getHistoryUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ id: id }),
+                                success: function (hr) {
+                                    var hd = hr.d || hr;
+                                    var list = (hd && hd.success && hd.list) ? hd.list : [];
+                                    $('#timelineModalContent').html(buildTimelineHtml(i, list));
+                                }
+                            });
                         }
                     });
                 });
@@ -565,9 +633,7 @@
                     });
                 });
                 $('#bugDetailClose').on('click', function () { $('#bugDetailModal').removeClass('show'); });
-                $('#bugDetailModal').on('click', function (e) { if (e.target === this) $(this).removeClass('show'); });
                 $('#timelineModalClose').on('click', function () { $('#timelineModal').removeClass('show'); });
-                $('#timelineModal').on('click', function (e) { if (e.target === this) $(this).removeClass('show'); });
             });
 
             // Chuông thông báo: load badge và khi mở panel thì load danh sách
