@@ -99,8 +99,7 @@
         .ba-audit-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 560px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
         .ba-audit-modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .ba-audit-modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-audit-modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.25rem; cursor: pointer; padding: 0.25rem; line-height: 1; }
-        .ba-audit-modal-close:hover { color: var(--text-primary); }
+        /* Nút × đóng dùng chung từ ba-layout.css (class ba-modal-close) */
         .ba-audit-modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; font-size: 0.875rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
     </style>
 </head>
@@ -166,7 +165,7 @@
         <div class="ba-audit-modal-content">
             <div class="ba-audit-modal-header">
                 <span class="ba-audit-modal-title">Chi tiết</span>
-                <button type="button" class="ba-audit-modal-close" id="auditDetailModalClose" aria-label="Đóng">&times;</button>
+                <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" id="auditDetailModalClose" aria-label="Đóng">×</button>
             </div>
             <div class="ba-audit-modal-body" id="auditDetailModalBody"></div>
         </div>

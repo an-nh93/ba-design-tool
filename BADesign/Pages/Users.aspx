@@ -8,6 +8,7 @@
     <title>User Management - UI Builder</title>
     
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
+    <link href="../Content/ba-layout.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
 
@@ -587,27 +588,7 @@
             color: var(--text-primary);
         }
 
-        .user-modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-
-        .user-modal-close:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
+        /* Nút × đóng modal dùng chung từ ba-layout.css */
         .user-modal-body {
             flex: 1;
             overflow-y: auto;
@@ -884,7 +865,7 @@
             <div class="user-modal-content">
                 <div class="user-modal-header">
                     <h3 class="user-modal-title" id="userModalTitle">Add New User</h3>
-                    <button type="button" class="user-modal-close" onclick="hideUserModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideUserModal(); return false;">×</button>
                 </div>
                 <div class="user-modal-body">
                     <div class="user-form-row">

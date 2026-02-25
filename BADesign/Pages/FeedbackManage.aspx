@@ -21,9 +21,7 @@
         .ba-form-group { display: flex; flex-direction: column; gap: 0.35rem; }
         .ba-form-label { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); }
         .ba-input { background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.875rem; width: 100%; }
-        .ba-btn { padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
+        /* Nút + modal dùng chung từ ba-layout.css */
         .ba-table-wrap { overflow: auto; max-height: 60vh; border: 1px solid var(--border); border-radius: 8px; }
         .ba-table { width: 100%; border-collapse: collapse; }
         .ba-table thead { background: var(--bg-darker); position: sticky; top: 0; z-index: 2; }
@@ -40,12 +38,8 @@
         .ba-badge-resolved { background: rgba(16, 185, 129, 0.2); color: #10b981; }
         .ba-badge-reopen { background: rgba(168, 85, 247, 0.25); color: #a855f7; }
         .ba-badge-notabug { background: rgba(100, 116, 139, 0.25); color: #64748b; }
-        .ba-modal { display: none; position: fixed; inset: 0; z-index: 10002; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); padding: 1rem; }
-        .ba-modal.show { display: flex; }
-        .ba-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 960px; width: 95%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; }
-        .ba-modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        .ba-modal-body { padding: 0; overflow: hidden; flex: 1; display: flex; flex-direction: column; min-height: 0; }
-        .ba-modal-footer { padding: 0.75rem 1.25rem; border-top: 1px solid var(--border); flex-shrink: 0; }
+        /* Modal dùng chung từ ba-layout.css; override cho modal chi tiết rộng hơn */
+        #feedbackDetailModal .ba-modal-content { max-width: 960px; width: 95%; }
         .ba-feedback-detail-title { font-weight: 600; margin-bottom: 0.5rem; }
         .ba-feedback-detail-meta { font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 1rem; }
         .ba-feedback-detail-content { border: 1px solid var(--border); border-radius: 6px; padding: 1rem; background: var(--bg-darker); margin-bottom: 1rem; max-height: 50vh; overflow-y: auto; }
@@ -144,7 +138,7 @@
             <div class="ba-modal-content" style="max-height: 85vh;">
                 <div class="ba-modal-header">
                     <span id="detailModalTitle" class="ba-feedback-detail-title"></span>
-                    <button type="button" class="ba-btn ba-btn-secondary" id="detailModalClose">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" id="detailModalClose">×</button>
                 </div>
                 <div class="ba-modal-tabs">
                     <button type="button" class="ba-modal-tab active" data-pane="view">Xem</button>

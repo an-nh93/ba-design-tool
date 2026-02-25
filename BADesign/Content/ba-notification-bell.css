@@ -221,8 +221,7 @@
     padding: 0;
 }
 #notificationDetailClose:hover { color: var(--text-primary) !important; background: rgba(0,0,0,0.06) !important; }
-.ba-modal-close { background: transparent !important; border: none !important; color: var(--text-muted) !important; width: 32px !important; height: 32px !important; border-radius: 6px !important; cursor: pointer !important; font-size: 1.5rem !important; line-height: 1 !important; padding: 0 !important; }
-.ba-modal-close:hover { color: var(--text-primary) !important; background: rgba(0,0,0,0.06) !important; }
+/* Không định nghĩa .ba-modal-close chung ở đây – dùng style từ ba-layout.css cho nút × các modal khác (Restore, Feedback, …) */
 
 #notificationDetailModal .ba-notif-detail-body {
     overflow-y: auto;

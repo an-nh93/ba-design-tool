@@ -196,3 +196,110 @@ a.ba-sidebar-title:hover { color: var(--primary-light); }
     overflow-x: hidden;
     padding: 2rem;
 }
+
+/* ========== Nút dùng chung (modal, form, toolbar) ========== */
+.ba-btn {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.ba-btn-primary { background: var(--primary); color: white; }
+.ba-btn-primary:hover { background: var(--primary-hover); }
+.ba-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+.ba-btn-secondary {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+}
+.ba-btn-secondary:hover { background: var(--border); color: var(--text-primary); }
+.ba-btn-danger { background: var(--danger); color: white; }
+.ba-btn-danger:hover { background: #dc2626; }
+.ba-btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+
+/* ========== Modal dùng chung (không đóng khi click ra ngoài – đóng bằng nút × / Hủy) ========== */
+.ba-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    padding: 1.5rem;
+    box-sizing: border-box;
+}
+.ba-modal.show { display: flex; }
+.ba-modal-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    max-width: 480px;
+    width: 100%;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+.ba-modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+.ba-modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
+.ba-modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; min-height: 0; }
+.ba-modal-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+/* Nút × đóng modal: ô vuông có nền, viền rõ, chữ căn giữa (tránh bị override từ Bootstrap/trang) */
+.ba-modal-close {
+    min-width: 2rem;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    font-size: 1.25rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
+}
+.ba-modal-header .ba-modal-close.ba-btn-secondary,
+[class*="-modal-header"] .ba-modal-close.ba-btn-secondary {
+    background: var(--bg-hover) !important;
+    border: 1px solid var(--border-light) !important;
+    color: var(--text-primary) !important;
+}
+.ba-modal-header .ba-modal-close.ba-btn-secondary:hover,
+.ba-modal-header .ba-modal-close.ba-btn-secondary:focus,
+.ba-modal-header .ba-modal-close.ba-btn-secondary:focus-visible,
+[class*="-modal-header"] .ba-modal-close.ba-btn-secondary:hover,
+[class*="-modal-header"] .ba-modal-close.ba-btn-secondary:focus,
+[class*="-modal-header"] .ba-modal-close.ba-btn-secondary:focus-visible {
+    /* Màu sáng hơn trạng thái bình thường để thấy rõ chuột/focus đang vào nút */
+    background: var(--border-light) !important;
+    border-color: var(--text-muted) !important;
+    color: var(--text-primary) !important;
+}
+.ba-modal-header .ba-modal-close.ba-btn-secondary:focus-visible,
+[class*="-modal-header"] .ba-modal-close.ba-btn-secondary:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}

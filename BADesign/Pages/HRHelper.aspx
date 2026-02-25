@@ -592,28 +592,7 @@
         }
         .ba-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; }
         .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-        .ba-modal {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10001;
-            display: none; align-items: center; justify-content: center; padding: 1rem;
-        }
-        .ba-modal.show { display: flex; }
-        .ba-modal-content {
-            background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px;
-            max-width: 480px; width: 100%; max-height: 90vh; overflow: hidden;
-            display: flex; flex-direction: column;
-        }
-        .ba-modal-header {
-            padding: 1rem 1.25rem; border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between;
-        }
-        .ba-modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1; }
-        .ba-modal-close:hover { color: var(--text-primary); }
-        .ba-modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
-        .ba-modal-footer {
-            padding: 1rem 1.25rem; border-top: 1px solid var(--border);
-            display: flex; justify-content: flex-end; gap: 0.5rem;
-        }
+        /* Modal + nút × dùng chung từ ba-layout.css */
         .ba-btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8125rem; }
         .toast-container {
             position: fixed;
@@ -1191,7 +1170,7 @@
             <div class="ba-modal-content" style="max-width: 440px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title">Xác nhận</h3>
-                    <button type="button" class="ba-modal-close" onclick="hideConfirmUpdateModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideConfirmUpdateModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <p id="confirmUpdateMessage" style="margin: 0; color: var(--text-primary); font-size: 0.9375rem; line-height: 1.6;"></p>

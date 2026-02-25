@@ -23,12 +23,7 @@
         .ba-form-label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.35rem; }
         .ba-input { background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.875rem; width: 100%; max-width: 480px; }
         .ba-input:focus { outline: none; border-color: var(--primary); }
-        .ba-btn { padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-primary:hover { background: var(--primary-hover); }
-        .ba-btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .ba-btn-secondary:hover { background: var(--border); }
+        /* Nút + modal dùng chung từ ba-layout.css */
         .ba-feedback-success { padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 6px; color: var(--success, #10b981); margin-bottom: 1rem; display: none; flex-shrink: 0; }
         .ba-feedback-error { padding: 12px; background: rgba(239, 68, 68, 0.15); border-radius: 6px; color: var(--danger, #ef4444); margin-bottom: 1rem; display: none; flex-shrink: 0; }
         .ba-card .ba-form-group:not(:has(.note-editor)) { flex-shrink: 0; }
@@ -65,11 +60,7 @@
         .note-editor .note-palette .note-palette-row,
         .note-editor .note-color-palette .note-palette-row { background: var(--bg-card) !important; }
         .ba-card .ba-form-group:has(#feedbackContent) { overflow: visible; }
-        .ba-modal { display: none; position: fixed; inset: 0; z-index: 10002; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); padding: 1rem; }
-        .ba-modal.show { display: flex; }
-        .ba-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; }
-        .ba-modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .ba-modal-body { padding: 1rem 1.25rem; }
+        /* Modal dùng chung từ ba-layout.css */
         .ba-feedback-detail-content { border: 1px solid var(--border); border-radius: 6px; padding: 1rem; background: var(--bg-darker); max-height: 50vh; overflow-y: auto; }
         .ba-feedback-detail-content img { max-width: 100%; height: auto; }
         .ba-feedback-group { margin-bottom: 1rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-card); overflow: hidden; }
@@ -191,7 +182,7 @@
             <div class="ba-modal-content" style="max-width: 720px; width: 95%; max-height: 85vh;">
                 <div class="ba-modal-header">
                     <span id="bugDetailTitle" class="ba-feedback-detail-title"></span>
-                    <button type="button" class="ba-btn ba-btn-secondary" id="bugDetailClose">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" id="bugDetailClose">×</button>
                 </div>
                 <div class="ba-modal-body" id="bugDetailBody" style="overflow-y: auto;"></div>
             </div>
@@ -200,7 +191,7 @@
             <div class="ba-modal-content ba-timeline-modal-content" style="max-width: 480px; width: 95%; max-height: 90vh;">
                 <div class="ba-modal-header">
                     <span id="timelineModalTitle">Timeline trạng thái</span>
-                    <button type="button" class="ba-btn ba-btn-secondary" id="timelineModalClose">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" id="timelineModalClose">×</button>
                 </div>
                 <div class="ba-modal-body" id="timelineModalBody" style="overflow-y: auto;">
                     <div id="timelineModalContent"></div>

@@ -44,26 +44,7 @@
         }
         .ba-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--primary-soft); }
         .ba-input::placeholder { color: var(--text-muted); }
-        .ba-btn {
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-primary:hover { background: var(--primary-hover); }
-        .ba-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .ba-btn-secondary:hover { background: var(--bg-card); }
-        .ba-btn-danger { background: var(--danger); color: white; }
-        .ba-btn-danger:hover { background: #dc2626; }
-        .ba-btn-sm { padding: 0.375rem 0.75rem; font-size: 0.8125rem; }
+        /* Nút + modal dùng chung từ ba-layout.css */
         .ba-btn-disabled {
             opacity: 0.45;
             cursor: not-allowed;
@@ -113,6 +94,10 @@
         .ba-copy-btn:hover { background: var(--primary-soft); color: var(--primary-light); border-color: var(--primary); }
         .ba-copy-btn svg { width: 16px; height: 16px; }
         .ba-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; }
+        .ba-empty-state { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.9rem; }
+        .ba-empty-state-icon { font-size: 2rem; opacity: 0.6; line-height: 1; }
+        .ba-empty-state-link { color: var(--primary); text-decoration: none; font-weight: 500; cursor: pointer; }
+        .ba-empty-state-link:hover { text-decoration: underline; }
         .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
         .ba-badge {
             display: inline-block;
@@ -201,56 +186,7 @@
         .ba-status-none { color: var(--text-muted); }
         .ba-btn-log { margin-left: 4px; }
         .ba-section-collapsed .ba-card-body { display: none; }
-        .ba-modal {
-            position: fixed;
-            inset: 0;
-            z-index: 10001;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0,0,0,0.6);
-            backdrop-filter: blur(4px);
-            padding: 1.5rem;
-            box-sizing: border-box;
-        }
-        .ba-modal.show { display: flex; }
-        .ba-modal-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 10px;
-            max-width: 480px;
-            width: 100%;
-            max-height: 90vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-        .ba-modal-header {
-            padding: 1rem 1.25rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .ba-modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-modal-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            font-size: 1.25rem;
-            cursor: pointer;
-            padding: 0.25rem;
-            line-height: 1;
-        }
-        .ba-modal-close:hover { color: var(--text-primary); }
-        .ba-modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; }
-        .ba-modal-footer {
-            padding: 1rem 1.25rem;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.5rem;
-        }
+        /* Modal + nút × dùng chung từ ba-layout.css */
         .ba-log-pre {
             background: var(--bg-darker);
             border: 1px solid var(--border);
@@ -368,10 +304,15 @@
             <main class="ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="ba-content">
-                    <!-- Connection String (Guest + Logged-in) -->
-                    <div class="ba-card" id="cardConnStr">
+                    <h1 class="ba-page-title" style="font-size:1.5rem;font-weight:600;color:var(--text-primary);margin:0 0 0.35rem 0;">Database Search</h1>
+                    <p class="ba-page-desc" style="color:var(--text-muted);font-size:0.9rem;margin:0 0 1.25rem 0;">Quét server, xem danh sách database, kết nối HR Helper, Backup và Restore.</p>
+                    <!-- Connection String (Guest + Logged-in) - thu gọn mặc định -->
+                    <div class="ba-card ba-section-collapsed" id="cardConnStr">
                         <div class="ba-card-header">
-                            <h2 class="ba-card-title">Kết nối bằng Connection String</h2>
+                            <div class="ba-card-title-wrap">
+                                <button type="button" class="ba-toggle-btn" id="toggleConnStr" title="Thu gọn / Mở rộng">▶</button>
+                                <h2 class="ba-card-title">Kết nối bằng Connection String</h2>
+                            </div>
                         </div>
                         <div class="ba-card-body">
                             <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Dán connection string vào ô bên dưới rồi bấm Connect để mở HR Helper.</p>
@@ -453,7 +394,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tblResults">
-                                        <tr><td colspan="6" class="ba-empty">Chưa quét. Bấm &quot;Quét & load danh sách Database&quot; hoặc &quot;Quét&quot; trên từng server.</td></tr>
+                                        <tr><td colspan="6" class="ba-empty"><div class="ba-empty-state" id="dbEmptyState"><span class="ba-empty-state-icon" aria-hidden="true">🔍</span><span>Chưa quét. Bấm <a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Quét &amp; load danh sách Database</a> ở trên.</span></div></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -470,7 +411,7 @@
             <div class="ba-modal-content">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title" id="serverModalTitle">Thêm server</h3>
-                    <button type="button" class="ba-modal-close" onclick="hideServerModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideServerModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <input type="hidden" id="serverModalId" />
@@ -520,7 +461,7 @@
             <div class="ba-modal-content" style="max-width: 560px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title">Log quét database</h3>
-                    <button type="button" class="ba-modal-close" id="scanLogClose" style="display:none;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" id="scanLogClose" style="display:none;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <pre id="scanLogPre" class="ba-log-pre">Đang quét...</pre>
@@ -536,7 +477,7 @@
             <div class="ba-modal-content" style="max-width: 520px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title">Chi tiết lỗi</h3>
-                    <button type="button" class="ba-modal-close" onclick="closeErrorDetail(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="closeErrorDetail(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <pre id="errorDetailPre" class="ba-log-pre"></pre>
@@ -591,7 +532,7 @@
             <div class="ba-modal-content" style="max-width: 440px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title">Shrink log</h3>
-                    <button type="button" class="ba-modal-close" onclick="hideShrinkLogModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideShrinkLogModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <p id="shrinkLogDbInfo" style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;"></p>
@@ -614,7 +555,7 @@
             <div class="ba-modal-content" style="max-width: 720px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title" id="backupModalTitle">Back Up Database</h3>
-                    <button type="button" class="ba-modal-close" onclick="hideBackupModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideBackupModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body" style="display: flex; gap: 16px; min-height: 380px;">
                     <div id="backupModalNav" style="flex-shrink: 0; width: 140px; border-right: 1px solid var(--border); padding-right: 12px;">
@@ -724,7 +665,7 @@
             <div class="ba-modal-content" style="max-width: 860px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title">Restore database</h3>
-                    <button type="button" class="ba-modal-close" onclick="hideRestoreModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideRestoreModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body" style="display: flex; gap: 16px; min-height: 420px;">
                     <div id="restoreModalNav" style="flex-shrink: 0; width: 140px; border-right: 1px solid var(--border-color); padding-right: 12px;">
@@ -756,7 +697,7 @@
                                 <div class="ba-modal-content" style="max-width: 1180px; width: 96%; max-height: 85vh; display: flex; flex-direction: column;">
                                     <div class="ba-modal-header" style="flex-shrink:0;">
                                         <h3 class="ba-modal-title">Chọn file backup (.bak)</h3>
-                                        <button type="button" class="ba-modal-close" onclick="closeRestoreFileExplorer(); return false;">×</button>
+                                        <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="closeRestoreFileExplorer(); return false;">×</button>
                                     </div>
                                     <div style="padding: 8px 12px; border-bottom: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
                                         <input type="text" id="restoreExplorerSearch" class="ba-input" placeholder="Tìm theo tên (vd: EMI01)" style="width: 200px;" />
@@ -853,7 +794,7 @@
             <div class="ba-modal-content" style="max-width: 440px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title" id="confirmModalTitle">Xác nhận</h3>
-                    <button type="button" class="ba-modal-close" onclick="hideConfirmModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideConfirmModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <p id="confirmModalMessage" style="margin: 0; color: var(--text-primary); font-size: 0.9375rem; line-height: 1.6; white-space: pre-line;"></p>
@@ -882,6 +823,7 @@
         var canBulkReset = <%= CanBulkReset ? "true" : "false" %>;
         var servers = [];
         var results = [];
+        var databasesScannedOnce = false;
         var serverStatuses = {};
         var canBackup = <%= (CanBackup ? "true" : "false") %>;
         var canRestore = <%= (CanRestore ? "true" : "false") %>;
@@ -1433,6 +1375,7 @@
                     })(id);
                 }
                 if (queue.length === 0 && inFlight === 0) {
+                    databasesScannedOnce = true;
                     appendScanLog(['Hoàn thành.']);
                     $btn.prop('disabled', false);
                     $text.text('Quét & load danh sách Database');
@@ -2459,7 +2402,13 @@
             var $pg = $('#pagerDatabases');
             var list = filteredResults();
             if (!list.length) {
-                $tb.html('<tr><td colspan="6" class="ba-empty">Không có database nào. Kiểm tra server đã thêm và thử lại.</td></tr>');
+                var emptyHtml;
+                if (!databasesScannedOnce) {
+                    emptyHtml = '<tr><td colspan="6" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon" aria-hidden="true">🔍</span><span>Chưa quét. Bấm <a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Quét &amp; load danh sách Database</a> ở trên.</span></div></td></tr>';
+                } else {
+                    emptyHtml = '<tr><td colspan="6" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon" aria-hidden="true">📭</span><span>Không có database nào. Kiểm tra server đã thêm và thử lại. </span><a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Quét lại</a></div></td></tr>';
+                }
+                $tb.html(emptyHtml);
                 $pg.empty();
                 return;
             }
@@ -2641,6 +2590,10 @@
             fetchServers();
             $('#searchServers').on('input', function() { serverPage = 1; renderServers(); });
             $('#searchDatabases').on('input', function() { dbPage = 1; renderResults(); });
+            $('#toggleConnStr').on('click', function() {
+                $('#cardConnStr').toggleClass('ba-section-collapsed');
+                $(this).text($('#cardConnStr').hasClass('ba-section-collapsed') ? '▶' : '▼');
+            });
             $('#toggleServers').on('click', function() {
                 $('#cardServers').toggleClass('ba-section-collapsed');
                 $(this).text($('#cardServers').hasClass('ba-section-collapsed') ? '▶' : '▼');
@@ -2649,13 +2602,12 @@
                 $('#cardDatabases').toggleClass('ba-section-collapsed');
                 $(this).text($('#cardDatabases').hasClass('ba-section-collapsed') ? '▶' : '▼');
             });
-            $('#serverModal').on('click', function(e) { if (e.target === this) hideServerModal(); });
-            $('#scanLogModal').on('click', function(e) { if (e.target === this) closeScanLog(); });
-            $('#errorDetailModal').on('click', function(e) { if (e.target === this) closeErrorDetail(); });
-            $('#confirmModal').on('click', function(e) { if (e.target === this) hideConfirmModal(); });
-            $('#restoreModal').on('click', function(e) { if (e.target === this) hideRestoreModal(); });
-            $('#restoreFileExplorerModal').on('click', function(e) { if (e.target === this) closeRestoreFileExplorer(); });
-            $('#notificationDetailModal').on('click', function(e) { if (e.target === this) $('#notificationDetailModal').removeClass('show'); });
+            $(document).on('click', '#dbEmptyStateLink', function(e) {
+                e.preventDefault();
+                var $target = $('#btnLoadDb').length ? $('#btnLoadDb') : $('#cardServers');
+                if ($target.length) $target[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            /* Modal: không đóng khi click ra ngoài (đồng bộ với Feedback/FeedbackManage) */
             $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); e.stopPropagation(); $('#notificationDetailModal').removeClass('show'); });
             $('#restoreExplorerUpBtn').on('click', function() {
                 if (!restoreExplorerCurrentPath) return;
@@ -2669,7 +2621,6 @@
                 else { restoreExplorerSort.key = k; restoreExplorerSort.dir = 1; }
                 if (restoreExplorerRows.length) restoreExplorerRenderTable();
             });
-            $('#backupModal').on('click', function(e) { if (e.target === this) hideBackupModal(); });
             $('#restoreNavGeneral, #restoreNavOptions').on('click', function() {
                 var page = $(this).data('page');
                 $('#restoreModalNav .restore-nav-item').removeClass('active');
@@ -2719,7 +2670,6 @@
                 $('.backup-page').hide();
                 $('#backupPage' + (page === 'general' ? 'General' : 'Options')).show();
             });
-            $('#shrinkLogModal').on('click', function(e) { if (e.target === this) hideShrinkLogModal(); });
             $('#scanLogClose').on('click', closeScanLog);
 
             var restoreJobsPanelTimer = null;

@@ -122,25 +122,7 @@
             font-weight: 600;
             color: var(--text-primary);
         }
-        .account-modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-        .account-modal-close:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
+        /* Nút × đóng modal dùng chung từ ba-layout.css */
         .account-modal-tabs {
             display: flex;
             border-bottom: 1px solid var(--border);
@@ -395,7 +377,7 @@
             <div class="account-modal-content">
                 <div class="account-modal-header">
                     <h3 class="account-modal-title">Account Settings</h3>
-                    <button type="button" class="account-modal-close" onclick="hideAccountModal(); return false;">×</button>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideAccountModal(); return false;">×</button>
                 </div>
                 <div class="account-modal-tabs">
                     <button class="account-modal-tab active" data-tab="account" onclick="switchAccountTab(event, 'account'); return false;">Account</button>
