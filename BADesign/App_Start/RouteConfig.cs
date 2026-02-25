@@ -147,6 +147,18 @@ namespace BADesign
 				"~/Pages/FunctionQueue.aspx"
 			);
 
+			routes.MapPageRoute(
+				"FeedbackRoute",
+				"Feedback",
+				"~/Pages/Feedback.aspx"
+			);
+
+			routes.MapPageRoute(
+				"FeedbackManageRoute",
+				"FeedbackManage",
+				"~/Pages/FeedbackManage.aspx"
+			);
+
 			// Friendly URLs đăng ký SAU tất cả MapPageRoute để giữ query string
 			var settings = new FriendlyUrlSettings();
 			settings.AutoRedirectMode = RedirectMode.Off;

@@ -2305,11 +2305,43 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                             }
                         }
                     }
-                    return new { success = true, jobs = jobs, currentUserId = currentUserId };
+                    var newBugs = new List<object>();
+                    if (UiAuthHelper.IsSuperAdmin)
+                    {
+                        try
+                        {
+                            using (var conn2 = new SqlConnection(UiAuthHelper.ConnStr))
+                            using (var cmd2 = conn2.CreateCommand())
+                            {
+                                cmd2.CommandText = @"SELECT F.Id, F.Title, F.CreatedAt, ISNULL(NULLIF(RTRIM(U.FullName),''), U.UserName) AS UserName
+FROM UiFeedback F
+LEFT JOIN UiUser U ON U.UserId = F.UserId
+WHERE F.Category = N'Bug' AND F.Status = N'New'
+ORDER BY F.CreatedAt DESC";
+                                conn2.Open();
+                                using (var r2 = cmd2.ExecuteReader())
+                                {
+                                    while (r2.Read())
+                                    {
+                                        var created = r2.IsDBNull(2) ? (DateTime?)null : r2.GetDateTime(2);
+                                        newBugs.Add(new
+                                        {
+                                            id = r2.GetInt32(0),
+                                            title = r2.IsDBNull(1) ? "" : r2.GetString(1),
+                                            createdAt = created.HasValue ? created.Value.ToString("o") : (string)null,
+                                            userName = r2.IsDBNull(3) ? "" : r2.GetString(3)
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        catch { newBugs = new List<object>(); }
+                    }
+                    return new { success = true, jobs = jobs, currentUserId = currentUserId, newBugs = newBugs };
                 }
                 catch
                 {
-                    return new { success = true, jobs = new List<object>(), currentUserId = currentUserId };
+                    return new { success = true, jobs = new List<object>(), currentUserId = currentUserId, newBugs = new List<object>() };
                 }
             }
             catch (Exception ex)

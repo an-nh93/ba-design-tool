@@ -137,13 +137,27 @@
 .ba-notif-type-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-right: 6px; }
 .ba-notif-type-restore { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
 .ba-notif-type-backup { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.ba-notif-type-bug { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 .ba-notif-type-hr-user { background: #4ac5f5; color: #fff; }
 .ba-notif-type-hr-employee { background: #8757f7; color: #fff; }
 .ba-notif-type-hr-other { background: rgba(135, 87, 247, 0.5); color: #fff; }
-.ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other):not(.ba-notif-reset-tag):not(.ba-notif-no-reset-tag) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
+.ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-bug):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other):not(.ba-notif-reset-tag):not(.ba-notif-no-reset-tag) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
 /* Tag Có Reset / Không Reset: dùng !important để không bị đè bởi rule .ba-notif-type-badge phía trên */
 .ba-notif-type-badge.ba-notif-reset-tag { background: rgba(16, 185, 129, 0.25) !important; color: #10b981 !important; }
 .ba-notif-type-badge.ba-notif-no-reset-tag { background: rgba(239, 68, 68, 0.2) !important; color: #ef4444 !important; }
+/* Badge trạng thái job (giống thẻ badge loại) */
+.ba-notif-status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-top: 4px; }
+.ba-notif-status-running { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.ba-notif-status-completed { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.ba-notif-status-failed { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+/* Badge trạng thái góp ý (Feedback): Mới, Đã đọc, Đang xử lý, Đã xử lý, Đóng */
+.ba-feedback-status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+.ba-feedback-status-badge:hover { opacity: 0.9; }
+.ba-feedback-status-new { background: rgba(59, 130, 246, 0.25); color: #3b82f6; }
+.ba-feedback-status-read { background: rgba(148, 163, 184, 0.3); color: #94a3b8; }
+.ba-feedback-status-inprogress { background: rgba(245, 158, 11, 0.25); color: #f59e0b; }
+.ba-feedback-status-resolved { background: rgba(16, 185, 129, 0.25); color: #10b981; }
+.ba-feedback-status-closed { background: rgba(100, 116, 139, 0.3); color: #64748b; }
 .ba-notif-item .ba-notif-cancel-btn {
     margin-left: 8px;
     padding: 2px 8px;

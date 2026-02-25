@@ -37,6 +37,22 @@ namespace BADesign
             catch { }
         }
 
+        /// <summary>Gửi tin nhắn thông báo bug mới (tiêu đề) cho Super Admin. Trả về true nếu gửi thành công.</summary>
+        public static bool SendBugNotification(string title)
+        {
+            string botToken;
+            string chatId;
+            LoadConfig(out botToken, out chatId);
+            if (string.IsNullOrWhiteSpace(botToken) || string.IsNullOrWhiteSpace(chatId))
+                return false;
+
+            var msg = "🐛 <b>Bug mới (Cadena Helper)</b>\n\n";
+            msg += "📌 " + EscapeHtml(title ?? "(Không có tiêu đề)") + "\n";
+            msg += "🕐 " + DateTime.Now.ToString("yyyy-MM-dd HH:mm");
+
+            return SendMessage(botToken, chatId, msg);
+        }
+
         /// <summary>Gửi tin nhắn thông báo user mới đăng ký. Trả về true nếu gửi thành công.</summary>
         public static bool SendNewUserNotification(string userName, string email, string roleName)
         {

@@ -29,6 +29,7 @@ namespace BADesign
             lnkNavUIBuilder.CssClass = (active == "Home") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavDatabaseSearch.CssClass = (active == "DatabaseSearch") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavFunctionQueue.CssClass = (active == "FunctionQueue") ? "ba-nav-item active" : "ba-nav-item";
+            lnkNavFeedback.CssClass = (active == "Feedback") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavEncryptDecrypt.Visible)
                 lnkNavEncryptDecrypt.CssClass = (active == "EncryptDecrypt") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavAppSettings.Visible)
@@ -39,6 +40,7 @@ namespace BADesign
                 lnkNavUserManagement.CssClass = (active == "Users") ? "ba-nav-item active" : "ba-nav-item";
                 lnkNavRolePermission.CssClass = (active == "RolePermission") ? "ba-nav-item active" : "ba-nav-item";
                 lnkNavAuditLog.CssClass = (active == "AuditLog") ? "ba-nav-item active" : "ba-nav-item";
+                lnkNavFeedbackManage.CssClass = (active == "FeedbackManage") ? "ba-nav-item active" : "ba-nav-item";
                 lnkNavLeaveManager.CssClass = (active == "LeaveManager") ? "ba-nav-item active" : "ba-nav-item";
             }
         }

@@ -774,9 +774,17 @@
                         var d = res.d || res;
                         if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
                         var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = a.startTime ? new Date(a.startTime).getTime() : 0; var tb = b.startTime ? new Date(b.startTime).getTime() : 0; return tb - ta; });
-                        if (jobs.length) $badge.text(jobs.length).addClass('visible'); else $badge.removeClass('visible');
+                        var newBugs = d.newBugs || [];
+                        var totalCount = jobs.length + newBugs.length;
+                        if (totalCount) $badge.text(totalCount).addClass('visible'); else $badge.removeClass('visible');
                         window.__notifJobsList = jobs;
+                        var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
                         var html = '';
+                        if (newBugs.length > 0) {
+                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">🐛 Bugs mới (' + newBugs.length + ')</div>';
+                            newBugs.forEach(function(b) { var created = (function(v){ if (v == null || v === '') return '—'; var s = String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1],10)).toLocaleString(); var d = new Date(s); return isNaN(d.getTime()) ? '—' : d.toLocaleString(); })(b.createdAt); html += '<div class="ba-notif-item ba-notif-bug" data-bug-id="' + (b.id || '') + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
+                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">Thông báo job</div>';
+                        }
                         jobs.forEach(function(j, idx) {
                             var st = j.status || '', msg = (j.message || '').trim(), msgShort = msg.length > MSG_MAX ? msg.substring(0, MSG_MAX) + '…' : msg;
                             var pct = j.percentComplete != null ? j.percentComplete : 0;
@@ -814,9 +822,11 @@
                 $.ajax({ url: apiBase + '/GetJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
                         var d = res.d || res;
-                        if (d && d.jobs && d.jobs.length) {
+                        if (d && (d.jobs || d.newBugs)) {
                             var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); });
-                            if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); }
+                            var newBugs = d.newBugs || [];
+                            var total = jobs.length + newBugs.length;
+                            if (total) { $('#restoreJobsBadge').text(total).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
                         }
                     }
                 });
@@ -834,9 +844,11 @@
                         $.ajax({ url: apiBase + '/GetJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                             success: function(res) {
                                 var d = res.d || res;
-                                if (d && d.jobs) {
+                                if (d && (d.jobs || d.newBugs)) {
                                     var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); });
-                                    if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
+                                    var newBugs = d.newBugs || [];
+                                    var total = jobs.length + newBugs.length;
+                                    if (total) { $('#restoreJobsBadge').text(total).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
                                 }
                             }
                         });
@@ -846,9 +858,11 @@
                         $.ajax({ url: apiBase + '/GetJobs', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                             success: function(res) {
                                 var d = res.d || res;
-                                if (d && d.jobs) {
+                                if (d && (d.jobs || d.newBugs)) {
                                     var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); });
-                                    if (jobs.length) { $('#restoreJobsBadge').text(jobs.length).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
+                                    var newBugs = d.newBugs || [];
+                                    var total = jobs.length + newBugs.length;
+                                    if (total) { $('#restoreJobsBadge').text(total).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
                                 }
                             }
                         });

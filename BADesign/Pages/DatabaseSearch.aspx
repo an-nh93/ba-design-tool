@@ -2749,9 +2749,11 @@
                 $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
                         var d = res.d || res;
-                        if (d && d.jobs && d.jobs.length) {
+                        if (d && (d.jobs || d.newBugs)) {
                             var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                            if (jobs.length) $('#restoreJobsBadge').text(jobs.length).addClass('visible');
+                            var newBugs = d.newBugs || [];
+                            var total = jobs.length + newBugs.length;
+                            if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible');
                         }
                     }
                 });
@@ -2883,12 +2885,14 @@
                         var d = res.d || res;
                         if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
                         var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                        if (!jobs.length) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
+                        var newBugs = d.newBugs || [];
+                        var totalCount = jobs.length + newBugs.length;
+                        if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
                         var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
                         var runningRestore = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Restore' && (notifJobSessionId(j) != null && notifJobSessionId(j) !== ''); });
                         var runningBackup = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Backup'; });
                         var hasRunningJobs = runningRestore.length > 0 || runningBackup.length > 0;
-                        $badge.text(jobs.length).addClass('visible');
+                        $badge.text(totalCount).addClass('visible');
                         window.__runningRestoreSessions = runningRestore.slice();
                         window.__hasRunningJobs = hasRunningJobs;
                         if (runningRestore.length) {
@@ -2930,7 +2934,16 @@
                             if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
                         }
                         window.__notifJobsList = jobs;
+                        var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
                         var html = '';
+                        if (newBugs.length > 0) {
+                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">🐛 Bugs mới (' + newBugs.length + ')</div>';
+                            newBugs.forEach(function(b) {
+                                var created = b.createdAt ? new Date(b.createdAt).toLocaleString() : '—';
+                                html += '<div class="ba-notif-item ba-notif-bug" data-bug-id="' + (b.id || '') + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '" data-action="bug">Xem / Xử lý</a></div>';
+                            });
+                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">Thông báo job</div>';
+                        }
                         jobs.forEach(function(j, idx) {
                             var sid = notifJobSessionId(j);
                             var srvId = notifJobServerId(j);
