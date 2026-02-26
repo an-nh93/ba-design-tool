@@ -46,14 +46,14 @@
         .rp-card-header {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 0.5rem;
             cursor: pointer;
             user-select: none;
         }
         .rp-card-header:hover { opacity: 0.9; }
-        .rp-card-header .rp-toggle { color: var(--text-muted); font-size: 1rem; transition: transform 0.2s; }
+        .rp-card-header .rp-toggle { color: var(--text-muted); font-size: 1rem; transition: transform 0.2s; flex-shrink: 0; }
         .rp-card.collapsed .rp-card-header .rp-toggle { transform: rotate(-90deg); }
-        .rp-card h2 { font-size: 1.25rem; margin: 0; color: var(--text-primary); }
+        .rp-card-header h2 { font-size: 1.25rem; margin: 0; color: var(--text-primary); }
         .rp-card-body { margin-top: 1rem; }
         .rp-table { width: 100%; border-collapse: collapse; }
         .rp-table-wrap { max-height: 360px; overflow-y: auto; margin-bottom: 0.5rem; }
@@ -115,8 +115,8 @@
                     <div class="rp-content">
                     <div class="rp-card" id="cardPermissions">
                         <div class="rp-card-header" onclick="toggleRpCard('cardPermissions'); return false;">
-                            <h2>Định nghĩa quyền theo Role</h2>
                             <span class="rp-toggle" title="Thu gọn / Mở rộng">▼</span>
+                            <h2>Định nghĩa quyền theo Role</h2>
                         </div>
                         <div class="rp-card-body">
                         <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
@@ -145,8 +145,8 @@
                     </div>
                     <div class="rp-card" id="cardServerAccess">
                         <div class="rp-card-header" onclick="toggleRpCard('cardServerAccess'); return false;">
-                            <h2>Server Access theo Role</h2>
                             <span class="rp-toggle" title="Thu gọn / Mở rộng">▼</span>
+                            <h2>Server Access theo Role</h2>
                         </div>
                         <div class="rp-card-body">
                         <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
