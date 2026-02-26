@@ -10,6 +10,7 @@ using BADesign;
 using BADesign.Helpers;
 using BADesign.Helpers.Security;
 using BADesign.Helpers.Utils;
+using Newtonsoft.Json;
 
 namespace BADesign.Pages
 {
@@ -1187,6 +1188,14 @@ WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @co
             }
         }
 
+        /// <summary>Một dòng kết quả phân tích Multi-DB (trả về API với tên thuộc tính cố định để client hiển thị).</summary>
+        public class MultiDbAnalyzeResultItem
+        {
+            public string database { get; set; }
+            public string status { get; set; }
+            public string reason { get; set; }
+        }
+
         public class EmailColumnSelection
         {
             public string schema { get; set; }
@@ -1575,6 +1584,273 @@ ELSE
             }
         }
 
+        /// <summary>Đưa phân tích Multi-DB xuống job nền; khi xong push SignalR, client lấy kết quả qua GetMultiDbAnalyzeResult(jobId).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartMultiDbAnalyzeJob(string k, List<string> emailIgnorePatterns)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                    return new { success = false, message = "Bạn không có quyền sử dụng Multi-DB Reset.", jobId = 0 };
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null || multi.Databases.Count == 0)
+                    return new { success = false, message = "Chế độ Multi-DB không hợp lệ hoặc không có database.", jobId = 0 };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var ignore = emailIgnorePatterns ?? new List<string>();
+                var id = DataSecurityWrapper.DecryptConnectId(k);
+                var multiGuid = (!string.IsNullOrEmpty(id) && id.StartsWith("multi_", StringComparison.OrdinalIgnoreCase) && id.Length > 6) ? id.Substring(6) : "";
+                var payloadInitial = string.IsNullOrEmpty(multiGuid) ? (object)DBNull.Value : "{\"multiGuid\":\"" + multiGuid.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"}";
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperMultiDbAnalyze', @sname, N'Multi', @uid, @uname, SYSDATETIME(), N'Running', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", multi.Server ?? "");
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName);
+                    cmd.Parameters.AddWithValue("@payload", payloadInitial);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                UserActionLogHelper.Log("HRHelper.MultiDbAnalyze", "jobId=" + jobId + ", dbCount=" + multi.Databases.Count);
+                var dbList = multi.Databases;
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                    var results = new List<object>();
+                    var total = dbList.Count;
+                    for (var i = 0; i < dbList.Count; i++)
+                    {
+                        var db = dbList[i];
+                        var status = "Reset";
+                        var reason = "";
+                        try
+                        {
+                            using (var conn = new SqlConnection(db.ConnectionString))
+                            {
+                                conn.Open();
+                                if (DatabaseNeedsReset(conn, ignore, out reason))
+                                    status = "NotReset";
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            status = "Error";
+                            reason = ex.Message ?? "Lỗi";
+                        }
+                        results.Add(new { database = db.DatabaseName, status = status, reason = reason });
+                        try
+                        {
+                            var pct = (int)Math.Round(((i + 1.0) / total) * 100);
+                            using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandText = "UPDATE BaJob SET PercentComplete = @pct WHERE Id = @id AND JobType = N'HRHelperMultiDbAnalyze' AND Status = N'Running'";
+                                cmd.Parameters.AddWithValue("@pct", Math.Min(pct, 99));
+                                cmd.Parameters.AddWithValue("@id", jobId);
+                                conn.Open();
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                        catch { }
+                    }
+                    int notReset = 0, errCount = 0;
+                    foreach (var r in results)
+                    {
+                        try
+                        {
+                            var jo = Newtonsoft.Json.Linq.JObject.FromObject(r);
+                            var s = jo["status"]?.ToString();
+                            if (s == "NotReset") notReset++;
+                            else if (s == "Error") errCount++;
+                        }
+                        catch { }
+                    }
+                    var msg = total + " DB. Chưa reset: " + notReset + (errCount > 0 ? ", Lỗi: " + errCount : "");
+                    string multiGuidStored = null;
+                    try
+                    {
+                        using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                        {
+                            conn.Open();
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandText = "SELECT Payload FROM BaJob WHERE Id = @id AND JobType = N'HRHelperMultiDbAnalyze' AND Status = N'Running'";
+                                cmd.Parameters.AddWithValue("@id", jobId);
+                                var raw = cmd.ExecuteScalar();
+                                if (raw != null && !DBNull.Value.Equals(raw))
+                                {
+                                    var s = (string)raw;
+                                    if (!string.IsNullOrWhiteSpace(s) && s.TrimStart().StartsWith("{"))
+                                    {
+                                        var jo = Newtonsoft.Json.Linq.JObject.Parse(s);
+                                        multiGuidStored = jo["multiGuid"]?.ToString();
+                                    }
+                                }
+                            }
+                            var payloadObj = new { multiGuid = multiGuidStored ?? "", list = results };
+                            var resultJson = JsonConvert.SerializeObject(payloadObj);
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandText = "UPDATE BaJob SET Status = N'Completed', PercentComplete = 100, Message = @msg, Payload = @payload, CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = N'HRHelperMultiDbAnalyze' AND Status = N'Running'";
+                                cmd.Parameters.AddWithValue("@msg", msg);
+                                cmd.Parameters.AddWithValue("@payload", resultJson);
+                                cmd.Parameters.AddWithValue("@id", jobId);
+                                cmd.ExecuteNonQuery();
+                            }
+                        }
+                    }
+                    catch { }
+                    BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbAnalyze", null, userId);
+                    }
+                    catch (Exception ex)
+                    {
+                        try
+                        {
+                            UpdateBaJobCompleted(jobId, "HRHelperMultiDbAnalyze", false, ex.Message ?? "Lỗi");
+                            BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbAnalyze", null, userId);
+                        }
+                        catch { }
+                    }
+                });
+                return new { success = true, jobId = jobId, message = "Đã đưa phân tích Multi-DB vào hàng đợi. Bạn có thể đóng trang và quay lại sau." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
+
+        /// <summary>Lấy kết quả phân tích Multi-DB từ job đã hoàn thành (Payload).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetMultiDbAnalyzeResult(int jobId)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", list = (List<MultiDbAnalyzeResultItem>)null };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Payload, CompletedAt FROM BaJob WHERE Id = @id AND JobType = N'HRHelperMultiDbAnalyze' AND StartedByUserId = @uid AND Status = N'Completed'";
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read()) return new { success = false, message = "Không tìm thấy kết quả hoặc job chưa xong.", list = (List<MultiDbAnalyzeResultItem>)null, completedAt = (DateTime?)null };
+                        var raw = r.IsDBNull(0) ? null : r.GetString(0);
+                        var completedAt = r.IsDBNull(1) ? (DateTime?)null : r.GetDateTime(1);
+                        if (string.IsNullOrWhiteSpace(raw))
+                            return new { success = false, message = "Không có dữ liệu kết quả.", list = (List<MultiDbAnalyzeResultItem>)null, completedAt = completedAt };
+                        if (completedAt.HasValue && (DateTime.Now - completedAt.Value).TotalHours > 1)
+                            return new { success = false, message = "Kết quả đã hết hạn (quá 1 giờ). Vui lòng phân tích lại.", list = (List<MultiDbAnalyzeResultItem>)null, completedAt = completedAt };
+                        var list = ParseMultiDbAnalyzePayloadToList(raw);
+                        return new { success = true, list = list ?? new List<MultiDbAnalyzeResultItem>(), completedAt = completedAt };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, list = (List<MultiDbAnalyzeResultItem>)null };
+            }
+        }
+
+        private static List<MultiDbAnalyzeResultItem> ParseMultiDbAnalyzePayloadToList(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var t = raw.TrimStart();
+            if (t.StartsWith("["))
+                return JsonConvert.DeserializeObject<List<MultiDbAnalyzeResultItem>>(raw);
+            if (t.StartsWith("{"))
+            {
+                var jo = Newtonsoft.Json.Linq.JObject.Parse(raw);
+                var listToken = jo["list"];
+                if (listToken != null) return listToken.ToObject<List<MultiDbAnalyzeResultItem>>();
+            }
+            return null;
+        }
+
+        /// <summary>Lấy token kết nối Multi-DB cho job đã hoàn thành (để mở HR Helper với k + jobId và tải kết quả). Phiên session phải còn HRConnMulti_guid thì mở trang mới có dữ liệu.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetMultiConnTokenForJob(int jobId)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", token = (string)null };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Payload FROM BaJob WHERE Id = @id AND JobType = N'HRHelperMultiDbAnalyze' AND StartedByUserId = @uid AND Status = N'Completed'";
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    conn.Open();
+                    var raw = cmd.ExecuteScalar();
+                    if (raw == null || DBNull.Value.Equals(raw) || string.IsNullOrWhiteSpace((string)raw))
+                        return new { success = false, message = "Không tìm thấy job hoặc job chưa hoàn thành.", token = (string)null };
+                    var payloadStr = (string)raw;
+                    string multiGuid = null;
+                    if (payloadStr.TrimStart().StartsWith("{"))
+                    {
+                        var jo = Newtonsoft.Json.Linq.JObject.Parse(payloadStr);
+                        multiGuid = jo["multiGuid"]?.ToString();
+                    }
+                    if (string.IsNullOrWhiteSpace(multiGuid))
+                        return new { success = false, message = "Job này không lưu thông tin kết nối Multi-DB. Vui lòng vào Database Search chọn lại Multi-DB, vào HR Helper và bấm \"Tải kết quả phân tích gần nhất\".", token = (string)null };
+                    var token = DataSecurityWrapper.EncryptConnectId("multi_" + multiGuid);
+                    return new { success = true, token = token };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, token = (string)null };
+            }
+        }
+
+        /// <summary>Kết quả phân tích Multi-DB gần nhất (để tải lại khi mở trang hoặc khi job vừa xong mà client không lưu jobId).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetMyLastMultiDbAnalyzeResult()
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0, list = (List<MultiDbAnalyzeResultItem>)null, completedAt = (DateTime?)null };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT TOP 1 Id, Payload, CompletedAt FROM BaJob WHERE JobType = N'HRHelperMultiDbAnalyze' AND StartedByUserId = @uid AND Status = N'Completed' AND CompletedAt IS NOT NULL AND CompletedAt >= DATEADD(hour, -1, SYSDATETIME()) ORDER BY CompletedAt DESC";
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read()) return new { success = true, jobId = 0, list = (List<MultiDbAnalyzeResultItem>)null, completedAt = (DateTime?)null, message = "Không có kết quả phân tích trong 1 giờ qua. Kết quả quá 1 giờ coi như hết hạn (database có thể đã thay đổi). Vui lòng bấm Phân tích lại." };
+                        var id = r.GetInt32(0);
+                        var payload = r.IsDBNull(1) ? null : r.GetString(1);
+                        var completedAt = r.IsDBNull(2) ? (DateTime?)null : r.GetDateTime(2);
+                        if (string.IsNullOrWhiteSpace(payload))
+                            return new { success = true, jobId = id, list = new List<MultiDbAnalyzeResultItem>(), completedAt = completedAt };
+                        var list = ParseMultiDbAnalyzePayloadToList(payload);
+                        return new { success = true, jobId = id, list = list ?? new List<MultiDbAnalyzeResultItem>(), completedAt = completedAt };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0, list = (List<MultiDbAnalyzeResultItem>)null, completedAt = (DateTime?)null };
+            }
+        }
+
         private static bool IsValidEmailFormat(string s)
         {
             if (string.IsNullOrWhiteSpace(s)) return false;
@@ -1839,6 +2115,129 @@ WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','Em
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Đưa reset Multi-DB xuống job nền. Trả về jobId; client disable nút và theo dõi qua chuông/Function Queue.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartMultiDbResetJob(string k, List<string> databaseNames, string email, string phone)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("DatabaseBulkReset"))
+                    return new { success = false, message = "Bạn không có quyền sử dụng Multi-DB Reset.", jobId = 0 };
+                var multi = GetMultiConnFromToken(k);
+                if (multi == null || multi.Databases == null)
+                    return new { success = false, message = "Chế độ Multi-DB không hợp lệ.", jobId = 0 };
+                if (databaseNames == null || databaseNames.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 database.", jobId = 0 };
+                var emailTrim = (email ?? "").Trim();
+                var phoneTrim = (phone ?? "").Trim();
+                if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
+                    return new { success = false, message = "Nhập Email và/hoặc Phone để reset.", jobId = 0 };
+
+                var dbSet = new HashSet<string>(databaseNames.Select(x => (x ?? "").Trim()), StringComparer.OrdinalIgnoreCase);
+                var toProcess = multi.Databases.Where(d => dbSet.Contains(d.DatabaseName ?? "")).ToList();
+                if (toProcess.Count == 0)
+                    return new { success = false, message = "Không có database nào hợp lệ.", jobId = 0 };
+
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var payloadInitial = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim });
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), N'Running', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", multi.Server ?? "");
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName);
+                    cmd.Parameters.AddWithValue("@payload", payloadInitial);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                UserActionLogHelper.Log("HRHelper.MultiDbReset", "jobId=" + jobId + ", dbCount=" + toProcess.Count);
+
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    var totalDbs = toProcess.Count;
+                    var done = 0;
+                    var totalAffected = 0;
+                    var errors = new List<string>();
+                    try
+                    {
+                        foreach (var db in toProcess)
+                        {
+                            try
+                            {
+                                using (var conn = new SqlConnection(db.ConnectionString))
+                                {
+                                    conn.Open();
+                                    if (!string.IsNullOrEmpty(emailTrim))
+                                        totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
+                                    if (!string.IsNullOrEmpty(phoneTrim))
+                                        totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
+                                }
+                                done++;
+                            }
+                            catch (Exception ex)
+                            {
+                                errors.Add(db.DatabaseName + ": " + (ex.Message ?? "Lỗi"));
+                            }
+                            var pct = totalDbs > 0 ? (int)Math.Round(((done * 100.0) / totalDbs)) : 0;
+                            pct = Math.Min(pct, 99);
+                            try
+                            {
+                                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                                using (var updateCmd = conn.CreateCommand())
+                                {
+                                    updateCmd.CommandText = "UPDATE BaJob SET PercentComplete = @pct, Message = @msg WHERE Id = @id AND JobType = N'HRHelperMultiDbReset' AND Status = N'Running'";
+                                    updateCmd.Parameters.AddWithValue("@pct", pct);
+                                    updateCmd.Parameters.AddWithValue("@msg", done + " / " + totalDbs + " DB");
+                                    updateCmd.Parameters.AddWithValue("@id", jobId);
+                                    conn.Open();
+                                    updateCmd.ExecuteNonQuery();
+                                }
+                                BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
+                            }
+                            catch { }
+                        }
+                        var msg = "Đã reset " + done + "/" + totalDbs + " DB. Tổng bản ghi: " + totalAffected;
+                        if (errors.Count > 0)
+                            msg += ". Lỗi: " + string.Join("; ", errors.Take(5));
+                        try
+                        {
+                            using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandText = "UPDATE BaJob SET Status = N'Completed', PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = N'HRHelperMultiDbReset' AND Status = N'Running'";
+                                cmd.Parameters.AddWithValue("@msg", msg);
+                                cmd.Parameters.AddWithValue("@id", jobId);
+                                conn.Open();
+                                cmd.ExecuteNonQuery();
+                            }
+                            BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
+                        }
+                        catch { }
+                    }
+                    catch (Exception ex)
+                    {
+                        try
+                        {
+                            UpdateBaJobCompleted(jobId, "HRHelperMultiDbReset", false, ex.Message ?? "Lỗi");
+                            BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
+                        }
+                        catch { }
+                    }
+                });
+
+                return new { success = true, jobId = jobId, message = "Đã đưa reset Multi-DB vào hàng đợi. Theo dõi tiến độ trên chuông và Function Queue." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
             }
         }
 

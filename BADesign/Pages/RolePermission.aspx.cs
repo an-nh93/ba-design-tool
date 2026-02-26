@@ -18,6 +18,11 @@ namespace UiBuilderFull.Admin
 				Response.Redirect(ResolveUrl("~/AccessDenied"), true);
 				return;
 			}
+			if (!IsPostBack)
+			{
+				ucBaSidebar.ActiveSection = "RolePermission";
+				ucBaTopBar.PageTitle = "Role Permission";
+			}
 		}
 
 		[WebMethod(EnableSession = true)]

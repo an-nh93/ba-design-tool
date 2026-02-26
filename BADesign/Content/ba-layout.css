@@ -198,7 +198,8 @@ a.ba-sidebar-title:hover { color: var(--primary-light); }
 }
 
 /* ========== Nút dùng chung (modal, form, toolbar) ========== */
-.ba-btn {
+.ba-btn,
+a.ba-btn {
     padding: 0.5rem 1rem;
     border-radius: 6px;
     font-size: 0.875rem;
@@ -209,7 +210,9 @@ a.ba-sidebar-title:hover { color: var(--primary-light); }
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
+    text-decoration: none;
 }
+a.ba-btn:hover { text-decoration: none; }
 .ba-btn-primary { background: var(--primary); color: white; }
 .ba-btn-primary:hover { background: var(--primary-hover); }
 .ba-btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }

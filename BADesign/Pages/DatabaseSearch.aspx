@@ -2841,7 +2841,8 @@
                         var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
                         var runningRestore = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Restore' && (notifJobSessionId(j) != null && notifJobSessionId(j) !== ''); });
                         var runningBackup = jobs.filter(function(j) { return j.status === 'Running' && j.type === 'Backup'; });
-                        var hasRunningJobs = runningRestore.length > 0 || runningBackup.length > 0;
+                        var runningMultiDbAnalyze = jobs.filter(function(j) { return j.status === 'Running' && (j.type || '') === 'HRHelperMultiDbAnalyze'; });
+                        var hasRunningJobs = runningRestore.length > 0 || runningBackup.length > 0 || runningMultiDbAnalyze.length > 0;
                         $badge.text(totalCount).addClass('visible');
                         window.__runningRestoreSessions = runningRestore.slice();
                         window.__hasRunningJobs = hasRunningJobs;
@@ -2883,28 +2884,38 @@
                         } else {
                             if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
                         }
+                        if (runningMultiDbAnalyze.length > 0 && !document.hidden && $('#restoreJobsPanel').is(':visible') && !restoreProgressTimer) {
+                            restoreProgressTimer = setInterval(loadRestoreJobsPanel, 2000);
+                        }
                         window.__notifJobsList = jobs;
                         var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
+                        var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
+                        var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
                         var html = '';
                         if (newBugs.length > 0) {
-                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">🐛 Bugs mới (' + newBugs.length + ')</div>';
+                            html += '<div class="ba-notif-group" data-group="bugs">';
+                            html += '<div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifBugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div>';
+                            html += '<div class="ba-notif-group-body" data-group="bugs" style="' + (notifBugsCollapsed ? 'display:none;' : '') + '">';
                             newBugs.forEach(function(b) {
                                 var created = b.createdAt ? new Date(b.createdAt).toLocaleString() : '—';
                                 html += '<div class="ba-notif-item ba-notif-bug" data-bug-id="' + (b.id || '') + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '" data-action="bug">Xem / Xử lý</a></div>';
                             });
-                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">Thông báo job</div>';
+                            html += '</div></div>';
+                            html += '<div class="ba-notif-group" data-group="jobs">';
+                            html += '<div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div>';
+                            html += '<div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
                         }
                         jobs.forEach(function(j, idx) {
                             var sid = notifJobSessionId(j);
                             var srvId = notifJobServerId(j);
                             var key = String(srvId != null ? srvId : '') + '_' + String(sid != null ? sid : '');
-                            var serverPct = (j.percentComplete != null ? j.percentComplete : (j.PercentComplete != null ? j.PercentComplete : 0));
+                            var serverPct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : (j.percentcomplete != null && j.percentcomplete !== '') ? Number(j.percentcomplete) : 0;
                             var st = j.status || '';
                             var msg = (j.message || j.Message || '').trim();
                             var phaseLabel = (j.type === 'Restore') ? (msg || 'Restore') : '';
                             var startTimeStr = formatNotifTime(j.startTime || j.StartTime);
                             var jobType = j.type || 'Restore';
-                            var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore');
+                            var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore');
                             var dbName = (j.databaseName || j.DatabaseName || '').trim();
                             var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                             // Restore có reset: khi server báo 100% Restore thì client chuyển ngay sang 0% Reset Information (tránh treo 100% chờ server cập nhật phase)
@@ -2922,7 +2933,7 @@
                                 if (st === 'Running') lastKnownRestorePct[key] = pct;
                             }
                             var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
-                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
+                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : '';
                             var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có tích hợp Reset thông tin">Có Reset' : 'ba-notif-no-reset-tag" title="Restore không reset">Không Reset') + '</span> ') : '';
                             var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '" data-server-id="' + (srvId != null ? String(srvId) : '') + '" data-session-id="' + (sid != null ? String(sid) : '') + '" data-phase="' + (phaseLabel.replace(/"/g, '&quot;')) + '" data-has-reset="' + (hasReset ? '1' : '0') + '">';
                             row += '<button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button>';
@@ -2930,9 +2941,9 @@
                             var endTimeStr = formatNotifTime(j.completedAt || j.CompletedAt);
                             row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || j.StartedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
                             var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : (j.StartedByUserId != null ? parseInt(j.StartedByUserId, 10) : 0);
-                            var canCancel = (jobType === 'Restore' || jobType === 'Backup') && currentUserId && startedByUid === currentUserId;
+                            var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
                             if (st === 'Running') {
-                                var progressLabel = (jobType === 'Restore' && phaseLabel) ? (pct + '% - ' + phaseLabel) : (pct + '%');
+                                var progressLabel = (jobType === 'Restore' && phaseLabel) ? (pct + '% - ' + phaseLabel) : (jobType === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset' ? (pct + '% - Reset') : (pct + '%')));
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                                 if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
@@ -2947,11 +2958,39 @@
                             row += '</div>';
                             html += row;
                         });
+                        if (newBugs.length > 0) html += '</div></div>';
+                        else if (jobs.length > 0) {
+                            html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + (html || '') + '</div></div>';
+                        }
                         $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
+                        $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function(e) {
+                            var g = $(this).data('group');
+                            var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]');
+                            var $arrow = $(this).find('.ba-notif-group-arrow');
+                            if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); }
+                            else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); }
+                        });
                         $list.off('click.baNotif').on('click.baNotif', '.ba-notif-detail-link[data-action="detail"]', function(e) {
                             e.preventDefault();
                             var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10);
-                            if (window.__notifJobsList && window.__notifJobsList[idx]) showNotificationDetail(window.__notifJobsList[idx]);
+                            var job = window.__notifJobsList && window.__notifJobsList[idx];
+                            if (!job) return;
+                            if ((job.type || '') === 'HRHelperMultiDbAnalyze' && (job.status || '') === 'Completed') {
+                                var jobId = job.id || 0;
+                                if (!jobId) { showNotificationDetail(job); return; }
+                                $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiConnTokenForJob") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) {
+                                    var d = r.d || r;
+                                    if (d && d.success && d.token) {
+                                        var url = '<%= ResolveUrl("~/Pages/HRHelper.aspx") %>?k=' + encodeURIComponent(d.token) + '&jobId=' + jobId;
+                                        window.location.href = url;
+                                    } else {
+                                        showToast(d && d.message ? d.message : 'Phiên kết nối Multi-DB đã hết. Vào Database Search chọn lại Multi-DB, vào HR Helper và bấm "Tải kết quả phân tích gần nhất".', 'info');
+                                        showNotificationDetail(job);
+                                    }
+                                }, error: function() { showNotificationDetail(job); } });
+                                return;
+                            }
+                            showNotificationDetail(job);
                         });
                         $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) {
                             e.preventDefault();
@@ -2961,12 +3000,23 @@
                             var jobType = $item.data('job-type') || 'Restore';
                             if (!jobId) return;
                             addDismissedJobId(jobId, jobType);
+                            var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); }
                             $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }) });
                             $item.slideUp(200, function() {
                                 $(this).remove();
-                                var left = $('#restoreJobsList .ba-notif-item').length;
-                                if (left) $('#restoreJobsBadge').text(left).addClass('visible');
-                                else { $('#restoreJobsBadge').removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); }
+                                var $listEl = $('#restoreJobsList');
+                                var left = $listEl.find('.ba-notif-item').length;
+                                var $badgeEl = $('#restoreJobsBadge');
+                                if (left > 0) {
+                                    $badgeEl.text(left).addClass('visible');
+                                    var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length;
+                                    var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length;
+                                    $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); });
+                                    $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); });
+                                } else {
+                                    $badgeEl.removeClass('visible');
+                                    $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
+                                }
                             });
                         });
                         $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) {

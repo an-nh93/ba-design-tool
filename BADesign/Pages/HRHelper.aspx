@@ -15,110 +15,8 @@
     <script src="../Scripts/ba-signalr.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
     <style>
-        :root {
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --primary-light: #0D9EFF;
-            --primary-soft: rgba(0, 120, 212, 0.1);
-            --bg-main: #1e1e1e;
-            --bg-dark: #1e1e1e;
-            --bg-darker: #161616;
-            --bg-card: #2d2d30;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --border-light: #464647;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-        .ba-container { 
-            display: flex; 
-            min-height: 100vh;
-            overflow: hidden;
-        }
-        .ba-sidebar {
-            width: 240px;
-            background: var(--bg-darker);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-            overflow-x: hidden;
-            position: fixed;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            z-index: 1000;
-            transition: width 0.25s ease;
-        }
-        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
-        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
-        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
-        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .ba-sidebar-toggle:hover { color: var(--text-primary); }
-        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
-        .ba-sidebar-header {
-            padding: 0 1.5rem 1rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 0.5rem;
-        }
-        .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-nav { padding: 1rem 0; }
-        .ba-nav-item {
-            display: block;
-            padding: 0.75rem 1.5rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: all 0.2s;
-        }
-        .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            margin-left: 240px;
-            transition: margin-left 0.25s ease;
-        }
-        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
-        .ba-top-bar {
-            padding: 1rem 2rem;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            flex-shrink: 0;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
-        .ba-conn-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-        }
+        /* Layout, nút, modal dùng ba-layout.css; chỉ giữ style riêng HR Helper bên dưới */
+        .ba-conn-label { font-size: 0.875rem; color: var(--text-secondary); }
         .ba-conn-label strong { color: var(--primary-light); }
         .ba-content {
             flex: 1;
@@ -172,37 +70,10 @@
             overflow-x: hidden;
         }
         .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
-        .ba-btn {
-            padding: 0.5rem 1rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-primary:hover { background: var(--primary-hover); }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .ba-btn-secondary:hover { background: var(--bg-card); }
-        .ba-btn:disabled,
-        .ba-btn[disabled] {
-            opacity: 0.5;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-        .ba-btn-primary:disabled,
-        .ba-btn-primary[disabled] {
-            background: var(--primary);
-            opacity: 0.5;
-        }
-        .ba-btn-secondary:disabled,
-        .ba-btn-secondary[disabled] {
-            background: var(--bg-hover);
-            opacity: 0.5;
-        }
+        .ba-btn:disabled, .ba-btn[disabled] { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        .ba-btn-dimmed { opacity: 0.6; cursor: not-allowed; }
+        .ba-multi-load-dimmed { opacity: 0.6 !important; pointer-events: none !important; cursor: not-allowed; }
+        .ba-multi-load-ready { font-weight: 600; color: var(--primary-light, #5ac8fa) !important; }
         .ba-grid-toolbar {
             display: flex;
             align-items: center;
@@ -591,6 +462,10 @@
             text-align: left;
         }
         .ba-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; }
+        .ba-empty-state { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 2rem 1rem; }
+        .ba-empty-state-icon { font-size: 2rem; opacity: 0.6; line-height: 1; }
+        .ba-empty-state-link { color: var(--primary); text-decoration: none; font-weight: 500; cursor: pointer; }
+        .ba-empty-state-link:hover { text-decoration: underline; }
         .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
         /* Modal + nút × dùng chung từ ba-layout.css */
         .ba-btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8125rem; }
@@ -649,11 +524,13 @@
                 <% if (!IsMultiDbMode) { %>
                 <div class="ba-hr-conn-bar" style="padding: 0.5rem 2rem; background: var(--bg-darker, #161616); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                     <span class="ba-conn-label" style="font-size: 0.875rem;"><span>Server: <strong><%= ConnectedServer %></strong></span><span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span></span>
+                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">← Về Database Search</a>
                     <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a>
                 </div>
                 <% } %>
                 <div class="ba-content">
                     <% if (!IsMultiDbMode) { %>
+                    <p class="ba-page-desc" style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 1rem 0;">Xem và cập nhật User, Employee, Company; reset Email/Phone và cấu hình demo.</p>
                     <div class="ba-tabs">
                         <button type="button" class="ba-tab active" data-tab="users">Users</button>
                         <button type="button" class="ba-tab" data-tab="employees">Employee Info</button>
@@ -664,7 +541,7 @@
                         <div class="ba-card ba-card-scrollable">
                             <h2 class="ba-card-title">User Management</h2>
                             <div class="ba-actions" style="margin-bottom: 1rem;">
-                                <button type="button" class="ba-btn ba-btn-primary" onclick="loadUsers(); return false;">View Data</button>
+                                <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataUsers" onclick="loadUsers(); return false;">View Data</button>
                             </div>
                             <div class="ba-grid-toolbar">
                                 <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant... (có dấu / không dấu)" />
@@ -691,7 +568,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tblUsers">
-                                        <tr><td colspan="11" class="ba-empty">Chưa load data. Bấm "View Data" để tải danh sách user.</td></tr>
+                                        <tr><td colspan="11" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon">👥</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="usersEmptyLink">View Data</a> để tải danh sách user.</span></div></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -738,7 +615,7 @@
                         <div class="ba-card ba-card-scrollable">
                             <h2 class="ba-card-title">Employee Management</h2>
                             <div class="ba-actions" style="margin-bottom: 1rem;">
-                                <button type="button" class="ba-btn ba-btn-primary" onclick="loadEmployees(); return false;">View Data</button>
+                                <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataEmployees" onclick="loadEmployees(); return false;">View Data</button>
                             </div>
                             <div class="ba-grid-toolbar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                                 <div style="flex: 1; min-width: 200px;">
@@ -780,7 +657,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tblEmployees">
-                                        <tr><td colspan="17" class="ba-empty">Chưa load data. Bấm "View Data" để tải danh sách employee.</td></tr>
+                                        <tr><td colspan="17" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon">👤</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="employeesEmptyLink">View Data</a> để tải danh sách employee.</span></div></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -861,6 +738,7 @@
                                 <div class="ba-actions" style="margin-top: 1rem;">
                                     <button type="button" class="ba-btn ba-btn-primary" id="btnCompanyViewData" onclick="loadCompanyInfo(); return false;" disabled>View Data</button>
                                 </div>
+                                <p id="companyViewDataHint" class="ba-company-hint" style="font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.5rem;">Chọn Tenant và Company ở trên rồi bấm View Data.</p>
                             </div>
                             <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
                                 <h3 class="ba-card-title" style="font-size: 1.1rem; margin-bottom: 1rem;">Company Email Settings</h3>
@@ -1079,21 +957,28 @@
                         <h2 class="ba-card-title">Multi-Database Reset</h2>
                         <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">Phân tích và reset Email/Phone cho tất cả database trên server. Cấu hình Email Ignore để loại trừ email nội bộ.</p>
 
-                        <div class="ba-card ba-update-section" style="margin-bottom: 1.5rem;">
-                            <h3 class="ba-card-title" style="font-size: 1.1rem;">Email Ignore (Config)</h3>
-                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Các email/pattern trong danh sách được coi là nội bộ (đã reset). Email khách hàng khác sẽ được đánh dấu "Chưa reset". Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix. Load từ Settings.</p>
-                            <textarea id="txtMultiEmailIgnore" class="ba-input" rows="4" placeholder="*@cadena.com.sg&#10;test@internal.com" style="max-width: 600px;" readonly></textarea>
-                            <div class="ba-actions" style="margin-top: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
-                                <% if (CanEditSettings) { %>
-                                <a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-btn ba-btn-secondary" style="text-decoration: none;">Cấu hình tại Settings</a>
-                                <% } %>
+                        <div class="ba-card ba-update-section ba-collapsible-group" id="groupEmailIgnoreConfig" style="margin-bottom: 1.5rem;">
+                            <div class="ba-collapsible-header" onclick="toggleMultiDbSection('groupEmailIgnoreConfig'); return false;">
+                                <span class="ba-collapse-icon">▼</span>
+                                <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Email Ignore (Config)</h3>
+                            </div>
+                            <div class="ba-collapsible-body">
+                                <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Các email/pattern trong danh sách được coi là nội bộ (đã reset). Email khách hàng khác sẽ được đánh dấu "Chưa reset". Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix. Load từ Settings.</p>
+                                <textarea id="txtMultiEmailIgnore" class="ba-input" rows="4" placeholder="*@cadena.com.sg&#10;test@internal.com" style="max-width: 600px;" readonly></textarea>
+                                <div class="ba-actions" style="margin-top: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                                    <% if (CanEditSettings) { %>
+                                    <a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-btn ba-btn-secondary" style="text-decoration: none;">Cấu hình tại Settings</a>
+                                    <% } %>
+                                </div>
                             </div>
                         </div>
 
                         <div class="ba-actions" style="margin-bottom: 1rem;">
                             <button type="button" class="ba-btn ba-btn-primary" id="btnMultiAnalyze" onclick="analyzeMultiDb(); return false;">Phân tích</button>
+                            <a href="#" id="linkLoadLastMultiDbResult" style="margin-left: 1rem; font-size: 0.875rem;" onclick="loadLastMultiDbAnalyzeResult(); return false;">Tải kết quả phân tích gần nhất</a>
                         </div>
                         <div id="multiAnalyzeStatus" style="font-size: 0.875rem; margin-bottom: 1rem; color: var(--text-secondary);"></div>
+                        <div id="multiAnalyzeHint" style="font-size: 0.8125rem; color: var(--text-muted); margin-top: -0.5rem; margin-bottom: 0.5rem; display: none;"></div>
 
                         <div id="multiDbResultsSection" style="display: none; flex: 1; flex-direction: column; min-height: 0; overflow: hidden;">
                             <div id="multiDbSearchWrap" style="margin-bottom: 0.5rem;">
@@ -1202,6 +1087,9 @@
         var multiDbAnalyzeResults = [];
         var multiDbSortCol = 1;
         var multiDbSortDir = 1;
+        /** JobId của lần "Phân tích" vừa start (job nền). Khi SignalR báo xong sẽ gọi GetMultiDbAnalyzeResult(jobId) và render. */
+        var pendingMultiDbAnalyzeJobId = null;
+        var multiDbAnalyzePollTimer = null;
 
         function renderMultiDbTable() {
             var arr = multiDbAnalyzeResults.slice();
@@ -1222,6 +1110,57 @@
             $('#tblMultiDb').html(html);
         }
 
+        function applyMultiDbAnalyzeResult(list, label, completedAt) {
+            if (!list) return;
+            if (typeof list === 'string') { try { list = JSON.parse(list); } catch (e) { return; } }
+            if (!Array.isArray(list)) return;
+            function getVal(obj, keys) {
+                if (!obj) return null;
+                for (var i = 0; i < keys.length; i++) {
+                    var v = obj[keys[i]];
+                    if (v !== undefined && v !== null && v !== '') return v;
+                }
+                return null;
+            }
+            multiDbAnalyzeResults = list.map(function(x) {
+                var db = getVal(x, ['database', 'Database', 'databaseName', 'DatabaseName']);
+                var st = getVal(x, ['status', 'Status']);
+                var re = getVal(x, ['reason', 'Reason']);
+                return {
+                    database: (db != null && db !== '') ? String(db) : '-',
+                    status: (st != null && st !== '') ? String(st) : 'Reset',
+                    reason: (re != null && re !== '') ? String(re) : '-'
+                };
+            });
+            var notReset = multiDbAnalyzeResults.filter(function(x) { return x.status === 'NotReset'; }).length;
+            var errCount = multiDbAnalyzeResults.filter(function(x) { return x.status === 'Error'; }).length;
+            var timeStr = '';
+            if (completedAt != null && completedAt !== '') {
+                try {
+                    var completed;
+                    if (completedAt instanceof Date) {
+                        completed = completedAt;
+                    } else if (typeof completedAt === 'string' && completedAt.match(/\/Date\((-?\d+)\)\//)) {
+                        completed = new Date(parseInt(completedAt.match(/\/Date\((-?\d+)\)\//)[1], 10));
+                    } else {
+                        completed = new Date(completedAt);
+                    }
+                    if (!isNaN(completed.getTime())) {
+                        timeStr = ' · Lần phân tích: ' + completed.toLocaleString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    }
+                } catch (e) {}
+            }
+            $('#multiAnalyzeStatus').html('<span style="color: var(--success);">Phân tích xong (' + (label || '') + '). ' + multiDbAnalyzeResults.length + ' DB. Chưa reset: ' + notReset + (errCount ? ', Lỗi: ' + errCount : '') + timeStr + '</span>');
+            renderMultiDbTable();
+            bindMultiDbSortHeaders();
+            $('#multiDbResultsSection').css('display', 'flex').show();
+            $('#txtMultiDbSearch').val('').off('input').on('input', filterMultiDbTable);
+            filterMultiDbTable();
+            $('#btnMultiSelectNotReset').prop('disabled', false);
+            $('#btnMultiReset').prop('disabled', false);
+            $('#chkMultiSelectAll').off('change').on('change', function() { var v = $(this).prop('checked'); $('.chkMultiDb').prop('checked', v); });
+        }
+
         function bindMultiDbSortHeaders() {
             $('#multiDbTableWrap').off('click.multiDbSort').on('click.multiDbSort', '.ba-sortable', function() {
                 var col = parseInt($(this).data('sort'), 10);
@@ -1233,6 +1172,8 @@
         var users = [];
         var employees = [];
         var company = null;
+        var usersDataLoaded = false;
+        var employeesDataLoaded = false;
 
         var PAGE_SIZE_OPTS = [50, 100, 500, 1000, 5000, 10000];
         var USER_PAGE_SIZE = 100;
@@ -1289,7 +1230,18 @@
                 return;
             }
             if (isMultiDbMode) {
+                setMultiDbAnalyzeUIState(true, 'Đang kiểm tra job...', null);
+                $('#btnMultiReset').prop('disabled', true);
+                $('#btnMultiSelectNotReset').prop('disabled', true);
                 initMultiDbMode();
+                checkHRHelperJobsAndShowOverlay();
+                if (typeof BA_SignalR !== 'undefined') {
+                    BA_SignalR.onJobsUpdated(function() {
+                        checkHRHelperJobsAndShowOverlay();
+                        if (typeof window.loadRestoreJobsPanel === 'function') window.loadRestoreJobsPanel();
+                    });
+                    BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');
+                }
                 return;
             }
             // Clear session khi reload trang
@@ -1310,8 +1262,20 @@
                 BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');
             }
 
+            var tabKey = 'HR_HELPER_TAB';
+            var savedTab = sessionStorage.getItem(tabKey);
+            if (savedTab && ['users', 'employees', 'company', 'other'].indexOf(savedTab) >= 0) {
+                $('.ba-tab').removeClass('active');
+                $('.ba-tab-content').removeClass('active');
+                $('.ba-tab[data-tab="' + savedTab + '"]').addClass('active');
+                $('#tab' + savedTab.charAt(0).toUpperCase() + savedTab.slice(1)).addClass('active');
+                if (savedTab === 'users' && users.length === 0) loadUsersFromSession();
+                if (savedTab === 'other') loadOtherTab();
+            }
+            restoreMultiDbSectionState();
             $('.ba-tab').on('click', function() {
                 var tab = $(this).data('tab');
+                sessionStorage.setItem(tabKey, tab);
                 $('.ba-tab').removeClass('active');
                 $('.ba-tab-content').removeClass('active');
                 $(this).addClass('active');
@@ -1319,6 +1283,8 @@
                 if (tab === 'users' && users.length === 0) loadUsersFromSession();
                 if (tab === 'other') loadOtherTab();
             });
+            $(document).on('click', '#usersEmptyLink', function(e) { e.preventDefault(); $('#btnViewDataUsers')[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+            $(document).on('click', '#employeesEmptyLink', function(e) { e.preventDefault(); $('#btnViewDataEmployees')[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); });
 
             $('#txtSearchUsers').on('input', function() {
                 userSearch = $(this).val();
@@ -1458,7 +1424,7 @@
             if (!lockedColumns['tableEmployees']) lockedColumns['tableEmployees'] = {};
             lockedColumns['tableEmployees'][0] = true;
             applyColumnLocks('tableEmployees');
-            $(document).on('click', '#confirmUpdateModal', function(e) { if (e.target === this) hideConfirmUpdateModal(); });
+            /* Modal xác nhận: không đóng khi click ra ngoài; dùng nút Hủy/Cập nhật hoặc Escape/Enter */
             $(document).on('click', '.ba-copy-select-btn', function(e) {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1521,7 +1487,7 @@
             $t.find('.toast-close').on('click', function() { clearTimeout(tmr); $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); });
         }
 
-        /** Gọi GetMyRunningHRHelperJobs: nếu có job đang chạy thì show overlay, không thì hide (và toast khi vừa xong). */
+        /** Gọi GetMyRunningHRHelperJobs: nếu có job đang chạy thì show overlay, không thì hide (và toast khi vừa xong). Nếu vừa xong mà có pendingMultiDbAnalyzeJobId thì lấy kết quả phân tích và render bảng Multi-DB. */
         function checkHRHelperJobsAndShowOverlay() {
             var wasShowing = $('#hrJobOverlay').hasClass('show');
             $.ajax({
@@ -1534,11 +1500,79 @@
                 success: function(res) {
                     var d = res.d || res;
                     var count = (d && d.success && d.runningCount) ? parseInt(d.runningCount, 10) : 0;
+                    var jobs = (d && d.jobs) ? d.jobs : [];
+                    var isAnalyzeJob = jobs.some(function(j) { return (j.jobType || '').indexOf('MultiDbAnalyze') >= 0; });
                     if (count > 0) {
-                        $('#hrJobOverlay').addClass('show');
+                        $('#btnMultiAnalyze').prop('disabled', true);
+                        $('#btnMultiReset').prop('disabled', true);
+                        $('#btnMultiSelectNotReset').prop('disabled', true);
+                        var pctStr = '';
+                        if (jobs.length > 0) {
+                            var j0 = jobs[0];
+                            var pct = (j0.percentComplete != null && j0.percentComplete !== '') ? parseInt(j0.percentComplete, 10) : (j0.percentcomplete != null ? parseInt(j0.percentcomplete, 10) : null);
+                            if (pct != null && !isNaN(pct)) pctStr = ' ' + pct + '%';
+                        }
+                        if (isMultiDbMode) {
+                            var msg = isAnalyzeJob ? ('Đang phân tích nền... (có thể dùng trang bình thường).' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
+                            setMultiDbAnalyzeUIState(true, msg, null);
+                        } else {
+                            $('#hrJobOverlay').addClass('show');
+                            $('#hrJobOverlay .ba-hr-job-text').text(isAnalyzeJob ? ('Đang phân tích Multi-DB...' + pctStr) : ('Đang xử lý...' + pctStr + ' Không thao tác cho đến khi job hoàn thành.'));
+                        }
                     } else {
+                        $('#btnMultiAnalyze').prop('disabled', false);
+                        if ($('#multiDbResultsSection').is(':visible')) {
+                            $('#btnMultiReset').prop('disabled', false);
+                            $('#btnMultiSelectNotReset').prop('disabled', false);
+                        }
                         if (wasShowing) showToast('Job đã hoàn thành.', 'success');
                         $('#hrJobOverlay').removeClass('show');
+                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                        if (isMultiDbMode) {
+                            if (multiDbAnalyzePollTimer) { clearInterval(multiDbAnalyzePollTimer); multiDbAnalyzePollTimer = null; }
+                            setMultiDbAnalyzeUIState(false, '', 'Có kết quả phân tích gần nhất. Bấm link bên cạnh để tải.');
+                            if (pendingMultiDbAnalyzeJobId) {
+                                var jobIdToFetch = pendingMultiDbAnalyzeJobId;
+                                pendingMultiDbAnalyzeJobId = null;
+                                $.ajax({
+                                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiDbAnalyzeResult") %>',
+                                    type: 'POST',
+                                    contentType: 'application/json; charset=utf-8',
+                                    dataType: 'json',
+                                    data: JSON.stringify({ jobId: jobIdToFetch }),
+                                    timeout: 30000,
+                                    success: function(r) {
+                                        var rd = r.d || r;
+                                        if (rd && rd.success && rd.list && rd.list.length > 0) {
+                                            applyMultiDbAnalyzeResult(rd.list, 'job nền', rd.completedAt);
+                                            $('#multiAnalyzeHint').hide();
+                                        } else if (rd && !rd.success && rd.message) {
+                                            showToast(rd.message, 'info');
+                                        }
+                                    }
+                                });
+                            } else {
+                                $.ajax({
+                                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMyLastMultiDbAnalyzeResult") %>',
+                                    type: 'POST',
+                                    contentType: 'application/json; charset=utf-8',
+                                    dataType: 'json',
+                                    data: JSON.stringify({}),
+                                    timeout: 15000,
+                                    success: function(r) {
+                                        var rd = r.d || r;
+                                        if (rd && rd.success && rd.list && rd.list.length > 0 && rd.completedAt) {
+                                            var completed = new Date(rd.completedAt);
+                                            var diffMin = (Date.now() - completed.getTime()) / 60000;
+                                            if (diffMin <= 10) {
+                                                applyMultiDbAnalyzeResult(rd.list, 'vừa hoàn thành', rd.completedAt);
+                                                $('#multiAnalyzeHint').hide();
+                                            }
+                                        }
+                                    }
+                                });
+                            }
+                        }
                     }
                 },
                 error: function() {
@@ -1591,6 +1625,7 @@
                     if (total === 0) {
                         users = [];
                         userPage = 1;
+                        usersDataLoaded = true;
                         hideProgress();
                         renderUsers();
                         showToast('Không có user.', 'info');
@@ -1610,6 +1645,7 @@
                         if (completed >= totalChunks && activeRequests === 0) {
                             showProgress('Hoàn thành', 100, users.length + ' / ' + total + ' user');
                             setTimeout(function() {
+                                usersDataLoaded = true;
                                 hideProgress();
                                 userPage = 1;
                                 renderUsers();
@@ -1722,13 +1758,22 @@
             var $tb = $('#tblUsers');
             var $pg = $('#pagerUsers');
             var $table = $tb.closest('table');
+            var filtered = filterUsers();
             if (!users.length) {
-                $tb.html('<tr><td colspan="11" class="ba-empty">Không có user nào.</td></tr>');
+                var emptyMsg = !usersDataLoaded
+                    ? '<div class="ba-empty-state"><span class="ba-empty-state-icon">👥</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="usersEmptyLink">View Data</a> để tải danh sách user.</span></div>'
+                    : '<div class="ba-empty-state"><span class="ba-empty-state-icon">📭</span><span>Không có user nào.</span></div>';
+                $tb.html('<tr><td colspan="11" class="ba-empty">' + emptyMsg + '</td></tr>');
                 $('#chkSelectAllUsers').off('change').prop('checked', false);
                 $pg.hide();
                 return;
             }
-            var filtered = filterUsers();
+            if (filtered.length === 0) {
+                $tb.html('<tr><td colspan="11" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon">🔍</span><span>Không có bản ghi phù hợp. Thử đổi từ khóa tìm kiếm.</span></div></td></tr>');
+                $('#chkSelectAllUsers').off('change').prop('checked', false);
+                $pg.hide();
+                return;
+            }
             var sorted = sortUsers(filtered);
             var total = sorted.length;
             var pages = Math.max(1, Math.ceil(total / USER_PAGE_SIZE));
@@ -1791,6 +1836,7 @@
                     if (d && d.success && d.list && Array.isArray(d.list) && d.list.length > 0) {
                         users = d.list;
                         userPage = 1;
+                        usersDataLoaded = true;
                         renderUsers();
                     }
                 },
@@ -1869,6 +1915,75 @@
                     }
                 }
             });
+            // Nếu mở từ chuông "Xem chi tiết" (HRHelper?k=...&jobId=...) thì tải kết quả phân tích và hiển thị bảng
+            var urlParams = new URLSearchParams(window.location.search);
+            var jobIdParam = urlParams.get('jobId');
+            if (jobIdParam) {
+                var jobId = parseInt(jobIdParam, 10);
+                if (jobId > 0) {
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiDbAnalyzeResult") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        dataType: 'json',
+                        data: JSON.stringify({ jobId: jobId }),
+                        timeout: 15000,
+                        success: function(r) {
+                            var rd = r.d || r;
+                            if (rd && rd.success && rd.list && rd.list.length > 0) {
+                                applyMultiDbAnalyzeResult(rd.list, 'từ thông báo', rd.completedAt);
+                                $('#multiAnalyzeHint').hide();
+                            } else if (rd && !rd.success && rd.message) {
+                                showToast(rd.message, 'info');
+                            }
+                        }
+                    });
+                }
+            }
+            // Khi mới vào: kiểm tra có job phân tích đang chạy không → mờ nút/link; có kết quả gần nhất không → bật sáng link
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetMyRunningHRHelperJobs") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({}),
+                timeout: 10000,
+                success: function(res) {
+                    var d = res.d || res;
+                    var count = (d && d.success && d.runningCount) ? parseInt(d.runningCount, 10) : 0;
+                    if (count > 0) {
+                        var jobs = (d && d.jobs) ? d.jobs : [];
+                        var isAnalyzeRunning = jobs.some(function(j) { return (j.jobType || '').indexOf('MultiDbAnalyze') >= 0; });
+                        var pctStr = '';
+                        if (jobs.length > 0) {
+                            var j0 = jobs[0];
+                            var pct = (j0.percentComplete != null && j0.percentComplete !== '') ? parseInt(j0.percentComplete, 10) : (j0.percentcomplete != null ? parseInt(j0.percentcomplete, 10) : null);
+                            if (pct != null && !isNaN(pct)) pctStr = ' ' + pct + '%';
+                        }
+                        var msg = isAnalyzeRunning ? ('Đang phân tích nền... (có thể dùng trang bình thường).' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
+                        setMultiDbAnalyzeUIState(true, msg, null);
+                        $('#btnMultiReset').prop('disabled', true);
+                        $('#btnMultiSelectNotReset').prop('disabled', true);
+                        return;
+                    }
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMyLastMultiDbAnalyzeResult") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        dataType: 'json',
+                        data: JSON.stringify({}),
+                        timeout: 10000,
+                        success: function(r) {
+                            var rd = r.d || r;
+                            if (rd && rd.success && rd.list && rd.list.length > 0) {
+                                setMultiDbAnalyzeUIState(false, '', 'Có kết quả phân tích gần nhất (trong 1 giờ). Bấm link bên cạnh để tải.');
+                            } else if (rd && rd.success && rd.message) {
+                                $('#multiAnalyzeHint').text(rd.message).show();
+                            }
+                        }
+                    });
+                }
+            });
         }
 
         function saveEmailIgnoreConfig() {
@@ -1886,86 +2001,102 @@
             });
         }
 
-        function analyzeMultiDb() {
-            var lines = ($('#txtMultiEmailIgnore').val() || '').split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
-            $('#multiDbResultsSection').hide();
-            updateInProgress = true;
-            showProgress('Đang phân tích...', 0, 'Đang lấy danh sách DB...');
-            $('.ba-btn').prop('disabled', true);
+        /** Cập nhật trạng thái nút Phân tích + link Tải kết quả gần nhất: analyzing=true thì mờ/disable, false thì bật và có thể highlight link. Khi analyzing bật polling dự phòng (SignalR có thể không tới). */
+        function setMultiDbAnalyzeUIState(analyzing, statusText, hintText) {
+            var $btn = $('#btnMultiAnalyze');
+            var $link = $('#linkLoadLastMultiDbResult');
+            if (analyzing) {
+                $btn.prop('disabled', true).addClass('ba-btn-dimmed');
+                $link.addClass('ba-multi-load-dimmed').removeClass('ba-multi-load-ready');
+                if (statusText) $('#multiAnalyzeStatus').html(statusText).css('color', 'var(--text-secondary)');
+                $('#multiAnalyzeHint').hide().text('');
+                if (!multiDbAnalyzePollTimer) {
+                    multiDbAnalyzePollTimer = setInterval(function() {
+                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetMyRunningHRHelperJobs") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', timeout: 10000,
+                            success: function(res) {
+                                var d = res.d || res;
+                                var count = (d && d.success && d.runningCount) ? parseInt(d.runningCount, 10) : 0;
+                                if (count === 0) {
+                                    if (multiDbAnalyzePollTimer) { clearInterval(multiDbAnalyzePollTimer); multiDbAnalyzePollTimer = null; }
+                                    setMultiDbAnalyzeUIState(false, '', 'Có kết quả phân tích gần nhất. Bấm link bên cạnh để tải.');
+                                    if (pendingMultiDbAnalyzeJobId) {
+                                        var jobIdToFetch = pendingMultiDbAnalyzeJobId;
+                                        pendingMultiDbAnalyzeJobId = null;
+                                        $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiDbAnalyzeResult") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobIdToFetch }), timeout: 30000,
+                                            success: function(r) { var rd = r.d || r; if (rd && rd.success && rd.list && rd.list.length > 0) { applyMultiDbAnalyzeResult(rd.list, 'job nền', rd.completedAt); $('#multiAnalyzeHint').hide(); } }
+                                        });
+                                    } else {
+                                        $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMyLastMultiDbAnalyzeResult") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', timeout: 15000,
+                                            success: function(r) {
+                                                var rd = r.d || r;
+                                                if (rd && rd.success && rd.list && rd.list.length > 0 && rd.completedAt) {
+                                                    var completed = new Date(rd.completedAt);
+                                                    var diffMin = (Date.now() - completed.getTime()) / 60000;
+                                                    if (diffMin <= 10) { applyMultiDbAnalyzeResult(rd.list, 'vừa hoàn thành', rd.completedAt); $('#multiAnalyzeHint').hide(); }
+                                                }
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }, 3000);
+                }
+            } else {
+                if (multiDbAnalyzePollTimer) { clearInterval(multiDbAnalyzePollTimer); multiDbAnalyzePollTimer = null; }
+                $btn.prop('disabled', false).removeClass('ba-btn-dimmed');
+                $link.removeClass('ba-multi-load-dimmed');
+                if (hintText) $link.addClass('ba-multi-load-ready');
+                if (statusText) $('#multiAnalyzeStatus').html(statusText).css('color', 'var(--text-secondary)');
+                if (hintText) { $('#multiAnalyzeHint').text(hintText).show(); } else { $('#multiAnalyzeHint').hide().text(''); }
+            }
+        }
+
+        function loadLastMultiDbAnalyzeResult() {
             $.ajax({
-                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiDbDatabases") %>',
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMyLastMultiDbAnalyzeResult") %>',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
-                data: JSON.stringify({ k: hrToken }),
+                data: JSON.stringify({}),
+                timeout: 15000,
+                success: function(r) {
+                    var rd = r.d || r;
+                    if (rd && rd.success && rd.list && rd.list.length > 0) {
+                        var completedAt = (rd.completedAt != null && rd.completedAt !== '') ? rd.completedAt : (rd.CompletedAt != null && rd.CompletedAt !== '') ? rd.CompletedAt : null;
+                        applyMultiDbAnalyzeResult(rd.list, 'gần nhất', completedAt);
+                    } else {
+                        showToast(rd && rd.message ? rd.message : 'Không có kết quả phân tích trong 1 giờ qua. Vui lòng bấm Phân tích.', 'info');
+                    }
+                },
+                error: function() { showToast('Lỗi khi tải kết quả.', 'error'); }
+            });
+        }
+
+        function analyzeMultiDb() {
+            var lines = ($('#txtMultiEmailIgnore').val() || '').split('\n').map(function(s) { return s.trim(); }).filter(function(s) { return s.length > 0; });
+            $('#multiDbResultsSection').hide();
+            $('#multiAnalyzeStatus').text('');
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartMultiDbAnalyzeJob") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, emailIgnorePatterns: lines }),
+                timeout: 30000,
                 success: function(res) {
                     var d = res.d || res;
-                    if (!d || !d.success || !d.list || d.list.length === 0) {
-                        hideProgress();
-                        updateInProgress = false;
-                        $('.ba-btn').prop('disabled', false);
-                        $('#multiAnalyzeStatus').text('Lỗi: ' + (d && d.message ? d.message : 'Không có database.'));
+                    if (!d || !d.success) {
+                        $('#multiAnalyzeStatus').text('Lỗi: ' + (d && d.message ? d.message : 'Không thể bắt đầu phân tích.'));
                         return;
                     }
-                    var dbList = d.list.map(function(x) { return x.database; });
-                    var total = dbList.length;
-                    multiDbAnalyzeResults = [];
-                    var idx = 0;
-                    function next() {
-                        if (idx >= total) {
-                            var notReset = multiDbAnalyzeResults.filter(function(x) { return x.status === 'NotReset'; }).length;
-                            var errCount = multiDbAnalyzeResults.filter(function(x) { return x.status === 'Error'; }).length;
-                            showProgress('Hoàn thành', 100, multiDbAnalyzeResults.length + ' DB. Chưa reset: ' + notReset + (errCount ? ', Lỗi: ' + errCount : ''));
-                            setTimeout(function() {
-                                hideProgress();
-                                updateInProgress = false;
-                                $('.ba-btn').prop('disabled', false);
-                                $('#multiAnalyzeStatus').html('<span style="color: var(--success);">Phân tích xong. ' + multiDbAnalyzeResults.length + ' DB. Chưa reset: ' + notReset + (errCount ? ', Lỗi: ' + errCount : '') + '</span>');
-                                renderMultiDbTable();
-                                bindMultiDbSortHeaders();
-                                $('#multiDbResultsSection').css('display', 'flex').show();
-                                $('#txtMultiDbSearch').val('').off('input').on('input', filterMultiDbTable);
-                                filterMultiDbTable();
-                                $('#btnMultiSelectNotReset').prop('disabled', false);
-                                $('#btnMultiReset').prop('disabled', false);
-                                $('#chkMultiSelectAll').off('change').on('change', function() {
-                                    var v = $(this).prop('checked');
-                                    $('.chkMultiDb').prop('checked', v);
-                                });
-                            }, 400);
-                            return;
-                        }
-                        var db = dbList[idx];
-                        var pct = Math.round(((idx) / total) * 100);
-                        showProgress('Đang phân tích...', pct, (idx + 1) + ' / ' + total + ' - ' + db);
-                        $.ajax({
-                            url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/AnalyzeSingleDbStatus") %>',
-                            type: 'POST',
-                            contentType: 'application/json; charset=utf-8',
-                            dataType: 'json',
-                            data: JSON.stringify({ k: hrToken, databaseName: db, emailIgnorePatterns: lines }),
-                            timeout: 60000,
-                            success: function(r) {
-                                var rd = r.d || r;
-                                if (rd && rd.success)
-                                    multiDbAnalyzeResults.push({ database: rd.database, status: rd.status || 'Reset', reason: rd.reason || '' });
-                                idx++;
-                                next();
-                            },
-                            error: function() {
-                                multiDbAnalyzeResults.push({ database: db, status: 'Error', reason: 'Lỗi kết nối' });
-                                idx++;
-                                next();
-                            }
-                        });
-                    }
-                    next();
+                    pendingMultiDbAnalyzeJobId = d.jobId;
+                    setMultiDbAnalyzeUIState(true, 'Đã đưa phân tích vào hàng đợi. Khi xong bấm &quot;Tải kết quả phân tích gần nhất&quot; hoặc chờ thông báo.');
+                    showToast('Đã đưa phân tích vào hàng đợi. Bạn vẫn có thể dùng trang.', 'success');
+                    checkHRHelperJobsAndShowOverlay();
                 },
                 error: function() {
-                    hideProgress();
-                    updateInProgress = false;
-                    $('.ba-btn').prop('disabled', false);
-                    $('#multiAnalyzeStatus').text('Lỗi khi lấy danh sách DB.');
+                    $('#multiAnalyzeStatus').text('Lỗi khi gọi server.');
                 }
             });
         }
@@ -2000,123 +2131,36 @@
                 showToast('Nhập Email và/hoặc Phone để reset.', 'error');
                 return;
             }
-            updateInProgress = true;
-            $('.ba-btn').prop('disabled', true);
-            showProgress('Đang lấy danh sách cột...', 0, '');
+            $('#btnMultiAnalyze').prop('disabled', true);
+            $('#btnMultiReset').prop('disabled', true);
             $.ajax({
-                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetColumnsToReset") %>',
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartMultiDbResetJob") %>',
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
                 data: JSON.stringify({ k: hrToken, databaseNames: selected, email: (email || '').trim(), phone: (phone || '').trim() }),
-                timeout: 60000,
+                timeout: 30000,
                 success: function(res) {
                     var d = res.d || res;
-                    if (!d || !d.success || !d.list || d.list.length === 0) {
-                        updateInProgress = false;
-                        hideProgress();
-                        $('.ba-btn').prop('disabled', false);
-                        showToast(d && d.message ? d.message : 'Không có cột nào cần reset.', 'info');
-                        return;
+                    if (d && d.success && d.jobId) {
+                        showToast(d.message || 'Đã đưa reset vào hàng đợi. Theo dõi tiến độ trên chuông và Function Queue.', 'success');
+                        checkHRHelperJobsAndShowOverlay();
+                    } else {
+                        $('#btnMultiAnalyze').prop('disabled', false);
+                        if ($('#multiDbResultsSection').is(':visible')) $('#btnMultiReset').prop('disabled', false);
+                        showToast((d && d.message) ? d.message : 'Không thể tạo job reset.', 'error');
                     }
-                    var list = d.list;
-                    var total = list.length;
-                    var totalAffected = 0;
-                    var errors = [];
-                    var dbCount = {};
-                    selected.forEach(function(db) { dbCount[db] = 0; });
-                    var uniqueDbs = [];
-                    var seenDb = {};
-                    list.forEach(function(item) {
-                        var db = item.databaseName || '';
-                        if (db && !seenDb[db]) { seenDb[db] = true; uniqueDbs.push(db); }
-                    });
-                    var totalDbs = uniqueDbs.length;
-                    function doNext(idx) {
-                        if (idx >= total) {
-                            var doneDb = 0;
-                            for (var k in dbCount) if (dbCount[k] > 0) doneDb++;
-                            var hasErrors = errors.length > 0;
-                            var msg = 'Đã reset ' + doneDb + '/' + selected.length + ' database. Tổng bản ghi cập nhật: ' + totalAffected;
-                            if (errors.length > 0) msg += '. Lỗi: ' + errors.slice(0, 5).join('; ');
-                            showProgress(hasErrors ? 'Có lỗi' : 'Hoàn thành', 100, msg);
-                            setTimeout(function() {
-                                updateInProgress = false;
-                                hideProgress();
-                                $('.ba-btn').prop('disabled', false);
-                                showToast(msg, hasErrors ? 'error' : 'success');
-                                if (doneDb > 0) analyzeMultiDb();
-                            }, 500);
-                            return;
-                        }
-                        var item = list[idx];
-                        var dbName = item.databaseName || '';
-                        var schema = item.schema || 'dbo';
-                        var tbl = item.table || '';
-                        var col = item.column || '';
-                        var typ = item.type || 'email';
-                        var val = (typ === 'phone' ? (phone || '').trim() : (email || '').trim());
-                        var colKey = schema + '.' + tbl + '.' + col;
-                        var colPct = Math.min(99, Math.round(((idx + 1) / total) * 100));
-                        var dbIdx = uniqueDbs.indexOf(dbName) + 1;
-                        var dbPctRaw = totalDbs > 0 ? Math.round((dbIdx / totalDbs) * 100) : 0;
-                        var dbPct = Math.min(dbPctRaw, colPct);
-                        var dbText = dbIdx + ' / ' + totalDbs + ' DB - ' + dbName;
-                        var colText = (idx + 1) + ' / ' + total + ' - ' + colKey;
-                        showProgressDual('Đang reset...', dbPct, dbText, colPct, colText);
-                        $.ajax({
-                            url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ResetSingleColumn") %>',
-                            type: 'POST',
-                            contentType: 'application/json; charset=utf-8',
-                            dataType: 'json',
-                            data: JSON.stringify({
-                                k: hrToken,
-                                databaseName: dbName,
-                                schema: schema,
-                                table: tbl,
-                                column: col,
-                                value: val,
-                                columnType: typ,
-                                maxLen: item.maxLen,
-                                dataType: item.dataType || 'nvarchar'
-                            }),
-                            timeout: 300000,
-                            success: function(r) {
-                                var rd = r.d || r;
-                                if (rd && rd.success) {
-                                    totalAffected += rd.affected || 0;
-                                    dbCount[dbName] = (dbCount[dbName] || 0) + 1;
-                                }
-                                if (rd && rd.error) errors.push(dbName + ': ' + colKey + ': ' + rd.error);
-                                doNext(idx + 1);
-                            },
-                            error: function(xhr) {
-                                var msg = 'Lỗi khi reset.';
-                                if (xhr && xhr.responseText) {
-                                    try {
-                                        var j = JSON.parse(xhr.responseText);
-                                        if (j.d && j.d.error) msg = j.d.error;
-                                        else if (j.Message) msg = j.Message;
-                                    } catch(e) {}
-                                }
-                                errors.push(dbName + ': ' + colKey + ': ' + msg);
-                                doNext(idx + 1);
-                            }
-                        });
-                    }
-                    doNext(0);
                 },
                 error: function(xhr) {
-                    var msg = 'Lỗi khi lấy danh sách cột.';
+                    $('#btnMultiAnalyze').prop('disabled', false);
+                    if ($('#multiDbResultsSection').is(':visible')) $('#btnMultiReset').prop('disabled', false);
+                    var msg = 'Lỗi kết nối.';
                     if (xhr && xhr.responseText) {
                         try {
                             var j = JSON.parse(xhr.responseText);
                             if (j.d && j.d.message) msg = j.d.message;
                         } catch(e) {}
                     }
-                    updateInProgress = false;
-                    hideProgress();
-                    $('.ba-btn').prop('disabled', false);
                     showToast(msg, 'error');
                 }
             });
@@ -2127,6 +2171,19 @@
         function toggleOtherGroup(groupId) {
             var $g = $('#' + groupId);
             if ($g.length) $g.toggleClass('collapsed');
+        }
+        var MULTIDB_EMAIL_IGNORE_COLLAPSED_KEY = 'hrHelper_emailIgnoreConfig_collapsed';
+        function toggleMultiDbSection(groupId) {
+            var $g = $('#' + groupId);
+            if (!$g.length) return;
+            $g.toggleClass('collapsed');
+            try { sessionStorage.setItem(MULTIDB_EMAIL_IGNORE_COLLAPSED_KEY, $g.hasClass('collapsed') ? '1' : '0'); } catch (e) {}
+        }
+        function restoreMultiDbSectionState() {
+            try {
+                var v = sessionStorage.getItem(MULTIDB_EMAIL_IGNORE_COLLAPSED_KEY);
+                if (v === '1') $('#groupEmailIgnoreConfig').addClass('collapsed');
+            } catch (e) {}
         }
 
         function loadOtherTab() {
@@ -2620,6 +2677,7 @@
                         list.sort(function(a, b) { return (a.employeeID || 0) - (b.employeeID || 0); });
                         employees = list;
                         employeePage = 1;
+                        employeesDataLoaded = true;
                         renderEmployees();
                     } else {
                         loadEmployees();
@@ -2665,6 +2723,7 @@
                     if (total === 0) {
                         employees = [];
                         employeePage = 1;
+                        employeesDataLoaded = true;
                         hideProgress();
                         renderEmployees();
                         showToast('Không có employee.', 'info');
@@ -2699,6 +2758,7 @@
                                 showProgress('Hoàn thành', 100, uniqueCount + ' / ' + total + ' employee');
                             }
                             setTimeout(function() {
+                                employeesDataLoaded = true;
                                 hideProgress();
                                 employeePage = 1;
                                 renderEmployees();
@@ -2965,13 +3025,22 @@
             var $tb = $('#tblEmployees');
             var $pg = $('#pagerEmployees');
             var $table = $tb.closest('table');
+            var filtered = filterEmployees();
             if (!employees.length) {
-                $tb.html('<tr><td colspan="17" class="ba-empty">Không có employee nào.</td></tr>');
+                var emptyMsg = !employeesDataLoaded
+                    ? '<div class="ba-empty-state"><span class="ba-empty-state-icon">👤</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="employeesEmptyLink">View Data</a> để tải danh sách employee.</span></div>'
+                    : '<div class="ba-empty-state"><span class="ba-empty-state-icon">📭</span><span>Không có employee nào.</span></div>';
+                $tb.html('<tr><td colspan="17" class="ba-empty">' + emptyMsg + '</td></tr>');
                 $('#chkSelectAllEmployees').off('change').prop('checked', false);
                 $pg.hide();
                 return;
             }
-            var filtered = filterEmployees();
+            if (filtered.length === 0) {
+                $tb.html('<tr><td colspan="17" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon">🔍</span><span>Không có bản ghi phù hợp. Thử đổi từ khóa tìm kiếm hoặc bộ lọc Company.</span></div></td></tr>');
+                $('#chkSelectAllEmployees').off('change').prop('checked', false);
+                $pg.hide();
+                return;
+            }
             var sorted = sortEmployees(filtered);
             var total = sorted.length;
             var pages = Math.max(1, Math.ceil(total / EMPLOYEE_PAGE_SIZE));
@@ -3023,6 +3092,7 @@
             $('#selEmpPageSize').off('change').on('change', function() { EMPLOYEE_PAGE_SIZE = parseInt($(this).val(), 10); employeePage = 1; renderEmployees(); });
         }
 
+        var _confirmModalKeydown = null;
         function showConfirmUpdateModal(message, onConfirm, onCancel) {
             $('#confirmUpdateMessage').text(message);
             $('#confirmUpdateModal').addClass('show').css('display', 'flex');
@@ -3036,9 +3106,25 @@
                 hideConfirmUpdateModal();
                 if (typeof onCancel === 'function') onCancel();
             });
+            _confirmModalKeydown = function(e) {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    hideConfirmUpdateModal();
+                    if (typeof onCancel === 'function') onCancel();
+                } else if (e.key === 'Enter' && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    hideConfirmUpdateModal();
+                    if (typeof onConfirm === 'function') onConfirm();
+                }
+            };
+            $(document).on('keydown', _confirmModalKeydown);
         }
 
         function hideConfirmUpdateModal() {
+            if (_confirmModalKeydown) {
+                $(document).off('keydown', _confirmModalKeydown);
+                _confirmModalKeydown = null;
+            }
             $('#confirmUpdateModal').removeClass('show').css('display', 'none');
         }
 
@@ -3231,6 +3317,8 @@
             var isSelect = $('#rbCompanySelect').is(':checked');
             var canEnable = isAll || (isSelect && companyInfoViewed);
             $('#btnCompanyUserAction, #btnCompanyCadenaServer, #btnCompanyUpdate').prop('disabled', !canEnable);
+            var viewDataDisabled = $('#btnCompanyViewData').prop('disabled');
+            $('#companyViewDataHint').toggle(!!viewDataDisabled);
         }
 
         function loadTenants() {
@@ -3568,51 +3656,80 @@
             $('#notificationDetailModal').on('click', function(e) { if (e.target === this) $('#notificationDetailModal').removeClass('show'); });
             $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); $('#notificationDetailModal').removeClass('show'); });
             var NOTIF_MSG_MAX_LEN = 120;
+            var restoreJobsPanelTimer = null;
+            var restoreProgressTimer = null;
             function loadRestoreJobsPanel() {
                 var $list = $('#restoreJobsList'); var $badge = $('#restoreJobsBadge');
                 if (!$list.length) return;
                 $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
                         var d = res.d || res;
-                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
+                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } return; }
                         var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
                         var newBugs = d.newBugs || [];
                         var totalCount = jobs.length + newBugs.length;
-                        if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
+                        if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } return; }
                         $badge.text(totalCount).addClass('visible');
+                        var runningMultiDbAnalyze = jobs.filter(function(j) { return j.status === 'Running' && (j.type || '') === 'HRHelperMultiDbAnalyze'; });
+                        var hasRunningJobs = jobs.some(function(j) { return j.status === 'Running'; });
                         window.__notifJobsList = jobs;
                         var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
+                        var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
+                        var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
                         var html = '';
                         if (newBugs.length > 0) {
-                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">🐛 Bugs mới (' + newBugs.length + ')</div>';
+                            html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifBugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (notifBugsCollapsed ? 'display:none;' : '') + '">';
                             newBugs.forEach(function(b) { var created = formatNotifTime(b.createdAt); html += '<div class="ba-notif-item ba-notif-bug" data-bug-id="' + (b.id || '') + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
-                            html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">Thông báo job</div>';
+                            html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
                         }
                         jobs.forEach(function(j, idx) {
                             var st = j.status || ''; var msg = (j.message || '').trim(); var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var jobType = j.type || 'Restore';
-                            var typeLabel = (j.typeLabel || jobType || 'Restore').replace(/</g, '&lt;');
-                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : '';
+                            var typeLabel = (j.typeLabel || (jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : jobType === 'HRHelperMultiDbReset' ? 'Reset Multi-DB' : jobType) || 'Restore').replace(/</g, '&lt;');
+                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : '';
+                            var serverPct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : 0;
                             var startTimeStr = formatNotifTime(j.startTime);
                             var endTimeStr = formatNotifTime(j.completedAt);
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span>' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
-                            if (st === 'Running') { row += '<div style="margin-top:4px;color:var(--primary);">Đang chạy</div>'; }
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
+                            if (st === 'Running') {
+                                var pct = Math.min(100, Math.max(0, serverPct));
+                                var progressLabel = (jobType === 'HRHelperMultiDbAnalyze') ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset') ? (pct + '% - Reset') : (pct + '%');
+                                row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
+                            }
                             else if (st === 'Failed') { row += '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
                             else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
                             row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a></div>';
                             html += row;
                         });
+                        if (newBugs.length > 0) html += '</div></div>';
+                        else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
                         $list.html(html);
+                        $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function(e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
                         $list.off('click.baNotif').on('click.baNotif', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); if (window.__notifJobsList && window.__notifJobsList[idx]) showNotificationDetail(window.__notifJobsList[idx]); });
-                        $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($item.data('job-id'), 10); var jobType = $item.data('job-type') || 'Restore'; if (jobId) { addDismissedJobId(jobId, jobType); $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }) }); $item.slideUp(200, function() { $(this).remove(); var left = $('#restoreJobsList .ba-notif-item').length; if (left) $badge.text(left).addClass('visible'); else { $badge.removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
+                        $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($item.data('job-id'), 10); var jobType = $item.data('job-type') || 'Restore'; if (jobId) { addDismissedJobId(jobId, jobType); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }) }); $item.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var left = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (left > 0) { $badgeEl.text(left).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
+                        if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
+                        if (hasRunningJobs && !document.hidden && $('#restoreJobsPanel').is(':visible') && !restoreProgressTimer) {
+                            restoreProgressTimer = setInterval(loadRestoreJobsPanel, 2000);
+                        }
                     }
                 });
             }
+            window.loadRestoreJobsPanel = loadRestoreJobsPanel;
             $(function() {
                 if ($('#restoreJobsBellWrap').length) {
                     $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }); var newBugs = d.newBugs || []; var total = jobs.length + newBugs.length; if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-                    $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) { $p.hide(); } else { loadRestoreJobsPanel(); $p.show(); } });
-                    $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
+                    $('#restoreJobsBellBtn').on('click', function(e) {
+                        e.stopPropagation();
+                        var $p = $('#restoreJobsPanel');
+                        if ($p.is(':visible')) {
+                            $p.hide();
+                            if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
+                        } else {
+                            loadRestoreJobsPanel();
+                            $p.show();
+                        }
+                    });
+                    $(document).on('click', function() { $('#restoreJobsPanel').hide(); if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } });
                     $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
                     if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { if ($('#restoreJobsPanel').is(':visible')) loadRestoreJobsPanel(); else { $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }); var newBugs = d.newBugs || []; var total = jobs.length + newBugs.length; if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible'); } } }); } }); }
                 }

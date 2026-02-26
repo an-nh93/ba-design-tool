@@ -31,5 +31,11 @@ namespace BADesign.Pages
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
 		protected global::System.Web.UI.ScriptManager sm1;
+
+		/// <summary>BaSidebar control.</summary>
+		protected global::BADesign.BaSidebar ucBaSidebar;
+
+		/// <summary>BaTopBar control.</summary>
+		protected global::BADesign.BaTopBar ucBaTopBar;
 	}
 }

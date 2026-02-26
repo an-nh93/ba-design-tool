@@ -16,6 +16,11 @@ namespace BADesign.Pages
         protected void Page_Load(object sender, System.EventArgs e)
         {
             UiAuthHelper.RequireLogin();
+            if (!IsPostBack)
+            {
+                ucBaSidebar.ActiveSection = "AppSettings";
+                ucBaTopBar.PageTitle = "App Settings";
+            }
         }
 
         private const string SftpHostKey = "SftpHost";

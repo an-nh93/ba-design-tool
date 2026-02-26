@@ -1,7 +1,8 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Users.aspx.cs"
     Inherits="UiBuilderFull.Admin.Users" %>
 <%@ Import Namespace="System.Web" %>
-
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
@@ -9,6 +10,7 @@
     
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <link href="../Content/ba-layout.css" rel="stylesheet" />
+    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
 
@@ -758,36 +760,14 @@
 </head>
 <body>
     <form id="form1" runat="server">
-        <div class="admin-container">
-            <!-- Sidebar -->
-            <div class="admin-sidebar" id="adminSidebar">
-                <div class="admin-sidebar-header">
-                    <div class="admin-sidebar-title">UI Builder</div>
-                    <button type="button" class="admin-sidebar-toggle" id="adminSidebarToggle" title="Thu nhỏ menu">◀</button>
-                </div>
-                <a href="~/HomeRole" runat="server" class="admin-nav-item" data-icon="←" title="Back to Home">
-                    <span>← Back to Home</span>
-                </a>
-                <div class="admin-nav-item active" data-icon="👥" title="User Management">
-                    <span>👥 User Management</span>
-                </div>
-                <a href="~/RolePermission" runat="server" class="admin-nav-item" data-icon="🛡" title="Role Permission">
-                    <span>🛡 Role Permission</span>
-                </a>
-            </div>
-
-            <!-- Main Content -->
-            <div class="admin-main">
-                <!-- Top Bar -->
-                <div class="admin-top-bar">
-                    <div class="admin-top-bar-title">User Management</div>
-                    <button type="button" class="admin-btn admin-btn-primary" onclick="showUserModal(); return false;">
-                        + Add New User
-                    </button>
-                </div>
-
-                <!-- Content -->
+        <div class="admin-container ba-container">
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" />
+            <div class="admin-main ba-main">
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="admin-content">
+                    <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem;">
+                        <button type="button" class="admin-btn admin-btn-primary" onclick="showUserModal(); return false;">+ Add New User</button>
+                    </div>
                     <div class="admin-users-search">
                         <div class="admin-users-search-wrap">
                             <input type="text" id="userSearchInput" placeholder="Search by Username, Full Name, Email, Role..." />
@@ -950,17 +930,6 @@
     </form>
 
     <script>
-        // ===== Sidebar collapse =====
-        (function() {
-            var key = 'adminSidebarCollapsed';
-            var $sb = $('#adminSidebar');
-            var $btn = $('#adminSidebarToggle');
-            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
-            $btn.on('click', function() {
-                $sb.toggleClass('collapsed');
-                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
-            });
-        })();
         // ===== Toast Message Functions =====
         function showToast(message, type) {
             type = type || 'info';
@@ -1629,6 +1598,66 @@
             }
         });
         <% } %>
+    </script>
+    <script src="../Scripts/ba-layout.js"></script>
+    <script>
+    (function() {
+        var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
+        var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
+        var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
+        var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
+        function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = (typeof v === 'string') ? v : String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); return isNaN(Date.parse(s)) ? null : new Date(s); }
+        var DISMISSED_KEY = 'baDismissedJobIds';
+        function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? (JSON.parse(r) || []) : []; } catch (e) { return []; } }
+        function addDismissed(id, type) { var k = (type === 'Backup' ? 'b:' : 'r:') + id; var a = getDismissed(); if (a.indexOf(k) < 0) { a.push(k); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
+        function isDismissed(j) { return getDismissed().indexOf((j.type === 'Backup' ? 'b:' : 'r:') + (j.id || '')) >= 0; }
+        function fmtTime(v) { var d = parseDateSafe(v); return d ? d.toLocaleString() : '—'; }
+        function loadPanel() {
+            var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
+            if (!$list.length) return;
+            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
+                success: function(res) {
+                    var d = res.d || res;
+                    if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
+                    var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
+                    var newBugs = d.newBugs || [];
+                    var total = jobs.length + newBugs.length;
+                    if (!total) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
+                    $badge.text(total).addClass('visible');
+                    var bugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
+                    var jobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
+                    var html = '';
+                    if (newBugs.length > 0) {
+                        html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (bugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (bugsCollapsed ? 'display:none;' : '') + '">';
+                        newBugs.forEach(function(b) { html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + fmtTime(b.createdAt) + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '">Xem / Xử lý</a></div>'; });
+                        html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">';
+                    }
+                    jobs.forEach(function(j) {
+                        var st = j.status || '', type = j.type || 'Restore', typeLabel = j.typeLabel || (type === 'Backup' ? 'Backup' : type === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore');
+                        var badge = (type === 'Backup') ? 'ba-notif-type-backup' : (type === 'Restore') ? 'ba-notif-type-restore' : (type === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : 'ba-notif-type-restore';
+                        var row = '<div class="ba-notif-item" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime) + '</div>';
+                        if (st === 'Running') row += '<div style="margin-top:4px;color:var(--primary);">Đang chạy</div>';
+                        else if (st === 'Completed') row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>';
+                        else if (st === 'Failed') row += '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div>';
+                        row += '<a class="ba-notif-detail-link" href="' + functionQueueUrl + '">Xem chi tiết</a></div>';
+                        html += row;
+                    });
+                    if (newBugs.length > 0) html += '</div></div>';
+                    else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
+                    $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
+                    $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function() { var g = $(this).data('group'); var $b = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $ar = $(this).find('.ba-notif-group-arrow'); if ($b.is(':visible')) { $b.slideUp(200); $ar.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $b.slideDown(200); $ar.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
+                    $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $i = $(this).closest('.ba-notif-item'); var id = parseInt($i.data('job-id'), 10); var typ = $i.data('job-type') || 'Restore'; if (id) { addDismissed(id, typ); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) }); $i.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var n = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (n > 0) { $badgeEl.text(n).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
+                }
+            });
+        }
+        $(function() {
+            if (!$('#restoreJobsBellWrap').length) return;
+            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); }); var total = jobs.length + (d.newBugs || []).length; if (total) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
+            $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) $p.hide(); else { loadPanel(); $p.show(); } });
+            $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
+            $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
+        });
+    })();
     </script>
 </body>
 </html>

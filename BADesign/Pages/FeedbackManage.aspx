@@ -427,11 +427,13 @@
                             var totalCount = jobs.length + newBugs.length;
                             if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
                             $badge.text(totalCount).addClass('visible');
+                            var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
+                            var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
                             var html = '';
                             if (newBugs.length > 0) {
-                                html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">🐛 Bugs mới (' + newBugs.length + ')</div>';
+                                html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifBugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (notifBugsCollapsed ? 'display:none;' : '') + '">';
                                 newBugs.forEach(function (b) { var created = formatNotifTime(b.createdAt); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '">Xem / Xử lý</a></div>'; });
-                                html += '<div class="ba-notif-section-title" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);">Thông báo job</div>';
+                                html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
                             }
                             jobs.forEach(function (j) {
                                 var st = j.status || '', jobType = j.type || 'Restore', typeLabel = (j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore'));
@@ -443,7 +445,10 @@
                                 row += '<a class="ba-notif-detail-link" href="<%= ResolveUrl("~/FunctionQueue") %>">Xem chi tiết</a></div>';
                                 html += row;
                             });
+                            if (newBugs.length > 0) html += '</div></div>';
+                            else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
                             $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
+                            $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function (e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
                         }
                     });
                 }

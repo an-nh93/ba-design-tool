@@ -28,6 +28,11 @@ namespace BADesign.Pages
                 Response.Redirect(ResolveUrl(UiAuthHelper.GetHomeUrlByRole()));
                 return;
             }
+            if (!IsPostBack)
+            {
+                ucBaSidebar.ActiveSection = "EncryptDecrypt";
+                ucBaTopBar.PageTitle = "Encrypt/Decrypt Data";
+            }
             var k = Request.QueryString["k"];
             if (!string.IsNullOrWhiteSpace(k))
             {

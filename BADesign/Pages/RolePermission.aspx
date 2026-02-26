@@ -1,12 +1,15 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="RolePermission.aspx.cs"
     Inherits="UiBuilderFull.Admin.RolePermission" %>
-
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
     <title>Role Permission - UI Builder</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
+    <link href="../Content/ba-layout.css" rel="stylesheet" />
+    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <style>
         :root {
@@ -30,39 +33,7 @@
             color: var(--text-primary);
             line-height: 1.6;
         }
-        .rp-container { display: flex; min-height: 100vh; }
-        .rp-sidebar {
-            width: 240px;
-            background: var(--bg-darker);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0;
-            transition: width 0.25s ease;
-        }
-        .rp-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .rp-sidebar.collapsed .rp-sidebar-header { padding: 0 0.75rem 1rem; }
-        .rp-sidebar.collapsed .rp-sidebar-title { display: none; }
-        .rp-sidebar.collapsed .rp-nav-item { padding: 0.75rem; text-align: center; font-size: 1.25rem; }
-        .rp-sidebar.collapsed .rp-nav-item span { display: none; }
-        .rp-sidebar.collapsed .rp-nav-item::before { content: attr(data-icon); }
-        .rp-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .rp-sidebar-toggle:hover { color: var(--text-primary); }
-        .rp-sidebar.collapsed .rp-sidebar-toggle { transform: rotate(180deg); }
-        .rp-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-        .rp-sidebar-title { font-size: 1.125rem; font-weight: 600; }
-        .rp-nav-item {
-            display: block;
-            padding: 0.75rem 1.5rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-        .rp-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .rp-nav-item.active { background: var(--bg-hover); color: var(--primary); border-left: 3px solid var(--primary); }
-        .rp-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-        .rp-top { padding: 1rem 2rem; background: var(--bg-card); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .rp-title { font-size: 1.5rem; font-weight: 600; }
-        .rp-content { flex: 1; overflow-y: auto; padding: 2rem; }
+        .rp-content { padding: 0; }
         .rp-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
@@ -133,22 +104,15 @@
 </head>
 <body>
     <form id="form1" runat="server">
-        <div class="rp-container">
-            <aside class="rp-sidebar" id="rpSidebar">
-                <div class="rp-sidebar-header">
-                    <div class="rp-sidebar-title">UI Builder</div>
-                    <button type="button" class="rp-sidebar-toggle" id="rpSidebarToggle" title="Thu nhỏ menu">◀</button>
-                </div>
-                <a href="~/HomeRole" runat="server" class="rp-nav-item" data-icon="←" title="Back to Home"><span>← Back to Home</span></a>
-                <a href="~/Users" runat="server" class="rp-nav-item" data-icon="👥" title="User Management"><span>👥 User Management</span></a>
-                <div class="rp-nav-item active" data-icon="🛡" title="Role Permission"><span>🛡 Role Permission</span></div>
-            </aside>
-            <main class="rp-main">
-                <div class="rp-top">
-                    <h1 class="rp-title">Role Permission</h1>
-                    <button type="button" class="rp-btn rp-btn-primary" id="btnSave" onclick="saveRolePermissions(); return false;">Lưu cấu hình</button>
-                </div>
-                <div class="rp-content">
+        <div class="admin-container ba-container">
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" />
+            <div class="admin-main ba-main">
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" />
+                <div class="admin-content ba-content">
+                    <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem;">
+                        <button type="button" class="rp-btn rp-btn-primary" id="btnSave" onclick="saveRolePermissions(); return false;">Lưu cấu hình</button>
+                    </div>
+                    <div class="rp-content">
                     <div class="rp-card" id="cardPermissions">
                         <div class="rp-card-header" onclick="toggleRpCard('cardPermissions'); return false;">
                             <h2>Định nghĩa quyền theo Role</h2>
@@ -204,21 +168,12 @@
                         </div>
                     </div>
                 </div>
-            </main>
+            </div>
         </div>
         <div id="toastContainer" class="toast-container"></div>
     </form>
+    <script src="../Scripts/ba-layout.js"></script>
     <script>
-        (function() {
-            var key = 'rpSidebarCollapsed';
-            var $sb = $('#rpSidebar');
-            var $btn = $('#rpSidebarToggle');
-            if (localStorage.getItem(key) === '1') $sb.addClass('collapsed');
-            $btn.on('click', function() {
-                $sb.toggleClass('collapsed');
-                localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
-            });
-        })();
         var permissions = [];
         var roles = [];
         var rolePermissions = {}; // roleId -> [permissionId]

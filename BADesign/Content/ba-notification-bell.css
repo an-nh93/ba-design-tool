@@ -141,7 +141,8 @@
 .ba-notif-type-hr-user { background: #4ac5f5; color: #fff; }
 .ba-notif-type-hr-employee { background: #8757f7; color: #fff; }
 .ba-notif-type-hr-other { background: rgba(135, 87, 247, 0.5); color: #fff; }
-.ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-bug):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other):not(.ba-notif-reset-tag):not(.ba-notif-no-reset-tag) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
+.ba-notif-type-hr-analyze { background: #0d9488; color: #fff; }
+.ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-bug):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other):not(.ba-notif-type-hr-analyze):not(.ba-notif-reset-tag):not(.ba-notif-no-reset-tag) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
 /* Tag Có Reset / Không Reset: dùng !important để không bị đè bởi rule .ba-notif-type-badge phía trên */
 .ba-notif-type-badge.ba-notif-reset-tag { background: rgba(16, 185, 129, 0.25) !important; color: #10b981 !important; }
 .ba-notif-type-badge.ba-notif-no-reset-tag { background: rgba(239, 68, 68, 0.2) !important; color: #ef4444 !important; }
