@@ -1217,12 +1217,26 @@ var controlField = (function () {
                         }
                     }
                 }
+            } else if (isFieldContainer) {
+                // Groupbox/Section: chỉ coi là "trong group" nếu nằm trong VÙNG NỘI DUNG (trừ title + padding), tránh control ngoài group bị gán nhầm parentId
+                var headerH = 28;
+                var pad = 8;
+                var contentLeft = (c.left || 0) + pad;
+                var contentTop = (c.top || 0) + headerH + pad;
+                var contentRight = cRight - pad;
+                var contentBottom = cBottom - pad;
+                if (left >= contentLeft && top >= contentTop && right <= contentRight && bottom <= contentBottom) {
+                    if (!best || (c.left >= best.left && c.top >= best.top &&
+                        c.width <= best.width && c.height <= best.height)) {
+                        best = c;
+                    }
+                }
             } else {
-                // Logic cũ cho groupbox/section/popup/tabpage
-            if (left >= c.left && top >= c.top && right <= cRight && bottom <= cBottom) {
-                if (!best || (c.left >= best.left && c.top >= best.top &&
-                    c.width <= best.width && c.height <= best.height)) {
-                    best = c;
+                // Popup / tabpage: dùng full bounds
+                if (left >= c.left && top >= c.top && right <= cRight && bottom <= cBottom) {
+                    if (!best || (c.left >= best.left && c.top >= best.top &&
+                        c.width <= best.width && c.height <= best.height)) {
+                        best = c;
                     }
                 }
             }
@@ -1262,6 +1276,31 @@ var controlField = (function () {
             fieldCfg.tabPageId = parentCfg.tabPageId || null;
             if (typeof parentCfg.tabIndex === "number") {
                 fieldCfg.tabIndex = parentCfg.tabIndex;
+            }
+
+            // ✅ Nếu parent là groupbox/section - đưa field vào content để di chuyển cùng
+            if (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section") {
+                var $gb = $('.page-field-groupbox[data-id="' + pid + '"], .popup-groupbox[data-id="' + pid + '"], .page-field-section[data-id="' + pid + '"], .popup-section[data-id="' + pid + '"]');
+                if ($gb.length && $dom.length) {
+                    var contentSel = parentCfg.ftype === "groupbox" ? ".page-field-groupbox-content" : ".page-field-section-content";
+                    var $content = $gb.find(contentSel).first();
+                    if ($content.length) {
+                        $dom.appendTo($content);
+                        if (oldParentId !== pid) {
+                            var parentLeft = parentCfg.left || 0;
+                            var parentTop = parentCfg.top || 0;
+                            var headerH = 28;
+                            var pad = 8;
+                            fieldCfg.left = Math.max(0, (fieldCfg.left || 0) - parentLeft - pad);
+                            fieldCfg.top = Math.max(0, (fieldCfg.top || 0) - parentTop - headerH - pad);
+                        }
+                        $dom.css({
+                            position: "absolute",
+                            left: fieldCfg.left + "px",
+                            top: fieldCfg.top + "px"
+                        });
+                    }
+                }
             }
 
             // ✅ FIX Z-INDEX: con phải nằm trên parent container
@@ -1323,11 +1362,27 @@ var controlField = (function () {
                 }
             }
         } else if (parentCfg.type === "popup") {
-            // Field là con của popup
+            // Field là con của popup - GIỮ BÊN TRONG popup-body để di chuyển theo popup
             var $popup = $('.popup-design[data-id="' + parentCfg.id + '"]');
-            if ($popup.length && $dom.length) {
-                // Đưa DOM field nằm ngay sau popup để đảm bảo vẽ phía trên
-                $dom.insertAfter($popup);
+            var $popupBody = $popup.find(".popup-body").first();
+            if ($popup.length && $dom.length && $popupBody.length) {
+                // Append vào popup-body (KHÔNG insertAfter) - control sẽ di chuyển cùng popup
+                $popupBody.append($dom);
+
+                // Chuyển tọa độ từ canvas sang relative với popup khi vừa vào popup
+                if (oldParentId !== parentCfg.id) {
+                    var popupLeft = parentCfg.left || 0;
+                    var popupTop = parentCfg.top || 0;
+                    var headerH = (parentCfg.headerHeight || 34) + 30; // header + titlebar
+                    fieldCfg.left = Math.max(0, (fieldCfg.left || 0) - popupLeft);
+                    fieldCfg.top = Math.max(0, (fieldCfg.top || 0) - popupTop - headerH);
+                }
+
+                $dom.css({
+                    position: "absolute",
+                    left: fieldCfg.left + "px",
+                    top: fieldCfg.top + "px"
+                });
 
                 var popupZ = parseInt($popup.css("z-index") || "0", 10);
                 if (isNaN(popupZ)) popupZ = 0;
@@ -1338,10 +1393,8 @@ var controlField = (function () {
                 $dom.css("z-index", newZ);
 
                 // ✅ FIX: nếu chính nó là container (groupbox/section)
-                // thì tăng luôn z-index cho toàn bộ field con bên trong,
-                // để con không bị nằm dưới section/popup.
+                // thì tăng luôn z-index cho toàn bộ field con bên trong
                 if (fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section") {
-                    // Cho tất cả con = newZ + 1 (cao hơn container)
                     updateDescendantsZIndex(fieldCfg.id, newZ + 1);
                 }
             }
@@ -1748,12 +1801,14 @@ var controlField = (function () {
             $field = $(`
 <div class="canvas-control page-field page-field-groupbox${extraClass}" data-id="${cfg.id}">
   <div class="page-field-groupbox-title">${cfg.caption != null ? cfg.caption : "Group"}</div>
+  <div class="page-field-groupbox-content"></div>
   <div class="page-field-resizer"></div>
 </div>`);
         } else if (cfg.ftype === "section") {
             $field = $(`
 <div class="canvas-control page-field page-field-section${extraClass}" data-id="${cfg.id}">
   <div class="page-field-section-header">${cfg.caption != null ? cfg.caption : "Section"}</div>
+  <div class="page-field-section-content"></div>
   <div class="page-field-resizer"></div>
 </div>`);
         } else {
@@ -2002,11 +2057,30 @@ var controlField = (function () {
                     }
                 }
             } else {
-                // Logic cũ cho popup/tabpage
+                // Logic cho popup/tabpage
                 if (parentCfg && parentCfg.type === "popup") {
                     var $popup = $('.popup-design[data-id="' + cfg.parentId + '"]');
                     if ($popup.length) {
                         $container = $popup.find(".popup-body").first();
+                        if ($container.length) {
+                            // Chỉ convert canvas→relative khi KHÔNG phải restore (khi restore, cfg đã là popup-relative)
+                            var fromRestore = (cfg._fromRestore === true);
+                            if (!fromRestore) {
+                                var popupLeft = parentCfg.left || 0;
+                                var popupTop = parentCfg.top || 0;
+                                var headerH = (parentCfg.headerHeight || 34) + 30;
+                                cfg.left = Math.max(0, (cfg.left || 0) - popupLeft);
+                                cfg.top = Math.max(0, (cfg.top || 0) - popupTop - headerH);
+                            }
+                            delete cfg._fromRestore;
+                            $field.css({
+                                position: "absolute",
+                                left: (cfg.left || 0) + "px",
+                                top: (cfg.top || 0) + "px",
+                                width: (cfg.width || 150) + "px",
+                                height: (cfg.height || 24) + "px"
+                            });
+                        }
                         if (!$container.length) $container = $canvas;
                     }
                 } else if (parentCfg && parentCfg.type === "tabpage") {
@@ -2014,6 +2088,33 @@ var controlField = (function () {
                     if ($tabpage.length) {
                         $container = $tabpage.find(".tabpage-body").first();
                         if (!$container.length) $container = $canvas;
+                    }
+                } else if (parentCfg && parentCfg.type === "field" &&
+                    (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section")) {
+                    // Field là con của groupbox/section - append vào content để di chuyển cùng
+                    var $gb = $('.page-field-groupbox[data-id="' + cfg.parentId + '"], .popup-groupbox[data-id="' + cfg.parentId + '"], .page-field-section[data-id="' + cfg.parentId + '"], .popup-section[data-id="' + cfg.parentId + '"]');
+                    if ($gb.length) {
+                        var contentSel = parentCfg.ftype === "groupbox" ? ".page-field-groupbox-content" : ".page-field-section-content";
+                        var $content = $gb.find(contentSel).first();
+                        if ($content.length) {
+                            $container = $content;
+                            if (!cfg._fromRestore) {
+                                var parentLeft = parentCfg.left || 0;
+                                var parentTop = parentCfg.top || 0;
+                                var headerH = 28;
+                                var pad = 8;
+                                cfg.left = Math.max(0, (cfg.left || 0) - parentLeft - pad);
+                                cfg.top = Math.max(0, (cfg.top || 0) - parentTop - headerH - pad);
+                            }
+                            $field.css({
+                                position: "absolute",
+                                left: (cfg.left || 0) + "px",
+                                top: (cfg.top || 0) + "px",
+                                width: (cfg.width || 150) + "px",
+                                height: (cfg.height || 24) + "px",
+                                zIndex: 1
+                            });
+                        }
                     }
                 }
             }
@@ -2071,7 +2172,7 @@ var controlField = (function () {
 
         // DRAG - chỉ cho phép khi không phải từ resize handles
         fieldInteractable.draggable({
-            ignoreFrom: "input, select, textarea, .page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom",
+            ignoreFrom: "input, select, textarea, .page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom, .page-field-groupbox-content, .page-field-section-content",
             // Thêm threshold để phân biệt drag vs resize
             startAxis: 'xy',
             lockAxis: false,
@@ -2210,6 +2311,11 @@ var controlField = (function () {
 
         // chọn field
         $field.on("mousedown", function (e) {
+            // Chỉ khi click đúng vào vùng content của CHÍNH control này → không chọn, để bật marquee. Tránh groupbox trong section bị coi là "click content" và không chọn được.
+            var $myContent = $(this).find(".page-field-groupbox-content, .page-field-section-content").first();
+            if ((cfg.ftype === "groupbox" || cfg.ftype === "section") && $myContent.length && ($myContent[0] === e.target || $.contains($myContent[0], e.target))) {
+                return;
+            }
             e.stopPropagation();
 
             if (window.controlPopup && typeof controlPopup.clearSelection === "function") {
@@ -3362,32 +3468,35 @@ var controlField = (function () {
                 }
             }
             
-            // ✅ Nếu drop vào collapsible-section → gán parentId và điều chỉnh vị trí
+            // ✅ Nếu drop vào container → gán parentId và điều chỉnh vị trí (groupbox/section > collapsible-section > popup)
             if (parentId) {
                 var parentCfg = (builder.controls || []).find(function(c) { return c.id === parentId; });
-                if (parentCfg && parentCfg.type === "collapsible-section" && dropPoint) {
+                if (parentCfg && parentCfg.type === "field" &&
+                    (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section") && dropPoint) {
+                    // Drop vào groupbox/section → control nằm trong content, không bị popup đè
                     cfg.parentId = parentId;
-                    
-                    // Tính vị trí relative với collapsible section content area
+                    var $content = $('.page-field-groupbox[data-id="' + parentId + '"], .page-field-section[data-id="' + parentId + '"], .popup-groupbox[data-id="' + parentId + '"], .popup-section[data-id="' + parentId + '"]')
+                        .find(".page-field-groupbox-content, .page-field-section-content").first();
+                    if ($content.length) {
+                        var contentRect = $content[0].getBoundingClientRect();
+                        cfg.left = Math.max(0, dropPoint.clientX - contentRect.left);
+                        cfg.top = Math.max(0, dropPoint.clientY - contentRect.top);
+                    }
+                } else if (parentCfg && parentCfg.type === "collapsible-section" && dropPoint) {
+                    cfg.parentId = parentId;
                     var headerHeight = 50;
                     var contentPadding = parentCfg.contentPadding || 12;
-                    
                     if (window.builder && typeof builder.clientToCanvasPoint === "function") {
                         var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
-                        var relativeX = canvasPoint.x - (parentCfg.left || 0) - contentPadding;
-                        var relativeY = canvasPoint.y - (parentCfg.top || 0) - headerHeight - contentPadding;
-                        
-                        cfg.left = Math.max(0, relativeX);
-                        cfg.top = Math.max(0, relativeY);
+                        cfg.left = Math.max(0, canvasPoint.x - (parentCfg.left || 0) - contentPadding);
+                        cfg.top = Math.max(0, canvasPoint.y - (parentCfg.top || 0) - headerHeight - contentPadding);
                     }
                 } else if (parentCfg && parentCfg.type === "popup" && dropPoint) {
-                    // Popup handling (giữ logic cũ)
                     cfg.parentId = parentId;
                     var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
-                    var relativeX = canvasPoint.x - (parentCfg.left || 0);
-                    var relativeY = canvasPoint.y - (parentCfg.top || 0);
-                    cfg.left = Math.max(10, relativeX);
-                    cfg.top = Math.max(50, relativeY);
+                    var headerH = (parentCfg.headerHeight || 34) + 30;
+                    cfg.left = Math.max(0, canvasPoint.x - (parentCfg.left || 0));
+                    cfg.top = Math.max(0, canvasPoint.y - (parentCfg.top || 0) - headerH);
                 }
             }
             

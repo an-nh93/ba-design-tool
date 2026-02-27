@@ -1,14 +1,18 @@
 /* Sidebar collapse, theme switcher, user menu - dùng chung cho các trang có BaSidebar + BaTopBar */
-(function() {
+$(function() {
     var key = 'baSidebarCollapsed';
-    var $sb = $('#baSidebar');
-    var $btn = $('#baSidebarToggle');
+    var $sb = $('.ba-sidebar').first();
     if ($sb.length && localStorage.getItem(key) === '1') $sb.addClass('collapsed');
-    if ($btn.length) $btn.on('click', function() {
+});
+$(document).on('click', '.ba-sidebar-toggle', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var $sb = $(this).closest('.ba-sidebar');
+    if ($sb.length) {
         $sb.toggleClass('collapsed');
-        localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
-    });
-})();
+        try { localStorage.setItem('baSidebarCollapsed', $sb.hasClass('collapsed') ? '1' : '0'); } catch (err) {}
+    }
+});
 function toggleUserMenu(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     var dropdown = document.getElementById('userMenuDropdown');

@@ -1632,6 +1632,13 @@ select.ess-action-input {
     background: #ffffff;
     font-weight: 600;
 }
+.page-field-groupbox-content,
+.page-field-section-content {
+    position: relative;
+    min-height: 60px;
+    padding: 8px;
+    margin-top: 8px;
+}
 .page-field-section {
     border: 1px solid #c0c0c0;
     background: #ffffff;

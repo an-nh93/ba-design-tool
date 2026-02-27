@@ -590,9 +590,14 @@ var builder = {
                 return;
             }
 
-            // Nếu click trúng control field / popup / toolbar / tabpage
-            // thì để module tương ứng xử lý, không bật marquee
-            if ($t.closest(".page-field, .popup-field, .popup-design, .canvas-toolbar, .canvas-tabpage").length) {
+            // Cho phép quét khối khi click vào vùng trống trong groupbox/section (để chọn nhiều control bên trong)
+            var inGroupboxSectionContent = $t.closest(".page-field-groupbox-content, .page-field-section-content").length;
+            if (!inGroupboxSectionContent && $t.closest(".page-field, .popup-field, .canvas-toolbar, .canvas-tabpage").length) {
+                return;
+            }
+            // Click vào popup nhưng không phải vùng trống body (vd: header/titlebar) → không marquee
+            // Click vào vùng trống .popup-body → CHO PHÉP quét khối chọn control bên trong popup
+            if ($t.closest(".popup-design").length && !$t.closest(".popup-body").length) {
                 return;
             }
 
@@ -901,14 +906,29 @@ var builder = {
         this.controls = [];
         var $inner = $("#canvas-zoom-inner");
         $inner.empty();
+        this.marqueeRectEl = null; // ✅ Sau Undo/Redo khung quét tạo mới, tránh quét khối không hoạt động
         $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
         this.hideSizeHint();
 
+        // Sắp xếp theo thứ tự phụ thuộc: parent render trước child (tránh control trong popup/groupbox bị sai vị trí khi Undo)
+        var ordered = [];
+        var remaining = arr.slice();
+        var maxIter = 500;
+        while (remaining.length && maxIter-- > 0) {
+            var pick = remaining.filter(function (c) {
+                if (!c.parentId) return true;
+                return ordered.some(function (x) { return x.id === c.parentId; });
+            });
+            if (!pick.length) break;
+            ordered = ordered.concat(pick);
+            remaining = remaining.filter(function (c) { return pick.indexOf(c) === -1; });
+        }
+        if (remaining.length) ordered = ordered.concat(remaining);
+
         var self = this;
-        arr.forEach(function (cfg) {
-            if (cfg.type === "field" && !cfg.uiMode) {
-                cfg.uiMode = "core";
-            }
+        ordered.forEach(function (cfg) {
+            if (cfg.type === "field" && !cfg.uiMode) cfg.uiMode = "core";
+            cfg._fromRestore = true; // Để render không convert lại tọa độ popup/groupbox (đã lưu relative)
             if (cfg.type === "grid") {
                 controlGrid.renderExisting(cfg);
             } else if (cfg.type === "popup") {
@@ -922,6 +942,7 @@ var builder = {
             } else if (cfg.type === "collapsible-section" && window.controlCollapsibleSection && typeof controlCollapsibleSection.renderExisting === "function") {
                 controlCollapsibleSection.renderExisting(cfg);
             }
+            delete cfg._fromRestore;
             self.controls.push(cfg);
         });
 
@@ -945,42 +966,40 @@ var builder = {
     },
 
     // ========= Marquee selection =========
+    // Chuyển client (clientX, clientY) sang tọa độ trong #canvas-zoom-inner (có zoom) để khung quét không nhảy khi scroll/zoom
+    clientToMarqueeCoords: function (clientX, clientY) {
+        var $inner = $("#canvas-zoom-inner");
+        if (!$inner.length) return { x: 0, y: 0 };
+        var r = $inner[0].getBoundingClientRect();
+        var scale = (this.viewScale && this.viewScale > 0) ? this.viewScale : 1;
+        return {
+            x: (clientX - r.left) / scale,
+            y: (clientY - r.top) / scale
+        };
+    },
+
     beginMarquee: function (e) {
         this.isMarquee = true;
 
-        var $canvas = $("#canvas");
-        var $shell = $(".canvas-shell");
-        var canvasEl = $canvas[0];
-        var canvasRect = canvasEl.getBoundingClientRect();
-        var scrollLeft = $shell.length ? $shell.scrollLeft() : 0;
-        var scrollTop = $shell.length ? $shell.scrollTop() : 0;
+        var co = this.clientToMarqueeCoords(e.clientX, e.clientY);
+        this.marqueeStartX = co.x;
+        this.marqueeStartY = co.y;
 
-        var x = e.clientX - canvasRect.left + scrollLeft;
-        var y = e.clientY - canvasRect.top + scrollTop;
-
-        this.marqueeStartX = x;
-        this.marqueeStartY = y;
-
-        if (!this.marqueeRectEl) {
+        var $inner = $("#canvas-zoom-inner");
+        if (!this.marqueeRectEl || !$inner.length || !$.contains($inner[0], this.marqueeRectEl[0])) {
             this.marqueeRectEl = $('<div class="builder-selection-rect"></div>').appendTo("#canvas-zoom-inner");
         }
         this.marqueeRectEl
             .show()
-            .css({ left: x, top: y, width: 0, height: 0 });
+            .css({ left: co.x, top: co.y, width: 0, height: 0 });
     },
 
     updateMarquee: function (e) {
         if (!this.isMarquee || !this.marqueeRectEl) return;
 
-        var $canvas = $("#canvas");
-        var $shell = $(".canvas-shell");
-        var canvasEl = $canvas[0];
-        var canvasRect = canvasEl.getBoundingClientRect();
-        var scrollLeft = $shell.length ? $shell.scrollLeft() : 0;
-        var scrollTop = $shell.length ? $shell.scrollTop() : 0;
-
-        var x = e.clientX - canvasRect.left + scrollLeft;
-        var y = e.clientY - canvasRect.top + scrollTop;
+        var co = this.clientToMarqueeCoords(e.clientX, e.clientY);
+        var x = co.x;
+        var y = co.y;
 
         var left = Math.min(this.marqueeStartX, x);
         var top = Math.min(this.marqueeStartY, y);
@@ -1475,8 +1494,10 @@ var builder = {
         }
         
         // ✅ Nếu control đang drag thuộc group, thêm tất cả controls trong group vào selection
+        // Ngoại lệ: groupbox/section không mở rộng theo groupId — chỉ kéo chính nó (con trong DOM đã đi theo), tránh data cũ khiến control bên ngoài bị kéo theo
         var baseCfg = this.getControlConfig(baseId);
-        if (baseCfg && baseCfg.groupId) {
+        var isGroupboxOrSection = baseCfg && baseCfg.type === "field" && (baseCfg.ftype === "groupbox" || baseCfg.ftype === "section");
+        if (baseCfg && baseCfg.groupId && !isGroupboxOrSection) {
             var self = this;
             this.controls.forEach(function(c) {
                 if (c.groupId === baseCfg.groupId && ids.indexOf(c.id) === -1) {
@@ -1528,38 +1549,41 @@ var builder = {
             var st = self._dragSelectionStart[id];
             if (!cfg || !st) return;
 
-            // ✅ FIX: Nếu field nằm trong collapsible-section, position là relative với content
-            var isInCollapsibleSection = false;
+            // ✅ FIX: Nếu field nằm trong container (popup, groupbox, section, collapsible-section), position là relative — chỉ clamp >= 0, không áp ruler canvas (tránh "bị cản" khi kéo lên)
+            var isInContainer = false;
             var parentCfg = null;
             if (cfg.parentId) {
                 parentCfg = self.getControlConfig(cfg.parentId);
-                if (parentCfg && parentCfg.type === "collapsible-section") {
-                    isInCollapsibleSection = true;
+                if (parentCfg && (
+                    parentCfg.type === "collapsible-section" ||
+                    parentCfg.type === "popup" ||
+                    (parentCfg.type === "field" && (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section"))
+                )) {
+                    isInContainer = true;
                 }
             }
 
-            if (isInCollapsibleSection && parentCfg) {
-                // Position relative với content area
-            cfg.left = st.left + totalDx;
-            cfg.top = st.top + totalDy;
-                
-                // Đảm bảo không âm
+            if (isInContainer && parentCfg) {
+                // Position relative với content/popup-body
+                cfg.left = st.left + totalDx;
+                cfg.top = st.top + totalDy;
                 cfg.left = Math.max(0, cfg.left);
                 cfg.top = Math.max(0, cfg.top);
+                if (self.snapEnabled) {
+                    cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
+                    cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
+                }
             } else {
                 // Position absolute với canvas (logic cũ)
-            cfg.left = st.left + totalDx;
-            cfg.top = st.top + totalDy;
-
-            // Ruler boundary: 20px (theo margin của canvas)
-            var rulerLeft = 20;
-            var rulerTop = 20;
-            if (cfg.left < rulerLeft) cfg.left = rulerLeft;
-            if (cfg.top < rulerTop) cfg.top = rulerTop;
-
-            if (self.snapEnabled) {
-                cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
-                cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
+                cfg.left = st.left + totalDx;
+                cfg.top = st.top + totalDy;
+                var rulerLeft = 20;
+                var rulerTop = 20;
+                if (cfg.left < rulerLeft) cfg.left = rulerLeft;
+                if (cfg.top < rulerTop) cfg.top = rulerTop;
+                if (self.snapEnabled) {
+                    cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
+                    cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
                 }
             }
 
@@ -1572,12 +1596,11 @@ var builder = {
                 });
             }
 
-            // ✅ Di chuyển descendants nếu là field container (groupbox, section, collapsible-section)
-            if ((cfg.type === "field" &&
-                (cfg.ftype === "groupbox" || cfg.ftype === "section")) ||
-                cfg.type === "collapsible-section") {
+            // ✅ Di chuyển descendants cho collapsible-section (children có position absolute relative với content)
+            // groupbox/section: children đã là DOM con nên di chuyển tự động khi kéo parent
+            if (cfg.type === "collapsible-section") {
                 if (window.controlField && typeof controlField.moveDescendants === "function") {
-                controlField.moveDescendants(cfg.id, dx, dy, false);
+                    controlField.moveDescendants(cfg.id, dx, dy, false);
                 }
             }
         });
@@ -1611,16 +1634,20 @@ var builder = {
                 if (!c) return;
                 c.left = (c.left || 0) + dx;
                 c.top = (c.top || 0) + dy;
-
+                var parentCfg = c.parentId ? self.getControlConfig(c.parentId) : null;
+                if (parentCfg && (parentCfg.type === "popup" || parentCfg.type === "collapsible-section" || (parentCfg.type === "field" && (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section")))) {
+                    c.left = Math.max(0, c.left);
+                    c.top = Math.max(0, c.top);
+                } else {
+                    var rulerLeft = 20, rulerTop = 20;
+                    if (c.left < rulerLeft) c.left = rulerLeft;
+                    if (c.top < rulerTop) c.top = rulerTop;
+                }
                 if (self.snapEnabled) {
                     c.left = Math.round(c.left / self.snapStep) * self.snapStep;
                     c.top = Math.round(c.top / self.snapStep) * self.snapStep;
                 }
-
-                $('[data-id="' + id + '"]').css({
-                    left: c.left,
-                    top: c.top
-                });
+                $('[data-id="' + id + '"]').css({ left: c.left, top: c.top });
             });
         } else if (this.selectedControlId) {
             var cfg = this.getControlConfig(this.selectedControlId);
@@ -4391,8 +4418,27 @@ var builder = {
                     $("#canvas-zoom-inner").empty();
                     $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
 
-                    arr.forEach(function (c) {
+                    // ✅ Cùng logic loadConfig/restoreFromJson: sắp thứ tự phụ thuộc (parent trước child) + _fromRestore
+                    // để control trong popup/groupbox không bị vẽ sai (đẩy lên đầu popup hoặc ra ngoài)
+                    var ordered = [];
+                    var remaining = arr.slice();
+                    var maxIter = 500;
+                    while (remaining.length && maxIter-- > 0) {
+                        var pick = remaining.filter(function (c) {
+                            if (!c.parentId) return true;
+                            return ordered.some(function (x) { return x.id === c.parentId; });
+                        });
+                        if (!pick.length) break;
+                        ordered = ordered.concat(pick);
+                        remaining = remaining.filter(function (c) { return pick.indexOf(c) === -1; });
+                    }
+                    if (remaining.length) ordered = ordered.concat(remaining);
+
+                    ordered.forEach(function (c) {
+                        if (c.type === "field" && !c.uiMode) c.uiMode = "core";
+                        c._fromRestore = true;
                         builder.renderControlByConfig(c);
+                        delete c._fromRestore;
                         builder.controls.push(c);
                     });
 
@@ -4466,7 +4512,6 @@ var builder = {
         }
 
         // ✅ Detect drop vào collapsible-section (giống groupbox/section)
-        // Detect cho tất cả control types (field, grid, ess-grid, toolbar, v.v.)
         var collapsibleSectionId = null;
         if (type !== "collapsible-section" && dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
             var $sections = $(".ess-collapsible-section");
@@ -4474,31 +4519,54 @@ var builder = {
                 var $section = $(this);
                 var sid = $section.attr("data-id");
                 if (!sid) return;
-                
                 var $content = $section.find(".ess-collapsible-content");
-                if (!$content.length || !$content.is(":visible")) return; // Chỉ check nếu expanded
-                
+                if (!$content.length || !$content.is(":visible")) return;
                 var contentRect = $content[0].getBoundingClientRect();
-                var inside = (dropPoint.clientX >= contentRect.left && 
-                             dropPoint.clientX <= contentRect.right && 
-                             dropPoint.clientY >= contentRect.top && 
+                var inside = (dropPoint.clientX >= contentRect.left &&
+                             dropPoint.clientX <= contentRect.right &&
+                             dropPoint.clientY >= contentRect.top &&
                              dropPoint.clientY <= contentRect.bottom);
-                
                 if (inside) {
                     collapsibleSectionId = sid;
-                    return false; // Break
+                    return false;
                 }
             });
         }
 
+        // ✅ Detect drop vào groupbox/section - ưu tiên để control không bị nằm dưới groupbox
+        // 1) Thử content area trước; 2) Nếu không trúng thì thử toàn bộ bounds của groupbox (title + border) để tránh miss khi thả lên đầu/viền
+        var groupboxOrSectionId = null;
+        if (type && type.indexOf("field-") === 0 && dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
+            var px = dropPoint.clientX, py = dropPoint.clientY;
+            var $contents = $(".page-field-groupbox-content, .page-field-section-content");
+            $contents.each(function() {
+                var r = this.getBoundingClientRect();
+                if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+                    var $gb = $(this).closest(".page-field-groupbox, .page-field-section, .popup-groupbox, .popup-section");
+                    if ($gb.length) { var gid = $gb.attr("data-id"); if (gid) groupboxOrSectionId = gid; }
+                    return false;
+                }
+            });
+            // Nếu chưa trúng content, kiểm tra toàn bộ groupbox/section (kể cả vùng title) → control không bị rơi ra ngoài nằm dưới
+            if (!groupboxOrSectionId) {
+                var $groups = $(".page-field-groupbox, .page-field-section, .popup-groupbox, .popup-section");
+                var best = null, bestArea = Infinity;
+                $groups.each(function() {
+                    var r = this.getBoundingClientRect();
+                    if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+                        var area = r.width * r.height;
+                        if (area < bestArea) { bestArea = area; best = $(this).attr("data-id"); }
+                    }
+                });
+                if (best) groupboxOrSectionId = best;
+            }
+        }
+
         if (type === "grid") {
-            // Pass collapsible section ID nếu drop vào đó (ưu tiên hơn popup)
             controlGrid.addNew(collapsibleSectionId || popupId, dropPoint);
 
         } else if (type === "ess-grid") {
-            // NEW: ESS HTML grid
             if (window.controlGridEss && typeof controlGridEss.addNew === "function") {
-                // Pass collapsible section ID nếu drop vào đó (ưu tiên hơn popup)
                 controlGridEss.addNew(uiMode, collapsibleSectionId || popupId, dropPoint);
             }
 
@@ -4507,10 +4575,9 @@ var builder = {
 
         } else if (type && type.indexOf("field-") === 0) {
             var ftype = type.substring("field-".length);
-
             if (window.controlField && typeof controlField.addNew === "function") {
-                // Pass collapsible section ID nếu drop vào đó
-                controlField.addNew(ftype, uiMode, popupId || collapsibleSectionId, dropPoint);
+                // Ưu tiên: groupbox/section > collapsible-section > popup (để control luôn vào đúng container, không bị đè)
+                controlField.addNew(ftype, uiMode, groupboxOrSectionId || collapsibleSectionId || popupId, dropPoint);
             }
 
         } else if (type === "toolbar") {
@@ -4582,8 +4649,26 @@ var builder = {
                 $("#canvas-zoom-inner").empty();
                 $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
 
-                arr.forEach(function (cfg) {
+                // Cùng logic restoreFromJson: sắp thứ tự phụ thuộc + fromRestore để control trong popup/groupbox không bị vẽ ra ngoài
+                var ordered = [];
+                var remaining = arr.slice();
+                var maxIter = 500;
+                while (remaining.length && maxIter-- > 0) {
+                    var pick = remaining.filter(function (c) {
+                        if (!c.parentId) return true;
+                        return ordered.some(function (x) { return x.id === c.parentId; });
+                    });
+                    if (!pick.length) break;
+                    ordered = ordered.concat(pick);
+                    remaining = remaining.filter(function (c) { return pick.indexOf(c) === -1; });
+                }
+                if (remaining.length) ordered = ordered.concat(remaining);
+
+                ordered.forEach(function (cfg) {
+                    if (cfg.type === "field" && !cfg.uiMode) cfg.uiMode = "core";
+                    cfg._fromRestore = true;
                     self.renderControlByConfig(cfg);
+                    delete cfg._fromRestore;
                     self.controls.push(cfg);
                 });
 

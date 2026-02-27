@@ -540,10 +540,10 @@
                     <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <nav class="ba-nav">
-                    <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">Về trang chủ</a>
-                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item" data-icon="🔍" title="Database Search">Database Search</a>
-                    <a href="#" class="ba-nav-item active" data-icon="👥" title="HR Helper">HR Helper</a>
-                    <% if (CanEditSettings) { %><a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item" data-icon="⚙" title="App Settings">App Settings</a><% } %>
+                    <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ"><span>🏠 Về trang chủ</span></a>
+                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item" data-icon="🔍" title="Database Search"><span>🔍 Database Search</span></a>
+                    <a href="#" class="ba-nav-item active" data-icon="👥" title="HR Helper"><span>👥 HR Helper</span></a>
+                    <% if (CanEditSettings) { %><a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item" data-icon="⚙" title="App Settings"><span>⚙ App Settings</span></a><% } %>
                 </nav>
             </aside>
             <main class="ba-main">

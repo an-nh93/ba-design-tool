@@ -45,7 +45,9 @@ var controlCollapsibleSection = (function () {
         if (cfg.parentId) {
             parentCfg = (builder.controls || []).find(function (c) { return c.id === cfg.parentId; });
             if (parentCfg) {
-                var $parent = $('.canvas-control[data-id="' + cfg.parentId + '"]');
+                var $parent = parentCfg.type === "popup"
+                    ? $('.popup-design[data-id="' + cfg.parentId + '"]')
+                    : $('.canvas-control[data-id="' + cfg.parentId + '"]');
                 if ($parent.length) {
                     if (parentCfg.type === "popup") {
                         $container = $parent.find(".popup-body").first();
@@ -97,13 +99,19 @@ var controlCollapsibleSection = (function () {
                 zIndex: cfg.zIndex
             });
         
-        // Nếu là con của popup, đưa DOM nằm sau popup để đảm bảo vẽ phía trên
+        // Nếu là con của popup, GIỮ BÊN TRONG popup-body để di chuyển theo popup
         if (parentCfg && parentCfg.type === "popup") {
             var $popup = $('.popup-design[data-id="' + parentCfg.id + '"]');
-            if ($popup.length) {
-                // Append vào popup-body nhưng DOM nằm sau popup
+            if ($popup.length && $container.length) {
+                if (!cfg._fromRestore) {
+                    var popupLeft = parentCfg.left || 0;
+                    var popupTop = parentCfg.top || 0;
+                    var headerH = (parentCfg.headerHeight || 34) + 30;
+                    cfg.left = Math.max(0, (cfg.left || 0) - popupLeft);
+                    cfg.top = Math.max(0, (cfg.top || 0) - popupTop - headerH);
+                }
+                $root.css({ left: (cfg.left || 0) + "px", top: (cfg.top || 0) + "px" });
                 $container.append($root);
-                $root.insertAfter($popup);
             }
         }
 

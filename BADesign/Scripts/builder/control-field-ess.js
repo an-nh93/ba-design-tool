@@ -370,19 +370,21 @@
                 $editorWrap.append($editor);
             }
 
-            // Với groupbox/section thì caption là title
+            // Với groupbox/section thì caption là title + content area cho children
             if (cfg.ftype === "groupbox") {
                 $field.addClass("page-field-groupbox popup-groupbox");
                 var $title = $('<div></div>')
                     .addClass(fieldClass + "-groupbox-title")
                     .text(cfg.caption || "Group box");
-                $field.append($title);
+                var $content = $('<div></div>').addClass("page-field-groupbox-content");
+                $field.append($title).append($content);
             } else if (cfg.ftype === "section") {
                 $field.addClass(fieldClass + "-section");
                 var $sh = $('<div></div>')
                     .addClass(fieldClass + "-section-header")
                     .text(cfg.caption || "Section");
-                $field.append($sh);
+                var $content = $('<div></div>').addClass("page-field-section-content");
+                $field.append($sh).append($content);
             } else {
                 // field thường: caption + editor
                 $field.append($cap).append($editorWrap);
