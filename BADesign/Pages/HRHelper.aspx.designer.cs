@@ -35,6 +35,10 @@ namespace BADesign.Pages
 		/// <summary>
 		/// ucBaTopBar control.
 		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::BADesign.BaTopBar ucBaTopBar;
 	}
 }

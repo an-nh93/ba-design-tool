@@ -43,6 +43,28 @@ namespace BADesign.Helpers.Security
             }
         }
 
+        /// <summary>Hash without salt (deterministic). Use for generating SQL script only.</summary>
+        public static string ComputeHashNoSalt(string plainText, HashType hashAlgorithm)
+        {
+            if (string.IsNullOrEmpty(plainText)) return "";
+            var plainTextBytes = Encoding.UTF8.GetBytes(plainText);
+            HashAlgorithm hash;
+            switch (hashAlgorithm)
+            {
+                case HashType.SHA1: hash = SHA1.Create(); break;
+                case HashType.SHA256: hash = SHA256.Create(); break;
+                case HashType.SHA384: hash = SHA384.Create(); break;
+                case HashType.SHA512: hash = SHA512.Create(); break;
+                case HashType.MD5: hash = MD5.Create(); break;
+                default: throw new ArgumentException("HashAlgorithm not supported");
+            }
+            using (hash)
+            {
+                var hashBytes = hash.ComputeHash(plainTextBytes);
+                return Convert.ToBase64String(hashBytes);
+            }
+        }
+
         public static byte[] GenerateSalt(int length = 8)
         {
             if (length < 4) length = 4;

@@ -97,12 +97,12 @@
                                 <option value="HRHelperMultiDbReset">Reset Multi-DB</option>
                             </select>
                         </div>
-                        <div class="ba-form-group" style="grid-column: 1 / -1;">
-                            <label class="ba-form-label">Tìm kiếm</label>
-                            <input type="text" id="queueSearch" class="ba-input" placeholder="Tìm theo loại, chi tiết, trạng thái, người thực hiện, lỗi/chi tiết..." style="max-width: 400px;" />
-                        </div>
-                        <div class="ba-form-group">
+                        <div class="ba-form-group" style="grid-column: 1 / -1; display: flex; flex-direction: row; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
                             <button type="button" id="btnLoad" class="ba-btn ba-btn-primary">Tải lại</button>
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-left: auto;">
+                                <label class="ba-form-label" for="queueSearch" style="margin: 0; white-space: nowrap;">Tìm kiếm</label>
+                                <input type="text" id="queueSearch" class="ba-input" placeholder="Tìm theo loại, chi tiết, trạng thái, người thực hiện, lỗi/chi tiết..." style="width: 360px; flex: none;" />
+                            </div>
                         </div>
                     </div>
                     <div class="ba-table-wrap">

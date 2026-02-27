@@ -464,6 +464,59 @@ VALUES (N'HRHelperUpdateUser', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runni
             }
         }
 
+        /// <summary>Generate SQL UPDATE script for Security_Users (password + flags). No DB access; deterministic hash (no salt).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GeneratePasswordUpdateScript(string[] userNames, string password, string method)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", script = (string)null };
+                if (userNames == null || userNames.Length == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 user.", script = (string)null };
+                if (string.IsNullOrWhiteSpace(password))
+                    return new { success = false, message = "Nhập password.", script = (string)null };
+                var methodNorm = (method ?? "").Trim().ToUpperInvariant();
+                SimpleHash.HashType hashType;
+                if (methodNorm == "MD5")
+                    hashType = SimpleHash.HashType.MD5;
+                else if (methodNorm == "256" || methodNorm == "SHA256")
+                    hashType = SimpleHash.HashType.SHA256;
+                else
+                    return new { success = false, message = "Chọn Method Hash: MD5 hoặc 256.", script = (string)null };
+
+                var dateStr = DateTime.Now.ToString("yyyy-MM-dd");
+                var sb = new System.Text.StringBuilder();
+                foreach (var rawName in userNames)
+                {
+                    var userName = (rawName ?? "").Trim();
+                    if (string.IsNullOrEmpty(userName)) continue;
+                    var plain = userName.ToLowerInvariant() + password;
+                    var encPwd = SimpleHash.ComputeHashNoSalt(plain, hashType);
+                    var pwdEsc = (encPwd ?? "").Replace("'", "''");
+                    var nameEsc = userName.Replace("'", "''");
+                    sb.AppendLine("UPDATE Security_Users");
+                    sb.AppendLine("SET Password='" + pwdEsc + "',");
+                    sb.AppendLine("  IsRequireChangePassword = 0,");
+                    sb.AppendLine("  LastLoginDateTime = '" + dateStr + "',");
+                    sb.AppendLine("  LastPasswordChangedDateTime = '" + dateStr + "',");
+                    sb.AppendLine("  IsLockedOut = 0,");
+                    sb.AppendLine("  FailedPasswordAttemptCount = 0,");
+                    sb.AppendLine("  IsWindowADAccount = 0,");
+                    sb.AppendLine("  ReceiveEmailTypeID = 2,");
+                    sb.AppendLine("  UserEmailAddress = NULL");
+                    sb.AppendLine("WHERE UserName = '" + nameEsc + "'");
+                    sb.AppendLine();
+                }
+                return new { success = true, script = sb.ToString().TrimEnd(), message = (string)null };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, script = (string)null };
+            }
+        }
+
         private static void UpdateBaJobCompleted(int jobId, string jobType, bool success, string message)
         {
             try

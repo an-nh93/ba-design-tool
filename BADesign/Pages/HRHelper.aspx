@@ -501,6 +501,33 @@
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+        .ba-collapse-section { margin-top: 1.5rem; }
+        .ba-collapse-header {
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0;
+        }
+        .ba-collapse-header:hover { color: var(--primary-light); }
+        .ba-collapse-icon {
+            display: inline-block;
+            transition: transform 0.2s ease;
+            font-size: 0.75rem;
+        }
+        .ba-collapse-section.collapsed .ba-collapse-icon { transform: rotate(-90deg); }
+        .ba-collapse-section.collapsed .ba-collapse-body { display: none; }
+        .ba-collapse-body { margin-top: 0.5rem; }
+        .ba-hash-hint {
+            font-size: 0.8125rem;
+            margin: 0.5rem 0 0;
+            padding: 0.5rem 0.75rem;
+            background: var(--primary-soft);
+            border-left: 3px solid var(--primary);
+            color: var(--text-secondary);
+            border-radius: 0 4px 4px 0;
+        }
     </style>
 </head>
 <body>
@@ -540,11 +567,9 @@
                     <div id="tabUsers" class="ba-tab-content active">
                         <div class="ba-card ba-card-scrollable">
                             <h2 class="ba-card-title">User Management</h2>
-                            <div class="ba-actions" style="margin-bottom: 1rem;">
+                            <div class="ba-grid-toolbar" style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataUsers" onclick="loadUsers(); return false;">View Data</button>
-                            </div>
-                            <div class="ba-grid-toolbar">
-                                <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant... (có dấu / không dấu)" />
+                                <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant... (có dấu / không dấu)" style="width: 360px; flex: none; margin-left: auto;" />
                             </div>
                             <div class="ba-table-wrap">
                                 <table class="ba-table ba-table-resizable" id="tableUsers">
@@ -573,38 +598,78 @@
                                 </table>
                             </div>
                             <div id="pagerUsers" class="ba-pager" style="display: none;"></div>
-                            <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
-                                <h3 class="ba-card-title" style="font-size: 1.1rem; margin-bottom: 1rem;">Update email &amp; password</h3>
+                            <div class="ba-card ba-update-section ba-collapse-section" id="sectionUpdateEmailPassword">
+                                <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
+                                    <span class="ba-collapse-icon">▼</span>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Update email &amp; password</h3>
+                                </div>
+                                <div class="ba-collapse-body">
                                 <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Chọn user ở bảng trên, bật option dưới đây rồi bấm <strong>Generate and Update</strong>.</p>
                                 <div class="ba-form-group">
                                     <div class="ba-checkbox">
                                         <input type="checkbox" id="chkUpdatePassword" />
                                         <label for="chkUpdatePassword">Update Password</label>
                                     </div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem;">
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; align-items: start;">
                                         <input type="text" id="txtPassword" class="ba-input" placeholder="Enter password" disabled />
-                                        <select id="selMethodHash" class="ba-input" disabled>
-                                            <option value="256">256 (for Project ISC-01)</option>
-                                            <option value="512">512</option>
-                                        </select>
+                                        <div>
+                                            <select id="selMethodHash" class="ba-input" disabled>
+                                                <option value="256">Hash 256 (SHA256)</option>
+                                                <option value="512">Hash 512 (SHA512)</option>
+                                            </select>
+                                            <p class="ba-hash-hint">MD5: version 5.0.73 trở xuống. Hash 256: phiên bản mới hơn.</p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="ba-form-group">
-                                    <div class="ba-checkbox">
-                                        <input type="checkbox" id="chkUpdateEmail" />
-                                        <label for="chkUpdateEmail">Update Email</label>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; align-items: start;">
+                                        <div>
+                                            <div class="ba-checkbox">
+                                                <input type="checkbox" id="chkUpdateEmail" />
+                                                <label for="chkUpdateEmail">Update Email</label>
+                                            </div>
+                                            <input type="text" id="txtEmail" class="ba-input" placeholder="Example: an.nh@cadena-hrmseries.com" style="margin-top: 0.5rem;" disabled />
+                                        </div>
+                                        <div>
+                                            <div class="ba-checkbox">
+                                                <input type="checkbox" id="chkIgnoreWindowsAD" />
+                                                <label for="chkIgnoreWindowsAD">Is Ignore Window AD Account</label>
+                                            </div>
+                                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-top: 0.25rem;">When checked system will change type Window AD Account to Normal Account and generate password.</p>
+                                        </div>
                                     </div>
-                                    <input type="text" id="txtEmail" class="ba-input" placeholder="Example: an.nh@cadena-hrmseries.com" style="margin-top: 0.5rem;" disabled />
-                                </div>
-                                <div class="ba-form-group">
-                                    <div class="ba-checkbox">
-                                        <input type="checkbox" id="chkIgnoreWindowsAD" />
-                                        <label for="chkIgnoreWindowsAD">Is Ignore Window AD Account</label>
-                                    </div>
-                                    <p style="color: var(--text-muted); font-size: 0.8125rem; margin-top: 0.25rem;">When checked system will change type Window AD Account to Normal Account and generate password.</p>
                                 </div>
                                 <div class="ba-actions" style="margin-top: 1rem;">
                                     <button type="button" class="ba-btn ba-btn-primary" onclick="updateUsers(); return false;">Generate and Update</button>
+                                </div>
+                                </div>
+                            </div>
+                            <div class="ba-card ba-update-section ba-collapse-section" id="sectionGenerateScript">
+                                <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
+                                    <span class="ba-collapse-icon">▼</span>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Generate password update script (SQL)</h3>
+                                </div>
+                                <div class="ba-collapse-body">
+                                <p class="ba-script-instruction" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Chọn user ở bảng trên, nhập password và chọn cách mã hóa. Script chỉ generate để copy chạy tay.</p>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: start; margin-bottom: 1rem;">
+                                    <div class="ba-form-group" style="margin: 0;">
+                                        <label class="ba-form-label" for="txtScriptPassword">Password</label>
+                                        <input type="text" id="txtScriptPassword" class="ba-input" placeholder="Nhập password" autocomplete="off" />
+                                    </div>
+                                    <div class="ba-form-group" style="margin: 0;">
+                                        <label class="ba-form-label" for="selScriptMethodHash">Method Hash</label>
+                                        <select id="selScriptMethodHash" class="ba-input">
+                                            <option value="256">Hash 256 (SHA256)</option>
+                                            <option value="MD5">MD5</option>
+                                        </select>
+                                        <p class="ba-hash-hint">MD5: version 5.0.73 trở xuống. Hash 256: phiên bản mới hơn.</p>
+                                    </div>
+                                </div>
+                                <div class="ba-actions" style="margin-bottom: 0.75rem;">
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnGeneratePasswordScript" onclick="generatePasswordScript(); return false;">Generate script</button>
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnCopyPasswordScript" onclick="copyPasswordScript(); return false;" style="display: none;">Copy</button>
+                                </div>
+                                <textarea id="txtPasswordScript" class="ba-input" readonly rows="12" placeholder="Script SQL sẽ hiển thị ở đây..." style="width: 100%; font-family: Consolas, monospace; font-size: 0.875rem;"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -740,8 +805,12 @@
                                 </div>
                                 <p id="companyViewDataHint" class="ba-company-hint" style="font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.5rem;">Chọn Tenant và Company ở trên rồi bấm View Data.</p>
                             </div>
-                            <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
-                                <h3 class="ba-card-title" style="font-size: 1.1rem; margin-bottom: 1rem;">Company Email Settings</h3>
+                            <div class="ba-card ba-update-section ba-collapse-section" style="margin-top: 1.5rem;">
+                                <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
+                                    <span class="ba-collapse-icon">▼</span>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Company Email Settings</h3>
+                                </div>
+                                <div class="ba-collapse-body">
                                 <div class="ba-actions" style="margin-bottom: 1rem;" id="companyUserActionWrap">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCompanyUserAction" onclick="loadUserActionEmail(); return false;" disabled>User Action Email</button>
                                 </div>
@@ -786,9 +855,14 @@
                                 <p style="color: var(--text-muted); font-size: 0.8125rem; margin-top: 1rem; font-style: italic;">
                                     If user not input data, program will reset value is Email of User Action.
                                 </p>
+                                </div>
                             </div>
-                            <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
-                                <h3 class="ba-card-title" style="font-size: 1.1rem; margin-bottom: 1rem;">Email Server Settings</h3>
+                            <div class="ba-card ba-update-section ba-collapse-section" style="margin-top: 1.5rem;">
+                                <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
+                                    <span class="ba-collapse-icon">▼</span>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Email Server Settings</h3>
+                                </div>
+                                <div class="ba-collapse-body">
                                 <div class="ba-actions" style="margin-bottom: 1rem;">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCompanyCadenaServer" onclick="loadCadenaEmailServer(); return false;" disabled>Cadena Email Server</button>
                                 </div>
@@ -839,6 +913,7 @@
                                     When user fill this group, program change Email Server to SMTP<br />
                                     With Company Use Server Email type is Lotus, please manual update on HR (not support in Helper)
                                 </p>
+                                </div>
                             </div>
                             <div class="ba-actions" style="margin-top: 1.5rem;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnCompanyUpdate" onclick="updateCompanyInfo(); return false;" disabled>Update Company Info</button>
@@ -3128,6 +3203,11 @@
             $('#confirmUpdateModal').removeClass('show').css('display', 'none');
         }
 
+        function toggleCollapseSection(headerEl) {
+            var section = headerEl.closest('.ba-collapse-section');
+            if (section) section.classList.toggle('collapsed');
+        }
+
         /** IDs để update: nếu không chọn ai = update all (danh sách đang hiển thị sau search/sort). */
         function getUpdateTargetIds() {
             var selected = [];
@@ -3135,6 +3215,80 @@
             if (selected.length > 0) return selected;
             var list = sortUsers(filterUsers());
             return list.map(function(u) { return u.userID; });
+        }
+
+        /** User names của các user đang chọn (hoặc tất cả nếu không chọn ai) – dùng cho Generate script. */
+        function getSelectedUserNames() {
+            var ids = getUpdateTargetIds();
+            var names = [];
+            ids.forEach(function(id) {
+                var u = users.find(function(x) { return x.userID === id; });
+                if (u && u.userName) names.push(u.userName);
+            });
+            return names;
+        }
+
+        function generatePasswordScript() {
+            var userNames = getSelectedUserNames();
+            if (userNames.length === 0) {
+                showToast('Chưa có user nào. Bấm View Data và chọn user (hoặc không chọn = tất cả).', 'error');
+                return;
+            }
+            var password = $('#txtScriptPassword').val();
+            if (!password || !password.trim()) {
+                showToast('Nhập password.', 'error');
+                return;
+            }
+            var method = $('#selScriptMethodHash').val() || '256';
+            $('#btnGeneratePasswordScript').prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GeneratePasswordUpdateScript") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ userNames: userNames, password: password.trim(), method: method }),
+                timeout: 15000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.script !== undefined) {
+                        $('#txtPasswordScript').val(d.script);
+                        $('#btnCopyPasswordScript').show();
+                        showToast('Đã tạo script cho ' + userNames.length + ' user.', 'success');
+                    } else {
+                        $('#txtPasswordScript').val('');
+                        $('#btnCopyPasswordScript').hide();
+                        showToast(d && d.message ? d.message : 'Lỗi tạo script.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = 'Lỗi kết nối.';
+                    if (xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message; else if (j.message) msg = j.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
+                },
+                complete: function() { $('#btnGeneratePasswordScript').prop('disabled', false); }
+            });
+        }
+
+        function copyPasswordScript() {
+            var ta = document.getElementById('txtPasswordScript');
+            if (!ta || !ta.value.trim()) {
+                showToast('Chưa có nội dung để copy.', 'error');
+                return;
+            }
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('Đã copy script vào clipboard.', 'success');
+            } catch (e) {
+                try {
+                    navigator.clipboard.writeText(ta.value).then(function() { showToast('Đã copy script vào clipboard.', 'success'); }, function() { showToast('Không copy được.', 'error'); });
+                } catch (e2) { showToast('Không copy được.', 'error'); }
+            }
         }
 
         function updateUsers() {
