@@ -30,6 +30,7 @@ namespace BADesign
             lnkNavDatabaseSearch.CssClass = (active == "DatabaseSearch") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavFunctionQueue.CssClass = (active == "FunctionQueue") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavFeedback.CssClass = (active == "Feedback") ? "ba-nav-item active" : "ba-nav-item";
+            lnkNavDevShare.CssClass = (active == "DevShare") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavEncryptDecrypt.Visible)
                 lnkNavEncryptDecrypt.CssClass = (active == "EncryptDecrypt") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavAppSettings.Visible)

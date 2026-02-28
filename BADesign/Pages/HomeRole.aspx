@@ -342,6 +342,11 @@
                                 <div class="ba-feature-title">PGP Tool</div>
                                 <div class="ba-feature-desc">Xuất key .asc, mã hóa và giải mã file PGP.</div>
                             </asp:HyperLink>
+                            <asp:HyperLink ID="lnkFeatureCommunityShare" runat="server" CssClass="ba-feature-card" NavigateUrl="~/DevShare">
+                                <div class="ba-feature-icon">📤</div>
+                                <div class="ba-feature-title">Community Share</div>
+                                <div class="ba-feature-desc">Chia sẻ bài hướng dẫn code, ví dụ C#, SQL, ASP.NET... Mọi người đều có thể viết và đọc.</div>
+                            </asp:HyperLink>
                             <asp:PlaceHolder ID="phNoFeatures" runat="server" Visible="false">
                                 <div class="ba-feature-card disabled" style="grid-column: 1 / -1; text-align: center; opacity: 1;">
                                     <div class="ba-feature-icon">📋</div>

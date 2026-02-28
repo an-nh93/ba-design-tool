@@ -159,6 +159,27 @@ namespace BADesign
 				"~/Pages/FeedbackManage.aspx"
 			);
 
+			routes.MapPageRoute(
+				"DevShareRoute",
+				"DevShare",
+				"~/Pages/DevShareList.aspx"
+			);
+			routes.MapPageRoute(
+				"DevShareViewRoute",
+				"DevShare/View/{id}",
+				"~/Pages/DevShareView.aspx"
+			);
+			routes.MapPageRoute(
+				"DevShareEditRoute",
+				"DevShare/Edit/{id}",
+				"~/Pages/DevShareEdit.aspx"
+			);
+			routes.MapPageRoute(
+				"DevShareEditNewRoute",
+				"DevShare/Edit",
+				"~/Pages/DevShareEdit.aspx"
+			);
+
 			// Friendly URLs đăng ký SAU tất cả MapPageRoute để giữ query string
 			var settings = new FriendlyUrlSettings();
 			settings.AutoRedirectMode = RedirectMode.Off;

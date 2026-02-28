@@ -18,6 +18,7 @@
         </asp:PlaceHolder>
         <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool" data-icon="🧰" title="PGP Tool"><span>🧰 PGP Tool</span></asp:HyperLink>
         <asp:HyperLink ID="lnkNavFeedback" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Feedback" data-icon="💬" title="Feedback"><span>💬 Feedback</span></asp:HyperLink>
+        <asp:HyperLink ID="lnkNavDevShare" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DevShare" data-icon="📝" title="Community Share"><span>📝 Community Share</span></asp:HyperLink>
         <asp:PlaceHolder ID="phNavSuperAdmin" runat="server" Visible="false">
             <div class="ba-nav-item ba-nav-label">Super Admin</div>
             <asp:HyperLink ID="lnkNavUserManagement" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Users" data-icon="👥" title="User Management"><span>👥 User Management</span></asp:HyperLink>

@@ -22,19 +22,6 @@
         .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
         .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
         .ba-card-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem; }
-        .ba-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1rem; align-items: end; }
-        .ba-form-group { display: flex; flex-direction: column; gap: 0.35rem; }
-        .ba-form-label { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); }
-        .ba-input { background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.875rem; width: 100%; }
-        .ba-input:focus { outline: none; border-color: var(--primary); }
-        .ba-btn { padding: 0.5rem 1rem; border-radius: 6px; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 0.5rem; }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-primary:hover { background: var(--primary-hover); }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .ba-btn-danger { background: var(--danger, #ef4444); color: white; }
-        .ba-btn-danger:hover { opacity: 0.9; }
-        .ba-btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ba-btn-sm { font-size: 0.8rem; padding: 0.35rem 0.6rem; }
         .ba-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: auto; max-height: min(85vh, 900px); }
         .ba-table { width: 100%; border-collapse: collapse; }
         .ba-table thead { background: var(--bg-darker); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
