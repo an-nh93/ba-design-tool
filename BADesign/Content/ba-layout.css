@@ -209,7 +209,9 @@ a.ba-btn {
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.5rem;
+    text-align: center;
     text-decoration: none;
 }
 a.ba-btn:hover { text-decoration: none; }
@@ -337,3 +339,100 @@ select.ba-input {
     outline: 2px solid var(--primary);
     outline-offset: 2px;
 }
+
+/* ========== Account Settings Modal (dùng chung cho BaTopBar) ========== */
+.account-modal {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    overflow-y: auto;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+.account-modal.show { display: flex; }
+.account-modal-content {
+    background: var(--bg-card);
+    border-radius: 12px;
+    width: 90%;
+    max-width: 640px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    animation: modalSlideIn 0.2s ease-out;
+}
+@keyframes modalSlideIn {
+    from { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.account-modal-header { padding: 1.5rem 2rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+.account-modal-title { font-size: 1.25rem; font-weight: 600; color: var(--text-primary); }
+.account-modal-tabs { display: flex; border-bottom: 1px solid var(--border); padding: 0 2rem; flex-shrink: 0; }
+.account-modal-tab {
+    padding: 1rem 1.5rem; background: none; border: none; color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s ease; position: relative; top: 1px;
+}
+.account-modal-tab:hover { color: var(--text-primary); }
+.account-modal-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+.account-modal-body { flex: 1; overflow-y: auto; padding: 2rem; }
+.account-section { margin-bottom: 2rem; }
+.account-section:last-child { margin-bottom: 0; }
+.account-section-title { font-size: 0.875rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
+.account-field { display: flex; align-items: center; justify-content: space-between; padding: 1rem 0; border-bottom: 1px solid var(--border); }
+.account-field:last-child { border-bottom: none; }
+.account-field-label { font-size: 0.875rem; color: var(--text-primary); font-weight: 500; }
+.account-field-value { font-size: 0.875rem; color: var(--text-secondary); display: flex; align-items: center; gap: 0.5rem; }
+.account-profile-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+.account-avatar {
+    width: 64px; height: 64px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center;
+    color: white; font-size: 1.5rem; font-weight: 600; flex-shrink: 0; border: 2px solid rgba(255, 255, 255, 0.3); box-sizing: border-box; overflow: hidden;
+}
+.account-avatar[style*="background-image"] { background-color: transparent !important; }
+.account-profile-info { flex: 1; }
+.account-profile-name { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.25rem; }
+.account-form-group { margin-bottom: 1.5rem; }
+.account-form-label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-primary); margin-bottom: 0.5rem; }
+.account-form-input { width: 100%; padding: 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; }
+.account-form-input:focus { outline: none; border-color: var(--primary); }
+.account-badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.account-badge-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+.account-badge-default { background: rgba(107, 114, 128, 0.2); color: var(--text-secondary); }
+.account-badge-danger { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+.account-avatar-container { position: relative; display: inline-block; }
+.account-avatar-upload-btn { position: absolute; bottom: 0; right: 0; width: 24px; height: 24px; background: var(--primary); border: 2px solid var(--bg-card); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem; }
+.account-avatar-remove-btn { position: absolute; bottom: 0; left: 0; width: 24px; height: 24px; background: var(--danger, #ef4444); border: 2px solid var(--bg-card); border-radius: 50%; display: none; align-items: center; justify-content: center; cursor: pointer; font-size: 0.75rem; color: white; }
+.account-avatar-container.has-avatar .account-avatar-remove-btn { display: flex; }
+.account-tab-content { display: block; }
+
+/* ========== Confirm Modal (thay alert/confirm native) ========== */
+.ba-confirm-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    z-index: 11000; display: flex; align-items: center; justify-content: center;
+    background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(4px);
+    padding: 2rem; box-sizing: border-box;
+}
+.ba-confirm-modal {
+    background: var(--bg-card); border-radius: 12px;
+    max-width: 400px; width: 100%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    overflow: hidden; animation: modalSlideIn 0.2s ease-out;
+}
+.ba-confirm-header {
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+    font-size: 1.125rem; font-weight: 600; color: var(--text-primary);
+}
+.ba-confirm-body {
+    padding: 1.5rem; color: var(--text-secondary); font-size: 0.9375rem; line-height: 1.5;
+}
+.ba-confirm-footer {
+    padding: 1rem 1.5rem; border-top: 1px solid var(--border);
+    display: flex; justify-content: flex-end; gap: 0.75rem;
+}
+.ba-confirm-footer .ba-btn { min-width: 80px; justify-content: center; text-align: center; }

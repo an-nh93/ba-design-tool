@@ -2320,7 +2320,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                 cmd2.CommandText = @"SELECT F.Id, F.Title, F.CreatedAt, ISNULL(NULLIF(RTRIM(U.FullName),''), U.UserName) AS UserName
 FROM UiFeedback F
 LEFT JOIN UiUser U ON U.UserId = F.UserId
-WHERE F.Category = N'Bug' AND F.Status = N'New'
+WHERE F.Category = N'Bug' AND F.Status NOT IN (N'Resolved', N'Closed', N'NotABug')
 ORDER BY F.CreatedAt DESC";
                                 conn2.Open();
                                 using (var r2 = cmd2.ExecuteReader())

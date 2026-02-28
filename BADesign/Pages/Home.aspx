@@ -7,7 +7,9 @@
     <title>UI Builder – My Designs</title>
 
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
+    <link href="../Content/ba-layout.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
+    <script src="../Scripts/ba-layout.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
 
     <style>
@@ -2039,10 +2041,9 @@
                 <!-- Account Tab -->
                 <div id="accountTabContent" class="account-tab-content">
                     <div class="account-profile-header">
-                        <div class="account-avatar-container">
-                            <div class="account-avatar" id="accountAvatar">
-                                <img id="accountAvatarImg" src="" alt="Avatar" style="display: none; width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />
-                            </div>
+                        <div class="account-avatar-container" id="accountAvatarContainer">
+                            <div class="account-avatar" id="accountAvatar"></div>
+                            <button type="button" class="account-avatar-remove-btn" id="avatarRemove" title="Remove avatar">🗑</button>
                             <label for="avatarUpload" class="account-avatar-upload-btn" title="Upload avatar">
                                 <input type="file" id="avatarUpload" accept="image/*" style="display: none;" />
                                 <span>📷</span>
@@ -3452,31 +3453,21 @@
                             return;
                         }
                         
+                        var container = document.getElementById('accountAvatarContainer');
                         if (data.avatarPath) {
-                            // avatarPath đã là absolute path từ server (đã convert ~)
                             var avatarUrl = data.avatarPath + '?t=' + new Date().getTime();
-                            // Set background-image cho div và làm nền trong suốt
                             avatarEl.style.backgroundImage = 'url(' + avatarUrl + ')';
                             avatarEl.style.backgroundSize = 'cover';
                             avatarEl.style.backgroundPosition = 'center';
                             avatarEl.style.backgroundRepeat = 'no-repeat';
-                            avatarEl.style.backgroundColor = 'transparent'; // Nền trong suốt khi có avatar
+                            avatarEl.style.backgroundColor = 'transparent';
                             avatarEl.textContent = '';
-                            // Hide img tag if exists
-                            var avatarImg = document.getElementById('accountAvatarImg');
-                            if (avatarImg) {
-                                avatarImg.style.display = 'none';
-                            }
+                            if (container) container.classList.add('has-avatar');
                         } else {
-                            // Clear background image và set lại màu xanh
                             avatarEl.style.backgroundImage = '';
-                            avatarEl.style.backgroundColor = 'var(--primary)'; // Nền màu xanh khi không có avatar
+                            avatarEl.style.backgroundColor = 'var(--primary)';
                             avatarEl.textContent = userName.length > 0 ? userName.substring(0, 1).toUpperCase() : '';
-                            // Hide img tag if exists
-                            var avatarImg = document.getElementById('accountAvatarImg');
-                            if (avatarImg) {
-                                avatarImg.style.display = 'none';
-                            }
+                            if (container) container.classList.remove('has-avatar');
                         }
                         
                         // Set profile header
@@ -3591,18 +3582,12 @@
                         if (modal && modal.classList.contains('show')) {
                             var avatarEl = document.getElementById('accountAvatar');
                             if (avatarEl) {
-                                // Set background-image cho div và làm nền trong suốt
                                 avatarEl.style.backgroundImage = 'url(' + avatarUrl + ')';
                                 avatarEl.style.backgroundSize = 'cover';
                                 avatarEl.style.backgroundPosition = 'center';
                                 avatarEl.style.backgroundRepeat = 'no-repeat';
-                                avatarEl.style.backgroundColor = 'transparent'; // Nền trong suốt khi có avatar
+                                avatarEl.style.backgroundColor = 'transparent';
                                 avatarEl.textContent = '';
-                                // Hide img tag if exists
-                                var avatarImg = document.getElementById('accountAvatarImg');
-                                if (avatarImg) {
-                                    avatarImg.style.display = 'none';
-                                }
                             }
                             // Reload account info to ensure all data is fresh
                             loadAccountInfo();
@@ -3641,6 +3626,42 @@
                     alert(errorMsg);
                 }
             });
+        });
+
+        // Remove avatar
+        document.getElementById('avatarRemove').addEventListener('click', function() {
+            function doRemoveAvatar() {
+            $.ajax({
+                url: '/Handlers/RemoveAvatar.ashx',
+                type: 'POST',
+                dataType: 'json',
+                success: function(response) {
+                    if (response && response.success) {
+                        loadAccountInfo();
+                        var initial = (response.initial || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        var topBarAvatars = document.querySelectorAll('.user-avatar');
+                        topBarAvatars.forEach(function(av) {
+                            av.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1rem;font-weight:600;color:white;">' + initial + '</span>';
+                        });
+                        var litUserInitialEl = document.querySelector('#<%= litUserInitial.ClientID %>');
+                        if (litUserInitialEl) {
+                            var parentAvatar = litUserInitialEl.closest('.user-avatar');
+                            if (parentAvatar) {
+                                parentAvatar.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1rem;font-weight:600;color:white;">' + initial + '</span>';
+                            }
+                        }
+                    } else {
+                        alert(response && response.message ? response.message : 'Failed to remove avatar.');
+                    }
+                },
+                error: function() { alert('Failed to remove avatar.'); }
+            });
+            }
+            if (typeof baConfirm === 'function') {
+                baConfirm('Xóa ảnh đại diện?', doRemoveAvatar);
+            } else if (confirm('Xóa ảnh đại diện?')) {
+                doRemoveAvatar();
+            }
         });
 
         // Change password

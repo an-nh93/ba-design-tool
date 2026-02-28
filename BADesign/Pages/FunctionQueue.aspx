@@ -46,10 +46,26 @@
         #queueDetailModal .modal-title { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
         #queueDetailModal .modal-body { padding: 16px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 0.875rem; }
         #queueDetailModal .modal-footer { padding: 10px 16px; border-top: 1px solid var(--border); text-align: right; }
-        .ba-queue-pagination { display: flex; align-items: center; gap: 1rem; margin-top: 0.75rem; flex-wrap: wrap; }
-        .ba-pagination-label { font-size: 0.875rem; color: var(--text-secondary); }
-        .ba-pagination-select { width: auto; min-width: 70px; }
-        .ba-pagination-info { font-size: 0.875rem; color: var(--text-muted); }
+        .ba-pagination {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .ba-pagination span { color: var(--text-muted); font-size: 0.875rem; }
+        .ba-pagination button {
+            padding: 0.35rem 0.6rem;
+            font-size: 0.8125rem;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            background: var(--bg-darker);
+            color: var(--text-primary);
+            cursor: pointer;
+        }
+        .ba-pagination button:hover:not(:disabled) { background: var(--bg-hover); }
+        .ba-pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .ba-pagination .ba-pager-size { min-width: 80px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.25rem 0.5rem; }
     </style>
 </head>
 <body>
@@ -110,18 +126,17 @@
                             <tbody id="queueBody"></tbody>
                         </table>
                     </div>
-                    <div class="ba-queue-pagination">
-                        <label class="ba-pagination-label">Số dòng/trang:</label>
-                        <select id="queuePageSize" class="ba-input ba-pagination-select">
+                    <div class="ba-pagination" id="queuePagination">
+                        <span id="queuePaginationInfo">Trang 1 / 1 (0 job)</span>
+                        <select id="queuePageSize" class="ba-pager-size">
                             <option value="25">25</option>
                             <option value="50">50</option>
                             <option value="100" selected>100</option>
                             <option value="200">200</option>
                             <option value="500">500</option>
                         </select>
-                        <span id="queuePaginationInfo" class="ba-pagination-info"></span>
-                        <button type="button" id="queuePagePrev" class="ba-btn ba-btn-secondary ba-btn-sm">Trang trước</button>
-                        <button type="button" id="queuePageNext" class="ba-btn ba-btn-secondary ba-btn-sm">Trang sau</button>
+                        <button type="button" id="queuePagePrev">Trước</button>
+                        <button type="button" id="queuePageNext">Sau</button>
                     </div>
                 </div>
             </div>
@@ -202,9 +217,7 @@
                 var totalPages = Math.max(1, Math.ceil(total / size));
                 if (queuePage > totalPages) queuePage = totalPages;
                 if (queuePage < 1) queuePage = 1;
-                var start = total === 0 ? 0 : (queuePage - 1) * size + 1;
-                var end = Math.min(queuePage * size, total);
-                $('#queuePaginationInfo').text(total === 0 ? 'Không có bản ghi' : 'Hiển thị ' + start + '–' + end + ' / ' + total);
+                $('#queuePaginationInfo').text(total === 0 ? 'Trang 1 / 1 (0 job)' : 'Trang ' + queuePage + ' / ' + totalPages + ' (' + total + ' job)');
                 $('#queuePagePrev').prop('disabled', queuePage <= 1);
                 $('#queuePageNext').prop('disabled', queuePage >= totalPages || total === 0);
             }
@@ -453,7 +466,7 @@
                                 var html = '';
                                 if (newBugs.length > 0) {
                                     html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (notifBugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (notifBugsCollapsed ? 'display:none;' : '') + '">';
-                                    newBugs.forEach(function(b) { var created = formatNotifTime(b.createdAt); html += '<div class="ba-notif-item ba-notif-bug" data-bug-id="' + (b.id || '') + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
+                                    newBugs.forEach(function(b) { var created = formatNotifTime(b.createdAt); var url = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug" data-bug-id="' + (b.id || '') + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + url + '" data-action="bug">Xem / Xử lý</a></div>'; });
                                     html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
                                 }
                                 jobs.forEach(function(j, idx) {

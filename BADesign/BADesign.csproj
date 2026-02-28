@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.0\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props" Condition="Exists('..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.0\build\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.props')" />
   <Import Project="..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props" Condition="Exists('..\packages\Microsoft.Net.Compilers.1.0.0\build\Microsoft.Net.Compilers.props')" />
@@ -365,6 +365,7 @@
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
     <Content Include="Handlers\UploadAvatar.ashx" />
+    <Content Include="Handlers\RemoveAvatar.ashx" />
     <Content Include="Handlers\UploadFeedbackImage.ashx" />
     <Content Include="Handlers\UploadDevShareAttachment.ashx" />
     <Content Include="Handlers\DownloadDevShareAttachment.ashx" />
@@ -511,6 +512,9 @@
     <Compile Include="Helpers\Security\SimpleHash.cs" />
     <Compile Include="Handlers\UploadAvatar.ashx.cs">
       <DependentUpon>UploadAvatar.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="Handlers\RemoveAvatar.ashx.cs">
+      <DependentUpon>RemoveAvatar.ashx</DependentUpon>
     </Compile>
     <Compile Include="Handlers\UploadFeedbackImage.ashx.cs">
       <DependentUpon>UploadFeedbackImage.ashx</DependentUpon>

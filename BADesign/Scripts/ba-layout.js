@@ -53,3 +53,28 @@ function toggleTheme(e) {
     return false;
 }
 $(function() { initTheme(); });
+
+/* Confirm modal - thay thế confirm() native */
+window.baConfirm = function(message, onConfirm, onCancel) {
+    var escaped = (message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    var overlay = document.createElement('div');
+    overlay.className = 'ba-confirm-overlay';
+    overlay.innerHTML = '<div class="ba-confirm-modal">' +
+        '<div class="ba-confirm-header">Xác nhận</div>' +
+        '<div class="ba-confirm-body">' + escaped + '</div>' +
+        '<div class="ba-confirm-footer">' +
+        '<button type="button" class="ba-btn ba-btn-secondary ba-confirm-cancel">Hủy</button>' +
+        '<button type="button" class="ba-btn ba-btn-primary ba-confirm-ok">Xóa</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+    function close(result) {
+        overlay.remove();
+        document.body.style.overflow = '';
+        if (result && typeof onConfirm === 'function') onConfirm();
+        else if (!result && typeof onCancel === 'function') onCancel();
+    }
+    overlay.querySelector('.ba-confirm-ok').onclick = function() { close(true); };
+    overlay.querySelector('.ba-confirm-cancel').onclick = function() { close(false); };
+    overlay.onclick = function(e) { if (e.target === overlay) close(false); };
+};
