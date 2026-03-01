@@ -35,6 +35,8 @@ namespace BADesign.Pages
         public bool CanDelete { get; private set; }
         /// <summary>True khi user có quyền shrink log (DatabaseManageServers hoặc DatabaseShrinkLog).</summary>
         public bool CanShrinkLog { get; private set; }
+        /// <summary>Username đăng nhập (để làm default email reset: UserName@cadena.com.sg).</summary>
+        public string CurrentUserName { get; private set; }
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -46,6 +48,7 @@ namespace BADesign.Pages
             CanRestore = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseRestore");
             CanDelete = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseDelete");
             CanShrinkLog = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseShrinkLog");
+            CurrentUserName = (string)(Session["UiUserName"] ?? "");
 
             ucBaSidebar.ActiveSection = "DatabaseSearch";
             ucBaTopBar.PageTitle = "Database Search";

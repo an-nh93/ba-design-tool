@@ -829,6 +829,7 @@
         var canRestore = <%= (CanRestore ? "true" : "false") %>;
         var canDelete = <%= (CanDelete ? "true" : "false") %>;
         var canShrinkLog = <%= (CanShrinkLog ? "true" : "false") %>;
+        var currentUserName = '<%= System.Web.HttpUtility.JavaScriptStringEncode(CurrentUserName ?? "") %>';
         var PAGE_SIZE_OPTS = [50, 100, 500, 1000, 5000, 10000];
         var serverPageSize = 100;
         var dbPageSize = 100;
@@ -1165,12 +1166,16 @@
             $('#errorDetailModal').removeClass('show');
         }
 
-        function showConfirmModal(title, message, onConfirm, onCancel) {
+        function showConfirmModal(title, message, onConfirm, onCancel, okText, useHtml) {
             $('#confirmModalTitle').text(title || 'Xác nhận');
-            $('#confirmModalMessage').text(message);
+            if (useHtml) {
+                $('#confirmModalMessage').html(message);
+            } else {
+                $('#confirmModalMessage').text(message);
+            }
             $('#confirmModal').addClass('show').css('display', 'flex');
             $('#confirmModalCancel').show();
-            $('#confirmModalOk').text('OK');
+            $('#confirmModalOk').text(okText || 'OK');
             $('#confirmModalOk').off('click');
             $('#confirmModalCancel').off('click');
             $('#confirmModalOk').on('click', function() {
@@ -1819,12 +1824,13 @@
         function resetRestoreModalOptions() {
             $('#restoreModalRecovery').val('RECOVERY');
             $('#restoreModalReplace').prop('checked', false);
-            $('#restoreModalShrinkLog').prop('checked', false);
-            $('#restoreModalAutoReset').prop('checked', false);
-            $('#restoreModalResetEmail').val('');
-            $('#restoreModalResetPassword').val('');
+            $('#restoreModalShrinkLog').prop('checked', true);
+            $('#restoreModalAutoReset').prop('checked', true);
+            var defaultEmail = (currentUserName || '').trim() ? (currentUserName.trim() + '@cadena.com.sg') : '';
+            $('#restoreModalResetEmail').val(defaultEmail);
+            $('#restoreModalResetPassword').val('1');
             $('#restoreModalResetPhone').val('');
-            $('#restoreModalAutoResetFields').hide();
+            $('#restoreModalAutoResetFields').show();
             $('#restoreModalConfirm').prop('disabled', false);
         }
 
@@ -1891,6 +1897,27 @@
                 if (!resetPassword) resetPassword = '1';
                 if (!resetPhone) resetPhone = '0987654321';
             }
+            var confirmTitle = 'Xác nhận Restore';
+            var confirmMsg;
+            if (withAutoReset) {
+                var opts = [];
+                if (withShrinkLog) opts.push('- Shrink log');
+                if (withReplace) opts.push('- WITH REPLACE');
+                opts.push('- Tự động reset thông tin:\n  Email: ' + resetEmail + '\n  Password: ' + resetPassword + '\n  Phone: ' + (resetPhone || '(mặc định: 0987654321)'));
+                confirmMsg = 'Có chắc muốn restore database với các option sau?\n\n' + opts.join('\n');
+            } else {
+                var optsNoReset = [];
+                if (withShrinkLog) optsNoReset.push('- Shrink log');
+                if (withReplace) optsNoReset.push('- WITH REPLACE');
+                var suffix = optsNoReset.length ? '<br><br>Bạn đang restore với các option:<br>' + optsNoReset.join('<br>') : '';
+                confirmMsg = 'Có chắc bạn thật sự muốn restore mà <span style="color:#ef4444;font-weight:bold;">không tích hợp Sử dụng hệ thống tự động reset</span> không?' + suffix;
+            }
+            showConfirmModal(confirmTitle, confirmMsg, function() {
+                executeRestore(serverId, databaseName, fileName, positions, recoveryState, withReplace, withShrinkLog, withAutoReset, resetEmail, resetPassword, resetPhone);
+            }, null, 'Restore', !withAutoReset);
+        }
+
+        function executeRestore(serverId, databaseName, fileName, positions, recoveryState, withReplace, withShrinkLog, withAutoReset, resetEmail, resetPassword, resetPhone) {
             $('#restoreModalConfirm').prop('disabled', true);
             $('#restoreOverlay').addClass('show');
             $.ajax({
