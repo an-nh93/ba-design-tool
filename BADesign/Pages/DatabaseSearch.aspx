@@ -43,6 +43,15 @@
         @media (max-width: 600px) {
             .server-modal-row-2 { grid-template-columns: 1fr; }
         }
+        .server-path-info-btn {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 20px; height: 20px; border-radius: 50%;
+            background: var(--primary); color: white; font-size: 0.75rem; font-weight: bold;
+            cursor: pointer; margin-left: 6px; flex-shrink: 0;
+            border: none; padding: 0; vertical-align: middle;
+        }
+        .server-path-info-btn:hover { opacity: 0.9; background: var(--primary-hover); }
+        .server-path-label-wrap { display: flex; align-items: center; }
         .ba-form-group { display: flex; flex-direction: column; gap: 0.35rem; }
         .ba-form-label { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); }
         .ba-input {
@@ -449,14 +458,20 @@
                     </div>
                     <div class="server-modal-full">
                         <div class="ba-form-group">
-                            <label class="ba-form-label">Đường dẫn backup (tùy chọn)</label>
+                            <label class="ba-form-label server-path-label-wrap">
+                                Đường dẫn backup (tùy chọn)
+                                <button type="button" class="server-path-info-btn" title="Xem hướng dẫn" data-path="backup">i</button>
+                            </label>
                             <input type="text" id="serverModalBackupPath" class="ba-input" placeholder="Path mà SQL Server có quyền Ghi (xem hướng dẫn bên dưới)" />
                             <span style="font-size: 0.75rem; color: var(--text-muted);">Nơi ghi file .bak. <strong>Lệnh BACKUP chạy trên máy SQL Server</strong> — tài khoản dịch vụ SQL Server phải có quyền Ghi vào path này.</span>
                         </div>
                     </div>
                     <div class="server-modal-full">
                         <div class="ba-form-group">
-                            <label class="ba-form-label">Đường dẫn restore (tùy chọn)</label>
+                            <label class="ba-form-label server-path-label-wrap">
+                                Đường dẫn restore (tùy chọn)
+                                <button type="button" class="server-path-info-btn" title="Xem hướng dẫn" data-path="restore">i</button>
+                            </label>
                             <input type="text" id="serverModalRestorePath" class="ba-input" placeholder="vd: \\Hrs05\sqlbak — thư mục chứa file .bak" />
                             <span style="font-size: 0.75rem; color: var(--text-muted);">Thư mục chứa file .bak khi chọn file restore. Để trống = dùng Đường dẫn backup.</span>
                         </div>
@@ -472,6 +487,20 @@
                 <div class="ba-modal-footer">
                     <button type="button" class="ba-btn ba-btn-secondary" onclick="hideServerModal(); return false;">Hủy</button>
                     <button type="button" class="ba-btn ba-btn-primary" onclick="saveServer(); return false;">Lưu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Path Info Modal (tooltip định nghĩa đường dẫn backup/restore) -->
+        <div id="pathInfoModal" class="ba-modal">
+            <div class="ba-modal-content" style="max-width: 520px;">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title" id="pathInfoModalTitle">Đường dẫn backup</h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hidePathInfoModal(); return false;">×</button>
+                </div>
+                <div class="ba-modal-body" id="pathInfoModalBody" style="font-size: 0.875rem; line-height: 1.6; color: var(--text-secondary); white-space: pre-line;"></div>
+                <div class="ba-modal-footer">
+                    <button type="button" class="ba-btn ba-btn-primary" onclick="hidePathInfoModal(); return false;">Đóng</button>
                 </div>
             </div>
         </div>
@@ -983,6 +1012,21 @@
 
         function hideServerModal() {
             $('#serverModal').removeClass('show');
+        }
+
+        var pathInfoContent = {
+            backup: 'Định nghĩa: Là thư mục mà SQL Server ghi file .bak khi chạy BACKUP.\n\nCách hoạt động:\n• Lệnh BACKUP chạy trên máy SQL Server\n• SQL Server ghi file vào path đó\n• SQL Server service account cần quyền Ghi (Write)\n\nVí dụ:\n• Local trên máy SQL: E:\\SQLDATA2\\SQL2022\\MSSQL16.SQL2022\\MSSQL\\Backup\n• UNC share: \\\\HRS05\\BackupShare (share mà SQL Server có quyền ghi)\n\nLấy path: Trong SSMS, khi Backup chọn thư mục đích (vd: E:\\...\\Backup) rồi copy nguyên path đó vào cấu hình.',
+            restore: 'Định nghĩa: Là thư mục chứa file .bak để liệt kê và chọn khi restore.\n\nCách hoạt động:\n1. Ưu tiên: Liệt kê qua SQL Server (xp_cmdshell) → path trên máy SQL (hoặc UNC mà SQL Server truy cập được). SQL Server cần quyền Đọc (Read).\n2. Fallback: Máy web đọc trực tiếp → path phải là UNC hoặc drive mà máy web truy cập được (vd: \\\\HRS05\\sqlbak).\n\nNếu để trống: Dùng Đường dẫn backup.\n\nVí dụ:\n• Cùng thư mục backup: E:\\SQLDATA2\\...\\Backup\n• UNC share: \\\\HRS05\\sqlbak (share chứa file .bak)'
+        };
+        function showPathInfoModal(path) {
+            var title = path === 'backup' ? 'Đường dẫn backup (tùy chọn)' : 'Đường dẫn restore (tùy chọn)';
+            var body = pathInfoContent[path] || '';
+            $('#pathInfoModalTitle').text(title);
+            $('#pathInfoModalBody').text(body);
+            $('#pathInfoModal').addClass('show');
+        }
+        function hidePathInfoModal() {
+            $('#pathInfoModal').removeClass('show');
         }
 
         function saveServer() {
@@ -2682,6 +2726,15 @@
                 $('#restoreModalSelectedFile').text('Chưa chọn file').css('color', 'var(--text-muted)');
                 $('#restoreModalBackupSetsWrap').hide();
                 loadRestoreModalFolder(sid || null, '');
+            });
+            $(document).on('click', '.server-path-info-btn', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var path = $(this).data('path');
+                if (path) showPathInfoModal(path);
+            });
+            $('#pathInfoModal').on('click', function(e) {
+                if (e.target === this) hidePathInfoModal();
             });
             $('#restoreModalAutoReset').on('change', function() {
                 $('#restoreModalAutoResetFields').toggle($(this).prop('checked'));
