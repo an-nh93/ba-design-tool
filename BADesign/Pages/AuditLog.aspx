@@ -96,11 +96,17 @@
         .ba-detail-view-btn:hover { color: var(--primary); border-color: var(--primary); }
         .ba-audit-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1050; align-items: center; justify-content: center; padding: 1rem; box-sizing: border-box; }
         .ba-audit-modal.show { display: flex; }
-        .ba-audit-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 560px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
+        .ba-audit-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 760px; width: 95%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
         .ba-audit-modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
         .ba-audit-modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
         /* Nút × đóng dùng chung từ ba-layout.css (class ba-modal-close) */
-        .ba-audit-modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; font-size: 0.875rem; color: var(--text-primary); white-space: pre-wrap; word-break: break-word; }
+        .ba-audit-modal-body { padding: 1.25rem; overflow-y: auto; flex: 1; font-size: 0.875rem; color: var(--text-primary); }
+        .ba-audit-detail-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+        .ba-audit-detail-table th { text-align: left; padding: 0.5rem 1rem 0.5rem 0; font-weight: 600; color: var(--text-secondary); width: 140px; vertical-align: top; white-space: nowrap; }
+        .ba-audit-detail-table td { padding: 0.5rem 0; word-break: break-word; }
+        .ba-audit-detail-table tr { border-bottom: 1px solid var(--border); }
+        .ba-audit-detail-table tr:last-child { border-bottom: none; }
+        .ba-audit-detail-plain { white-space: pre-wrap; word-break: break-word; line-height: 1.6; }
     </style>
 </head>
 <body class="ba-body">
@@ -247,10 +253,75 @@
                                     var idx = parseInt(this.getAttribute('data-idx'), 10);
                                     var r = (window._auditLogRows || [])[idx];
                                     if (!r) return;
-                                    var full = r.detail || '';
-                                    if (r.userAgent) full += '\n\nUser-Agent: ' + (r.userAgent || '');
-                                    document.getElementById('auditDetailModalBody').textContent = full;
+                                    var detail = r.detail || '';
+                                    var userAgent = r.userAgent || '';
+                                    var parts = [];
+                                    var s = detail.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                                    var chunks = s.split(/\s+->\s+|\n+/);
+                                    chunks.forEach(function(chunk) {
+                                        chunk = chunk.trim();
+                                        if (!chunk) return;
+                                        var sub = chunk.split(/\s+(?=[a-zA-Z_][a-zA-Z0-9_]*[=:])/);
+                                        sub.forEach(function(seg) {
+                                            seg = seg.trim();
+                                            if (!seg) return;
+                                            var eq = seg.indexOf('=');
+                                            var col = seg.indexOf(':');
+                                            if (eq > 0 && (col < 0 || eq < col)) {
+                                                parts.push({ label: seg.substring(0, eq).trim(), value: seg.substring(eq + 1).trim() });
+                                            } else if (col > 0) {
+                                                parts.push({ label: seg.substring(0, col).trim(), value: seg.substring(col + 1).trim() });
+                                            } else {
+                                                parts.push({ label: '', value: seg });
+                                            }
+                                        });
+                                    });
+                                    if (userAgent) parts.push({ label: 'User-Agent', value: userAgent });
+                                    var jobIdPart = parts.find(function(p) { return (p.label || '').toLowerCase() === 'jobid'; });
+                                    var jobIdVal = jobIdPart ? parseInt(jobIdPart.value, 10) : 0;
+                                    var actionCode = (r.actionCode || '').toString();
+                                    var isMultiDbReset = (actionCode === 'HRHelper.MultiDbReset') && jobIdVal > 0;
+                                    var html = parts.length > 0
+                                        ? '<table class="ba-audit-detail-table"><tbody>' + parts.map(function(p) {
+                                            var lbl = (p.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                            var val = (p.value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                            return '<tr><th>' + (lbl || '—') + '</th><td>' + val + '</td></tr>';
+                                        }).join('') + (isMultiDbReset ? '<tr id="auditDbListRow"><th>Danh sách database</th><td id="auditDbListCell">Đang tải...</td></tr>' : '') + '</tbody></table>'
+                                        : '<div class="ba-audit-detail-plain">' + (detail || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>') + '</div>';
+                                    document.getElementById('auditDetailModalBody').innerHTML = html;
                                     document.getElementById('auditDetailModal').classList.add('show');
+                                    if (isMultiDbReset) {
+                                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobPayload") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobIdVal }),
+                                            success: function(res) {
+                                                var d = res.d || res;
+                                                var payload = (d && d.success && d.payload) ? d.payload : null;
+                                                var $cell = $('#auditDbListCell');
+                                                if (!$cell.length) return;
+                                                try {
+                                                    var pl = payload ? (typeof payload === 'string' ? JSON.parse(payload) : payload) : null;
+                                                    var dbArr = (pl && pl.databaseNames) ? pl.databaseNames : [];
+                                                    var nDb = dbArr.length || (pl && pl.databaseCount) || 0;
+                                                    var cell = nDb + ' Database';
+                                                    if (dbArr.length > 0) {
+                                                        var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                                                        cell = nDb + ' Database <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button><div class="ba-db-list-popover"></div>';
+                                                        $cell.html(cell);
+                                                        $('#auditDetailModalBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
+                                                        var $btn = $(this), $pop = $btn.siblings('.ba-db-list-popover').first();
+                                                        var raw = $btn.attr('data-dbs');
+                                                        if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                                                        try {
+                                                            var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                                                            var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                                                            $pop.html(grid).addClass('show');
+                                                        } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                                                    });
+                                                    } else { $cell.text('—'); }
+                                                } catch (e) { $cell.text('—'); }
+                                            },
+                                            error: function() { $('#auditDbListCell').text('—'); }
+                                        });
+                                    }
                                 };
                             });
                     }
@@ -291,6 +362,7 @@
         (function() {
             var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
             var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
+            var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
             function parseDateSafe(v) {
                 if (v == null || v === '') return null;
                 if (typeof v === 'number') return new Date(v);
@@ -318,10 +390,39 @@
                         resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
                     }
                 }
-                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr></tbody></table>';
+                var payloadRows = '';
+                if ((job.type || '') === 'HRHelperMultiDbReset' && job.payload) {
+                    try {
+                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+                        if (pl) {
+                            payloadRows += '<tr><th>Email reset</th><td>' + (pl.email || '—').replace(/</g, '&lt;') + '</td></tr>';
+                            payloadRows += '<tr><th>Phone reset</th><td>' + (pl.phone || '—').replace(/</g, '&lt;') + '</td></tr>';
+                            var dbArr = pl.databaseNames || [];
+                            var nDb = dbArr.length || pl.databaseCount || 0;
+                            var dbCell = nDb + ' Database';
+                            if (dbArr.length > 0) {
+                                var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                                dbCell += ' <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
+                                dbCell += '<div class="ba-db-list-popover"></div>';
+                            }
+                            payloadRows += '<tr><th>Danh sách database</th><td>' + dbCell + '</td></tr>';
+                        }
+                    } catch (e) {}
+                }
+                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
                 if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                 html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                 $('#notificationDetailBody').html(html);
+                $('#notificationDetailBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
+                    var $btn = $(this), $pop = $btn.siblings('.ba-db-list-popover').first();
+                    var raw = $btn.attr('data-dbs');
+                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                    try {
+                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                        $pop.html(grid).addClass('show');
+                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                });
                 $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
                     e.preventDefault(); e.stopPropagation();
                     var $btn = $(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
@@ -371,6 +472,7 @@
                         if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; return; }
                         $badge.text(totalCount).addClass('visible');
                         window.__notifJobsList = jobs;
+                        var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
                         var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
                         var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
                         var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
@@ -390,11 +492,19 @@
                             var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có tích hợp Reset thông tin">Có Reset' : 'ba-notif-no-reset-tag" title="Restore không reset">Không Reset') + '</span> ') : '';
                             var startTimeStr = formatNotifTime(j.startTime);
                             var endTimeStr = formatNotifTime(j.completedAt);
+                            var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0;
+                            var phase = (msg || (jobType === 'Restore' ? 'Restore' : '')).toString().trim();
+                            var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
+                            var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
                             var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
-                            if (st === 'Running') { row += '<div style="margin-top:4px;color:var(--primary);">Đang chạy</div>'; }
-                            else if (st === 'Failed') { row += '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
-                            else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; }
-                            row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a></div>';
+                            if (st === 'Running') {
+                                var progressLabel = (jobType === 'Restore' && phase) ? (pct + '% - ' + phase) : (jobType === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
+                                row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
+                                row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
+                                if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
+                            } else if (st === 'Failed') { row += '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
+                            else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
+                            row += '</div>';
                             html += row;
                         });
                         if (newBugs.length > 0) html += '</div></div>';
@@ -403,6 +513,7 @@
                         $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function(e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
                         $list.off('click.baNotif').on('click.baNotif', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); if (window.__notifJobsList && window.__notifJobsList[idx]) showNotificationDetail(window.__notifJobsList[idx]); });
                         $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($item.data('job-id'), 10); var jobType = $item.data('job-type') || 'Restore'; if (jobId) { addDismissedJobId(jobId, jobType); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }) }); $item.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var left = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (left > 0) { $badgeEl.text(left).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
+                        $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || job.ServerName || '').trim(); var dbName = (job.databaseName || job.DatabaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) loadRestoreJobsPanel(); else $btn.prop('disabled', false); }, error: function() { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
                     }
                 });
             }

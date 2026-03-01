@@ -41,7 +41,7 @@
     right: 0;
     margin-top: 4px;
     width: 400px;
-    max-height: min(600px, 75vh);
+    max-height: min(700px, 85vh);
     overflow: hidden;
     background: var(--bg-card);
     border: 1px solid var(--border);
@@ -59,7 +59,7 @@
 .ba-notif-list {
     padding: 6px;
     overflow-y: auto;
-    max-height: min(520px, 68vh);
+    max-height: min(620px, 80vh);
     background: var(--bg-card);
 }
 .ba-notif-panel-footer {
@@ -266,13 +266,23 @@
 
 /* Popup thông tin reset: căn giữa trong popup cha, giao diện rõ ràng */
 #notificationDetailBody { position: relative; min-height: 120px; }
+.ba-db-list-toggle { margin-left: 8px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 4px; color: var(--primary); white-space: nowrap; }
+.ba-db-list-toggle:hover { background: var(--bg-hover); }
+.ba-db-list-popover { display: none; margin-top: 8px; padding: 0; max-height: 340px; min-width: 280px; overflow: auto; background: var(--bg-darker); border-radius: 8px; font-size: 0.8125rem; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
+.ba-db-list-popover.show { display: block; }
+.ba-db-list-grid { counter-reset: db-num; display: flex; flex-direction: column; gap: 0; word-break: break-all; }
+.ba-db-list-grid span { counter-increment: db-num; position: relative; display: block; padding: 8px 12px 8px 2.25rem; font-size: 0.8125rem; line-height: 1.4; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
+.ba-db-list-grid span:nth-child(even) { background: rgba(255,255,255,0.05); }
+.ba-db-list-grid span:last-child { border-bottom: none; }
+.ba-db-list-grid span:hover { background: rgba(59, 130, 246, 0.08); }
+.ba-db-list-grid span::before { content: counter(db-num) "."; position: absolute; left: 10px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); min-width: 1.5rem; }
 .ba-reset-info-popup {
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    min-width: 260px;
-    max-width: 360px;
+    min-width: 340px;
+    max-width: 480px;
     padding: 14px 16px;
     background: var(--bg-card);
     border: 1px solid var(--border);

@@ -1731,7 +1731,11 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
-                        var payloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(new Dictionary<string, object> { { "withAutoReset", withAutoReset } });
+                        var payloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(new Dictionary<string, object> {
+                            { "withAutoReset", withAutoReset },
+                            { "withReplace", withReplace },
+                            { "withShrinkLog", withShrinkLog }
+                        });
                         cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message, Payload)
 VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0, N'Restore', @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
                         cmd.Parameters.AddWithValue("@sid", serverId);
@@ -2079,12 +2083,55 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             catch { return null; }
         }
 
+        /// <summary>Lấy withAutoReset, withReplace, withShrinkLog từ Payload JSON của Restore job.</summary>
+        private static void ParseRestorePayloadOptions(string payloadJson, out bool? withAutoReset, out bool? withReplace, out bool? withShrinkLog)
+        {
+            withAutoReset = null;
+            withReplace = null;
+            withShrinkLog = null;
+            if (string.IsNullOrWhiteSpace(payloadJson)) return;
+            try
+            {
+                var obj = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                withAutoReset = obj["withAutoReset"] != null ? (bool?)obj["withAutoReset"].ToObject<bool>() : null;
+                withReplace = obj["withReplace"] != null ? (bool?)obj["withReplace"].ToObject<bool>() : null;
+                withShrinkLog = obj["withShrinkLog"] != null ? (bool?)obj["withShrinkLog"].ToObject<bool>() : null;
+            }
+            catch { }
+        }
+
         /// <summary>Hủy job Restore đang chạy. Chỉ người thực hiện restore (StartedByUserId) mới được hủy. Giữ để tương thích chuông; chuông có thể gọi CancelJob.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object CancelRestoreJob(int jobId)
         {
             return CancelJob(jobId);
+        }
+
+        /// <summary>Lấy Payload của job (để Audit Log hiển thị danh sách database cho HRHelperMultiDbReset).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetJobPayload(int jobId)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, payload = (string)null };
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT Payload FROM BaJob WHERE Id = @id";
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    conn.Open();
+                    var obj = cmd.ExecuteScalar();
+                    var payload = (obj != null && obj != DBNull.Value) ? obj.ToString() : null;
+                    return new { success = true, payload = payload };
+                }
+            }
+            catch
+            {
+                return new { success = false, payload = (string)null };
+            }
         }
 
         /// <summary>Danh sách job cho Function Queue: Restore, Backup, HR Helper (không lọc Dismissed, có lịch sử 7 ngày). Cùng quyền xem như GetJobs.</summary>
@@ -2161,7 +2208,9 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     ? (r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "")
                                     : (r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "");
                                 var payloadStr = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null;
-                                var withAutoReset = ParseWithAutoResetFromPayload(payloadStr);
+                                bool? withReplaceOpt, withShrinkLogOpt;
+                                bool? withAutoResetOpt;
+                                ParseRestorePayloadOptions(payloadStr, out withAutoResetOpt, out withReplaceOpt, out withShrinkLogOpt);
                                 jobs.Add(new
                                 {
                                     id = r.GetInt32(0),
@@ -2180,7 +2229,10 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     percentComplete = r.FieldCount > 12 && !r.IsDBNull(12) ? r.GetInt32(12) : 0,
                                     message = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : "",
                                     completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null,
-                                    withAutoReset = withAutoReset
+                                    withAutoReset = withAutoResetOpt,
+                                    withReplace = withReplaceOpt,
+                                    withShrinkLog = withShrinkLogOpt,
+                                    payload = payloadStr
                                 });
                             }
                         }
@@ -2306,7 +2358,8 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                         percentComplete = r.FieldCount > 12 && !r.IsDBNull(12) ? r.GetInt32(12) : 0,
                                         message = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : "",
                                         completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null,
-                                        withAutoReset = withAutoReset
+                                        withAutoReset = withAutoReset,
+                                        payload = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null
                                     });
                                 }
                             }

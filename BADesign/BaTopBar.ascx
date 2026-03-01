@@ -203,8 +203,8 @@
         var avatarUpload = getEl('avatarUploadBaTop');
         if (avatarUpload) avatarUpload.addEventListener('change', function(e) {
             var file = (e.target || {}).files && (e.target.files[0]);
-            if (!file || !file.type.startsWith('image/')) { if (file) alert('Please select an image file.'); return; }
-            if (file.size > 5 * 1024 * 1024) { alert('Image size must be less than 5MB.'); return; }
+            if (!file || !file.type.startsWith('image/')) { if (file && typeof baAlert === 'function') baAlert('Please select an image file.'); return; }
+            if (file.size > 5 * 1024 * 1024) { if (typeof baAlert === 'function') baAlert('Image size must be less than 5MB.'); return; }
             var fd = new FormData(); fd.append('file', file);
             jQuery.ajax({ url: uploadAvatarUrl, type: 'POST', data: fd, processData: false, contentType: false, dataType: 'json',
                 success: function(res) {
@@ -214,9 +214,9 @@
                         topBarAvatars.forEach(function(av) {
                             av.innerHTML = '<img src="' + (res.avatarPath + '?t=' + new Date().getTime()).replace(/"/g, '&quot;') + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />';
                         });
-                    } else { alert((res && res.message) || 'Failed to upload avatar.'); }
+                    } else { if (typeof baAlert === 'function') baAlert((res && res.message) || 'Failed to upload avatar.'); }
                 },
-                error: function() { alert('Failed to upload avatar.'); }
+                error: function() { if (typeof baAlert === 'function') baAlert('Failed to upload avatar.'); }
             });
         });
         var avatarRemove = getEl('avatarRemoveBaTop');
@@ -230,17 +230,13 @@
                         topBarAvatars.forEach(function(av) {
                             av.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1rem;font-weight:600;color:white;">' + initial + '</span>';
                         });
-                    } else { alert((res && res.message) || 'Failed to remove avatar.'); }
+                    } else { if (typeof baAlert === 'function') baAlert((res && res.message) || 'Failed to remove avatar.'); }
                 },
-                error: function() { alert('Failed to remove avatar.'); }
+                error: function() { if (typeof baAlert === 'function') baAlert('Failed to remove avatar.'); }
             });
         }
         if (avatarRemove) avatarRemove.addEventListener('click', function() {
-            if (typeof baConfirm === 'function') {
-                baConfirm('Xóa ảnh đại diện?', doRemoveAvatar);
-            } else if (confirm('Xóa ảnh đại diện?')) {
-                doRemoveAvatar();
-            }
+            if (typeof baConfirm === 'function') baConfirm('Xóa ảnh đại diện?', doRemoveAvatar, null, 'Đồng ý', 'Thoát');
         });
     });
 })();

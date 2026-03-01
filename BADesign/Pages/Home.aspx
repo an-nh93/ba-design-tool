@@ -1863,7 +1863,7 @@
                                                     CssClass="btn btn-sm btn-danger"
                                                         CommandName="Delete"
                                                         CommandArgument='<%# Eval("ControlId") %>'
-                                                        OnClientClick="return confirm('Delete this design?');">
+                                                        OnClientClick="handleDeleteDesign(this); return false;">
                                                     🗑️
                                                     </asp:LinkButton>
                                                     <asp:PlaceHolder runat="server" Visible='<%# (bool)Eval("IsPublic") %>'>
@@ -2158,6 +2158,16 @@
     <div id="toastContainer" class="toast-container"></div>
 
     <script>
+        // ===== Delete design (grid card) - dùng baConfirm thay cho confirm native =====
+        function handleDeleteDesign(linkBtn) {
+            if (typeof baConfirm === 'function') {
+                baConfirm('Delete this design?', function() {
+                    var h = (linkBtn.getAttribute('href') || '');
+                    if (h.indexOf('__doPostBack') >= 0) eval(h.replace('javascript:', ''));
+                }, null, 'OK', 'Cancel');
+            }
+        }
+
         // ===== Project Management =====
         var currentProjectId = null; // null = all projects
 
@@ -3291,8 +3301,9 @@
                 deleteBtn.textContent = '🗑️';
                 deleteBtn.title = 'Delete';
                 deleteBtn.onclick = function() {
-                    if (confirm('Delete this design?')) {
-                        // Find the original delete LinkButton from grid
+                    if (typeof baConfirm === 'function') {
+                        baConfirm('Delete this design?', function() {
+                            // Find the original delete LinkButton from grid
                         var grid = document.getElementById(section + '-grid');
                         var originalCard = grid ? grid.querySelector('.design-card[data-id="' + id + '"]') : null;
                         if (originalCard) {
@@ -3311,7 +3322,7 @@
                                     form.submit();
                                 }
                             }
-                        }
+                        });
                     }
                 };
                 actionsCell.appendChild(deleteBtn);
@@ -3552,12 +3563,12 @@
             if (!file) return;
 
             if (!file.type.startsWith('image/')) {
-                alert('Please select an image file.');
+                (typeof baAlert === 'function' && baAlert('Please select an image file.'));
                 return;
             }
 
             if (file.size > 5 * 1024 * 1024) {
-                alert('Image size must be less than 5MB.');
+                (typeof baAlert === 'function' && baAlert('Image size must be less than 5MB.'));
                 return;
             }
 
@@ -3610,7 +3621,7 @@
                             }
                         }
                     } else {
-                        alert(response && response.message ? response.message : 'Failed to upload avatar.');
+                        (typeof baAlert === 'function' && baAlert(response && response.message ? response.message : 'Failed to upload avatar.'));
                     }
                 },
                 error: function(xhr) {
@@ -3623,7 +3634,7 @@
                             errorMsg += ' ' + xhr.responseText.substring(0, 200);
                         }
                     }
-                    alert(errorMsg);
+                    (typeof baAlert === 'function' && baAlert(errorMsg));
                 }
             });
         });
@@ -3651,17 +3662,13 @@
                             }
                         }
                     } else {
-                        alert(response && response.message ? response.message : 'Failed to remove avatar.');
+                        if (typeof baAlert === 'function') baAlert(response && response.message ? response.message : 'Failed to remove avatar.');
                     }
                 },
-                error: function() { alert('Failed to remove avatar.'); }
+                error: function() { if (typeof baAlert === 'function') baAlert('Failed to remove avatar.'); }
             });
             }
-            if (typeof baConfirm === 'function') {
-                baConfirm('Xóa ảnh đại diện?', doRemoveAvatar);
-            } else if (confirm('Xóa ảnh đại diện?')) {
-                doRemoveAvatar();
-            }
+            if (typeof baConfirm === 'function') baConfirm('Xóa ảnh đại diện?', doRemoveAvatar, null, 'Đồng ý', 'Thoát');
         });
 
         // Change password
@@ -3742,7 +3749,7 @@
                     window.location.reload();
                 },
                 error: function(xhr) {
-                    alert('Lỗi cập nhật trạng thái Public: ' + xhr.responseText);
+                    (typeof baAlert === 'function' && baAlert('Lỗi cập nhật trạng thái Public: ' + xhr.responseText));
                 }
             });
         });

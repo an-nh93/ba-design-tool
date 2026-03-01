@@ -7,8 +7,10 @@
     <meta charset="utf-8" />
     <title>Quản lý nghỉ phép - UI Builder</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
+    <link href="../Content/ba-layout.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
+    <script src="../Scripts/ba-layout.js"></script>
     <script src="https://unpkg.com/lunar-javascript@1.7.7/lunar.js"></script>
     <style>
         :root {
@@ -430,11 +432,12 @@
                         if (n != null && n.trim()) { m.name = n.trim(); save(); }
                     }));
                     actions.append($('<button class="ba-btn ba-btn-danger" type="button">Xóa</button>').on('click', function () {
-                        if (confirm('Xóa ' + m.name + '? Lịch nghỉ sẽ bị xóa.')) {
+                        var msg = 'Xóa ' + m.name + '? Lịch nghỉ sẽ bị xóa.';
+                        if (typeof baConfirm === 'function') baConfirm(msg, function () {
                             members = members.filter(function (x) { return x.id !== m.id; });
                             leaves = leaves.filter(function (x) { return x.memberId !== m.id; });
                             save();
-                        }
+                        }, null, 'Đồng ý', 'Thoát');
                     }));
                     tr.append(actions);
                     ul.append(tr);

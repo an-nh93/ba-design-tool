@@ -564,6 +564,15 @@
             </div>
         </div>
 
+        <!-- Delete database loading overlay -->
+        <div id="deleteDbOverlay" class="ba-multidb-overlay">
+            <div class="ba-multidb-overlay-content">
+                <div class="ba-multidb-spinner"></div>
+                <div class="ba-multidb-overlay-title">Đang xóa database</div>
+                <div class="ba-multidb-overlay-text">Vui lòng chờ, không bấm nhiều lần.</div>
+            </div>
+        </div>
+
         <!-- Lấy thông tin log (tất cả) - overlay che màn hình -->
         <div id="loadLogOverlay" class="ba-multidb-overlay">
             <div class="ba-multidb-overlay-content ba-loadlog-overlay-content">
@@ -951,7 +960,7 @@
                 if (canBulkReset) actions += ' <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-multidb-btn" onclick="connectMultiDb(' + s.id + '); return false;" title="Connect Multi-DB Reset">Multi-DB</button>';
                 if (canManageServers) {
                     actions = '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;">Sửa</button> ' + actions + ' ' +
-                        '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + '); return false;">Xóa</button>';
+                        '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + ', \'' + String(s.serverName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\'); return false;">Xóa</button>';
                 }
                 html += '<tr data-id="' + s.id + '">' +
                     '<td>' + (s.serverName || '-') + '</td>' +
@@ -1091,8 +1100,9 @@
             });
         }
 
-        function deleteServer(id) {
-            showConfirmModal('Xác nhận', 'Xóa server này?', function() {
+        function deleteServer(id, serverName) {
+            var msg = (serverName && String(serverName).trim()) ? 'Xóa server "' + String(serverName) + '"? Hành động không thể hoàn tác.' : 'Xóa server này? Hành động không thể hoàn tác.';
+            showConfirmModal('Xác nhận', msg, function() {
                 $.ajax({
                     url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DeleteServer") %>',
                     type: 'POST',
@@ -1230,7 +1240,7 @@
             $('#errorDetailModal').removeClass('show');
         }
 
-        function showConfirmModal(title, message, onConfirm, onCancel, okText, useHtml) {
+        function showConfirmModal(title, message, onConfirm, onCancel, okText, useHtml, cancelText) {
             $('#confirmModalTitle').text(title || 'Xác nhận');
             if (useHtml) {
                 $('#confirmModalMessage').html(message);
@@ -1238,7 +1248,7 @@
                 $('#confirmModalMessage').text(message);
             }
             $('#confirmModal').addClass('show').css('display', 'flex');
-            $('#confirmModalCancel').show();
+            $('#confirmModalCancel').show().text(cancelText || 'Hủy');
             $('#confirmModalOk').text(okText || 'OK');
             $('#confirmModalOk').off('click');
             $('#confirmModalCancel').off('click');
@@ -2372,6 +2382,8 @@
 
         function deleteDatabase(serverId, databaseName, displayLabel) {
             showConfirmModal('Xóa database', 'Bạn có chắc muốn XÓA database:\n' + (displayLabel || serverId + ' / ' + databaseName) + '\n\nHành động không thể hoàn tác.', function() {
+                var $overlay = $('#deleteDbOverlay');
+                $overlay.addClass('show');
                 $.ajax({
                     url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DeleteDatabase") %>',
                     type: 'POST',
@@ -2396,6 +2408,9 @@
                             if (j.d && j.d.message) msg = j.d.message;
                         } catch (e) {}
                         showToast(msg, 'error');
+                    },
+                    complete: function() {
+                        $overlay.removeClass('show');
                     }
                 });
             });
@@ -2883,10 +2898,38 @@
                 html += '<tr><th>Bắt đầu</th><td>' + startStr + '</td></tr>';
                 html += '<tr><th>Kết thúc</th><td>' + endStr + '</td></tr>';
                 if (job.backupFileName) html += '<tr><th>File backup</th><td>' + (job.backupFileName || '').replace(/</g, '&lt;') + '</td></tr>';
+                if ((job.type || '') === 'HRHelperMultiDbReset' && job.payload) {
+                    try {
+                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+                        if (pl) {
+                            html += '<tr><th>Email reset</th><td>' + (pl.email || '—').replace(/</g, '&lt;') + '</td></tr>';
+                            html += '<tr><th>Phone reset</th><td>' + (pl.phone || '—').replace(/</g, '&lt;') + '</td></tr>';
+                            var dbArr = pl.databaseNames || [];
+                            var nDb = dbArr.length || pl.databaseCount || 0;
+                            var dbCell = nDb + ' Database';
+                            if (dbArr.length > 0) {
+                                var esc = (function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); });
+                                dbCell += ' <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
+                                dbCell += '<div class="ba-db-list-popover"></div>';
+                            }
+                            html += '<tr><th>Danh sách database</th><td>' + dbCell + '</td></tr>';
+                        }
+                    } catch (e) {}
+                }
                 html += '</tbody></table>';
                 if (job.message && job.message !== 'Restore' && job.message !== 'Reset Information') html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                 html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                 $('#notificationDetailBody').html(html);
+                $('#notificationDetailBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
+                    var $btn = $(this), $pop = $btn.siblings('.ba-db-list-popover').first();
+                    var raw = $btn.attr('data-dbs');
+                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                    try {
+                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                        $pop.html(grid).addClass('show');
+                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                });
                 $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
                     e.preventDefault(); e.stopPropagation();
                     var $btn = $(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
@@ -3121,17 +3164,28 @@
                         });
                         $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) {
                             e.preventDefault();
+                            var $item = $(this).closest('.ba-notif-item');
                             var jobId = parseInt($(this).data('job-id'), 10);
                             if (!jobId) return;
-                            var $btn = $(this).prop('disabled', true);
-                            $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }),
-                                success: function(r) {
-                                    var d = r.d || r;
-                                    if (d && d.success) { if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel(); }
-                                    else { $btn.prop('disabled', false); showToast((d && d.message) ? d.message : 'Không thể hủy.', 'error'); }
-                                },
-                                error: function() { $btn.prop('disabled', false); showToast('Lỗi kết nối.', 'error'); }
-                            });
+                            var idx = parseInt($item.data('notif-index'), 10);
+                            var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {};
+                            var serverName = (job.serverName || job.ServerName || '').trim();
+                            var dbName = (job.databaseName || job.DatabaseName || '').trim();
+                            var jobType = (job.type || job.typeLabel || 'Restore').toString();
+                            var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId);
+                            var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.';
+                            var $btn = $(this);
+                            showConfirmModal('Xác nhận hủy job', msg, function() {
+                                $btn.prop('disabled', true);
+                                $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }),
+                                    success: function(r) {
+                                        var d = r.d || r;
+                                        if (d && d.success) { if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel(); }
+                                        else { $btn.prop('disabled', false); showToast((d && d.message) ? d.message : 'Không thể hủy.', 'error'); }
+                                    },
+                                    error: function() { $btn.prop('disabled', false); showToast('Lỗi kết nối.', 'error'); }
+                                });
+                            }, null, 'Đồng ý', false, 'Thoát');
                         });
                     }
                 });

@@ -397,7 +397,9 @@
             // Chuông thông báo (badge + panel) giống trang Feedback
             (function () {
                 var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
+                var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
                 var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
+                var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
                 var DISMISSED_JOBS_KEY = 'baDismissedJobIds';
                 function getDismissedJobIds() { try { var raw = localStorage.getItem(DISMISSED_JOBS_KEY); if (!raw) return []; var arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch (e) { return []; } }
                 function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
@@ -428,7 +430,9 @@
                             var newBugs = d.newBugs || [];
                             var totalCount = jobs.length + newBugs.length;
                             if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
+                            var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
                             $badge.text(totalCount).addClass('visible');
+                            window.__notifJobsList = jobs;
                             var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
                             var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
                             var html = '';
@@ -437,20 +441,29 @@
                                 newBugs.forEach(function (b) { var created = formatNotifTime(b.createdAt); var url = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + url + '" data-action="bug">Xem / Xử lý</a></div>'; });
                                 html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
                             }
-                            jobs.forEach(function (j) {
-                                var st = j.status || '', jobType = j.type || 'Restore', typeLabel = (j.typeLabel || (jobType === 'Backup' ? 'Backup' : 'Restore'));
-                                var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : 'ba-notif-type-restore';
-                                var row = '<div class="ba-notif-item" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + formatNotifTime(j.startTime) + '</div>';
-                                if (st === 'Running') row += '<div style="margin-top:4px;"><span class="ba-notif-status-badge ba-notif-status-running">Đang chạy</span></div>';
-                                else if (st === 'Completed') row += '<div style="margin-top:4px;"><span class="ba-notif-status-badge ba-notif-status-completed">Đã xong</span></div>';
-                                else if (st === 'Failed') row += '<div style="margin-top:4px;"><span class="ba-notif-status-badge ba-notif-status-failed">Lỗi</span></div><div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div>';
-                                row += '<a class="ba-notif-detail-link" href="<%= ResolveUrl("~/FunctionQueue") %>">Xem chi tiết</a></div>';
+                            jobs.forEach(function (j, idx) {
+                                var st = j.status || '', jobType = j.type || 'Restore', typeLabel = (j.typeLabel || (jobType === 'Backup' ? 'Backup' : jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore'));
+                                var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : 'ba-notif-type-restore';
+                                var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0;
+                                var phase = (j.message || (jobType === 'Restore' ? 'Restore' : '')).toString().trim();
+                                var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
+                                var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
+                                var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + formatNotifTime(j.startTime) + '</div>';
+                                if (st === 'Running') {
+                                    var progressLabel = (jobType === 'Restore' && phase) ? (pct + '% - ' + phase) : (jobType === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
+                                    row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
+                                    row += '<a class="ba-notif-detail-link" href="' + functionQueueUrl + '">Xem chi tiết</a>';
+                                    if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
+                                } else if (st === 'Completed') row += '<div style="margin-top:4px;"><span class="ba-notif-status-badge ba-notif-status-completed">Đã xong</span></div><a class="ba-notif-detail-link" href="' + functionQueueUrl + '">Xem chi tiết</a>';
+                                else if (st === 'Failed') row += '<div style="margin-top:4px;"><span class="ba-notif-status-badge ba-notif-status-failed">Lỗi</span></div><div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="' + functionQueueUrl + '">Xem chi tiết</a>';
+                                row += '</div>';
                                 html += row;
                             });
                             if (newBugs.length > 0) html += '</div></div>';
                             else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
                             $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
                             $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function (e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
+                            $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function (e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(); var dbName = (job.databaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function () { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function (r) { var d = r.d || r; if (d && d.success) loadBellPanel(); else $btn.prop('disabled', false); }, error: function () { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
                         }
                     });
                 }

@@ -42,9 +42,18 @@
         .ba-msg-cell.clickable:hover { color: var(--primary); }
         #queueDetailModal { display: none; position: fixed; inset: 0; z-index: 10002; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
         #queueDetailModal.show { display: flex; }
-        #queueDetailModal .modal-inner { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 520px; width: 90%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
+        #queueDetailModal .modal-inner { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; max-width: 720px; width: 92%; max-height: 80vh; overflow: hidden; display: flex; flex-direction: column; }
         #queueDetailModal .modal-title { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; }
         #queueDetailModal .modal-body { padding: 16px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; font-size: 0.875rem; }
+        .ba-restore-detail table { width: 100%; border-collapse: collapse; margin-bottom: 0; }
+        .ba-restore-detail th { text-align: left; padding: 4px 12px 4px 0; font-weight: 600; color: var(--text-secondary); width: 140px; min-width: 140px; white-space: nowrap; }
+        .ba-restore-detail td { padding: 4px 0; }
+        .ba-restore-reset-info { border-top: 1px solid var(--border); padding-top: 12px; }
+        .ba-reset-info-title { font-weight: 600; margin-bottom: 8px; font-size: 0.8125rem; color: var(--text-secondary); }
+        .ba-reset-info-content { display: table; width: 100%; }
+        .ba-reset-info-row { display: table-row; font-size: 0.875rem; }
+        .ba-reset-info-label { display: table-cell; width: 120px; min-width: 120px; padding: 4px 16px 4px 0; color: var(--text-muted); font-weight: 500; white-space: nowrap; vertical-align: top; }
+        .ba-reset-info-value { display: table-cell; padding: 4px 0; word-break: break-word; vertical-align: top; }
         #queueDetailModal .modal-footer { padding: 10px 16px; border-top: 1px solid var(--border); text-align: right; }
         .ba-pagination {
             display: flex;
@@ -143,9 +152,11 @@
         </main>
         <div id="queueDetailModal">
             <div class="modal-inner">
-                <div class="modal-title">Chi tiết / Lỗi</div>
+                <div class="ba-queue-modal-header" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);">
+                    <span class="modal-title">Chi tiết / Lỗi</span>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" id="queueDetailClose" aria-label="Đóng">×</button>
+                </div>
                 <div id="queueDetailBody" class="modal-body"></div>
-                <div class="modal-footer"><button type="button" class="ba-btn ba-btn-secondary" id="queueDetailClose">Đóng</button></div>
             </div>
         </div>
     </form>
@@ -268,7 +279,14 @@
                     html += '<td>' + fmtDate(j.startTime) + '</td>';
                     html += '<td>' + fmtDate(j.completedAt) + '</td>';
                     html += '<td>' + msgCell + '</td>';
-                    html += '<td>' + (canCancel ? '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm queue-cancel-btn" data-id="' + j.id + '">Hủy</button>' : '—') + '</td>';
+                    var actionHtml = '';
+                    if ((j.type || '') === 'Restore') actionHtml += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-restore-btn" data-server-id="' + (j.serverId || 0) + '" data-database-name="' + (j.databaseName || '').replace(/"/g, '&quot;') + '" data-with-reset="' + (j.withAutoReset === true ? '1' : '0') + '" data-with-replace="' + (j.withReplace === true ? '1' : '0') + '" data-with-shrink-log="' + (j.withShrinkLog === true ? '1' : '0') + '" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-backup-file="' + (j.backupFileName || '').replace(/"/g, '&quot;') + '">Xem chi tiết</button>';
+                    if ((j.type || '') === 'HRHelperMultiDbReset') {
+                        var payloadEsc = (j.payload || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-reset-multidb-btn" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-payload="' + payloadEsc + '">Xem chi tiết</button>';
+                    }
+                    if (canCancel) actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm queue-cancel-btn" data-id="' + j.id + '">Hủy</button>';
+                    html += '<td>' + (actionHtml || '—') + '</td>';
                     html += '</tr>';
                 });
                 tbody.innerHTML = html;
@@ -330,9 +348,11 @@
                 });
             }
 
-            function showDetailModal(msg) {
+            function showDetailModal(msg, title) {
                 var text = (msg || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 document.getElementById('queueDetailBody').innerHTML = text || '—';
+                var $title = $('#queueDetailModal .modal-title');
+                if ($title.length) $title.text(title || 'Chi tiết / Lỗi');
                 document.getElementById('queueDetailModal').classList.add('show');
             }
 
@@ -369,7 +389,89 @@
                 });
                 $(document).on('click', '.ba-msg-cell.clickable', function() {
                     var msg = $(this).data('msg');
-                    if (msg) showDetailModal(msg);
+                    if (msg) showDetailModal(msg, 'Chi tiết / Lỗi');
+                });
+                $(document).on('click', '.queue-view-restore-btn', function() {
+                    var $btn = $(this), serverId = $btn.data('server-id'), dbName = ($btn.data('database-name') || '').trim();
+                    var serverName = $btn.data('server-name') || '', backupFile = $btn.data('backup-file') || '';
+                    var withReset = $btn.data('with-reset') === 1 || $btn.data('with-reset') === '1';
+                    var withReplace = $btn.data('with-replace') === 1 || $btn.data('with-replace') === '1';
+                    var withShrinkLog = $btn.data('with-shrink-log') === 1 || $btn.data('with-shrink-log') === '1';
+                    var html = '<div class="ba-restore-detail"><table><tbody>';
+                    html += '<tr><th>Server</th><td>' + (serverName || '—').replace(/</g, '&lt;') + '</td></tr>';
+                    html += '<tr><th>Database</th><td>' + (dbName || '—').replace(/</g, '&lt;') + '</td></tr>';
+                    html += '<tr><th>File backup</th><td>' + (backupFile || '—').replace(/</g, '&lt;') + '</td></tr>';
+                    html += '<tr><th>WITH REPLACE</th><td>' + (withReplace ? 'Có' : 'Không') + '</td></tr>';
+                    html += '<tr><th>Shrink log</th><td>' + (withShrinkLog ? 'Có' : 'Không') + '</td></tr>';
+                    html += '<tr><th>Reset thông tin</th><td>' + (withReset ? 'Có' : 'Không') + '</td></tr></tbody></table>';
+                    if (withReset && serverId && dbName) {
+                        html += '<div id="baRestoreResetInfo" class="ba-restore-reset-info" style="margin-top:12px;"><span class="ba-reset-info-loading">Đang tải thông tin reset...</span></div></div>';
+                        $('#queueDetailModal .modal-title').text('Chi tiết Restore');
+                        document.getElementById('queueDetailBody').innerHTML = html;
+                        document.getElementById('queueDetailModal').classList.add('show');
+                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId, databaseName: dbName }) })
+                            .done(function(res) {
+                                var d = res.d || res;
+                                var $wrap = $('#baRestoreResetInfo');
+                                if (d && d.success && d.resetDetail) {
+                                    var raw = (d.resetDetail || '').replace(/^Reset:\s*/i, '').trim();
+                                    var rows = [];
+                                    raw.split(/\s*,\s*/).forEach(function(pair) {
+                                        var idx = pair.indexOf('=');
+                                        if (idx > 0) {
+                                            var label = pair.substring(0, idx).trim();
+                                            var value = pair.substring(idx + 1).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                            var lbl = label === 'Email' ? 'Email' : label === 'Phone' ? 'Phone' : label === 'Password' ? 'Password' : label;
+                                            rows.push('<div class="ba-reset-info-row"><span class="ba-reset-info-label">' + lbl + '</span><span class="ba-reset-info-value">' + value + '</span></div>');
+                                        }
+                                    });
+                                    $wrap.html('<div class="ba-reset-info-title">Thông tin reset (Email, Phone, Password đã nhập)</div><div class="ba-reset-info-content">' + (rows.length ? rows.join('') : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>');
+                                } else {
+                                    $wrap.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không có thông tin reset (hoặc chưa lưu từ BaDatabaseRestoreLog).</div>');
+                                }
+                            })
+                            .fail(function() {
+                                $('#baRestoreResetInfo').html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không tải được.</div>');
+                            });
+                    } else {
+                        html += '</div>';
+                        $('#queueDetailModal .modal-title').text('Chi tiết Restore');
+                        document.getElementById('queueDetailBody').innerHTML = html;
+                        document.getElementById('queueDetailModal').classList.add('show');
+                    }
+                });
+                $(document).on('click', '.queue-view-reset-multidb-btn', function() {
+                    var $btn = $(this), serverName = ($btn.data('server-name') || '').replace(/&quot;/g, '"'), rawPayload = $btn.attr('data-payload');
+                    if (!rawPayload) { showDetailModal('Không có dữ liệu payload.', 'Chi tiết Reset Multi-DB'); return; }
+                    try {
+                        var pl = JSON.parse((rawPayload || '').replace(/&quot;/g, '"'));
+                    } catch (e) { showDetailModal('Không parse được payload.', 'Chi tiết Reset Multi-DB'); return; }
+                    var html = '<div class="ba-restore-detail"><table class="ba-restore-detail"><tbody>';
+                    html += '<tr><th>Server</th><td>' + (serverName || '—').replace(/</g, '&lt;') + '</td></tr>';
+                    html += '<tr><th>Email reset</th><td>' + (pl.email || '—').replace(/</g, '&lt;') + '</td></tr>';
+                    html += '<tr><th>Phone reset</th><td>' + (pl.phone || '—').replace(/</g, '&lt;') + '</td></tr>';
+                    var dbArr = pl.databaseNames || [];
+                    var nDb = dbArr.length || pl.databaseCount || 0;
+                    var dbCell = nDb + ' Database';
+                    if (dbArr.length > 0) {
+                        var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                        dbCell += ' <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
+                        dbCell += '<div class="ba-db-list-popover"></div>';
+                    }
+                    html += '<tr><th>Danh sách database</th><td>' + dbCell + '</td></tr></tbody></table></div>';
+                    $('#queueDetailModal .modal-title').text('Chi tiết Reset Multi-DB');
+                    document.getElementById('queueDetailBody').innerHTML = html;
+                    document.getElementById('queueDetailModal').classList.add('show');
+                    $('#queueDetailBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
+                        var $t = $(this), $pop = $t.siblings('.ba-db-list-popover').first();
+                        var raw = $t.attr('data-dbs');
+                        if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                        try {
+                            var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                            var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                            $pop.html(grid).addClass('show');
+                        } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                    });
                 });
                 $('#queueDetailModal').on('click', function(e) {
                     if (e.target.id === 'queueDetailModal') document.getElementById('queueDetailModal').classList.remove('show');
@@ -424,10 +526,39 @@
                                 resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
                             }
                         }
-                        var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr></tbody></table>';
+                        var payloadRows = '';
+                        if ((job.type || '') === 'HRHelperMultiDbReset' && job.payload) {
+                            try {
+                                var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+                                if (pl) {
+                                    payloadRows += '<tr><th>Email reset</th><td>' + (pl.email || '—').replace(/</g, '&lt;') + '</td></tr>';
+                                    payloadRows += '<tr><th>Phone reset</th><td>' + (pl.phone || '—').replace(/</g, '&lt;') + '</td></tr>';
+                                    var dbArr = pl.databaseNames || [];
+                                    var nDb = dbArr.length || pl.databaseCount || 0;
+                                    var dbCell = nDb + ' Database';
+                                    if (dbArr.length > 0) {
+                                        var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                                        dbCell += ' <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
+                                        dbCell += '<div class="ba-db-list-popover"></div>';
+                                    }
+                                    payloadRows += '<tr><th>Danh sách database</th><td>' + dbCell + '</td></tr>';
+                                }
+                            } catch (e) {}
+                        }
+                        var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
                         if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                         html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                         $('#notificationDetailBody').html(html);
+                        $('#notificationDetailBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
+                            var $btn = $(this), $pop = $btn.siblings('.ba-db-list-popover').first();
+                            var raw = $btn.attr('data-dbs');
+                            if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                            try {
+                                var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                                var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                                $pop.html(grid).addClass('show');
+                            } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                        });
                         $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
                             e.preventDefault(); e.stopPropagation();
                             var $btn = $(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
@@ -521,20 +652,29 @@
                 $(document).on('click', '.queue-cancel-btn', function () {
                     var id = $(this).data('id');
                     if (!id) return;
-                    var $btn = $(this).prop('disabled', true);
-                    $.ajax({
-                        url: cancelUrl,
-                        type: 'POST',
-                        contentType: 'application/json',
-                        dataType: 'json',
-                        data: JSON.stringify({ jobId: id }),
-                        success: function (r) {
-                            var d = r.d || r;
-                            if (d && d.success) { load(); if (window.__queueHasRunning) startQueueRefresh(); }
-                            else alert(d && d.message ? d.message : 'Không thể hủy.');
-                        },
-                        complete: function () { $btn.prop('disabled', false); }
-                    });
+                    var job = (window.__queueJobs || []).find(function (j) { return j.id == id; }) || {};
+                    var serverName = (job.serverName || '').trim();
+                    var dbName = (job.databaseName || '').trim();
+                    var jobType = (job.type || job.typeLabel || 'Restore').toString();
+                    var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + id);
+                    var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.';
+                    var $btn = $(this);
+                    if (typeof baConfirm === 'function') baConfirm(msg, function () {
+                        $btn.prop('disabled', true);
+                        $.ajax({
+                            url: cancelUrl,
+                            type: 'POST',
+                            contentType: 'application/json',
+                            dataType: 'json',
+                            data: JSON.stringify({ jobId: id }),
+                            success: function (r) {
+                                var d = r.d || r;
+                                if (d && d.success) { load(); if (window.__queueHasRunning) startQueueRefresh(); }
+                                else { $btn.prop('disabled', false); if (typeof baAlert === 'function') baAlert(d && d.message ? d.message : 'Không thể hủy.'); }
+                            },
+                            complete: function () { $btn.prop('disabled', false); }
+                        });
+                    }, null, 'Đồng ý', 'Thoát');
                 });
             });
         })();

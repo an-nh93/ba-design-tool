@@ -165,15 +165,17 @@
                 $(document).off('click.devshareListDelete').on('click.devshareListDelete', '.devshare-delete-post', function (e) {
                     e.preventDefault(); e.stopPropagation();
                     var $btn = $(this); var pid = $btn.data('id'); var title = $btn.data('title') || 'bài viết này';
-                    if (!confirm('Bạn có chắc muốn xóa "' + title + '"? Hành động không thể hoàn tác.')) return;
-                    $btn.prop('disabled', true);
-                    $.ajax({ url: deletePostUrl, type: 'POST', contentType: 'application/json; charset=utf-8', data: JSON.stringify({ postId: pid }), dataType: 'json',
-                        success: function (r) {
-                            var d = r && r.d !== undefined ? r.d : r;
-                            if (d && d.success) { $btn.closest('.devshare-card').fadeOut(300, function () { $(this).remove(); }); } else { alert(d && d.message ? d.message : 'Xóa thất bại.'); $btn.prop('disabled', false); }
-                        },
-                        error: function () { alert('Lỗi kết nối.'); $btn.prop('disabled', false); }
-                    });
+                    var msg = 'Bạn có chắc muốn xóa "' + title + '"? Hành động không thể hoàn tác.';
+                    if (typeof baConfirm === 'function') baConfirm(msg, function () {
+                        $btn.prop('disabled', true);
+                        $.ajax({ url: deletePostUrl, type: 'POST', contentType: 'application/json; charset=utf-8', data: JSON.stringify({ postId: pid }), dataType: 'json',
+                            success: function (r) {
+                                var d = r && r.d !== undefined ? r.d : r;
+                                if (d && d.success) { $btn.closest('.devshare-card').fadeOut(300, function () { $(this).remove(); }); } else { if (typeof baAlert === 'function') baAlert(d && d.message ? d.message : 'Xóa thất bại.'); $btn.prop('disabled', false); }
+                            },
+                            error: function () { if (typeof baAlert === 'function') baAlert('Lỗi kết nối.'); $btn.prop('disabled', false); }
+                        });
+                    }, null, 'Đồng ý', 'Thoát');
                 });
             }
 

@@ -199,15 +199,18 @@
                     bindCopyButtons(document.getElementById('devshareViewContent'));
                     $(document).off('click.devshareDelete').on('click.devshareDelete', '#devshareDeleteBtn', function (e) {
                         e.preventDefault();
-                        if (!confirm('Bạn có chắc muốn xóa bài viết này? Hành động không thể hoàn tác.')) return;
-                        var $btn = $(this); $btn.prop('disabled', true);
-                        $.ajax({ url: deletePostUrl, type: 'POST', contentType: 'application/json; charset=utf-8', data: JSON.stringify({ postId: postId }), dataType: 'json',
-                            success: function (r) {
-                                var d = r && r.d !== undefined ? r.d : r;
-                                if (d && d.success) { window.location.href = listUrl; } else { alert(d && d.message ? d.message : 'Xóa thất bại.'); $btn.prop('disabled', false); }
-                            },
-                            error: function () { alert('Lỗi kết nối.'); $btn.prop('disabled', false); }
-                        });
+                        var $btn = $(this);
+                        var msg = 'Bạn có chắc muốn xóa bài viết này? Hành động không thể hoàn tác.';
+                        if (typeof baConfirm === 'function') baConfirm(msg, function () {
+                            $btn.prop('disabled', true);
+                            $.ajax({ url: deletePostUrl, type: 'POST', contentType: 'application/json; charset=utf-8', data: JSON.stringify({ postId: postId }), dataType: 'json',
+                                success: function (r) {
+                                    var d = r && r.d !== undefined ? r.d : r;
+                                    if (d && d.success) { window.location.href = listUrl; } else { if (typeof baAlert === 'function') baAlert(d && d.message ? d.message : 'Xóa thất bại.'); $btn.prop('disabled', false); }
+                                },
+                                error: function () { if (typeof baAlert === 'function') baAlert('Lỗi kết nối.'); $btn.prop('disabled', false); }
+                            });
+                        }, null, 'Đồng ý', 'Thoát');
                     });
                     $(document).off('click.devshareUseful').on('click.devshareUseful', '#devshareUsefulBtn', function (e) {
                         e.preventDefault();

@@ -371,7 +371,13 @@ COMMIT TRAN;";
                         }
                     }
                 }
-                return Tuple.Create(true, "Đã update " + updateUsers.Count + " user.");
+                var parts = new List<string>();
+                if (isUpdatePassword) parts.Add("Password");
+                if (isUpdateEmail) parts.Add("Email");
+                var summary = parts.Count > 0
+                    ? ("Đã cập nhật: " + string.Join(", ", parts) + " cho " + updateUsers.Count + " user.")
+                    : ("Đã update " + updateUsers.Count + " user.");
+                return Tuple.Create(true, summary);
             }
             catch (Exception ex)
             {
@@ -2197,7 +2203,8 @@ WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','Em
 
                 var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
                 var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
-                var payloadInitial = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim });
+                var dbNamesList = toProcess.Select(d => d.DatabaseName ?? "").ToList();
+                var payloadInitial = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, databaseNames = dbNamesList });
                 int jobId;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
@@ -2211,7 +2218,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                     appConn.Open();
                     jobId = (int)cmd.ExecuteScalar();
                 }
-                UserActionLogHelper.Log("HRHelper.MultiDbReset", "jobId=" + jobId + ", dbCount=" + toProcess.Count);
+                UserActionLogHelper.Log("HRHelper.MultiDbReset", "jobId=" + jobId + ", dbCount=" + toProcess.Count + ", email=" + (string.IsNullOrEmpty(emailTrim) ? "" : emailTrim) + ", phone=" + (string.IsNullOrEmpty(phoneTrim) ? "" : phoneTrim));
 
                 System.Threading.Tasks.Task.Run(() =>
                 {
@@ -2258,6 +2265,8 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                             catch { }
                         }
                         var msg = "Đã reset " + done + "/" + totalDbs + " DB. Tổng bản ghi: " + totalAffected;
+                        if (!string.IsNullOrEmpty(emailTrim)) msg += ". Email: " + emailTrim;
+                        if (!string.IsNullOrEmpty(phoneTrim)) msg += ". Phone: " + phoneTrim;
                         if (errors.Count > 0)
                             msg += ". Lỗi: " + string.Join("; ", errors.Take(5));
                         try
@@ -3265,7 +3274,17 @@ COMMIT TRAN;";
                         }
                     }
                 }
-                return Tuple.Create(true, "Đã update " + employees.Count + " employee.");
+                var parts = new List<string>();
+                if (updPersonal) parts.Add("Thông tin cá nhân");
+                if (updBusiness) parts.Add("Email công việc");
+                if (updPayslip) parts.Add("Payslip");
+                if (updM1) parts.Add("M1");
+                if (updM2) parts.Add("M2");
+                if (updBasic) parts.Add("Basic Salary");
+                var summary = parts.Count > 0
+                    ? ("Đã cập nhật: " + string.Join(", ", parts) + " cho " + employees.Count + " nhân viên.")
+                    : ("Đã update " + employees.Count + " employee.");
+                return Tuple.Create(true, summary);
             }
             catch (Exception ex)
             {

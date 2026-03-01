@@ -54,17 +54,19 @@ function toggleTheme(e) {
 }
 $(function() { initTheme(); });
 
-/* Confirm modal - thay thế confirm() native */
-window.baConfirm = function(message, onConfirm, onCancel) {
+/* Confirm modal - thay thế confirm() native. okText: nút xác nhận (mặc định "Đồng ý"), cancelText: nút đóng (mặc định "Thoát") */
+window.baConfirm = function(message, onConfirm, onCancel, okText, cancelText) {
     var escaped = (message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     var overlay = document.createElement('div');
     overlay.className = 'ba-confirm-overlay';
+    var btnOkText = (okText != null && okText !== '') ? okText : 'Đồng ý';
+    var btnCancelText = (cancelText != null && cancelText !== '') ? cancelText : 'Thoát';
     overlay.innerHTML = '<div class="ba-confirm-modal">' +
         '<div class="ba-confirm-header">Xác nhận</div>' +
         '<div class="ba-confirm-body">' + escaped + '</div>' +
         '<div class="ba-confirm-footer">' +
-        '<button type="button" class="ba-btn ba-btn-secondary ba-confirm-cancel">Hủy</button>' +
-        '<button type="button" class="ba-btn ba-btn-primary ba-confirm-ok">Xóa</button>' +
+        '<button type="button" class="ba-btn ba-btn-secondary ba-confirm-cancel">' + btnCancelText.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</button>' +
+        '<button type="button" class="ba-btn ba-btn-primary ba-confirm-ok">' + btnOkText.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</button>' +
         '</div></div>';
     document.body.appendChild(overlay);
     document.body.style.overflow = 'hidden';
@@ -77,4 +79,26 @@ window.baConfirm = function(message, onConfirm, onCancel) {
     overlay.querySelector('.ba-confirm-ok').onclick = function() { close(true); };
     overlay.querySelector('.ba-confirm-cancel').onclick = function() { close(false); };
     overlay.onclick = function(e) { if (e.target === overlay) close(false); };
+};
+
+/* Alert modal - thay thế alert() native */
+window.baAlert = function(message, onClose) {
+    var escaped = (message || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/\n/g, '<br/>');
+    var overlay = document.createElement('div');
+    overlay.className = 'ba-confirm-overlay';
+    overlay.innerHTML = '<div class="ba-confirm-modal">' +
+        '<div class="ba-confirm-header">Thông báo</div>' +
+        '<div class="ba-confirm-body">' + escaped + '</div>' +
+        '<div class="ba-confirm-footer">' +
+        '<button type="button" class="ba-btn ba-btn-primary ba-alert-ok">Đóng</button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
+    function close() {
+        overlay.remove();
+        document.body.style.overflow = '';
+        if (typeof onClose === 'function') onClose();
+    }
+    overlay.querySelector('.ba-alert-ok').onclick = close;
+    overlay.onclick = function(e) { if (e.target === overlay) close(); };
 };
