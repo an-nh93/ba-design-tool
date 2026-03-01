@@ -31,6 +31,18 @@
             gap: 1rem;
             margin-bottom: 1rem;
         }
+        .server-modal-row-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .server-modal-full {
+            margin-bottom: 1rem;
+        }
+        @media (max-width: 600px) {
+            .server-modal-row-2 { grid-template-columns: 1fr; }
+        }
         .ba-form-group { display: flex; flex-direction: column; gap: 0.35rem; }
         .ba-form-label { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); }
         .ba-input {
@@ -408,38 +420,46 @@
 
         <!-- Add/Edit Server Modal -->
         <div id="serverModal" class="ba-modal">
-            <div class="ba-modal-content">
+            <div class="ba-modal-content" style="max-width: 680px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title" id="serverModalTitle">Thêm server</h3>
                     <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideServerModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <input type="hidden" id="serverModalId" />
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Server *</label>
-                        <input type="text" id="serverModalServerName" class="ba-input" placeholder="vd: localhost hoặc 192.168.1.10" />
+                    <div class="server-modal-row-2">
+                        <div class="ba-form-group">
+                            <label class="ba-form-label">Server *</label>
+                            <input type="text" id="serverModalServerName" class="ba-input" placeholder="vd: localhost hoặc 192.168.1.10" />
+                        </div>
+                        <div class="ba-form-group">
+                            <label class="ba-form-label">Port</label>
+                            <input type="number" id="serverModalPort" class="ba-input" placeholder="1433 (để trống = mặc định)" min="1" max="65535" />
+                        </div>
                     </div>
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Port</label>
-                        <input type="number" id="serverModalPort" class="ba-input" placeholder="1433 (để trống = mặc định)" min="1" max="65535" />
+                    <div class="server-modal-row-2">
+                        <div class="ba-form-group">
+                            <label class="ba-form-label">Username *</label>
+                            <input type="text" id="serverModalUsername" class="ba-input" placeholder="vd: sa" />
+                        </div>
+                        <div class="ba-form-group">
+                            <label class="ba-form-label">Password *</label>
+                            <input type="password" id="serverModalPassword" class="ba-input" placeholder="Mật khẩu (để trống nếu sửa và không đổi)" />
+                        </div>
                     </div>
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Username *</label>
-                        <input type="text" id="serverModalUsername" class="ba-input" placeholder="vd: sa" />
+                    <div class="server-modal-full">
+                        <div class="ba-form-group">
+                            <label class="ba-form-label">Đường dẫn backup (tùy chọn)</label>
+                            <input type="text" id="serverModalBackupPath" class="ba-input" placeholder="Path mà SQL Server có quyền Ghi (xem hướng dẫn bên dưới)" />
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Nơi ghi file .bak. <strong>Lệnh BACKUP chạy trên máy SQL Server</strong> — tài khoản dịch vụ SQL Server phải có quyền Ghi vào path này.</span>
+                        </div>
                     </div>
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Password *</label>
-                        <input type="password" id="serverModalPassword" class="ba-input" placeholder="Mật khẩu (để trống nếu sửa và không đổi)" />
-                    </div>
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Đường dẫn backup (tùy chọn)</label>
-                        <input type="text" id="serverModalBackupPath" class="ba-input" placeholder="Path mà SQL Server có quyền Ghi (xem hướng dẫn bên dưới)" />
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Nơi ghi file .bak. <strong>Lệnh BACKUP chạy trên máy SQL Server</strong> — tài khoản dịch vụ SQL Server phải có quyền Ghi vào path này.</span>
-                    </div>
-                    <div class="ba-form-group">
-                        <label class="ba-form-label">Đường dẫn restore (tùy chọn)</label>
-                        <input type="text" id="serverModalRestorePath" class="ba-input" placeholder="vd: \\Hrs05\sqlbak — thư mục chứa file .bak" />
-                        <span style="font-size: 0.75rem; color: var(--text-muted);">Thư mục chứa file .bak khi chọn file restore. Để trống = dùng Đường dẫn backup.</span>
+                    <div class="server-modal-full">
+                        <div class="ba-form-group">
+                            <label class="ba-form-label">Đường dẫn restore (tùy chọn)</label>
+                            <input type="text" id="serverModalRestorePath" class="ba-input" placeholder="vd: \\Hrs05\sqlbak — thư mục chứa file .bak" />
+                            <span style="font-size: 0.75rem; color: var(--text-muted);">Thư mục chứa file .bak khi chọn file restore. Để trống = dùng Đường dẫn backup.</span>
+                        </div>
                     </div>
                     <div class="ba-form-group" style="margin-top: 12px; padding: 10px; background: var(--surface-alt); border-radius: 6px; border: 1px solid var(--border);">
                         <strong style="font-size: 0.8125rem;">Nếu backup báo Access is denied:</strong>
