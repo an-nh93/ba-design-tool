@@ -19,11 +19,11 @@
         .ba-th-sort { cursor: pointer; user-select: none; }
         .ba-th-sort:hover { color: var(--primary-light, #0D9EFF); }
         .ba-sort-icon { font-size: 0.75rem; opacity: 0.8; }
-        .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; min-width: 0; }
         .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
         .ba-card-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem; }
-        .ba-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: auto; max-height: min(85vh, 900px); }
-        .ba-table { width: 100%; border-collapse: collapse; }
+        .ba-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; overflow-y: auto; max-height: min(85vh, 900px); min-width: 0; -webkit-overflow-scrolling: touch; }
+        .ba-table { width: 100%; min-width: 880px; border-collapse: collapse; }
         .ba-table thead { background: var(--bg-darker); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
         .ba-table th { padding: 0.75rem 1rem; text-align: left; font-weight: 600; font-size: 0.8125rem; color: var(--text-secondary); white-space: nowrap; }
         .ba-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; color: var(--text-primary); vertical-align: middle; }
@@ -75,6 +75,14 @@
         .ba-pagination button:hover:not(:disabled) { background: var(--bg-hover); }
         .ba-pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
         .ba-pagination .ba-pager-size { min-width: 80px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; padding: 0.25rem 0.5rem; }
+        /* Cột Hành động cố định tối thiểu để nút "Xem chi tiết" không bị cắt */
+        .ba-table .col-action { white-space: nowrap; min-width: 100px; }
+        .ba-table .col-msg { min-width: 140px; }
+        @media (max-width: 992px) {
+            .ba-content { padding: 0.5rem; }
+            .ba-card { padding: 1rem; }
+            .ba-form-grid .ba-input#queueSearch { width: 100% !important; max-width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -128,8 +136,8 @@
                                     <th class="ba-th-sort" data-sort="startedByUserName">Thực hiện bởi <span class="ba-sort-icon"></span></th>
                                     <th class="ba-th-sort" data-sort="startTime">Bắt đầu <span class="ba-sort-icon"></span></th>
                                     <th class="ba-th-sort" data-sort="completedAt">Kết thúc <span class="ba-sort-icon"></span></th>
-                                    <th class="ba-th-sort" data-sort="message">Lỗi / Chi tiết <span class="ba-sort-icon"></span></th>
-                                    <th>Hành động</th>
+                                    <th class="ba-th-sort col-msg" data-sort="message">Lỗi / Chi tiết <span class="ba-sort-icon"></span></th>
+                                    <th class="col-action">Hành động</th>
                                 </tr>
                             </thead>
                             <tbody id="queueBody"></tbody>
@@ -278,7 +286,7 @@
                     html += '<td>' + (j.startedByUserName || '—').replace(/</g, '&lt;') + '</td>';
                     html += '<td>' + fmtDate(j.startTime) + '</td>';
                     html += '<td>' + fmtDate(j.completedAt) + '</td>';
-                    html += '<td>' + msgCell + '</td>';
+                    html += '<td class="col-msg">' + msgCell + '</td>';
                     var actionHtml = '';
                     if ((j.type || '') === 'Restore') actionHtml += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-restore-btn" data-server-id="' + (j.serverId || 0) + '" data-database-name="' + (j.databaseName || '').replace(/"/g, '&quot;') + '" data-with-reset="' + (j.withAutoReset === true ? '1' : '0') + '" data-with-replace="' + (j.withReplace === true ? '1' : '0') + '" data-with-shrink-log="' + (j.withShrinkLog === true ? '1' : '0') + '" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-backup-file="' + (j.backupFileName || '').replace(/"/g, '&quot;') + '">Xem chi tiết</button>';
                     if ((j.type || '') === 'HRHelperMultiDbReset') {
@@ -286,7 +294,7 @@
                         actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-reset-multidb-btn" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-payload="' + payloadEsc + '">Xem chi tiết</button>';
                     }
                     if (canCancel) actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm queue-cancel-btn" data-id="' + j.id + '">Hủy</button>';
-                    html += '<td>' + (actionHtml || '—') + '</td>';
+                    html += '<td class="col-action">' + (actionHtml || '—') + '</td>';
                     html += '</tr>';
                 });
                 tbody.innerHTML = html;
