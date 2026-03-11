@@ -1016,6 +1016,7 @@ FROM INFORMATION_SCHEMA.COLUMNS c
 INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
 WHERE c.COLUMN_NAME LIKE N'%Email%'
   AND c.COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
+  AND NOT (c.TABLE_NAME = 'Setting_EmailManagements' AND c.COLUMN_NAME = 'EmailID')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')
 ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                 var emailIgnore = LoadEmailIgnoreFromDb();
@@ -1196,6 +1197,7 @@ FROM INFORMATION_SCHEMA.COLUMNS c
 INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
 WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @col
   AND c.COLUMN_NAME NOT IN ('EmailSubject', 'EmailBody')
+  AND NOT (c.TABLE_NAME = 'Setting_EmailManagements' AND c.COLUMN_NAME = 'EmailID')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
                             cmd.Parameters.AddWithValue("@schema", schema);
                             cmd.Parameters.AddWithValue("@table", table);
@@ -2096,6 +2098,8 @@ WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','Em
         {
             try
             {
+                if (string.Equals(table, "Setting_EmailManagements", StringComparison.OrdinalIgnoreCase) && string.Equals(column, "EmailID", StringComparison.OrdinalIgnoreCase))
+                    return new { success = true, affected = 0, error = (string)null };
                 var multi = GetMultiConnFromToken(k);
                 if (multi == null || multi.Databases == null)
                     return new { success = false, affected = 0, error = "Chế độ Multi-DB không hợp lệ." };
@@ -2343,6 +2347,7 @@ WHERE {0}";
         private static List<Tuple<string, string, string, int?, string>> GetEmailColumns(SqlConnection conn)
         {
             var sql = string.Format(ColumnsQueryBase, @"c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','EmailBody')
+  AND NOT (c.TABLE_NAME = 'Setting_EmailManagements' AND c.COLUMN_NAME = 'EmailID')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')");
             return GetColumnsFromQuery(conn, sql);
         }

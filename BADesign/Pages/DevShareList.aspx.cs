@@ -89,6 +89,47 @@ WHERE (P.PublishedAt IS NOT NULL) ";
 
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetMyDrafts()
+        {
+            try
+            {
+                var uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var list = new List<object>();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT P.Id, P.Title, P.Summary, P.UpdatedAt, P.LanguageTags
+FROM DevSharePost P
+WHERE P.AuthorId = @uid AND P.PublishedAt IS NULL
+ORDER BY P.UpdatedAt DESC";
+                    cmd.Parameters.AddWithValue("@uid", uid);
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var updated = r.IsDBNull(3) ? (DateTime?)null : r.GetDateTime(3);
+                            list.Add(new
+                            {
+                                id = r.GetInt32(0),
+                                title = r.IsDBNull(1) ? "" : r.GetString(1),
+                                summary = r.IsDBNull(2) ? "" : r.GetString(2),
+                                updatedAt = updated.HasValue ? updated.Value.ToString("o") : (string)null,
+                                languageTags = r.IsDBNull(4) ? "" : r.GetString(4)
+                            });
+                        }
+                    }
+                }
+                return new { success = true, list = list };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, list = new List<object>() };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetTagList()
         {
             try

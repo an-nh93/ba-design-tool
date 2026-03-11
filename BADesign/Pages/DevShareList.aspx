@@ -41,6 +41,12 @@
                     <a href="<%= ResolveUrl("~/DevShare/Edit") %>" class="ba-btn ba-btn-primary">Viết bài</a>
                 </div>
 
+                <div id="devshareDraftsWrap" class="devshare-drafts-section" style="display:none; margin-bottom: 1.5rem;">
+                    <h2 class="devshare-drafts-title" style="font-size: 1rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 0.5rem;">📝 Bài nháp của tôi</h2>
+                    <p class="devshare-drafts-desc" style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.75rem;">Các bài đã lưu nháp chưa xuất bản. Bấm "Sửa" để tiếp tục hoặc "Xuất bản" trên trang sửa.</p>
+                    <div id="devshareDraftsList" class="devshare-drafts-list"></div>
+                </div>
+
                 <div id="devshareListWrap" class="devshare-list">
                     <div id="devshareListLoading" class="devshare-loading">Đang tải...</div>
                     <div id="devshareListBody"></div>
@@ -59,8 +65,10 @@
         (function () {
             var getListUrl = '<%= ResolveUrl("~/Pages/DevShareList.aspx/GetPostList") %>';
             var getTagsUrl = '<%= ResolveUrl("~/Pages/DevShareList.aspx/GetTagList") %>';
+            var getMyDraftsUrl = '<%= ResolveUrl("~/Pages/DevShareList.aspx/GetMyDrafts") %>';
             var deletePostUrl = '<%= ResolveUrl("~/Pages/DevShareView.aspx/DeletePost") %>';
             var viewBaseUrl = '<%= ResolveUrl("~/DevShare/View/") %>';
+            var editBaseUrl = '<%= ResolveUrl("~/DevShare/Edit") %>';
             var currentUserId = <%= CurrentUserId %>;
             var isSuperAdmin = <%= IsSuperAdmin.ToString().ToLower() %>;
 
@@ -78,6 +86,40 @@
                             $sel.find('option:not(:first)').remove();
                             data.tags.forEach(function (t) { $sel.append($('<option></option>').val(t).text(t)); });
                         }
+                    }
+                });
+            }
+
+            function loadDrafts() {
+                $.ajax({
+                    type: 'POST',
+                    url: getMyDraftsUrl,
+                    contentType: 'application/json',
+                    data: '{}',
+                    success: function (res) {
+                        var data = typeof res === 'string' ? JSON.parse(res) : res;
+                        if (data && data.d !== undefined) data = data.d;
+                        if (!data || !data.success || !data.list || data.list.length === 0) {
+                            $('#devshareDraftsWrap').hide();
+                            return;
+                        }
+                        var list = data.list;
+                        $('#devshareDraftsWrap').show();
+                        var html = '';
+                        list.forEach(function (p) {
+                            var editUrl = editBaseUrl + (editBaseUrl.indexOf('?') >= 0 ? '&' : '?') + 'id=' + p.id;
+                            var tags = (p.languageTags || '').split(',').filter(Boolean).map(function (t) { return t.trim(); });
+                            var tagHtml = tags.map(function (t) { return '<span class="devshare-tag">' + (t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</span>'; }).join(' ');
+                            var dateStr = p.updatedAt || '';
+                            if (dateStr) { try { var d = new Date(dateStr); dateStr = d.toLocaleDateString('vi-VN') + ' ' + d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }); } catch (e) { if (dateStr.length >= 10) dateStr = dateStr.substring(0, 10); } }
+                            var titleEsc = (p.title || '(Chưa có tiêu đề)').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            var summaryEsc = (p.summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            html += '<div class="devshare-card devshare-draft-card"><div class="devshare-card-header"><span class="devshare-card-title" style="cursor:default;">' + titleEsc + '</span> <span class="devshare-draft-badge" style="font-size:0.7rem;background:var(--text-muted);color:var(--bg-card);padding:2px 6px;border-radius:4px;">Nháp</span> <div class="devshare-card-btns"><a href="' + editUrl + '" class="ba-btn ba-btn-sm ba-btn-primary">Sửa</a> <button type="button" class="ba-btn ba-btn-sm ba-btn-danger devshare-delete-post" data-id="' + p.id + '" data-title="' + titleEsc + '">Xóa</button></div></div>';
+                            if (summaryEsc) html += '<p class="devshare-card-summary">' + summaryEsc + '</p>';
+                            html += '<div class="devshare-card-meta">' + tagHtml + ' <span class="devshare-meta-sep">|</span> <span>Cập nhật: ' + dateStr + '</span></div></div>';
+                        });
+                        $('#devshareDraftsList').html(html);
+                        bindDeleteButtons();
                     }
                 });
             }
@@ -181,6 +223,7 @@
 
             $(function () {
                 loadTags();
+                loadDrafts();
                 loadList(false);
                 $('#devshareSearch').on('keyup', function (e) { if (e.which === 13) loadList(false); });
                 $('#devshareTag, #devshareSort').on('change', function () { loadList(false); });

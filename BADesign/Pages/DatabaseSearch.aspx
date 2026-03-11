@@ -1373,7 +1373,7 @@
 
             $text.html('<span class="spinner"></span> Đang quét...');
             var poolSize = Math.min(SCAN_POOL_SIZE, list.length);
-            showScanLog('Đang quét ' + list.length + ' server.\n\nKhi mỗi server xong sẽ hiện dòng tương ứng bên dưới.\n');
+            showScanLog('Đang quét ' + list.length + ' server.\n\nDanh sách server đang quét.\n');
             scanLogPreEl = document.getElementById('scanLogPre');
             if (scanLogPreEl) scanLogPreEl.scrollTop = scanLogPreEl.scrollHeight;
 

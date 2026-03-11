@@ -10,6 +10,13 @@ using BADesign;
 
 namespace BADesign.Pages
 {
+    internal class TempAttachmentItem
+    {
+        public string fileKey { get; set; }
+        public string originalFileName { get; set; }
+        public long fileSizeBytes { get; set; }
+    }
+
     public partial class DevShareEdit : Page
     {
         public int? EditPostId { get; private set; }
@@ -74,7 +81,7 @@ FROM DevSharePost P WHERE P.Id = @id AND P.AuthorId = @uid";
 
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object SavePost(int id, string title, string summary, string body, string languageTags, bool publish, string tempFileKeysJson)
+        public static object SavePost(int id, string title, string summary, string body, string languageTags, bool publish, string tempFileKeysJson, string tempAttachmentsJson)
         {
             try
             {
@@ -136,18 +143,28 @@ VALUES (@title, @slug, @summary, @body, @uid, " + (publish ? "@now" : "NULL") + 
                     }
                 }
 
-                var tempKeys = new List<string>();
-                if (!string.IsNullOrWhiteSpace(tempFileKeysJson))
+                var tempItems = new List<TempAttachmentItem>();
+                if (!string.IsNullOrWhiteSpace(tempAttachmentsJson))
+                {
+                    try
+                    {
+                        var arr = Newtonsoft.Json.JsonConvert.DeserializeObject<TempAttachmentItem[]>(tempAttachmentsJson);
+                        if (arr != null) tempItems.AddRange(arr);
+                    }
+                    catch { }
+                }
+                if (tempItems.Count == 0 && !string.IsNullOrWhiteSpace(tempFileKeysJson))
                 {
                     try
                     {
                         var arr = Newtonsoft.Json.JsonConvert.DeserializeObject<string[]>(tempFileKeysJson);
-                        if (arr != null) tempKeys.AddRange(arr);
+                        if (arr != null) { foreach (var k in arr) tempItems.Add(new TempAttachmentItem { fileKey = k }); }
                     }
                     catch { }
                 }
-                foreach (var key in tempKeys)
+                foreach (var item in tempItems)
                 {
+                    var key = item?.fileKey;
                     if (string.IsNullOrWhiteSpace(key) || !key.StartsWith("DevShareAttachments/_temp/", StringComparison.OrdinalIgnoreCase)) continue;
                     var relPath = key.Trim();
                     var physicalSrc = ctx.Server.MapPath("~/Content/" + relPath);
@@ -160,8 +177,8 @@ VALUES (@title, @slug, @summary, @body, @uid, " + (publish ? "@now" : "NULL") + 
                     var destPath = Path.Combine(postFolder, fileName);
                     File.Move(physicalSrc, destPath);
                     var storagePath = string.Format("DevShareAttachments/{0}/{1}/{2}", DateTime.Now.Year, postId, fileName);
-                    var originalName = fileName;
-                    try { originalName = Path.GetFileName(relPath); } catch { }
+                    var originalName = !string.IsNullOrWhiteSpace(item.originalFileName) ? Path.GetFileName(item.originalFileName) : fileName;
+                    if (originalName.Length > 255) originalName = originalName.Substring(0, 255);
                     var fi = new FileInfo(destPath);
                     using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = conn.CreateCommand())

@@ -47,6 +47,7 @@
                     <div class="ba-form-group">
                         <label class="ba-form-label">File đính kèm (ZIP hoặc file code: .cs, .js, .sql,... tối đa 20MB/file)</label>
                         <input type="file" id="devshareFileInput" multiple accept=".zip,.cs,.js,.sql,.config,.html,.css,.php,.aspx,.json,.xml,.txt,.vb,.md" />
+                        <div id="devshareExistingFiles" class="devshare-existing-files" style="margin-top: 0.5rem;"></div>
                         <div id="devsharePendingFiles" class="devshare-pending-files" style="margin-top: 0.5rem;"></div>
                     </div>
                     <div class="devshare-actions">
@@ -65,12 +66,14 @@
             var savePostUrl = '<%= ResolveUrl("~/Pages/DevShareEdit.aspx/SavePost") %>';
             var getAttachmentsUrl = '<%= ResolveUrl("~/Pages/DevShareEdit.aspx/GetAttachments") %>';
             var uploadUrl = '<%= ResolveUrl("~/Handlers/UploadDevShareAttachment.ashx") %>';
+            var downloadAttachmentUrl = '<%= ResolveUrl("~/Handlers/DownloadDevShareAttachment.ashx") %>';
             var viewUrl = '<%= ResolveUrl("~/DevShare/View/") %>';
             var listUrl = '<%= ResolveUrl("~/DevShare") %>';
             var imageUploadUrl = '<%= ResolveUrl("~/Handlers/UploadFeedbackImage.ashx") %>';
             var pendingFiles = [];
             var existingAttachments = [];
             var editorId = 'devshareBody';
+            var inProgressUpload = null;
 
             function initEditor() {
                 if (typeof tinymce === 'undefined') return;
@@ -171,16 +174,34 @@
                     dataType: 'json',
                     success: function (res) {
                         var data = res && res.d !== undefined ? res.d : res;
-                        if (data && data.success && data.list) existingAttachments = data.list;
+                        if (data && data.success && data.list) {
+                            existingAttachments = data.list;
+                            renderExistingAttachments();
+                        }
                     }
                 });
+            }
+            function renderExistingAttachments() {
+                var html = '';
+                if (existingAttachments.length > 0) {
+                    html += '<div class="devshare-attachments-label" style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.25rem;">Đã đính kèm (đã lưu):</div>';
+                    existingAttachments.forEach(function (a) {
+                        var sizeStr = (a.fileSizeBytes && a.fileSizeBytes < 1024) ? (a.fileSizeBytes + ' B') : (a.fileSizeBytes < 1024 * 1024) ? ((a.fileSizeBytes / 1024).toFixed(1) + ' KB') : ((a.fileSizeBytes / (1024 * 1024)).toFixed(1) + ' MB');
+                        var downUrl = downloadAttachmentUrl + '?id=' + (a.id || '');
+                        html += '<div class="devshare-attachment-item"><span>' + (a.originalFileName || '').replace(/</g, '&lt;') + '</span> <span>' + (sizeStr || '') + '</span> <a href="' + downUrl + '" class="ba-btn ba-btn-sm ba-btn-secondary" target="_blank">Tải về</a></div>';
+                    });
+                }
+                $('#devshareExistingFiles').html(html);
             }
 
             function renderPendingFiles() {
                 var html = '';
-                pendingFiles.forEach(function (f, i) {
-                    html += '<div class="devshare-attachment-item"><span>' + (f.originalFileName || f.fileKey) + '</span> <span>' + (f.fileSizeBytes ? (f.fileSizeBytes < 1024 ? f.fileSizeBytes + ' B' : (f.fileSizeBytes < 1024*1024 ? (f.fileSizeBytes/1024).toFixed(1) + ' KB' : (f.fileSizeBytes/(1024*1024)).toFixed(1) + ' MB')) : '') + '</span> <button type="button" class="ba-btn ba-btn-sm ba-btn-danger" data-index="' + i + '">Xóa</button></div>';
-                });
+                if (pendingFiles.length > 0) {
+                    html += '<div class="devshare-attachments-label" style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.25rem;">File mới thêm (sẽ lưu khi bấm Lưu nháp / Xuất bản):</div>';
+                    pendingFiles.forEach(function (f, i) {
+                        html += '<div class="devshare-attachment-item"><span>' + (f.originalFileName || f.fileKey).replace(/</g, '&lt;') + '</span> <span>' + (f.fileSizeBytes ? (f.fileSizeBytes < 1024 ? f.fileSizeBytes + ' B' : (f.fileSizeBytes < 1024*1024 ? (f.fileSizeBytes/1024).toFixed(1) + ' KB' : (f.fileSizeBytes/(1024*1024)).toFixed(1) + ' MB')) : '') + '</span> <button type="button" class="ba-btn ba-btn-sm ba-btn-danger" data-index="' + i + '">Xóa</button></div>';
+                    });
+                }
                 $('#devsharePendingFiles').html(html);
                 $('#devsharePendingFiles button').on('click', function () {
                     var i = parseInt($(this).data('index'), 10);
@@ -189,13 +210,12 @@
                 });
             }
 
-            $('#devshareFileInput').on('change', function () {
-                var files = this.files;
-                if (!files || !files.length) return;
+            function uploadFilesFromInput(inputEl, doneCallback) {
+                var files = inputEl && inputEl.files;
+                if (!files || !files.length) { if (doneCallback) doneCallback(true); return; }
                 var formData = new FormData();
                 formData.append('postId', editPostId || '0');
                 for (var i = 0; i < Math.min(files.length, 5); i++) formData.append('file' + i, files[i]);
-                var $btn = $(this).next().next();
                 $.ajax({
                     url: uploadUrl,
                     type: 'POST',
@@ -207,11 +227,53 @@
                         if (data && data.success && data.files) {
                             data.files.forEach(function (f) { pendingFiles.push(f); });
                             renderPendingFiles();
-                        } else { alert(data && data.message ? data.message : 'Upload thất bại.'); }
+                        } else { if (typeof baAlert === 'function') baAlert(data && data.message ? data.message : 'Upload thất bại.'); }
+                        if (inputEl) inputEl.value = '';
+                        if (doneCallback) doneCallback(!!(data && data.success));
                     },
-                    error: function () { alert('Upload thất bại.'); }
+                    error: function () {
+                        if (typeof baAlert === 'function') baAlert('Upload thất bại.');
+                        if (doneCallback) doneCallback(false);
+                    }
                 });
-                this.value = '';
+            }
+
+            $('#devshareFileInput').on('change', function () {
+                var inputEl = this;
+                var files = inputEl.files;
+                if (!files || !files.length) return;
+                inProgressUpload = $.ajax({
+                    url: uploadUrl,
+                    type: 'POST',
+                    data: (function () {
+                        var fd = new FormData();
+                        fd.append('postId', editPostId || '0');
+                        for (var i = 0; i < Math.min(files.length, 5); i++) fd.append('file' + i, files[i]);
+                        return fd;
+                    })(),
+                    processData: false,
+                    contentType: false
+                });
+                inProgressUpload.done(function (res) {
+                    var data;
+                    try { data = typeof res === 'string' ? JSON.parse(res) : res; } catch (e) { if (typeof baAlert === 'function') baAlert('Phản hồi upload không hợp lệ. Kiểm tra kích thước file (tối đa 20MB) hoặc đăng nhập.'); inputEl.value = ''; return; }
+                    if (data && data.success && data.files && data.files.length) {
+                        data.files.forEach(function (f) { pendingFiles.push(f); });
+                        renderPendingFiles();
+                        inputEl.value = '';
+                    } else {
+                        if (typeof baAlert === 'function') baAlert(data && data.message ? data.message : 'Upload thất bại.');
+                        inputEl.value = '';
+                    }
+                });
+                inProgressUpload.fail(function (xhr) {
+                    var msg = 'Upload thất bại.';
+                    if (xhr && xhr.status === 413) msg = 'File quá lớn (tối đa 20MB/file).';
+                    else if (xhr && xhr.status === 401) msg = 'Cần đăng nhập để đính kèm file.';
+                    else if (xhr && xhr.responseText) { try { var j = JSON.parse(xhr.responseText); if (j && j.message) msg = j.message; } catch (e) {} }
+                    if (typeof baAlert === 'function') baAlert(msg);
+                });
+                inProgressUpload.always(function () { inProgressUpload = null; });
             });
 
             function save(publish) {
@@ -219,7 +281,6 @@
                 if (!title) { $('#devshareEditError').text('Vui lòng nhập tiêu đề.').show(); return; }
                 var summary = $('#devshareSummary').val().trim();
                 var tags = $('#devshareTags').val().trim();
-                var tempKeys = pendingFiles.map(function (f) { return f.fileKey; });
                 $('#devshareEditError').hide();
                 $('#devshareEditSuccess').hide();
                 var $draft = $('#devshareSaveDraft'), $pub = $('#devsharePublish');
@@ -231,12 +292,14 @@
                     $pub.prop('disabled', false).text(pubText);
                 }
                 function doSave() {
+                    var tempKeys = pendingFiles.map(function (f) { return f.fileKey; });
+                    var tempAttachments = pendingFiles.map(function (f) { return { fileKey: f.fileKey, originalFileName: f.originalFileName || '', fileSizeBytes: f.fileSizeBytes || 0 }; });
                     var body = getBody();
                     $.ajax({
                         url: savePostUrl,
                         type: 'POST',
                         contentType: 'application/json; charset=utf-8',
-                        data: JSON.stringify({ id: editPostId || 0, title: title, summary: summary, body: body, languageTags: tags, publish: publish, tempFileKeysJson: JSON.stringify(tempKeys) }),
+                        data: JSON.stringify({ id: editPostId || 0, title: title, summary: summary, body: body, languageTags: tags, publish: publish, tempFileKeysJson: JSON.stringify(tempKeys), tempAttachmentsJson: JSON.stringify(tempAttachments) }),
                         dataType: 'json',
                         success: function (res) {
                             restoreBtns();
@@ -271,8 +334,15 @@
                         }
                     });
                 }
-                // Gọi doSave() trực tiếp; uploadImages(callback) đôi khi không gọi callback
-                doSave();
+                // Đợi upload file đính kèm đang chạy xong rồi mới gửi lưu (để tempFileKeysJson có đủ file vừa chọn)
+                if (inProgressUpload) {
+                    inProgressUpload.always(function () {
+                        inProgressUpload = null;
+                        doSave();
+                    });
+                } else {
+                    doSave();
+                }
             }
 
             $(function () {

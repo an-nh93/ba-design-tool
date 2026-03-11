@@ -724,7 +724,6 @@
     </Compile>
     <Compile Include="Pages\DevShareEdit.aspx.cs">
       <DependentUpon>DevShareEdit.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Pages\DevShareEdit.aspx.designer.cs">
       <DependentUpon>DevShareEdit.aspx</DependentUpon>
