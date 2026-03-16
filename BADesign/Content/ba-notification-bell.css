@@ -34,20 +34,20 @@
 }
 .ba-notif-badge.visible { display: inline-flex !important; align-items: center; justify-content: center; }
 
+/* position:fixed + top dưới header (56px) để không bị header/overlay che; z-index cao hơn overlay (9999) */
 .ba-notif-panel {
     display: none;
-    position: absolute;
-    top: 100%;
-    right: 0;
-    margin-top: 4px;
+    position: fixed;
+    top: 56px;
+    right: 16px;
     width: 400px;
-    max-height: min(700px, 85vh);
+    max-height: min(700px, calc(100vh - 72px));
     overflow: hidden;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 8px;
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    z-index: 1001;
+    z-index: 10050;
 }
 .ba-notif-panel .ba-notif-panel-title {
     padding: 10px 12px;
@@ -135,13 +135,14 @@
 .ba-notif-item .ba-notif-detail-link:hover { text-decoration: underline; }
 
 .ba-notif-type-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-right: 6px; }
+/* Badge loại job: đồng nhất màu – Restore/Backup/Bug giữ nguyên, các HR job dùng cùng tông xanh/teal */
 .ba-notif-type-restore { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
 .ba-notif-type-backup { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .ba-notif-type-bug { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-.ba-notif-type-hr-user { background: #4ac5f5; color: #fff; }
-.ba-notif-type-hr-employee { background: #8757f7; color: #fff; }
-.ba-notif-type-hr-other { background: rgba(135, 87, 247, 0.5); color: #fff; }
-.ba-notif-type-hr-analyze { background: #0d9488; color: #fff; }
+.ba-notif-type-hr-user,
+.ba-notif-type-hr-employee,
+.ba-notif-type-hr-other,
+.ba-notif-type-hr-analyze { background: rgba(13, 148, 136, 0.25); color: #14b8a6; }
 .ba-notif-type-badge:not(.ba-notif-type-restore):not(.ba-notif-type-backup):not(.ba-notif-type-bug):not(.ba-notif-type-hr-user):not(.ba-notif-type-hr-employee):not(.ba-notif-type-hr-other):not(.ba-notif-type-hr-analyze):not(.ba-notif-reset-tag):not(.ba-notif-no-reset-tag) { background: var(--surface-alt, var(--bg-darker)); color: var(--text-muted); }
 /* Tag Có Reset / Không Reset: dùng !important để không bị đè bởi rule .ba-notif-type-badge phía trên */
 .ba-notif-type-badge.ba-notif-reset-tag { background: rgba(16, 185, 129, 0.25) !important; color: #10b981 !important; }
@@ -174,12 +175,12 @@
 .ba-notif-item .ba-notif-cancel-btn:hover:not(:disabled) { background: var(--danger, #ef4444); color: #fff; }
 .ba-notif-item .ba-notif-cancel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Modal chi tiết thông báo */
+/* Modal chi tiết thông báo: z-index cao hơn overlay "Đang xử lý" để popup luôn nằm trên */
 #notificationDetailModal,
 .ba-notif-detail-modal {
     position: fixed;
     inset: 0;
-    z-index: 10002;
+    z-index: 10100;
     display: none;
     align-items: center;
     justify-content: center;
@@ -191,15 +192,16 @@
 .ba-notif-detail-modal-content {
     background: var(--bg-card);
     border-radius: 8px;
-    max-width: 520px;
+    max-width: 600px;
     width: 96%;
+    min-width: 320px;
     max-height: 85vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     box-shadow: 0 4px 20px rgba(0,0,0,0.3);
 }
-#notificationDetailModal .ba-modal-content { max-width: 520px; width: 96%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
+#notificationDetailModal .ba-modal-content { max-width: 600px; width: 96%; min-width: 320px; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
 .ba-notif-detail-header {
     display: flex;
     align-items: center;
@@ -230,7 +232,7 @@
     font-size: 0.875rem;
 }
 #notificationDetailModal .ba-notif-detail-body table { width: 100%; border-collapse: collapse; }
-#notificationDetailModal .ba-notif-detail-body th { text-align: left; padding: 6px 10px; color: var(--text-muted); font-weight: 500; width: 120px; }
+#notificationDetailModal .ba-notif-detail-body th { text-align: left; padding: 6px 10px; color: var(--text-muted); font-weight: 500; min-width: 140px; width: 140px; white-space: nowrap; }
 #notificationDetailModal .ba-notif-detail-body td { padding: 6px 10px; border-bottom: 1px solid var(--border, var(--border-color)); }
 #notificationDetailModal .ba-notif-detail-body .ba-notif-full-msg {
     margin-top: 10px;
@@ -266,11 +268,15 @@
 
 /* Popup thông tin reset: căn giữa trong popup cha, giao diện rõ ràng */
 #notificationDetailBody { position: relative; min-height: 120px; }
-.ba-db-list-toggle { margin-left: 8px; padding: 3px 10px; font-size: 0.75rem; cursor: pointer; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 4px; color: var(--primary); white-space: nowrap; }
-.ba-db-list-toggle:hover { background: var(--bg-hover); }
+.ba-db-list-toggle,
+.ba-emp-list-toggle { margin-left: 8px; padding: 4px 10px; font-size: 0.75rem; font-weight: 500; cursor: pointer; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 4px; color: var(--primary); white-space: nowrap; display: inline-block; }
+.ba-db-list-toggle:hover,
+.ba-emp-list-toggle:hover { background: var(--bg-hover); border-color: var(--primary); }
 .ba-db-list-popover { display: none; margin-top: 8px; padding: 0; max-height: 340px; min-width: 280px; overflow: auto; background: var(--bg-darker); border-radius: 8px; font-size: 0.8125rem; border: 1px solid var(--border); box-shadow: 0 4px 16px rgba(0,0,0,0.3); }
 .ba-db-list-popover.show { display: block; }
 .ba-db-list-grid { counter-reset: db-num; display: flex; flex-direction: column; gap: 0; word-break: break-all; }
+.ba-db-list-grid .ba-emp-list-header { counter-increment: none; padding: 8px 12px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--bg-darker); }
+.ba-db-list-grid .ba-emp-list-header::before { content: none; }
 .ba-db-list-grid span { counter-increment: db-num; position: relative; display: block; padding: 8px 12px 8px 2.25rem; font-size: 0.8125rem; line-height: 1.4; border-bottom: 1px solid var(--border); background: rgba(255,255,255,0.02); }
 .ba-db-list-grid span:nth-child(even) { background: rgba(255,255,255,0.05); }
 .ba-db-list-grid span:last-child { border-bottom: none; }

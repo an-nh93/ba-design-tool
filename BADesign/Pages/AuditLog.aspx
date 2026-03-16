@@ -409,7 +409,21 @@
                         }
                     } catch (e) {}
                 }
-                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
+                if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
+                    try {
+                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+                        var empList = Array.isArray(pl) ? pl : (pl && pl.employees) ? pl.employees : [];
+                        if (empList.length > 0) {
+                            var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                            var empCell = empList.length + ' nhân viên';
+                            empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
+                            empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
+                            payloadRows += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
+                        }
+                    } catch (e) {}
+                }
+                var resetRow = ((job.type || '') === 'HRHelperMultiDbReset') ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : '';
+                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>' + resetRow + '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
                 if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                 html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                 $('#notificationDetailBody').html(html);
@@ -420,6 +434,17 @@
                     try {
                         var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
                         var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                        $pop.html(grid).addClass('show');
+                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                });
+                $('#notificationDetailBody').off('click.baEmpList').on('click.baEmpList', '.ba-emp-list-toggle', function() {
+                    var $btn = $(this), $pop = $btn.siblings('.ba-emp-list-popover').first();
+                    var raw = $btn.attr('data-emps');
+                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                    try {
+                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                        var esc = function(s){ return (s||'').replace(/</g, '&lt;').replace(/&/g, '&amp;'); };
+                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(o) { var lid = o.localId != null ? o.localId : o.LocalId || ''; var name = o.name != null ? o.name : o.Name || ''; return '<span>' + esc(lid) + (name ? ' – ' + esc(name) : '') + '</span>'; }).join('')) + '</div>';
                         $pop.html(grid).addClass('show');
                     } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
                 });

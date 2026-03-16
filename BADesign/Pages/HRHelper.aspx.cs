@@ -3355,5 +3355,246 @@ COMMIT TRAN;";
             }
             return dt;
         }
+
+        // ==================== Delete Employee ====================
+        // Luồng: Chạy script GENERATOR trên DB dự án (connection hiện tại) → kết quả trả về là script DELETE
+        // đúng với schema từng dự án (FK, bảng khác nhau). Thay placeholder bằng mã nhân viên user truyền vào.
+        // Không fix cứng script delete: mỗi DB chạy generator ra một kết quả khác nhau.
+
+        private const string DeleteEmployeePlaceholder = "__NHAP_MA_NHAN_VIEN_VAO_DAY__";
+
+        /// <summary>Lấy nội dung script generator (từ Embedded Resource hoặc App_Data). Generator khi chạy trên DB dự án sẽ query sys.foreign_keys của DB đó và trả về script DELETE đúng schema từng dự án.</summary>
+        private static string GetDeleteEmployeeGeneratorScriptContent()
+        {
+            var asm = typeof(HRHelper).Assembly;
+            var resourceName = "BADesign.App_Data.GetEmployeeForeignKeyList.sql";
+            using (var stream = asm.GetManifestResourceStream(resourceName))
+            {
+                if (stream != null)
+                {
+                    using (var reader = new System.IO.StreamReader(stream, System.Text.Encoding.UTF8))
+                        return reader.ReadToEnd();
+                }
+            }
+            var path = HttpContext.Current?.Server?.MapPath("~/App_Data/GetEmployeeForeignKeyList.sql");
+            if (!string.IsNullOrEmpty(path) && System.IO.File.Exists(path))
+                return System.IO.File.ReadAllText(path);
+            return null;
+        }
+
+        /// <summary>Chạy script generator trên connection DB dự án, lấy kết quả (SELECT Line FROM @Lines). Kết quả là script DELETE theo đúng schema của DB đó.</summary>
+        private static Tuple<bool, string, string> RunDeleteEmployeeGeneratorOnConnection(string connectionString)
+        {
+            var generatorSql = GetDeleteEmployeeGeneratorScriptContent();
+            if (string.IsNullOrWhiteSpace(generatorSql))
+                return Tuple.Create(false, (string)null, "Không tìm thấy script generator (EmbeddedResource hoặc App_Data/GetEmployeeForeignKeyList.sql).");
+            var lines = new List<string>();
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = generatorSql;
+                cmd.CommandTimeout = 120;
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                        if (!r.IsDBNull(0)) lines.Add(r.GetString(0));
+                }
+            }
+            var template = string.Join("\r\n", lines);
+            if (string.IsNullOrWhiteSpace(template) || template.IndexOf(DeleteEmployeePlaceholder, StringComparison.Ordinal) < 0)
+                return Tuple.Create(false, (string)null, "Database không có bảng Staffing_Employees hoặc generator không trả về script hợp lệ.");
+            return Tuple.Create(true, template, (string)null);
+        }
+
+        /// <summary>Lấy template script delete employee: chạy generator trên DB dự án → kết quả khác nhau theo từng dự án.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetDeleteEmployeeScriptTemplate(string k)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", script = (string)null };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database.", script = (string)null };
+                var run = RunDeleteEmployeeGeneratorOnConnection(info.ConnectionString);
+                if (!run.Item1)
+                    return new { success = false, message = run.Item3 ?? "Lỗi chạy generator.", script = (string)null };
+                return new { success = true, script = run.Item2, message = (string)null };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, script = (string)null };
+            }
+        }
+
+        /// <summary>Generate script delete: chạy generator trên DB dự án lấy template, thay placeholder bằng danh sách LocalEmployeeID user truyền vào.</summary>
+        private static Tuple<bool, string, string> GenerateDeleteEmployeeScriptCore(string k, string localIdsCommaSeparated)
+        {
+            var info = GetConnectionFromToken(k);
+            if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                return Tuple.Create(false, (string)null, "Chưa kết nối database.");
+            var raw = (localIdsCommaSeparated ?? "").Trim();
+            if (string.IsNullOrEmpty(raw))
+                return Tuple.Create(false, (string)null, "Nhập ít nhất một mã Local Employee (cách nhau bằng dấu phẩy).");
+            var ids = raw.Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(x => x.Trim().Replace("'", "''"))
+                .Where(x => x.Length > 0)
+                .ToList();
+            if (ids.Count == 0)
+                return Tuple.Create(false, (string)null, "Nhập ít nhất một mã Local Employee.");
+            var run = RunDeleteEmployeeGeneratorOnConnection(info.ConnectionString);
+            if (!run.Item1)
+                return Tuple.Create(false, (string)null, run.Item3 ?? "Lỗi chạy generator.");
+            var template = run.Item2;
+            var replacement = string.Join("', '", ids);
+            var script = template.Replace(DeleteEmployeePlaceholder, replacement);
+            return Tuple.Create(true, script, "Đã generate script cho " + ids.Count + " mã nhân viên.");
+        }
+
+        /// <summary>Generate script thay placeholder bằng danh sách LocalEmployeeID (cách nhau dấu phẩy).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GenerateDeleteEmployeeScript(string k, string localIdsCommaSeparated)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", script = (string)null };
+                var result = GenerateDeleteEmployeeScriptCore(k, localIdsCommaSeparated);
+                if (!result.Item1)
+                    return new { success = false, message = result.Item3, script = (string)null };
+                return new { success = true, script = result.Item2, message = result.Item3 };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, script = (string)null };
+            }
+        }
+
+        /// <summary>Generate script và chạy luôn trên DB dự án. Audit log + trả về kết quả.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GenerateAndExecuteDeleteEmployeeScript(string k, string localIdsCommaSeparated)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập." };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                Tuple<bool, string, string> genResult = GenerateDeleteEmployeeScriptCore(k, localIdsCommaSeparated);
+                if (!genResult.Item1)
+                    return new { success = false, message = genResult.Item3 ?? "Lỗi generate script." };
+                var script = genResult.Item2;
+                if (string.IsNullOrWhiteSpace(script))
+                    return new { success = false, message = "Script rỗng." };
+                var databaseName = info.Database ?? "";
+                var ids = (localIdsCommaSeparated ?? "").Split(new[] { ',', ';', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+                UserActionLogHelper.Log("HRHelper.DeleteEmployeeScript", "database=" + databaseName + ", localIds=" + string.Join(",", ids) + " (Generate and Run)");
+                var result = ExecuteDeleteEmployeeScriptCore(info.ConnectionString, script);
+                return new { success = result.Item1, message = result.Item2 };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private static Tuple<bool, string> ExecuteDeleteEmployeeScriptCore(string connectionString, string script)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(connectionString))
+                {
+                    conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = script;
+                        cmd.CommandTimeout = 600;
+                        cmd.ExecuteNonQuery();
+                    }
+                }
+                return Tuple.Create(true, "Đã chạy script xóa employee thành công.");
+            }
+            catch (Exception ex)
+            {
+                return Tuple.Create(false, "Lỗi khi chạy script: " + ex.Message);
+            }
+        }
+
+        /// <summary>Xóa employee (single/multiple): confirm captcha, đưa vào job nền, audit, push chuông. payloadJson = JSON array of { localId, name } để hiển thị trong chi tiết thông báo / Function Queue / Audit log.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartHRHelperDeleteEmployeeJob(string k, List<string> localEmployeeIds, string payloadJson, int captchaA, int captchaB)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0 };
+                if (captchaA + captchaB < 2 || captchaA + captchaB > 18)
+                    return new { success = false, message = "Captcha không đúng. Vui lòng nhập lại.", jobId = 0 };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database.", jobId = 0 };
+                var ids = (localEmployeeIds ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).ToList();
+                if (ids.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 employee (Local ID) để xóa.", jobId = 0 };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var connStr = info.ConnectionString;
+                var serverName = info.Server ?? "";
+                var databaseName = info.Database ?? "";
+                var payload = (payloadJson ?? "").Trim();
+                if (string.IsNullOrEmpty(payload)) payload = JsonConvert.SerializeObject(ids.Select(localId => new { localId = localId, name = (string)null }).ToList());
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperDeleteEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", serverName);
+                    cmd.Parameters.AddWithValue("@db", databaseName);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName);
+                    cmd.Parameters.AddWithValue("@payload", string.IsNullOrEmpty(payload) ? (object)DBNull.Value : payload);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                UserActionLogHelper.Log("HRHelper.DeleteEmployee", "database=" + databaseName + ", localIds=" + string.Join(",", ids) + ", jobId=" + jobId);
+                var genResult = GenerateDeleteEmployeeScriptCore(k, string.Join(",", ids));
+                var scriptToRun = genResult.Item1 ? genResult.Item2 : null;
+                var scriptError = genResult.Item3;
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        if (string.IsNullOrWhiteSpace(scriptToRun))
+                        {
+                            UpdateBaJobCompleted(jobId, "HRHelperDeleteEmployee", false, scriptError ?? "Lỗi generate script.");
+                        }
+                        else
+                        {
+                            var result = ExecuteDeleteEmployeeScriptCore(connStr, scriptToRun);
+                            UpdateBaJobCompleted(jobId, "HRHelperDeleteEmployee", result.Item1, result.Item2);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        UpdateBaJobCompleted(jobId, "HRHelperDeleteEmployee", false, ex.Message);
+                    }
+                    BaJobHubHelper.PushJobsUpdated("HRHelperDeleteEmployee", null, userId);
+                });
+                return new { success = true, jobId = jobId, message = "Đã đưa xóa employee vào hàng đợi. Job chạy nền." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
     }
 }

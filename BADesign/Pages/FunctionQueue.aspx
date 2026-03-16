@@ -115,6 +115,7 @@
                                 <option value="HRHelperUpdateOther">Update Company/Other</option>
                                 <option value="HRHelperMultiDbAnalyze">Phân tích Multi-DB</option>
                                 <option value="HRHelperMultiDbReset">Reset Multi-DB</option>
+                                <option value="HRHelperDeleteEmployee">Delete Employee</option>
                             </select>
                         </div>
                         <div class="ba-form-group" style="grid-column: 1 / -1; display: flex; flex-direction: row; align-items: center; gap: 0.75rem; flex-wrap: wrap;">
@@ -266,9 +267,10 @@
                     tbody.innerHTML = '<tr class="empty-row"><td colspan="9">Không có job nào.</td></tr>';
                     return;
                 }
+                window.__queuePagedJobs = jobs;
                 currentUserId = (currentUserId != null) ? parseInt(currentUserId, 10) : 0;
                 var html = '';
-                jobs.forEach(function (j) {
+                jobs.forEach(function (j, idx) {
                     var startedBy = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
                     var canCancel = (j.status === 'Running' && currentUserId && startedBy === currentUserId);
                     var pct = (j.percentComplete != null) ? parseInt(j.percentComplete, 10) : (j.status === 'Completed' ? 100 : 0);
@@ -292,6 +294,9 @@
                     if ((j.type || '') === 'HRHelperMultiDbReset') {
                         var payloadEsc = (j.payload || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                         actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-reset-multidb-btn" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-payload="' + payloadEsc + '">Xem chi tiết</button>';
+                    }
+                    if ((j.type || '') === 'HRHelperDeleteEmployee') {
+                        actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-detail-btn" data-job-index="' + idx + '">Xem chi tiết</button>';
                     }
                     if (canCancel) actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm queue-cancel-btn" data-id="' + j.id + '">Hủy</button>';
                     html += '<td class="col-action">' + (actionHtml || '—') + '</td>';
@@ -481,6 +486,16 @@
                         } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
                     });
                 });
+                $(document).on('click', '.queue-view-detail-btn', function() {
+                    var idx = parseInt($(this).data('job-index'), 10);
+                    var jobs = window.__queuePagedJobs;
+                    var job = (jobs && jobs[idx]) ? jobs[idx] : null;
+                    if (!job) return;
+                    if (typeof window.showNotificationDetail === 'function') {
+                        window.showNotificationDetail(job);
+                        $('#notificationDetailModal').addClass('show');
+                    }
+                });
                 $('#queueDetailModal').on('click', function(e) {
                     if (e.target.id === 'queueDetailModal') document.getElementById('queueDetailModal').classList.remove('show');
                 });
@@ -521,7 +536,7 @@
                     function addDismissedJobId(id, type) { var key = (type === 'Backup' ? 'b:' : 'r:') + id; var arr = getDismissedJobIds(); if (arr.indexOf(key) < 0) { arr.push(key); localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(arr)); } }
                     function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
                     function formatNotifTime(v) { var dt = parseDateSafe(v); return dt ? dt.toLocaleString() : '—'; }
-                    function showNotificationDetail(job) {
+                    window.showNotificationDetail = function showNotificationDetail(job) {
                         var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
                         var dbName = (job.databaseName || job.DatabaseName || '').trim();
                         var isRestore = (job.type === 'Restore' || !job.type);
@@ -553,7 +568,21 @@
                                 }
                             } catch (e) {}
                         }
-                        var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
+                        if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
+                            try {
+                                var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+                                var empList = Array.isArray(pl) ? pl : (pl && pl.employees) ? pl.employees : [];
+                                if (empList.length > 0) {
+                                    var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                                    var empCell = empList.length + ' nhân viên';
+                                    empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
+                                    empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
+                                    payloadRows += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
+                                }
+                            } catch (e) {}
+                        }
+                        var resetRow = ((job.type || '') === 'HRHelperMultiDbReset') ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : '';
+                        var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>' + resetRow + '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
                         if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                         html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                         $('#notificationDetailBody').html(html);
@@ -564,6 +593,17 @@
                             try {
                                 var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
                                 var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                                $pop.html(grid).addClass('show');
+                            } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                        });
+                        $('#notificationDetailBody').off('click.baEmpList').on('click.baEmpList', '.ba-emp-list-toggle', function() {
+                            var $btn = $(this), $pop = $btn.siblings('.ba-emp-list-popover').first();
+                            var raw = $btn.attr('data-emps');
+                            if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                            try {
+                                var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                                var esc = function(s){ return (s||'').replace(/</g, '&lt;').replace(/&/g, '&amp;'); };
+                                var grid = '<div class="ba-db-list-grid">' + (arr.map(function(o) { var lid = o.localId != null ? o.localId : o.LocalId || ''; var name = o.name != null ? o.name : o.Name || ''; return '<span>' + esc(lid) + (name ? ' – ' + esc(name) : '') + '</span>'; }).join('')) + '</div>';
                                 $pop.html(grid).addClass('show');
                             } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
                         });
@@ -580,9 +620,10 @@
                         });
                         $(document).off('click.baResetInfoClose').on('click.baResetInfoClose', function(ev) { if ($(ev.target).closest('#baResetInfoPopup').length === 0 && !$(ev.target).hasClass('ba-notif-reset-info-btn')) $('#baResetInfoPopup').hide(); });
                         $('#notificationDetailModal').addClass('show');
-                    }
-                    $('#notificationDetailModal').on('click', function(e) { if (e.target === this) $(this).removeClass('show'); });
-                    $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); $('#notificationDetailModal').removeClass('show'); });
+                    };
+                    function hideNotificationDetailModal() { $('#notificationDetailModal').removeClass('show').css('display', ''); }
+                    $('#notificationDetailModal').on('click', function(e) { if (e.target === this) hideNotificationDetailModal(); });
+                    $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); e.stopPropagation(); hideNotificationDetailModal(); });
                     var NOTIF_MSG_MAX_LEN = 120;
                     function loadRestoreJobsPanel() {
                         var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
@@ -612,7 +653,7 @@
                                     var st = j.status || '', msg = (j.message || '').trim(), msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                                     var jobType = j.type || 'Restore';
                                     var typeLabel = (j.typeLabel || jobType || 'Restore').replace(/</g, '&lt;');
-                                    var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : '';
+                                    var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
                                     var dbName = (j.databaseName || j.DatabaseName || '').trim();
                                     var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                                     var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có tích hợp Reset thông tin">Có Reset' : 'ba-notif-no-reset-tag" title="Restore không reset">Không Reset') + '</span> ') : '';

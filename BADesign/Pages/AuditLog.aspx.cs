@@ -50,7 +50,10 @@ namespace BADesign.Pages
                     new { code = "HRHelper.UpdateUser", label = "HR: Update User" },
                     new { code = "HRHelper.UpdateEmployee", label = "HR: Update Employee" },
                     new { code = "HRHelper.UpdateOther", label = "HR: Update Company/Other" },
-                    new { code = "HRHelper.MultiDbReset", label = "Reset Multi-DB" }
+                    new { code = "HRHelper.MultiDbReset", label = "Reset Multi-DB" },
+                    new { code = "HRHelper.DeleteEmployee", label = "HR: Delete Employee (Generate and Run / Xóa NV)" },
+                    new { code = "HRHelper.MultiDbAnalyze", label = "HR: Phân tích Multi-DB" },
+                    new { code = "HRHelper.DeleteEmployeeScript", label = "HR: Generate and Run (script - cũ)" }
                 };
                 return new { success = true, codes = codes };
             }
@@ -206,6 +209,9 @@ namespace BADesign.Pages
                 case "HRHelper.UpdateEmployee": return "HR: Update Employee";
                 case "HRHelper.UpdateOther": return "HR: Update Other";
                 case "HRHelper.MultiDbReset": return "Reset Multi-DB";
+                case "HRHelper.DeleteEmployee": return "HR: Delete Employee";
+                case "HRHelper.MultiDbAnalyze": return "HR: Phân tích Multi-DB";
+                case "HRHelper.DeleteEmployeeScript": return "HR: Generate and Run (script - cũ)";
                 default: return code;
             }
         }

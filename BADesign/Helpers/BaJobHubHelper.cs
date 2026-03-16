@@ -17,7 +17,7 @@ namespace BADesign.Helpers
             {
                 var ctx = GlobalHost.ConnectionManager.GetHubContext<RestoreNotificationHub>();
                 if (ctx == null) return;
-                if (!string.IsNullOrEmpty(jobType) && (jobType.Equals("HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperMultiDbAnalyze", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperMultiDbReset", StringComparison.OrdinalIgnoreCase)))
+                if (!string.IsNullOrEmpty(jobType) && (jobType.Equals("HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperMultiDbAnalyze", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperMultiDbReset", StringComparison.OrdinalIgnoreCase) || jobType.Equals("HRHelperDeleteEmployee", StringComparison.OrdinalIgnoreCase)))
                 {
                     // Gửi All để client chắc chắn nhận (Session thường null khi SignalR OnConnected nên connection có thể không vào group user_X). Client gọi GetMyRunningHRHelperJobs và chỉ user có job mới đóng overlay.
                     ctx.Clients.All.jobsUpdated();

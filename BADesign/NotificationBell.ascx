@@ -19,3 +19,5 @@
         <div id="notificationDetailBody" class="ba-notif-detail-body"></div>
     </div>
 </div>
+<script type="text/javascript">window.BA_API_BASE = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>';</script>
+<script src="<%= ResolveUrl("~/Scripts/ba-notification-detail.js") %>"></script>

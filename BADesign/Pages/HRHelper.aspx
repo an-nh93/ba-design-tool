@@ -369,9 +369,13 @@
         .ba-column-row:hover .ba-copy-select-btn {
             opacity: 1;
         }
+        /* Overlay chừa menu trái (sidebar) để user vẫn dùng được các chức năng khác */
         .ba-progress-overlay {
             position: fixed;
-            inset: 0;
+            left: 240px;
+            top: 0;
+            right: 0;
+            bottom: 0;
             background: rgba(0, 0, 0, 0.8);
             z-index: 10000;
             display: none;
@@ -381,16 +385,16 @@
             gap: 1.5rem;
         }
         .ba-progress-overlay.show { display: flex; }
-        /* Full-screen overlay khi có HR Helper job đang chạy (update user/employee/other) */
+        /* Overlay khi có HR Helper job đang chạy: chừa header + menu trái */
         .ba-hr-job-overlay {
             display: none;
             position: fixed;
-            left: 0;
-            top: 0;
+            left: 240px;
+            top: 56px;
             right: 0;
             bottom: 0;
             background: rgba(0,0,0,0.75);
-            z-index: 10000;
+            z-index: 9999;
             align-items: center;
             justify-content: center;
             flex-direction: column;
@@ -680,8 +684,10 @@
                     <div id="tabEmployees" class="ba-tab-content">
                         <div class="ba-card ba-card-scrollable">
                             <h2 class="ba-card-title">Employee Management</h2>
-                            <div class="ba-actions" style="margin-bottom: 1rem;">
+                            <div class="ba-actions" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataEmployees" onclick="loadEmployees(); return false;">View Data</button>
+                                <button type="button" class="ba-btn ba-btn-danger" id="btnDeleteEmployees" style="display: none;" onclick="openDeleteEmployeeConfirm(); return false;" title="Xóa employee đã chọn">Delete</button>
+                                <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateDeleteScript" onclick="openGenerateDeleteScriptModal(); return false;">Generate Delete Script</button>
                             </div>
                             <div class="ba-grid-toolbar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
                                 <div style="flex: 1; min-width: 200px;">
@@ -1143,6 +1149,79 @@
             </div>
         </div>
 
+        <!-- Delete Employee Confirm Modal (có captcha) -->
+        <div id="deleteEmployeeConfirmModal" class="ba-modal" style="display: none;">
+            <div class="ba-modal-content" style="max-width: 440px;">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title">Xác nhận xóa employee</h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideDeleteEmployeeConfirmModal(); return false;">×</button>
+                </div>
+                <div class="ba-modal-body">
+                    <p id="deleteEmployeeConfirmMessage" style="margin: 0 0 1rem 0; color: var(--text-primary); font-size: 0.9375rem;"></p>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Xác thực (Captcha)</label>
+                    <div class="captcha-box" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bg-darker); border-radius: 4px; font-size: 14px;">
+                        <span id="deleteEmployeeCaptchaQuestion"></span>
+                        <input type="number" id="deleteEmployeeCaptchaInput" class="ba-input" placeholder="?" style="width: 80px; text-align: center;" />
+                        <button type="button" id="btnRefreshDeleteCaptcha" class="ba-btn ba-btn-secondary" title="Làm mới">↻</button>
+                    </div>
+                </div>
+                <div class="ba-modal-footer">
+                    <button type="button" class="ba-btn ba-btn-secondary" id="deleteEmployeeConfirmCancel">Hủy</button>
+                    <button type="button" class="ba-btn ba-btn-danger" id="deleteEmployeeConfirmOk">Xóa</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generate Delete Script Modal -->
+        <div id="generateDeleteScriptModal" class="ba-modal" style="display: none;">
+            <div class="ba-modal-content" style="max-width: 720px; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title">Generate Delete Script</h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideGenerateDeleteScriptModal(); return false;">×</button>
+                </div>
+                <div class="ba-modal-body" style="overflow-y: auto;">
+                    <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.75rem;">Nhập mã Local Employee (cách nhau bằng dấu phẩy). Sau khi Generate có thể copy script hoặc bấm <strong>Generate and Run</strong> để chạy luôn trên database.</p>
+                    <div class="ba-form-group" style="margin-bottom: 1rem;">
+                        <label class="ba-form-label" for="txtDeleteScriptLocalIds">Mã Local Employee</label>
+                        <input type="text" id="txtDeleteScriptLocalIds" class="ba-input" placeholder="VD: 24314, 24322" style="width: 100%;" />
+                    </div>
+                    <div class="ba-actions" style="margin-bottom: 0.75rem;">
+                        <button type="button" class="ba-btn ba-btn-primary" id="btnDoGenerateDeleteScript" onclick="doGenerateDeleteScript(); return false;">Generate script</button>
+                        <button type="button" class="ba-btn ba-btn-secondary" id="btnCopyDeleteScript" onclick="copyDeleteScript(); return false;" style="display: none;">Copy</button>
+                        <button type="button" class="ba-btn ba-btn-primary" id="btnGenerateAndRunDeleteScript" onclick="generateAndRunDeleteScript(); return false;">Generate and Run</button>
+                    </div>
+                    <label class="ba-form-label" style="display: block; margin-bottom: 0.25rem;">Script (copy hoặc chạy)</label>
+                    <textarea id="txtDeleteScriptOutput" class="ba-input" readonly rows="14" placeholder="Script sẽ hiển thị sau khi Generate..." style="width: 100%; font-family: Consolas, monospace; font-size: 0.8125rem;"></textarea>
+                </div>
+                <div class="ba-modal-footer">
+                    <button type="button" class="ba-btn ba-btn-secondary" onclick="hideGenerateDeleteScriptModal(); return false;">Đóng</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generate and Run Confirm Modal (captcha) -->
+        <div id="generateRunConfirmModal" class="ba-modal" style="display: none;">
+            <div class="ba-modal-content" style="max-width: 440px;">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title">Xác nhận Generate and Run</h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideGenerateRunConfirmModal(); return false;">×</button>
+                </div>
+                <div class="ba-modal-body">
+                    <p id="generateRunConfirmMessage" style="margin: 0 0 1rem 0; color: var(--text-primary); font-size: 0.9375rem;">Bạn có chắc muốn generate delete script và chạy luôn trên database này không? Nhập captcha để xác nhận.</p>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Xác thực (Captcha)</label>
+                    <div class="captcha-box" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bg-darker); border-radius: 4px; font-size: 14px;">
+                        <span id="generateRunCaptchaQuestion"></span>
+                        <input type="number" id="generateRunCaptchaInput" class="ba-input" placeholder="?" style="width: 80px; text-align: center;" />
+                        <button type="button" id="btnRefreshGenerateRunCaptcha" class="ba-btn ba-btn-secondary" title="Làm mới">↻</button>
+                    </div>
+                </div>
+                <div class="ba-modal-footer">
+                    <button type="button" class="ba-btn ba-btn-secondary" id="generateRunConfirmCancel">Hủy</button>
+                    <button type="button" class="ba-btn ba-btn-danger" id="generateRunConfirmOk">Generate and Run</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Multi Reset Confirm Modal (thiết kế giống Function Queue Chi tiết Reset Multi-DB: cao vừa + scrollbar trong danh sách database) -->
         <div id="multiResetConfirmModal" class="ba-modal" style="display: none;">
             <div class="ba-modal-content" style="max-width: 560px; max-height: 85vh; min-height: 320px; overflow: hidden; display: flex; flex-direction: column;">
@@ -1348,6 +1427,13 @@
             $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ClearEmployeesSession") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ k: hrToken }), timeout: 10000, error: function() {} });
             $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ClearUsersSession") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ k: hrToken }), timeout: 10000, error: function() {} });
 
+            // Nếu trước đó có start job (vd. delete employee), reload vẫn hiện overlay ngay để không mất loading / data treo
+            try {
+                if (sessionStorage.getItem('baHRHelperJobRunning')) {
+                    $('#hrJobOverlay').addClass('show');
+                    $('#hrJobOverlay .ba-hr-job-text').text('Đang kiểm tra job... Không thao tác cho đến khi job hoàn thành.');
+                }
+            } catch (e) {}
             // Kiểm tra job HR Helper đang chạy (update user/employee/other) → hiển thị overlay; SignalR để cập nhật khi job xong
             checkHRHelperJobsAndShowOverlay();
             if (typeof BA_SignalR !== 'undefined') {
@@ -1385,6 +1471,14 @@
             });
             $(document).on('click', '#usersEmptyLink', function(e) { e.preventDefault(); $('#btnViewDataUsers')[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); });
             $(document).on('click', '#employeesEmptyLink', function(e) { e.preventDefault(); $('#btnViewDataEmployees')[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); });
+
+            $('#deleteEmployeeConfirmOk').on('click', function() { submitDeleteEmployees(); });
+            $('#deleteEmployeeConfirmCancel').on('click', function() { hideDeleteEmployeeConfirmModal(); });
+            $('#btnRefreshDeleteCaptcha').on('click', function() { refreshDeleteEmployeeCaptcha(); });
+
+            $('#generateRunConfirmOk').on('click', function() { doExecuteGenerateAndRunDeleteScript(); });
+            $('#generateRunConfirmCancel').on('click', function() { hideGenerateRunConfirmModal(); });
+            $('#btnRefreshGenerateRunCaptcha').on('click', function() { refreshGenerateRunCaptcha(); });
 
             $('#txtSearchUsers').on('input', function() {
                 userSearch = $(this).val();
@@ -1617,7 +1711,9 @@
                             setMultiDbAnalyzeUIState(true, msg, null);
                         } else {
                             $('#hrJobOverlay').addClass('show');
-                            $('#hrJobOverlay .ba-hr-job-text').text(isAnalyzeJob ? ('Đang phân tích Multi-DB...' + pctStr) : ('Đang xử lý...' + pctStr + ' Không thao tác cho đến khi job hoàn thành.'));
+                            var jt = (jobs[0] && jobs[0].jobType) ? jobs[0].jobType : '';
+                            var overlayText = (jt === 'HRHelperDeleteEmployee') ? ('Đang xóa employee...' + pctStr) : (isAnalyzeJob ? ('Đang phân tích Multi-DB...' + pctStr) : ('Đang xử lý...' + pctStr));
+                            $('#hrJobOverlay .ba-hr-job-text').text(overlayText + ' Không thao tác cho đến khi job hoàn thành.');
                         }
                     } else {
                         $('#btnMultiAnalyze').prop('disabled', false);
@@ -1625,6 +1721,7 @@
                             $('#btnMultiReset').prop('disabled', false);
                             $('#btnMultiSelectNotReset').prop('disabled', false);
                         }
+                        try { sessionStorage.removeItem('baHRHelperJobRunning'); } catch (e) {}
                         if (wasShowing) showToast('Job đã hoàn thành.', 'success');
                         $('#hrJobOverlay').removeClass('show');
                         $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
@@ -3181,8 +3278,10 @@
             var chunk = sorted.slice(from, from + EMPLOYEE_PAGE_SIZE);
             var html = '';
             chunk.forEach(function(e) {
-                html += '<tr data-id="' + e.employeeID + '">' +
-                    '<td data-col-index="0"><input type="checkbox" class="chkEmployee" data-id="' + e.employeeID + '" /></td>' +
+                var localId = (e.localEmployeeID != null && e.localEmployeeID !== '') ? String(e.localEmployeeID) : '';
+                var empName = (e.employeeName != null ? String(e.employeeName) : '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                html += '<tr data-id="' + e.employeeID + '" data-local-id="' + (localId || '') + '" data-name="' + empName + '">' +
+                    '<td data-col-index="0"><input type="checkbox" class="chkEmployee" data-id="' + e.employeeID + '" data-local-id="' + (localId || '') + '" data-name="' + empName + '" /></td>' +
                     '<td data-col-index="1">' + (e.employeeID || '-') + '</td>' +
                     '<td data-col-index="2">' + (e.localEmployeeID || '-') + '</td>' +
                     '<td data-col-index="3">' + (e.employeeName || '-') + '</td>' +
@@ -3210,7 +3309,10 @@
             $('#chkSelectAllEmployees').off('change').prop('checked', false).on('change', function() {
                 var v = $(this).prop('checked');
                 $('.chkEmployee').prop('checked', v);
+                toggleDeleteEmployeeButton();
             });
+            $(document).off('change', '#tabEmployees .chkEmployee').on('change', '#tabEmployees .chkEmployee', function() { toggleDeleteEmployeeButton(); });
+            toggleDeleteEmployeeButton();
             $pg.show().empty();
             $pg.append('<span>Trang ' + employeePage + ' / ' + pages + ' (' + total + ' employee)</span> ');
             var $selEmp = $('<select class="ba-pager-size ba-input" id="selEmpPageSize" style="width:auto;padding:0.25rem 0.5rem;margin:0 0.5rem;"></select>');
@@ -3263,6 +3365,238 @@
         function toggleCollapseSection(headerEl) {
             var section = headerEl.closest('.ba-collapse-section');
             if (section) section.classList.toggle('collapsed');
+        }
+
+        function getSelectedEmployeeLocalIds() {
+            var ids = [];
+            $('#tabEmployees .chkEmployee:checked').each(function() {
+                var lid = $(this).data('local-id');
+                if (lid != null && String(lid).trim() !== '') ids.push(String(lid).trim());
+            });
+            return ids;
+        }
+        /** Trả về [{ localId, name }] để gửi lên server lưu Payload (chi tiết thông báo / Function Queue / Audit). */
+        function getSelectedEmployeesForDelete() {
+            var list = [];
+            $('#tabEmployees .chkEmployee:checked').each(function() {
+                var $cb = $(this);
+                var lid = $cb.data('local-id');
+                if (lid == null || String(lid).trim() === '') return;
+                var name = $cb.data('name');
+                if (typeof name === 'string') name = name.replace(/&quot;/g, '"').replace(/&lt;/g, '<');
+                list.push({ localId: String(lid).trim(), name: name || '' });
+            });
+            return list;
+        }
+
+        function toggleDeleteEmployeeButton() {
+            var n = $('#tabEmployees .chkEmployee:checked').length;
+            $('#btnDeleteEmployees').toggle(n > 0);
+        }
+
+        var deleteEmployeeCaptchaA = 0, deleteEmployeeCaptchaB = 0;
+        function refreshDeleteEmployeeCaptcha() {
+            deleteEmployeeCaptchaA = Math.floor(Math.random() * 9) + 1;
+            deleteEmployeeCaptchaB = Math.floor(Math.random() * 9) + 1;
+            $('#deleteEmployeeCaptchaQuestion').text(deleteEmployeeCaptchaA + ' + ' + deleteEmployeeCaptchaB + ' = ');
+            $('#deleteEmployeeCaptchaInput').val('');
+        }
+        function openDeleteEmployeeConfirm() {
+            var localIds = getSelectedEmployeeLocalIds();
+            if (localIds.length === 0) {
+                showToast('Chọn ít nhất 1 employee (cột Local ID) để xóa.', 'error');
+                return;
+            }
+            $('#deleteEmployeeConfirmMessage').text('Bạn chắc chắn xóa ' + localIds.length + ' employee (Local ID: ' + localIds.slice(0, 5).join(', ') + (localIds.length > 5 ? '...' : '') + ')? Nhập captcha bên dưới để xác nhận.');
+            refreshDeleteEmployeeCaptcha();
+            $('#deleteEmployeeConfirmModal').addClass('show').css('display', 'flex');
+        }
+        function hideDeleteEmployeeConfirmModal() {
+            $('#deleteEmployeeConfirmModal').removeClass('show').css('display', 'none');
+        }
+        function submitDeleteEmployees() {
+            var localIds = getSelectedEmployeeLocalIds();
+            if (localIds.length === 0) {
+                showToast('Chọn ít nhất 1 employee để xóa.', 'error');
+                return;
+            }
+            var captchaVal = parseInt($('#deleteEmployeeCaptchaInput').val(), 10);
+            if (captchaVal !== deleteEmployeeCaptchaA + deleteEmployeeCaptchaB) {
+                showToast('Captcha không đúng. Vui lòng nhập lại.', 'error');
+                refreshDeleteEmployeeCaptcha();
+                return;
+            }
+            hideDeleteEmployeeConfirmModal();
+            var employeesPayload = getSelectedEmployeesForDelete();
+            if (employeesPayload.length === 0) employeesPayload = localIds.map(function(lid) { return { localId: lid, name: '' }; });
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartHRHelperDeleteEmployeeJob") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, localEmployeeIds: localIds, payloadJson: JSON.stringify(employeesPayload), captchaA: deleteEmployeeCaptchaA, captchaB: deleteEmployeeCaptchaB }),
+                timeout: 30000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success) {
+                        try { sessionStorage.setItem('baHRHelperJobRunning', '1'); } catch (e) {}
+                        $('#hrJobOverlay').addClass('show');
+                        showToast('Đã đưa xóa employee vào hàng đợi. Job chạy nền.', 'success');
+                    } else {
+                        showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = 'Lỗi kết nối.';
+                    if (xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message; else if (j.message) msg = j.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
+                }
+            });
+        }
+
+        function openGenerateDeleteScriptModal() {
+            var selectedIds = getSelectedEmployeeLocalIds();
+            $('#txtDeleteScriptLocalIds').val(selectedIds.length > 0 ? selectedIds.join(', ') : '');
+            $('#txtDeleteScriptOutput').val('');
+            $('#btnCopyDeleteScript').hide();
+            $('#btnGenerateAndRunDeleteScript').show();
+            $('#generateDeleteScriptModal').addClass('show').css('display', 'flex');
+        }
+        function hideGenerateDeleteScriptModal() {
+            $('#generateDeleteScriptModal').removeClass('show').css('display', 'none');
+        }
+        function doGenerateDeleteScript() {
+            var raw = $('#txtDeleteScriptLocalIds').val();
+            if (!raw || !raw.trim()) {
+                showToast('Nhập mã Local Employee (cách nhau bằng dấu phẩy).', 'error');
+                return;
+            }
+            $('#btnCopyDeleteScript').hide();
+            $('#btnDoGenerateDeleteScript').prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GenerateDeleteEmployeeScript") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, localIdsCommaSeparated: raw.trim() }),
+                timeout: 60000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.script) {
+                        $('#txtDeleteScriptOutput').val(d.script);
+                        $('#btnCopyDeleteScript').show();
+                        showToast(d.message || 'Đã generate script.', 'success');
+                    } else {
+                        $('#txtDeleteScriptOutput').val('');
+                        $('#btnCopyDeleteScript').hide();
+                        showToast(d && d.message ? d.message : 'Lỗi generate script.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    $('#btnCopyDeleteScript').hide();
+                    var msg = 'Lỗi kết nối.';
+                    if (xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message; else if (j.message) msg = j.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
+                },
+                complete: function() { $('#btnDoGenerateDeleteScript').prop('disabled', false); }
+            });
+        }
+        function copyDeleteScript() {
+            var ta = document.getElementById('txtDeleteScriptOutput');
+            if (!ta || !ta.value.trim()) {
+                showToast('Chưa có nội dung để copy.', 'error');
+                return;
+            }
+            ta.select();
+            try {
+                document.execCommand('copy');
+                showToast('Đã copy script vào clipboard.', 'success');
+            } catch (e) {
+                try {
+                    navigator.clipboard.writeText(ta.value).then(function() { showToast('Đã copy script vào clipboard.', 'success'); }, function() { showToast('Không copy được.', 'error'); });
+                } catch (e2) { showToast('Không copy được.', 'error'); }
+            }
+        }
+        var generateRunCaptchaA = 0, generateRunCaptchaB = 0;
+        function refreshGenerateRunCaptcha() {
+            generateRunCaptchaA = Math.floor(Math.random() * 9) + 1;
+            generateRunCaptchaB = Math.floor(Math.random() * 9) + 1;
+            $('#generateRunCaptchaQuestion').text(generateRunCaptchaA + ' + ' + generateRunCaptchaB + ' = ');
+            $('#generateRunCaptchaInput').val('');
+        }
+        function showGenerateRunConfirmModal() {
+            $('#generateRunConfirmMessage').text('Bạn có chắc muốn generate delete script và chạy luôn trên database này không? Nhập captcha để xác nhận.');
+            refreshGenerateRunCaptcha();
+            $('#generateRunConfirmModal').addClass('show').css('display', 'flex');
+        }
+        function hideGenerateRunConfirmModal() {
+            $('#generateRunConfirmModal').removeClass('show').css('display', 'none');
+        }
+        function generateAndRunDeleteScript() {
+            var raw = ($('#txtDeleteScriptLocalIds').val() || '').trim();
+            if (!raw) {
+                showToast('Nhập mã Local Employee trước.', 'error');
+                return;
+            }
+            showGenerateRunConfirmModal();
+        }
+        function doExecuteGenerateAndRunDeleteScript() {
+            var raw = ($('#txtDeleteScriptLocalIds').val() || '').trim();
+            if (!raw) return;
+            var captchaVal = parseInt($('#generateRunCaptchaInput').val(), 10);
+            if (captchaVal !== generateRunCaptchaA + generateRunCaptchaB) {
+                showToast('Captcha không đúng. Vui lòng nhập lại.', 'error');
+                refreshGenerateRunCaptcha();
+                return;
+            }
+            hideGenerateRunConfirmModal();
+            hideGenerateDeleteScriptModal();
+            var ids = raw.split(/[\s,;]+/).map(function(s) { return s.trim(); }).filter(Boolean);
+            var payloadJson = JSON.stringify(ids.map(function(lid) { return { localId: lid, name: '' }; }));
+            $('#hrJobOverlay').addClass('show');
+            $('#hrJobOverlay .ba-hr-job-text').text('Đang đưa job xóa employee vào hàng đợi...');
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartHRHelperDeleteEmployeeJob") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, localEmployeeIds: ids, payloadJson: payloadJson, captchaA: generateRunCaptchaA, captchaB: generateRunCaptchaB }),
+                timeout: 30000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success) {
+                        try { sessionStorage.setItem('baHRHelperJobRunning', '1'); } catch (e) {}
+                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xóa employee... Không thao tác cho đến khi job hoàn thành.');
+                        showToast(d.message || 'Đã đưa xóa employee vào hàng đợi. Xem tiến độ trên chuông.', 'success');
+                        if (typeof checkHRHelperJobsAndShowOverlay === 'function') checkHRHelperJobsAndShowOverlay();
+                        if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
+                    } else {
+                        $('#hrJobOverlay').removeClass('show');
+                        showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    $('#hrJobOverlay').removeClass('show');
+                    var msg = 'Lỗi kết nối.';
+                    if (xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message; else if (j.message) msg = j.message;
+                        } catch(e) {}
+                    }
+                    showToast(msg, 'error');
+                }
+            });
         }
 
         /** IDs để update: nếu không chọn ai = update all (danh sách đang hiển thị sau search/sort). */
@@ -3849,7 +4183,21 @@
                         }
                     } catch (e) {}
                 }
-                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr><tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
+                if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
+                    try {
+                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+                        var empList = Array.isArray(pl) ? pl : (pl && pl.employees) ? pl.employees : [];
+                        if (empList.length > 0) {
+                            var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+                            var empCell = empList.length + ' nhân viên';
+                            empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
+                            empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
+                            payloadRows += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
+                        }
+                    } catch (e) {}
+                }
+                var resetRow = ((job.type || '') === 'HRHelperMultiDbReset') ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : '';
+                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>' + resetRow + '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
                 if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                 html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                 $('#notificationDetailBody').html(html);
@@ -3860,6 +4208,17 @@
                     try {
                         var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
                         var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
+                        $pop.html(grid).addClass('show');
+                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
+                });
+                $('#notificationDetailBody').off('click.baEmpList').on('click.baEmpList', '.ba-emp-list-toggle', function() {
+                    var $btn = $(this), $pop = $btn.siblings('.ba-emp-list-popover').first();
+                    var raw = $btn.attr('data-emps');
+                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
+                    try {
+                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
+                        var esc = function(s){ return (s||'').replace(/</g, '&lt;').replace(/&/g, '&amp;'); };
+                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(o) { var lid = o.localId != null ? o.localId : o.LocalId || ''; var name = o.name != null ? o.name : o.Name || ''; return '<span>' + esc(lid) + (name ? ' – ' + esc(name) : '') + '</span>'; }).join('')) + '</div>';
                         $pop.html(grid).addClass('show');
                     } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
                 });
@@ -3927,17 +4286,17 @@
                         jobs.forEach(function(j, idx) {
                             var st = j.status || ''; var msg = (j.message || '').trim(); var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var jobType = j.type || 'Restore';
-                            var typeLabel = (j.typeLabel || (jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : jobType === 'HRHelperMultiDbReset' ? 'Reset Multi-DB' : jobType) || 'Restore').replace(/</g, '&lt;');
-                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : '';
+                            var typeLabel = (j.typeLabel || (jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : jobType === 'HRHelperMultiDbReset' ? 'Reset Multi-DB' : jobType === 'HRHelperDeleteEmployee' ? 'Xóa Employee' : jobType) || 'Restore').replace(/</g, '&lt;');
+                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
                             var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                            var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
+                            var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset' || jobType === 'HRHelperDeleteEmployee') && currentUserId && startedByUid === currentUserId;
                             var serverPct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : 0;
                             var startTimeStr = formatNotifTime(j.startTime);
                             var endTimeStr = formatNotifTime(j.completedAt);
                             var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
                             if (st === 'Running') {
                                 var pct = Math.min(100, Math.max(0, serverPct));
-                                var progressLabel = (jobType === 'HRHelperMultiDbAnalyze') ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset') ? (pct + '% - Reset') : (pct + '%');
+                                var progressLabel = (jobType === 'HRHelperMultiDbAnalyze') ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset') ? (pct + '% - Reset') : (jobType === 'HRHelperDeleteEmployee') ? (pct + '% - Xóa employee') : (pct + '%');
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
                                 row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
                                 if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Hủy job đang chạy">Hủy</button>';

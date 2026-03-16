@@ -102,6 +102,9 @@ a.ba-sidebar-title:hover { color: var(--primary-light); }
     transition: margin-left 0.25s ease;
 }
 .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
+/* Overlay progress / HR job: khi sidebar thu gọn thì chỉ che từ 64px trở đi (vẫn chừa menu) */
+.ba-container:has(.ba-sidebar.collapsed) .ba-hr-job-overlay,
+.ba-container:has(.ba-sidebar.collapsed) .ba-progress-overlay { left: 64px; }
 .ba-top-bar {
     padding: 1rem 2rem;
     background: var(--bg-card);
