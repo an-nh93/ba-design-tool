@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Services;
 using System.Web.Script.Services;
@@ -507,20 +509,21 @@ WHERE IsActive = 1
                                     candidateDbs.Add(db);
                                 }
                             }
-                            var dbCount = 0;
-                            foreach (var db in candidateDbs)
+                            var bag = new ConcurrentBag<Dictionary<string, object>>();
+                            Parallel.ForEach(candidateDbs, new ParallelOptions { MaxDegreeOfParallelism = 12 }, db =>
                             {
-                                if (!DatabaseHasStProjectInfo(c, db)) continue;
-                                var row = new Dictionary<string, object>
+                                if (!DatabaseHasStProjectInfoStandalone(s, db)) return;
+                                bag.Add(new Dictionary<string, object>
                                 {
                                     { "serverId", s.Id },
                                     { "server", s.ServerName },
                                     { "database", db },
                                     { "username", s.Username }
-                                };
+                                });
+                            });
+                            var dbCount = bag.Count;
+                            foreach (var row in bag.OrderBy(x => x["database"]))
                                 list.Add(row);
-                                dbCount++;
-                            }
                             log.Add("  OK: " + dbCount + " database (có ST_ProjectInfo).");
                             serverStatuses.Add(new { id = s.Id, serverName = s.ServerName, ok = true, message = "", dbCount = dbCount });
                         }
@@ -677,12 +680,15 @@ WHERE r.rn = 1";
                             candidateDbs.Add(db);
                         }
                     }
-                    foreach (var db in candidateDbs)
+                    var multiBag = new ConcurrentBag<HRConnMultiDbEntry>();
+                    Parallel.ForEach(candidateDbs, new ParallelOptions { MaxDegreeOfParallelism = 12 }, db =>
                     {
-                        if (!DatabaseHasStProjectInfo(c, db)) continue;
+                        if (!DatabaseHasStProjectInfoStandalone(s, db)) return;
                         var cs = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db);
-                        databases.Add(new HRConnMultiDbEntry { DatabaseName = db, ConnectionString = cs });
-                    }
+                        multiBag.Add(new HRConnMultiDbEntry { DatabaseName = db, ConnectionString = cs });
+                    });
+                    foreach (var entry in multiBag.OrderBy(x => x.DatabaseName))
+                        databases.Add(entry);
                 }
 
                 if (databases.Count == 0)
@@ -3453,6 +3459,27 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 {
                     cmd.CommandText = "SELECT 1 FROM [" + safe + "].sys.tables WHERE name = 'ST_ProjectInfo'";
                     cmd.CommandTimeout = 5;
+                    var r = cmd.ExecuteScalar();
+                    return r != null;
+                }
+            }
+            catch { return false; }
+        }
+
+        /// <summary>Kiểm tra ST_ProjectInfo bằng kết nối riêng (dùng khi quét song song). Connect Timeout ngắn để tránh treo.</summary>
+        private static bool DatabaseHasStProjectInfoStandalone(ServerInfo s, string dbName)
+        {
+            if (string.IsNullOrEmpty(dbName)) return false;
+            var connStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master") + ";Connect Timeout=5";
+            try
+            {
+                using (var conn = new SqlConnection(connStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    var safe = dbName.Trim().Replace("]", "]]");
+                    cmd.CommandText = "SELECT 1 FROM [" + safe + "].sys.tables WHERE name = 'ST_ProjectInfo'";
+                    cmd.CommandTimeout = 5;
+                    conn.Open();
                     var r = cmd.ExecuteScalar();
                     return r != null;
                 }
