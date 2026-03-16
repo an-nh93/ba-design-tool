@@ -262,6 +262,35 @@ select.ba-input {
 }
 .ba-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1rem; align-items: end; }
 
+/* ========== Info icon (chữ i) + popover mô tả field ========== */
+.ba-form-label-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+.ba-form-label-row .ba-form-label { margin-bottom: 0; flex: 0 0 auto; line-height: 1.25; }
+.ba-form-label-row .ba-info-wrap { margin-left: 0; align-self: center; }
+.ba-info-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1px solid var(--text-muted); color: var(--text-muted);
+    font-size: 0.75rem; font-weight: 600; font-style: italic;
+    cursor: pointer; flex-shrink: 0; line-height: 1;
+    transition: border-color 0.2s, color 0.2s;
+    margin-top: -1px; /* căn với baseline chữ */
+}
+.ba-info-icon:hover { border-color: var(--primary-light); color: var(--primary-light); }
+.ba-info-wrap { position: relative; }
+.ba-info-popover {
+    position: absolute; z-index: 1000;
+    bottom: 100%; left: 0; margin-bottom: 6px;
+    width: 360px; max-width: min(380px, calc(100vw - 2rem));
+    padding: 0.75rem 1rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; font-size: 0.8125rem; line-height: 1.5;
+    color: var(--text-secondary); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    box-sizing: border-box; white-space: normal;
+    overflow-wrap: break-word; word-break: break-word;
+    display: none;
+}
+.ba-info-popover.show { display: block !important; }
+
 /* ========== Modal dùng chung (không đóng khi click ra ngoài – đóng bằng nút × / Hủy) ========== */
 .ba-modal {
     position: fixed;

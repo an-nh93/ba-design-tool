@@ -533,6 +533,36 @@
             color: var(--text-secondary);
             border-radius: 0 4px 4px 0;
         }
+        /* Info icon + popover: đảm bảo hiển thị và click hoạt động trên HR Helper */
+        .ba-info-icon {
+            display: inline-flex !important; align-items: center; justify-content: center;
+            width: 18px !important; height: 18px !important; border-radius: 50%;
+            border: 1px solid var(--text-muted, #969696); color: var(--text-muted, #969696);
+            font-size: 0.75rem; font-weight: 600; font-style: italic;
+            cursor: pointer; flex-shrink: 0;
+        }
+        .ba-info-icon:hover { border-color: var(--primary-light, #0D9EFF) !important; color: var(--primary-light, #0D9EFF) !important; }
+        .ba-info-wrap { position: relative !important; }
+        .ba-info-popover {
+            position: absolute !important; z-index: 10003 !important;
+            bottom: 100%; left: 0; margin-bottom: 6px;
+            width: 360px; max-width: min(380px, calc(100vw - 2rem));
+            padding: 0.75rem 1rem;
+            background: var(--bg-card, #2d2d30); border: 1px solid var(--border, #3e3e42);
+            border-radius: 8px; font-size: 0.8125rem; line-height: 1.5;
+            color: var(--text-secondary, #cccccc); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            box-sizing: border-box; white-space: normal;
+            overflow-wrap: break-word; word-break: break-word;
+            display: none;
+        }
+        .ba-info-popover.show { display: block !important; }
+        /* Giữ icon (i) cùng dòng với label; căn giữa dọc, không sát caption */
+        .ba-form-label-row { flex-wrap: nowrap !important; display: flex !important; align-items: center; gap: 0.5rem !important; }
+        .ba-form-label-row .ba-form-label { line-height: 1.25; }
+        .ba-form-label-row .ba-info-wrap { flex-shrink: 0; align-self: center; }
+        .ba-form-label-row .ba-form-label { display: inline-flex; align-items: center; }
+        .ba-label-with-info { display: inline-flex !important; align-items: center; flex-wrap: nowrap; gap: 0.5rem !important; flex-shrink: 0; }
+        .ba-info-icon { line-height: 1; vertical-align: middle; margin-top: -1px; }
     </style>
 </head>
 <body>
@@ -611,9 +641,13 @@
                                 <div class="ba-collapse-body">
                                 <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Chọn user ở bảng trên, bật option dưới đây rồi bấm <strong>Generate and Update</strong>.</p>
                                 <div class="ba-form-group">
-                                    <div class="ba-checkbox">
+                                    <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                         <input type="checkbox" id="chkUpdatePassword" />
                                         <label for="chkUpdatePassword">Update Password</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Bật để đổi mật khẩu user đã chọn. Nhập password bên dưới và chọn Method Hash (SHA256/SHA512) tương ứng phiên bản Cadena.</div>
+                                        </span>
                                     </div>
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; align-items: start;">
                                         <input type="text" id="txtPassword" class="ba-input" placeholder="Enter password" disabled />
@@ -629,16 +663,24 @@
                                 <div class="ba-form-group">
                                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; align-items: start;">
                                         <div>
-                                            <div class="ba-checkbox">
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                                 <input type="checkbox" id="chkUpdateEmail" />
                                                 <label for="chkUpdateEmail">Update Email</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Bật để cập nhật email đăng nhập cho user đã chọn. Nhập email mới vào ô bên dưới.</div>
+                                                </span>
                                             </div>
                                             <input type="text" id="txtEmail" class="ba-input" placeholder="Example: an.nh@cadena-hrmseries.com" style="margin-top: 0.5rem;" disabled />
                                         </div>
                                         <div>
-                                            <div class="ba-checkbox">
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                                 <input type="checkbox" id="chkIgnoreWindowsAD" />
                                                 <label for="chkIgnoreWindowsAD">Is Ignore Window AD Account</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Khi bật: hệ thống đổi loại tài khoản từ Windows AD sang Normal và generate password. Dùng khi cần tách user khỏi AD.</div>
+                                                </span>
                                             </div>
                                             <p style="color: var(--text-muted); font-size: 0.8125rem; margin-top: 0.25rem;">When checked system will change type Window AD Account to Normal Account and generate password.</p>
                                         </div>
@@ -658,11 +700,23 @@
                                 <p class="ba-script-instruction" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Chọn user ở bảng trên, nhập password và chọn cách mã hóa. Script chỉ generate để copy chạy tay.</p>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: start; margin-bottom: 1rem;">
                                     <div class="ba-form-group" style="margin: 0;">
-                                        <label class="ba-form-label" for="txtScriptPassword">Password</label>
+                                        <div class="ba-form-label-row">
+                                            <label class="ba-form-label" for="txtScriptPassword">Password</label>
+                                            <span class="ba-info-wrap">
+                                                <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                <div class="ba-info-popover" style="display: none;">Mật khẩu sẽ được hash và ghi vào script. Chạy script tại DB để cập nhật password cho user đã chọn.</div>
+                                            </span>
+                                        </div>
                                         <input type="text" id="txtScriptPassword" class="ba-input" placeholder="Nhập password" autocomplete="off" />
                                     </div>
                                     <div class="ba-form-group" style="margin: 0;">
-                                        <label class="ba-form-label" for="selScriptMethodHash">Method Hash</label>
+                                        <div class="ba-form-label-row">
+                                            <label class="ba-form-label" for="selScriptMethodHash">Method Hash</label>
+                                            <span class="ba-info-wrap">
+                                                <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                <div class="ba-info-popover" style="display: none;">MD5: dùng cho Cadena version 5.0.73 trở xuống. Hash 256 (SHA256): phiên bản mới hơn. Chọn đúng theo phiên bản DB đang dùng.</div>
+                                            </span>
+                                        </div>
                                         <select id="selScriptMethodHash" class="ba-input">
                                             <option value="256">Hash 256 (SHA256)</option>
                                             <option value="MD5">MD5</option>
@@ -740,30 +794,72 @@
                                 <div class="ba-update-grid">
                                     <div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox"><input type="checkbox" id="chkUpdPersonalEmail" /><label for="chkUpdPersonalEmail">Update Personal Email</label></div>
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                                <input type="checkbox" id="chkUpdPersonalEmail" />
+                                                <label for="chkUpdPersonalEmail">Update Personal Email</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Cập nhật email cá nhân cho employee đã chọn. Không chọn employee = áp dụng cho tất cả.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtPersonalEmail" class="ba-input" placeholder="user@cadena-hrmseries.com" style="margin-top: 0.5rem;" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox"><input type="checkbox" id="chkUpdBusinessEmail" /><label for="chkUpdBusinessEmail">Update Business Email</label></div>
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                                <input type="checkbox" id="chkUpdBusinessEmail" />
+                                                <label for="chkUpdBusinessEmail">Update Business Email</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Cập nhật email công việc cho employee đã chọn.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtBusinessEmail" class="ba-input" placeholder="user@company.com" style="margin-top: 0.5rem;" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox"><input type="checkbox" id="chkUpdPayslip" /><label for="chkUpdPayslip">Update Payslip Password</label></div>
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                                <input type="checkbox" id="chkUpdPayslip" />
+                                                <label for="chkUpdPayslip">Update Payslip Password</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Cập nhật mật khẩu payslip. Bật &quot;Encrypt by Employee (Local ID)&quot; để mã hóa theo từng nhân viên; không bật thì dùng chuỗi chung.</div>
+                                                </span>
+                                            </div>
                                             <div class="ba-checkbox" style="margin-top: 0.5rem;"><input type="checkbox" id="chkPayslipByEmployee" /><label for="chkPayslipByEmployee">Encrypt by Employee (Local ID)</label></div>
                                             <input type="text" id="txtPayslipCommon" class="ba-input" placeholder="Payslip common (nếu không encrypt by employee)" style="margin-top: 0.5rem;" disabled />
                                         </div>
                                     </div>
                                     <div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox"><input type="checkbox" id="chkUpdMobile1" /><label for="chkUpdMobile1">Update Mobile 1</label></div>
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                                <input type="checkbox" id="chkUpdMobile1" />
+                                                <label for="chkUpdMobile1">Update Mobile 1</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Cập nhật số điện thoại 1 cho employee đã chọn.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtMobile1" class="ba-input" placeholder="Số điện thoại 1" style="margin-top: 0.5rem;" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox"><input type="checkbox" id="chkUpdMobile2" /><label for="chkUpdMobile2">Update Mobile 2</label></div>
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                                <input type="checkbox" id="chkUpdMobile2" />
+                                                <label for="chkUpdMobile2">Update Mobile 2</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Cập nhật số điện thoại 2 cho employee đã chọn.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtMobile2" class="ba-input" placeholder="Số điện thoại 2" style="margin-top: 0.5rem;" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox"><input type="checkbox" id="chkUpdBasicSalary" /><label for="chkUpdBasicSalary">Update Basic Salary</label></div>
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                                <input type="checkbox" id="chkUpdBasicSalary" />
+                                                <label for="chkUpdBasicSalary">Update Basic Salary</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Cập nhật lương cơ bản (vd. 0 để mask).</div>
+                                                </span>
+                                            </div>
                                             <input type="number" id="txtBasicSalary" class="ba-input" placeholder="0" min="0" step="0.01" style="margin-top: 0.5rem; max-width: 100%;" disabled />
                                         </div>
                                     </div>
@@ -787,15 +883,27 @@
                                         <span>Select Company</span>
                                     </label>
                                     <div style="display: grid; grid-template-columns: 200px 1fr; gap: 1rem; margin-top: 0.5rem; align-items: end;">
-                                        <div class="ba-form-group" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                                            <label class="ba-form-label" style="margin: 0; white-space: nowrap; min-width: 60px;">Tenant</label>
-                                            <select id="selCompanyTenant" class="ba-input" style="flex: 1;">
+                                        <div class="ba-form-group" style="margin: 0; display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap;">
+                                            <span class="ba-label-with-info">
+                                                <label class="ba-form-label" style="margin: 0; white-space: nowrap;">Tenant</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Chọn tenant trước, sau đó chọn Company trong tenant đó để xem/cập nhật cấu hình email company.</div>
+                                                </span>
+                                            </span>
+                                            <select id="selCompanyTenant" class="ba-input" style="flex: 1; min-width: 0;">
                                                 <option value="">Loading tenants...</option>
                                             </select>
                                         </div>
-                                        <div class="ba-form-group" style="margin: 0; display: flex; align-items: center; gap: 0.5rem;">
-                                            <label class="ba-form-label" style="margin: 0; white-space: nowrap; min-width: 70px;">Company</label>
-                                            <select id="selCompanyCompany" class="ba-input" style="flex: 1;" disabled>
+                                        <div class="ba-form-group" style="margin: 0; display: flex; align-items: center; gap: 0.5rem; flex-wrap: nowrap;">
+                                            <span class="ba-label-with-info">
+                                                <label class="ba-form-label" style="margin: 0; white-space: nowrap;">Company</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Danh sách company thuộc tenant đã chọn. Chọn xong bấm View Data để tải thông tin.</div>
+                                                </span>
+                                            </span>
+                                            <select id="selCompanyCompany" class="ba-input" style="flex: 1; min-width: 0;" disabled>
                                                 <option value="">Select tenant first</option>
                                             </select>
                                         </div>
@@ -822,38 +930,72 @@
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCompanyUserAction" onclick="loadUserActionEmail(); return false;" disabled>User Action Email</button>
                                 </div>
                                 <div class="ba-form-group">
-                                    <div class="ba-checkbox">
+                                    <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                         <input type="checkbox" id="chkCompanyUseCommonEmail" />
                                         <label for="chkCompanyUseCommonEmail">Use Default Email</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Khi bật: dùng một email mặc định cho các trường HR/Payroll; nhập email đó vào ô bên dưới.</div>
+                                        </span>
                                     </div>
                                     <input type="text" id="txtCompanyCommonEmail" class="ba-input" placeholder="Default email (if checked)" style="margin-top: 0.5rem;" disabled />
                                 </div>
                                 <div class="ba-update-grid" style="margin-top: 1rem;">
                                     <div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">HR Support Email <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">HR Support Email <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Email nhận thông báo hỗ trợ HR. Bắt buộc nhập.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyHREmailTo" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">HR CC Email <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">HR CC Email <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Email CC cho thông báo HR. Bắt buộc nhập.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyHREmailCC" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Payroll Support Email <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Payroll Support Email <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Email nhận thông báo hỗ trợ Payroll. Bắt buộc nhập.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyPayrollEmailTo" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Payroll CC Email <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Payroll CC Email <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Email CC cho thông báo Payroll. Bắt buộc nhập.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyPayrollEmailCC" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Contact Email <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Contact Email <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Email liên hệ. Bắt buộc nhập. Nếu không nhập, chương trình sẽ dùng Email của User Action.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyContactEmail" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
@@ -876,41 +1018,81 @@
                                 <div class="ba-update-grid">
                                     <div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Outgoing Email Server <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Outgoing Email Server <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">SMTP server gửi mail (vd. smtp.company.com). Khi điền nhóm này, chương trình chuyển Email Server sang SMTP.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyOutgoingServer" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Port <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Port <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Cổng SMTP (thường 25 hoặc 587). Bật SSL thì dùng SSL Port.</div>
+                                                </span>
+                                            </div>
                                             <input type="number" id="txtCompanyServerPort" class="ba-input" min="1" max="65535" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Account Name <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Account Name <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Tên tài khoản SMTP dùng để gửi mail.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyAccountName" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                     </div>
                                     <div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Username <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Username <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Username đăng nhập SMTP.</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyUserName" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Email Address <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Email Address <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Địa chỉ email gửi đi (From).</div>
+                                                </span>
+                                            </div>
                                             <input type="text" id="txtCompanyEmailAddress" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <label class="ba-form-label">Password <span class="ba-required">(*)</span></label>
+                                            <div class="ba-form-label-row">
+                                                <label class="ba-form-label">Password <span class="ba-required">(*)</span></label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Mật khẩu tài khoản SMTP.</div>
+                                                </span>
+                                            </div>
                                             <input type="password" id="txtCompanyPassword" class="ba-input" data-required="true" disabled />
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox">
+                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
                                                 <input type="checkbox" id="chkCompanyEnableSSL" />
                                                 <label for="chkCompanyEnableSSL">Enable SSL</label>
+                                                <span class="ba-info-wrap">
+                                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                    <div class="ba-info-popover" style="display: none;">Bật kết nối SMTP qua SSL. Sau khi bật có thể nhập SSL Port (vd. 465).</div>
+                                                </span>
                                             </div>
                                             <input type="number" id="txtCompanySSLPort" class="ba-input" placeholder="SSL Port" min="1" max="65535" style="margin-top: 0.5rem;" disabled />
                                         </div>
@@ -972,7 +1154,13 @@
                                     <div id="emailColumnsList" style="display: flex; flex-direction: column; gap: 0.25rem;"></div>
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Email reset chung</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="txtOtherEmailColumnsEmail">Email reset chung</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Email sẽ gán cho tất cả cột đã chọn trong danh sách bảng có cột Email. Bấm &quot;Reset các cột đã chọn&quot; để thực hiện.</div>
+                                        </span>
+                                    </div>
                                     <input type="text" id="txtOtherEmailColumnsEmail" class="ba-input" placeholder="user@cadena.com.sg" style="max-width: 400px;" />
                                 </div>
                                 <div class="ba-actions">
@@ -1017,7 +1205,13 @@
                                     <div id="phoneColumnsList" style="display: flex; flex-direction: column; gap: 0.25rem;"></div>
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Số điện thoại reset chung</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="txtOtherPhoneColumnsPhone">Số điện thoại reset chung</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Số điện thoại sẽ gán cho tất cả cột đã chọn trong danh sách bảng có cột Phone. Bấm &quot;Reset các cột đã chọn&quot; để thực hiện.</div>
+                                        </span>
+                                    </div>
                                     <input type="text" id="txtOtherPhoneColumnsPhone" class="ba-input" placeholder="VD: 0123456789" style="max-width: 400px;" />
                                 </div>
                                 <div class="ba-actions">
@@ -4341,6 +4535,41 @@
                     if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { if ($('#restoreJobsPanel').is(':visible')) loadRestoreJobsPanel(); else { $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }); var newBugs = d.newBugs || []; var total = jobs.length + newBugs.length; if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible'); } } }); } }); }
                 }
             });
+        })();
+    </script>
+    <script>
+        (function() {
+            function initInfoIcons() {
+                document.querySelectorAll('.ba-info-icon').forEach(function(icon) {
+                    icon.removeEventListener('click', onInfoClick);
+                    icon.addEventListener('click', onInfoClick);
+                });
+                document.removeEventListener('click', closeAllPopovers);
+                document.addEventListener('click', closeAllPopovers);
+            }
+            function onInfoClick(e) {
+                e.stopPropagation();
+                var wrap = e.target.closest('.ba-info-wrap');
+                if (!wrap) return;
+                var pop = wrap.querySelector('.ba-info-popover');
+                if (!pop) return;
+                var isShow = pop.classList.toggle('show');
+                pop.style.display = isShow ? 'block' : 'none';
+            }
+            function closeAllPopovers() {
+                document.querySelectorAll('.ba-info-popover.show').forEach(function(pop) {
+                    pop.classList.remove('show');
+                    pop.style.display = 'none';
+                });
+            }
+            document.querySelectorAll('.ba-info-popover').forEach(function(pop) {
+                pop.addEventListener('click', function(e) { e.stopPropagation(); });
+            });
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initInfoIcons);
+            } else {
+                initInfoIcons();
+            }
         })();
     </script>
 </body>

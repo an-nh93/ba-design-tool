@@ -305,15 +305,33 @@
                                 <div class="ba-card-body">
                                     <p class="ba-warn">Dán dữ liệu từ SQL (CSV/TSV, có header). Cột Key (tùy chọn) dùng để giải mã theo từng dòng; nếu không chọn hoặc key null/trống thì dòng vẫn hiển thị (cột giải mã có thể để nguyên hoặc [key trống]). Chọn các cột cần giải mã.</p>
                                     <div class="ba-form-group">
-                                        <label class="ba-form-label">Dữ liệu (CSV/TSV)</label>
+                                        <div class="ba-form-label-row">
+                                            <label class="ba-form-label" for="txtDecryptGridCsv">Dữ liệu (CSV/TSV)</label>
+                                            <span class="ba-info-wrap">
+                                                <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                <div class="ba-info-popover" style="display: none;">Dán kết quả copy từ SQL (CSV hoặc TSV), dòng đầu là header. Mỗi dòng có thể có cột chứa key (vd. EmployeeID) dùng để giải mã theo từng dòng.</div>
+                                            </span>
+                                        </div>
                                         <textarea id="txtDecryptGridCsv" class="ba-input" placeholder="EmployeeID,MobilePhone1,BusinessEmail&#10;26474,3OSo/+iDCY6...,abc123base64..." rows="6"></textarea>
                                     </div>
                                     <div class="ba-form-group">
-                                        <label class="ba-form-label">Cột Key (tùy chọn, dùng để giải mã theo dòng)</label>
+                                        <div class="ba-form-label-row">
+                                            <label class="ba-form-label">Cột Key (tùy chọn, dùng để giải mã theo dòng)</label>
+                                            <span class="ba-info-wrap">
+                                                <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                <div class="ba-info-popover" style="display: none;">Chọn cột chứa key (vd. EmployeeID). Mỗi dòng sẽ dùng key tương ứng để giải mã. Nếu không chọn hoặc key trống, dòng vẫn hiển thị (cột giải mã để nguyên hoặc [key trống]).</div>
+                                            </span>
+                                        </div>
                                         <select id="selDecryptKeyCol" class="ba-input" style="max-width: 200px;"><option value="">-- Chọn sau khi dán --</option></select>
                                     </div>
                                     <div class="ba-form-group">
-                                        <label class="ba-form-label">Các cột cần giải mã</label>
+                                        <div class="ba-form-label-row">
+                                            <label class="ba-form-label">Các cột cần giải mã</label>
+                                            <span class="ba-info-wrap">
+                                                <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                <div class="ba-info-popover" style="display: none;">Bấm &quot;Phân tích cột&quot; sau khi dán data để hiện danh sách cột. Tick các cột chứa dữ liệu đã mã hóa cần giải mã để xem plain text.</div>
+                                            </span>
+                                        </div>
                                         <div id="chkDecryptCols" style="display: flex; flex-wrap: wrap; gap: 0.75rem;"></div>
                                     </div>
                                     <button type="button" class="ba-btn ba-btn-primary" id="btnParseDecrypt">Phân tích cột</button>
@@ -365,13 +383,25 @@
                             <div id="srcHrdb" style="display: none;">
                                 <p class="ba-warn">Đã kết nối thì chọn Company (lọc) rồi bấm <strong>Load danh sách</strong>. Chưa kết nối: vào Database Search → Connect → HR Helper → bấm &quot;Generate Demo Reset Script&quot; hoặc mở trang với <code>?k=...</code>.</p>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Company (lọc)</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="selCompany">Company (lọc)</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Lọc nhân viên theo Company trước khi load danh sách. Chọn &quot;Tất cả&quot; để lấy mọi company.</div>
+                                        </span>
+                                    </div>
                                     <select id="selCompany" class="ba-input" style="max-width: 320px;"><option value="">-- Tất cả --</option></select>
                                 </div>
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnLoadEmployees">Load danh sách</button>
                             </div>
                             <div id="srcCsv" class="ba-form-group">
-                                <label class="ba-form-label">CSV (EmployeeID, LocalEmployeeID)</label>
+                                <div class="ba-form-label-row">
+                                    <label class="ba-form-label" for="txtCsv">CSV (EmployeeID, LocalEmployeeID)</label>
+                                    <span class="ba-info-wrap">
+                                        <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                        <div class="ba-info-popover" style="display: none;">Dán CSV có header EmployeeID, LocalEmployeeID. LocalEmployeeID bắt buộc nếu reset Payslip theo Local ID.</div>
+                                    </span>
+                                </div>
                                 <textarea id="txtCsv" class="ba-input" placeholder="EmployeeID,LocalEmployeeID&#10;1001,E001&#10;1002,E002" rows="6"></textarea>
                             </div>
                         </div>
@@ -379,19 +409,43 @@
                             <h2 class="ba-card-title">Cấu hình reset</h2>
                             <div class="ba-grid-2">
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Demo phone</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="cfgDemoPhone">Demo phone</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Số điện thoại mẫu sẽ gán cho các cột mobile đã chọn trong Fields to reset.</div>
+                                        </span>
+                                    </div>
                                     <input type="text" id="cfgDemoPhone" class="ba-input" placeholder="vd. 0900000000" />
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Demo email</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="cfgDemoEmail">Demo email</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Email mẫu sẽ gán cho các cột email đã chọn trong Fields to reset.</div>
+                                        </span>
+                                    </div>
                                     <input type="text" id="cfgDemoEmail" class="ba-input" placeholder="vd. demo@company.com" />
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Mask salary (số)</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="cfgMaskSalary">Mask salary (số)</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Giá trị thay thế cho Basic Salary khi chọn reset Basic Salary (vd. 0 để ẩn lương).</div>
+                                        </span>
+                                    </div>
                                     <input type="number" id="cfgMaskSalary" class="ba-input" value="0" />
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Payslip</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label">Payslip</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Reset mã payslip: theo Local ID từng nhân viên hoặc chuỗi chung. Local ID bắt buộc nếu chọn theo Local ID.</div>
+                                        </span>
+                                    </div>
                                     <div class="ba-checkbox"><input type="checkbox" id="cfgPayslip" /><label for="cfgPayslip">Reset payslip</label></div>
                                     <div class="ba-source-radio">
                                         <label><input type="radio" name="payslipMode" value="local" checked /> Theo Local ID</label>
@@ -401,7 +455,13 @@
                                 </div>
                             </div>
                             <div class="ba-form-group">
-                                <label class="ba-form-label">Fields to reset</label>
+                                <div class="ba-form-label-row">
+                                    <label class="ba-form-label">Fields to reset</label>
+                                    <span class="ba-info-wrap">
+                                        <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                        <div class="ba-info-popover" style="display: none;">Chọn các trường sẽ bị ghi đè bởi giá trị demo (phone, email, payslip, basic salary) khi chạy script.</div>
+                                    </span>
+                                </div>
                                 <div style="display: flex; flex-wrap: wrap; gap: 1rem;">
                                     <div class="ba-checkbox" style="margin-bottom: 0;"><input type="checkbox" id="cfgPersonalEmail" /><label for="cfgPersonalEmail">Personal Email</label></div>
                                     <div class="ba-checkbox" style="margin-bottom: 0;"><input type="checkbox" id="cfgBusinessEmail" /><label for="cfgBusinessEmail">Business Email</label></div>
@@ -441,25 +501,55 @@
                                 <h2 class="ba-card-title">Mã hóa &amp; tạo script</h2>
                                 <p class="ba-warn">Dán data plain (CSV có header). Chọn Key + cột mã hóa. Định nghĩa mapping để tạo script UPDATE.</p>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Dữ liệu (CSV)</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="txtEncryptScriptCsv">Dữ liệu (CSV)</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">CSV plain text có header. Cột Key dùng để mã hóa theo dòng; chọn thêm các cột cần mã hóa để tạo script UPDATE.</div>
+                                        </span>
+                                    </div>
                                     <textarea id="txtEncryptScriptCsv" class="ba-input" placeholder="EmployeeID,Phone,Email,Amount&#10;26474,0900111222,a@x.com,5000" rows="5"></textarea>
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Cột Key</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label">Cột Key</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Cột chứa key (vd. EmployeeID) dùng để mã hóa từng dòng. Bấm Phân tích cột sau khi dán data.</div>
+                                        </span>
+                                    </div>
                                     <select id="selEncryptKeyCol" class="ba-input" style="max-width: 200px;"><option value="">-- Chọn sau khi dán --</option></select>
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Cột cần mã hóa</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label">Cột cần mã hóa</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Tick các cột sẽ được mã hóa; mapping cột nguồn → cột DB sẽ dùng để tạo câu UPDATE.</div>
+                                        </span>
+                                    </div>
                                     <div id="chkEncryptCols" style="display: flex; flex-wrap: wrap; gap: 0.75rem;"></div>
                                 </div>
                                 <div class="ba-card" style="margin-top: 1rem; padding: 1rem;">
                                     <h3 class="ba-card-title" style="font-size: 1rem;">Cấu hình script</h3>
                                     <div class="ba-form-group">
-                                        <label class="ba-form-label">Bảng đích</label>
+                                        <div class="ba-form-label-row">
+                                            <label class="ba-form-label" for="cfgEncTable">Bảng đích</label>
+                                            <span class="ba-info-wrap">
+                                                <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                <div class="ba-info-popover" style="display: none;">Tên bảng trong script UPDATE (vd. Staffing_Employees).</div>
+                                            </span>
+                                        </div>
                                         <input type="text" id="cfgEncTable" class="ba-input" placeholder="vd. Staffing_Employees" style="max-width: 300px;" />
                                     </div>
                                     <div class="ba-form-group">
-                                        <label class="ba-form-label">Cột WHERE (vd. ID hoặc EmployeeID)</label>
+                                        <div class="ba-form-label-row">
+                                            <label class="ba-form-label" for="cfgEncWhereCol">Cột WHERE (vd. ID hoặc EmployeeID)</label>
+                                            <span class="ba-info-wrap">
+                                                <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                                <div class="ba-info-popover" style="display: none;">Cột dùng trong điều kiện WHERE của UPDATE (thường là ID hoặc EmployeeID).</div>
+                                            </span>
+                                        </div>
                                         <input type="text" id="cfgEncWhereCol" class="ba-input" value="ID" style="max-width: 200px;" />
                                     </div>
                                     <div class="ba-form-group">

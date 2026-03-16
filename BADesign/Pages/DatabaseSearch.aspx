@@ -315,6 +315,34 @@
         #restoreModalBackupSets table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
         #restoreModalBackupSets th, #restoreModalBackupSets td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
         #restoreModalBackupSets th { color: var(--text-muted); font-weight: 500; }
+        /* Info icon (i) + popover: đảm bảo hiển thị, click, căn giữa và khoảng cách */
+        .ba-form-label-row { flex-wrap: nowrap !important; display: flex !important; align-items: center; gap: 0.5rem !important; }
+        .ba-form-label-row .ba-form-label { line-height: 1.25; }
+        .ba-form-label-row .ba-info-wrap { flex-shrink: 0; align-self: center; }
+        .ba-form-label-row .ba-form-label { display: inline-flex; align-items: center; }
+        .ba-info-icon { line-height: 1; vertical-align: middle; margin-top: -1px; }
+        .ba-info-icon {
+            display: inline-flex !important; align-items: center; justify-content: center;
+            width: 18px !important; height: 18px !important; border-radius: 50%;
+            border: 1px solid var(--text-muted, #969696); color: var(--text-muted, #969696);
+            font-size: 0.75rem; font-weight: 600; font-style: italic;
+            cursor: pointer; flex-shrink: 0;
+        }
+        .ba-info-icon:hover { border-color: var(--primary-light, #0D9EFF) !important; color: var(--primary-light, #0D9EFF) !important; }
+        .ba-info-wrap { position: relative !important; }
+        .ba-info-popover {
+            position: absolute !important; z-index: 10003 !important;
+            bottom: 100%; left: 0; margin-bottom: 6px;
+            width: 360px; max-width: min(380px, calc(100vw - 2rem));
+            padding: 0.75rem 1rem;
+            background: var(--bg-card, #2d2d30); border: 1px solid var(--border, #3e3e42);
+            border-radius: 8px; font-size: 0.8125rem; line-height: 1.5;
+            color: var(--text-secondary, #cccccc); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            box-sizing: border-box; white-space: normal;
+            overflow-wrap: break-word; word-break: break-word;
+            display: none;
+        }
+        .ba-info-popover.show { display: block !important; }
     </style>
 </head>
 <body>
@@ -336,8 +364,15 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Dán connection string vào ô bên dưới rồi bấm Connect để mở HR Helper.</p>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Dán connection string vào ô bên dưới rồi bấm Connect để mở HR Helper.</p>
                             <div class="ba-form-group" style="margin-bottom: 1rem;">
+                                <div class="ba-form-label-row">
+                                    <label class="ba-form-label" for="txtConnStr">Connection String</label>
+                                    <span class="ba-info-wrap">
+                                        <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                        <div class="ba-info-popover" style="display: none;">Chuỗi kết nối SQL (Data Source, Initial Catalog, User ID, Password…). Dùng để kết nối trực tiếp tới HR DB mà không cần lưu server trong Cấu hình Server.</div>
+                                    </span>
+                                </div>
                                 <input type="text" id="txtConnStr" class="ba-input" placeholder="Data Source=...;Initial Catalog=...;User ID=...;Password=..." style="width:100%; font-family: Consolas, monospace; font-size: 0.8125rem;" />
                             </div>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnConnStrConnect" onclick="connectByConnStr(); return false;">Connect</button>
@@ -438,21 +473,45 @@
                     <input type="hidden" id="serverModalId" />
                     <div class="server-modal-row-2">
                         <div class="ba-form-group">
-                            <label class="ba-form-label">Server *</label>
+                            <div class="ba-form-label-row">
+                                <label class="ba-form-label" for="serverModalServerName">Server *</label>
+                                <span class="ba-info-wrap">
+                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                    <div class="ba-info-popover" style="display: none;">Tên hoặc địa chỉ SQL Server (vd. localhost, 192.168.1.10, hoặc tên instance HRS05\SQL2022).</div>
+                                </span>
+                            </div>
                             <input type="text" id="serverModalServerName" class="ba-input" placeholder="vd: localhost hoặc 192.168.1.10" />
                         </div>
                         <div class="ba-form-group">
-                            <label class="ba-form-label">Port</label>
+                            <div class="ba-form-label-row">
+                                <label class="ba-form-label" for="serverModalPort">Port</label>
+                                <span class="ba-info-wrap">
+                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                    <div class="ba-info-popover" style="display: none;">Cổng kết nối SQL (mặc định 1433). Để trống nếu dùng port mặc định.</div>
+                                </span>
+                            </div>
                             <input type="number" id="serverModalPort" class="ba-input" placeholder="1433 (để trống = mặc định)" min="1" max="65535" />
                         </div>
                     </div>
                     <div class="server-modal-row-2">
                         <div class="ba-form-group">
-                            <label class="ba-form-label">Username *</label>
+                            <div class="ba-form-label-row">
+                                <label class="ba-form-label" for="serverModalUsername">Username *</label>
+                                <span class="ba-info-wrap">
+                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                    <div class="ba-info-popover" style="display: none;">Tài khoản đăng nhập SQL Server (vd. sa hoặc user có quyền đọc DB).</div>
+                                </span>
+                            </div>
                             <input type="text" id="serverModalUsername" class="ba-input" placeholder="vd: sa" />
                         </div>
                         <div class="ba-form-group">
-                            <label class="ba-form-label">Password *</label>
+                            <div class="ba-form-label-row">
+                                <label class="ba-form-label" for="serverModalPassword">Password *</label>
+                                <span class="ba-info-wrap">
+                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                    <div class="ba-info-popover" style="display: none;">Mật khẩu đăng nhập. Khi sửa server, để trống nếu không đổi mật khẩu.</div>
+                                </span>
+                            </div>
                             <input type="password" id="serverModalPassword" class="ba-input" placeholder="Mật khẩu (để trống nếu sửa và không đổi)" />
                         </div>
                     </div>
@@ -3258,6 +3317,41 @@
                 BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');
             }
         });
+    </script>
+    <script>
+        (function() {
+            function initInfoIcons() {
+                document.querySelectorAll('.ba-info-icon').forEach(function(icon) {
+                    icon.removeEventListener('click', onInfoClick);
+                    icon.addEventListener('click', onInfoClick);
+                });
+                document.removeEventListener('click', closeAllPopovers);
+                document.addEventListener('click', closeAllPopovers);
+            }
+            function onInfoClick(e) {
+                e.stopPropagation();
+                var wrap = e.target.closest('.ba-info-wrap');
+                if (!wrap) return;
+                var pop = wrap.querySelector('.ba-info-popover');
+                if (!pop) return;
+                var isShow = pop.classList.toggle('show');
+                pop.style.display = isShow ? 'block' : 'none';
+            }
+            function closeAllPopovers() {
+                document.querySelectorAll('.ba-info-popover.show').forEach(function(pop) {
+                    pop.classList.remove('show');
+                    pop.style.display = 'none';
+                });
+            }
+            document.querySelectorAll('.ba-info-popover').forEach(function(pop) {
+                pop.addEventListener('click', function(e) { e.stopPropagation(); });
+            });
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initInfoIcons);
+            } else {
+                initInfoIcons();
+            }
+        })();
     </script>
 </body>
 </html>
