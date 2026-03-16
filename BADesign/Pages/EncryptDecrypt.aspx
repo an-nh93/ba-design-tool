@@ -71,6 +71,8 @@
         .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
         .ba-form-group { margin-bottom: 1rem; }
         .ba-form-label { display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-size: 0.875rem; font-weight: 500; }
+        .ba-form-label-row { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .ba-form-label-row .ba-form-label { margin-bottom: 0; flex: 0 0 auto; }
         .ba-input { width: 100%; padding: 0.5rem 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; }
         .ba-input:focus { outline: none; border-color: var(--primary); }
         .ba-input:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -107,6 +109,9 @@
         .ba-warn { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
         .ba-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         @media (max-width: 900px) { .ba-grid-2 { grid-template-columns: 1fr; } }
+        .ba-encdec-cards { align-items: start; }
+        .ba-encdec-cards .ba-card .ba-form-group { margin-bottom: 1.25rem; }
+        .ba-encdec-cards .ba-card .ba-form-group:last-of-type { margin-bottom: 1rem; }
         .ba-tabs-inner { border-bottom: 1px solid var(--border); padding-bottom: 0; }
         .ba-tab-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
         .ba-source-radio { display: flex; gap: 1.5rem; margin-bottom: 1rem; }
@@ -127,6 +132,50 @@
         .ba-table th .ba-col-resize { position: absolute; right: 0; top: 0; bottom: 0; width: 6px; cursor: col-resize; }
         .ba-table th .ba-col-resize:hover { background: var(--primary); opacity: 0.3; }
         .ba-table-wrap.decrypt-result { position: relative; }
+        /* Dùng chung Key: căn trái, checkbox + label + icon cùng 1 dòng */
+        #subEncdecSingle { text-align: left; }
+        .ba-sharedkey-card { width: 100%; text-align: left; }
+        .ba-sharedkey-card .ba-form-group { margin-bottom: 0; }
+        .ba-sharedkey-row {
+            display: flex !important; flex-direction: row !important; align-items: center; gap: 0.5rem;
+            flex-wrap: nowrap !important; justify-content: flex-start; width: 100%;
+        }
+        .ba-sharedkey-row .ba-checkbox {
+            margin-bottom: 0; flex: 0 0 auto; min-width: 0;
+            display: inline-flex !important; align-items: center;
+        }
+        .ba-sharedkey-row .ba-checkbox label { white-space: nowrap; }
+        .ba-sharedkey-row .ba-info-wrap {
+            flex: 0 0 auto; min-width: 0;
+            display: inline-flex !important; align-items: center;
+        }
+        /* Info icon (chữ i trong vòng tròn) + popover */
+        .ba-info-icon {
+            display: inline-flex; align-items: center; justify-content: center;
+            width: 18px; height: 18px; border-radius: 50%;
+            border: 1px solid var(--text-muted); color: var(--text-muted);
+            font-size: 0.75rem; font-weight: 600; font-style: italic;
+            cursor: pointer; flex-shrink: 0;
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .ba-info-icon:hover { border-color: var(--primary-light); color: var(--primary-light); }
+        .ba-form-group .ba-info-icon { vertical-align: middle; margin-left: 2px; }
+        .ba-info-popover {
+            position: absolute; z-index: 1000;
+            bottom: 100%; left: 0;
+            margin-bottom: 6px; margin-top: 0;
+            width: 360px; max-width: min(380px, calc(100vw - 2rem));
+            padding: 0.75rem 1rem;
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; font-size: 0.8125rem; line-height: 1.5;
+            color: var(--text-secondary); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            box-sizing: border-box;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: break-word;
+        }
+        .ba-info-popover.show { display: block !important; }
+        .ba-info-wrap { position: relative; }
     </style>
 </head>
 <body>
@@ -145,23 +194,49 @@
                         <button type="button" class="ba-tab" data-tab="demoreset">Generate Demo Reset Script</button>
                     </div>
 
-                    <!-- Tab Encrypt / Decrypt -->
+                    <!-- Tab Encrypt / Decrypt: Đơn + Giải mã hàng loạt -->
                     <div id="tabEncdec" class="ba-tab-content active">
-                        <div class="ba-card">
-                            <div class="ba-checkbox">
-                                <input type="checkbox" id="chkSharedKey" />
-                                <label for="chkSharedKey">Dùng chung Key cho Encrypt &amp; Decrypt</label>
+                        <div class="ba-tabs ba-tabs-inner" style="margin-bottom: 1rem;">
+                            <button type="button" class="ba-tab ba-tab-sm active" data-subtab-encdec="single">Đơn</button>
+                            <button type="button" class="ba-tab ba-tab-sm" data-subtab-encdec="batchdecrypt">Giải mã hàng loạt</button>
+                        </div>
+                        <!-- Sub: Đơn (mã hóa / giải mã từng giá trị) -->
+                        <div id="subEncdecSingle" class="ba-subtab-encdec">
+                        <div class="ba-card ba-sharedkey-card">
+                            <div class="ba-form-group ba-sharedkey-row">
+                                <div class="ba-checkbox" style="margin-bottom: 0;">
+                                    <input type="checkbox" id="chkSharedKey" />
+                                    <label for="chkSharedKey">Dùng chung Key cho Encrypt &amp; Decrypt</label>
+                                </div>
+                                <span class="ba-info-wrap">
+                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                    <div id="popoverSharedKey" class="ba-info-popover" style="display: none;">
+                                        Khi bật: Key chọn ở khung Encrypt sẽ tự áp dụng cho khung Decrypt (và ngược lại), không cần chọn Key hai lần. Tiện khi mã hóa rồi giải mã thử cùng một key.
+                                    </div>
+                                </span>
                             </div>
                         </div>
-                        <div class="ba-grid-2">
+                        <div class="ba-grid-2 ba-encdec-cards">
                             <div class="ba-card">
                                 <h2 class="ba-card-title">Encrypt</h2>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Plain text</label>
-                                    <textarea id="txtPlain" class="ba-input" placeholder="Nhập giá trị cần mã hóa (vd. số điện thoại, email, số)." rows="3"></textarea>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="txtPlain">Văn bản gốc (plain text)</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Giá trị cần mã hóa: số điện thoại, email, số CMND, v.v. Nhập trực tiếp văn bản chưa mã hóa trước khi bấm Encrypt.</div>
+                                        </span>
+                                    </div>
+                                    <textarea id="txtPlain" class="ba-input" placeholder="Nhập giá trị cần mã hóa (vd. số điện thoại, email, số)." rows="4"></textarea>
                                 </div>
                                 <div class="ba-form-group enc-key">
-                                    <label class="ba-form-label">Key</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label">Key (tùy chọn)</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Key dùng để mã hóa: None (global), Employee ID (số), hoặc chuỗi (vd. Local ID). Cùng key phải dùng khi giải mã. Nếu bật &quot;Dùng chung Key&quot; thì key này tự áp dụng cho khung Decrypt.</div>
+                                        </span>
+                                    </div>
                                     <select id="selKeyType" class="ba-input" style="margin-bottom: 0.5rem;">
                                         <option value="none">None (global)</option>
                                         <option value="employeeId">Employee ID</option>
@@ -183,18 +258,30 @@
                             <div class="ba-card">
                                 <h2 class="ba-card-title">Decrypt</h2>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label">Encrypted text</label>
-                                    <textarea id="txtEncryptedIn" class="ba-input" placeholder="Dán chuỗi đã mã hóa (base64)." rows="3"></textarea>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="txtEncryptedIn">Chuỗi đã mã hóa (encrypted text, base64)</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Dán chuỗi đã mã hóa (dạng base64) xuất ra từ hệ thống. Key giải mã phải trùng với key đã dùng khi mã hóa (None / Employee ID / chuỗi).</div>
+                                        </span>
+                                    </div>
+                                    <textarea id="txtEncryptedIn" class="ba-input" placeholder="Dán chuỗi đã mã hóa (base64)." rows="4"></textarea>
                                 </div>
                                 <div class="ba-form-group dec-key">
-                                    <label class="ba-form-label">Key</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label">Key (tùy chọn)</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Key dùng để giải mã: phải trùng với key đã dùng khi mã hóa (None, Employee ID, hoặc chuỗi). Nếu bật &quot;Dùng chung Key&quot; thì key chọn ở khung Encrypt sẽ tự điền vào đây.</div>
+                                        </span>
+                                    </div>
                                     <select id="selKeyTypeDec" class="ba-input" style="margin-bottom: 0.5rem;">
                                         <option value="none">None (global)</option>
                                         <option value="employeeId">Employee ID</option>
                                         <option value="string">String (vd. Local ID)</option>
                                     </select>
                                     <input type="number" id="txtKeyEmployeeIdDec" class="ba-input" placeholder="Employee ID" style="display: none;" />
-                                    <input type="text" id="txtKeyStringDec" class="ba-input" placeholder="Chuỗi key" style="display: none;" />
+                                    <input type="text" id="txtKeyStringDec" class="ba-input" placeholder="Chuỗi key (vd. LocalEmployeeID)" style="display: none;" />
                                 </div>
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnDecrypt">Decrypt</button>
                                 <div id="decErr" class="ba-err" style="display: none;"></div>
@@ -207,18 +294,9 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Tab Generate Demo Reset Script -->
-                    <div id="tabDemoreset" class="ba-tab-content">
-                        <div class="ba-tabs ba-tabs-inner" style="margin-bottom: 1rem;">
-                            <button type="button" class="ba-tab ba-tab-sm" data-subtab="decryptgrid">Giải mã hàng loạt</button>
-                            <button type="button" class="ba-tab ba-tab-sm" data-subtab="demoreset">Demo Reset</button>
-                            <button type="button" class="ba-tab ba-tab-sm" data-subtab="encryptscript">Mã hóa + Script</button>
                         </div>
-
-                        <!-- Sub-tab: Giải mã hàng loạt (Phase 2a) -->
-                        <div id="subDecryptgrid" class="ba-subtab">
+                        <!-- Sub: Giải mã hàng loạt -->
+                        <div id="subEncdecBatch" class="ba-subtab-encdec" style="display: none;">
                             <div class="ba-card ba-card-collapsible" id="cardDecryptInput">
                                 <div class="ba-card-header-wrap" data-toggle="card">
                                     <h2 class="ba-card-title">Giải mã để xem</h2>
@@ -259,9 +337,16 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Sub-tab: Demo Reset (hiện tại) -->
-                        <div id="subDemoreset" class="ba-subtab" style="display: none;">
+                    <!-- Tab Generate Demo Reset Script -->
+                    <div id="tabDemoreset" class="ba-tab-content">
+                        <div class="ba-tabs ba-tabs-inner" style="margin-bottom: 1rem;">
+                            <button type="button" class="ba-tab ba-tab-sm active" data-subtab="demoreset">Demo Reset</button>
+                            <button type="button" class="ba-tab ba-tab-sm" data-subtab="encryptscript">Mã hóa + Script</button>
+                        </div>
+                        <!-- Sub-tab: Demo Reset -->
+                        <div id="subDemoreset" class="ba-subtab">
                         <div class="ba-card">
                             <h2 class="ba-card-title">Cách dùng</h2>
                             <ol class="ba-warn" style="margin-left: 1.25rem; padding-left: 0.5rem;">
@@ -445,15 +530,35 @@
             keyTypeChange('#selKeyType', '#txtKeyEmployeeId', '#txtKeyString');
             keyTypeChange('#selKeyTypeDec', '#txtKeyEmployeeIdDec', '#txtKeyStringDec');
 
+            function syncSharedKeyToDec() {
+                if (!$('#chkSharedKey').is(':checked')) return;
+                $('#selKeyTypeDec').val($('#selKeyType').val());
+                $('#txtKeyEmployeeIdDec').val($('#txtKeyEmployeeId').val());
+                $('#txtKeyStringDec').val($('#txtKeyString').val());
+                keyTypeChange('#selKeyTypeDec', '#txtKeyEmployeeIdDec', '#txtKeyStringDec');
+            }
+            function syncSharedKeyToEnc() {
+                if (!$('#chkSharedKey').is(':checked')) return;
+                $('#selKeyType').val($('#selKeyTypeDec').val());
+                $('#txtKeyEmployeeId').val($('#txtKeyEmployeeIdDec').val());
+                $('#txtKeyString').val($('#txtKeyStringDec').val());
+                keyTypeChange('#selKeyType', '#txtKeyEmployeeId', '#txtKeyString');
+            }
             $('#chkSharedKey').on('change', function () {
-                var on = $(this).is(':checked');
-                if (on) {
-                    $('#selKeyTypeDec').val($('#selKeyType').val());
-                    $('#txtKeyEmployeeIdDec').val($('#txtKeyEmployeeId').val());
-                    $('#txtKeyStringDec').val($('#txtKeyString').val());
-                    keyTypeChange('#selKeyTypeDec', '#txtKeyEmployeeIdDec', '#txtKeyStringDec');
-                }
+                if ($(this).is(':checked')) syncSharedKeyToDec();
             });
+            $('#selKeyType, #txtKeyEmployeeId, #txtKeyString').on('change input', function () { syncSharedKeyToDec(); });
+            $('#selKeyTypeDec, #txtKeyEmployeeIdDec, #txtKeyStringDec').on('change input', function () { syncSharedKeyToEnc(); });
+            $(document).on('click', '.ba-info-icon', function (e) {
+                e.stopPropagation();
+                var $wrap = $(this).closest('.ba-info-wrap');
+                var $pop = $wrap.find('.ba-info-popover');
+                $pop.toggleClass('show').css('display', $pop.hasClass('show') ? 'block' : 'none');
+            });
+            $(document).on('click', function () {
+                $('.ba-info-popover').removeClass('show').hide();
+            });
+            $(document).on('click', '.ba-info-popover', function (e) { e.stopPropagation(); });
 
             function getKey(keyType, idNum, idStr) {
                 var t = (keyType || 'none').toLowerCase();
@@ -531,16 +636,28 @@
                 $('.ba-tab').removeClass('active'); $('.ba-tab-content').removeClass('active');
                 $('.ba-tab[data-tab="' + tab + '"]').addClass('active');
                 $('#tab' + (tab === 'encdec' ? 'Encdec' : 'Demoreset')).addClass('active');
-                if (tab === 'demoreset') { applySubTab('decryptgrid'); }
+                if (tab === 'encdec') { applyEncdecSubTab('single'); }
+                else if (tab === 'demoreset') { applySubTab('demoreset'); }
+            });
+
+            function applyEncdecSubTab(sub) {
+                $('#tabEncdec .ba-tabs-inner .ba-tab-sm').removeClass('active');
+                $('#tabEncdec .ba-tabs-inner .ba-tab-sm[data-subtab-encdec="' + sub + '"]').addClass('active');
+                $('#tabEncdec .ba-subtab-encdec').hide();
+                if (sub === 'single') $('#subEncdecSingle').show();
+                else $('#subEncdecBatch').show();
+            }
+            $('#tabEncdec .ba-tabs-inner .ba-tab-sm[data-subtab-encdec]').on('click', function () {
+                applyEncdecSubTab($(this).data('subtab-encdec'));
             });
 
             function applySubTab(sub) {
-                $('.ba-tabs-inner .ba-tab-sm').removeClass('active');
-                $('.ba-tabs-inner .ba-tab-sm[data-subtab="' + sub + '"]').addClass('active');
-                $('.ba-subtab').hide();
-                $('#sub' + (sub === 'decryptgrid' ? 'Decryptgrid' : sub === 'demoreset' ? 'Demoreset' : 'Encryptscript')).show();
+                $('#tabDemoreset .ba-tabs-inner .ba-tab-sm').removeClass('active');
+                $('#tabDemoreset .ba-tabs-inner .ba-tab-sm[data-subtab="' + sub + '"]').addClass('active');
+                $('#tabDemoreset .ba-subtab').hide();
+                $('#sub' + (sub === 'demoreset' ? 'Demoreset' : 'Encryptscript')).show();
             }
-            $('.ba-tabs-inner .ba-tab-sm[data-subtab]').on('click', function () {
+            $('#tabDemoreset .ba-tabs-inner .ba-tab-sm[data-subtab]').on('click', function () {
                 applySubTab($(this).data('subtab'));
             });
 
