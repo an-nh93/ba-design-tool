@@ -38,12 +38,12 @@ namespace UiBuilderFull.Admin
 				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 				using (var cmd = conn.CreateCommand())
 				{
-					cmd.CommandText = "SELECT PermissionId, Code, Name FROM UiPermission ORDER BY ISNULL(Name, Code)";
+					cmd.CommandText = "SELECT PermissionId, Code, Name, ISNULL(CAST([Description] AS NVARCHAR(500)), N'') AS [Description] FROM UiPermission ORDER BY ISNULL(Name, Code)";
 					conn.Open();
 					using (var r = cmd.ExecuteReader())
 					{
 						while (r.Read())
-							list.Add(new { id = r.GetInt32(0), code = r.GetString(1), name = r.IsDBNull(2) ? "" : r.GetString(2) });
+							list.Add(new { id = r.GetInt32(0), code = r.GetString(1), name = r.IsDBNull(2) ? "" : r.GetString(2), description = r.IsDBNull(3) ? "" : r.GetString(3) });
 					}
 				}
 				return new { success = true, list = list };

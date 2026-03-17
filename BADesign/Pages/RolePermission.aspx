@@ -100,6 +100,20 @@
         .toast .toast-close:hover { color: var(--text-primary); }
         .toast.success { border-left: 4px solid var(--success); }
         .toast.error { border-left: 4px solid var(--danger); }
+        .rp-perm-info-btn {
+            background: none; border: none; color: var(--primary); cursor: pointer; padding: 0 4px; margin-right: 6px;
+            font-size: 1rem; line-height: 1; vertical-align: middle; border-radius: 4px;
+        }
+        .rp-perm-info-btn:hover { color: var(--primary-hover); background: rgba(0,120,212,0.15); }
+        .rp-perm-info-btn:focus { outline: none; }
+        .rp-modal { display: none; position: fixed; inset: 0; z-index: 10003; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,0.6); }
+        .rp-modal.show { display: flex; }
+        .rp-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-width: 480px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
+        .rp-modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .rp-modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin: 0; }
+        .rp-modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 0 4px; }
+        .rp-modal-close:hover { color: var(--text-primary); }
+        .rp-modal-body { padding: 1.25rem; overflow-y: auto; font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.6; }
     </style>
 </head>
 <body>
@@ -171,6 +185,15 @@
             </div>
         </div>
         <div id="toastContainer" class="toast-container"></div>
+        <div id="rpPermDetailModal" class="rp-modal">
+            <div class="rp-modal-content">
+                <div class="rp-modal-header">
+                    <h3 class="rp-modal-title" id="rpPermDetailTitle">Chức năng</h3>
+                    <button type="button" class="rp-modal-close" id="rpPermDetailClose" aria-label="Đóng">&times;</button>
+                </div>
+                <div class="rp-modal-body" id="rpPermDetailBody"></div>
+            </div>
+        </div>
     </form>
     <script src="../Scripts/ba-layout.js"></script>
     <script>
@@ -183,6 +206,22 @@
         var serverSortDir = 1;
         var permSortCol = 'name';
         var permSortDir = 1;
+        var permDescriptionFallback = {
+            'UIBuilder': 'Thiết kế giao diện người dùng: tạo controls, forms và các component UI. Dùng cho BA/DEV để thiết kế màn hình.',
+            'DatabaseSearch': 'Quét server, xem danh sách database, copy connection string. Cho phép kết nối và thao tác với database (backup, restore, v.v. tùy quyền chi tiết).',
+            'EncryptDecrypt': 'Mã hóa và giải mã dữ liệu nhạy cảm (SĐT, email, lương). Tạo script Demo Reset theo nhân viên.',
+            'HRHelper': 'Truy cập HR Helper: quản lý User, Employee, Company trong database HR. Dùng cho BA/CONS/DEV/QC khi cần thao tác dữ liệu HR.',
+            'DatabaseBackup': 'Được phép thực hiện backup database từ trang Database Search (tạo file .bak).',
+            'DatabaseRestore': 'Được phép thực hiện restore database từ trang Database Search (khôi phục từ file .bak).',
+            'DatabaseDelete': 'Được phép xóa database từ trang Database Search. Thao tác nguy hiểm, cần cẩn trọng.',
+            'DatabaseBulkReset': 'Được phép chạy Bulk Reset: reset dữ liệu hàng loạt database (theo kịch bản).',
+            'DatabaseManageServers': 'Thêm, sửa, xóa server trong cấu hình Database Search. User có quyền này thấy tất cả server (bỏ qua Server Access theo Role).',
+            'DatabaseShrinkLog': 'Được phép Shrink log file của database từ trang Database Search.',
+            'Settings': 'Truy cập App Settings: cấu hình Email Server, SFTP, Telegram, Public URL và các thiết lập hệ thống khác.',
+            'PGPTool': 'Sử dụng PGP Tool: xuất key .asc, mã hóa và giải mã file PGP.',
+            'FeedbackManage': 'Quản lý góp ý: xem và cập nhật trạng thái, ghi chú, comment cho feedback/bug từ người dùng.',
+            'LeaveManager': 'Quản lý nghỉ phép: xem và phê duyệt đơn nghỉ của nhân viên.'
+        };
 
         function toggleRpCard(id) {
             $('#' + id).toggleClass('collapsed');
@@ -277,8 +316,14 @@
             });
             sortedPerms.forEach(function(p) {
                 var searchText = ((p.name || '') + ' ' + (p.code || '')).toLowerCase().replace(/"/g, '&quot;');
-                var $tr = $('<tr data-search="' + searchText + '"></tr>');
-                $tr.append('<td>' + (p.name || p.code) + '</td>');
+                var desc = (p.description || '').trim() || (permDescriptionFallback[p.code] || 'Chưa có mô tả.');
+                var nameEsc = (p.name || p.code || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                var descEsc = desc.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>');
+                var $tr = $('<tr data-search="' + searchText + '" data-perm-name="' + nameEsc + '" data-perm-desc="' + descEsc.replace(/"/g, '&quot;') + '"></tr>');
+                var $tdName = $('<td></td>');
+                $tdName.append('<button type="button" class="rp-perm-info-btn" title="Xem mô tả quyền">ℹ️</button>');
+                $tdName.append(document.createTextNode(p.name || p.code || ''));
+                $tr.append($tdName);
                 roles.forEach(function(r) {
                     var rp = rolePermissions[String(r.id)] || [];
                     var chk = rp.indexOf(p.id) >= 0;
@@ -409,11 +454,31 @@
             next();
         }
 
+        function showPermDetailModal(name, descHtml) {
+            $('#rpPermDetailTitle').text(name || 'Chức năng');
+            $('#rpPermDetailBody').html(descHtml || 'Chưa có mô tả.');
+            $('#rpPermDetailModal').addClass('show');
+        }
+        function hidePermDetailModal() {
+            $('#rpPermDetailModal').removeClass('show');
+        }
         $(function() {
             if (localStorage.getItem('rpCard_cardPermissions') === '1') $('#cardPermissions').addClass('collapsed');
             if (localStorage.getItem('rpCard_cardServerAccess') === '1') $('#cardServerAccess').addClass('collapsed');
             $('#searchServersRp').on('input', filterServerRows);
             $('#searchPermissionsRp').on('input', filterPermissionRows);
+            $('#tblRolePermission').on('click', '.rp-perm-info-btn', function(e) {
+                e.preventDefault();
+                var $tr = $(this).closest('tr');
+                var name = $tr.attr('data-perm-name');
+                var descHtml = $tr.attr('data-perm-desc');
+                if (name) name = name.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+                showPermDetailModal(name, descHtml);
+            });
+            $('#rpPermDetailClose, #rpPermDetailModal').on('click', function(e) {
+                if (e.target === this || $(e.target).hasClass('rp-modal-close')) hidePermDetailModal();
+            });
+            $('#rpPermDetailModal .rp-modal-content').on('click', function(e) { e.stopPropagation(); });
             $('#tblRolePermission').on('click', 'th.rp-sortable', function() {
                 var col = $(this).data('col');
                 if (col === permSortCol) permSortDir = -permSortDir; else { permSortCol = col; permSortDir = 1; }

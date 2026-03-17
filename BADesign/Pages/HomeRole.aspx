@@ -117,10 +117,17 @@
                                     <div class="ba-feature-desc">Cấu hình hệ thống: Email Server, SFTP, Telegram, Public URL, ...</div>
                                 </asp:HyperLink>
                             </asp:PlaceHolder>
-                            <asp:HyperLink ID="lnkFeaturePgpTool" runat="server" CssClass="ba-feature-card" NavigateUrl="~/PgpTool">
-                                <div class="ba-feature-icon">🧰</div>
-                                <div class="ba-feature-title">PGP Tool</div>
-                                <div class="ba-feature-desc">Xuất key .asc, mã hóa và giải mã file PGP.</div>
+                            <asp:PlaceHolder ID="phFeaturePgpTool" runat="server" Visible="false">
+                                <asp:HyperLink ID="lnkFeaturePgpTool" runat="server" CssClass="ba-feature-card" NavigateUrl="~/PgpTool">
+                                    <div class="ba-feature-icon">🧰</div>
+                                    <div class="ba-feature-title">PGP Tool</div>
+                                    <div class="ba-feature-desc">Xuất key .asc, mã hóa và giải mã file PGP.</div>
+                                </asp:HyperLink>
+                            </asp:PlaceHolder>
+                            <asp:HyperLink ID="lnkFeatureFeedback" runat="server" CssClass="ba-feature-card" NavigateUrl="~/Feedback">
+                                <div class="ba-feature-icon">💬</div>
+                                <div class="ba-feature-title">Feedback</div>
+                                <div class="ba-feature-desc">Gửi ý kiến, báo lỗi hoặc đề xuất cải tiến cho UI Builder và HR Helper.</div>
                             </asp:HyperLink>
                             <asp:HyperLink ID="lnkFeatureCommunityShare" runat="server" CssClass="ba-feature-card" NavigateUrl="~/DevShare">
                                 <div class="ba-feature-icon">📤</div>

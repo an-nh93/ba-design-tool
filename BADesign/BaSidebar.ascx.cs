@@ -14,6 +14,7 @@ namespace BADesign
             if (Page.IsPostBack) return;
             UiAuthHelper.RequireLogin();
             phNavEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
+            phNavPgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
             phNavAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
             lnkNavUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
             lnkNavDatabaseSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
@@ -35,7 +36,8 @@ namespace BADesign
                 lnkNavEncryptDecrypt.CssClass = (active == "EncryptDecrypt") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavAppSettings.Visible)
                 lnkNavAppSettings.CssClass = (active == "AppSettings") ? "ba-nav-item active" : "ba-nav-item";
-            lnkNavPgpTool.CssClass = (active == "PGPTool") ? "ba-nav-item active" : "ba-nav-item";
+            if (phNavPgpTool.Visible)
+                lnkNavPgpTool.CssClass = (active == "PGPTool") ? "ba-nav-item active" : "ba-nav-item";
             if (phNavSuperAdmin.Visible)
             {
                 lnkNavUserManagement.CssClass = (active == "Users") ? "ba-nav-item active" : "ba-nav-item";

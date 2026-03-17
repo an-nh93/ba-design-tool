@@ -8,7 +8,9 @@
         <asp:HyperLink ID="lnkNavHome" runat="server" CssClass="ba-nav-item" NavigateUrl="~/HomeRole" data-icon="🏠" title="Trang chủ"><span>🏠 Trang chủ</span></asp:HyperLink>
         <asp:HyperLink ID="lnkNavUIBuilder" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Home" data-icon="🛠" title="UI Builder"><span>🛠️ UI Builder</span></asp:HyperLink>
         <asp:HyperLink ID="lnkNavDatabaseSearch" runat="server" CssClass="ba-nav-item" NavigateUrl="~/DatabaseSearch" data-icon="🔍" title="Database Search"><span>🔍 Database Search</span></asp:HyperLink>
-        <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool" data-icon="🧰" title="PGP Tool"><span>🧰 PGP Tool</span></asp:HyperLink>
+        <asp:PlaceHolder ID="phNavPgpTool" runat="server" Visible="false">
+            <asp:HyperLink ID="lnkNavPgpTool" runat="server" CssClass="ba-nav-item" NavigateUrl="~/PgpTool" data-icon="🧰" title="PGP Tool"><span>🧰 PGP Tool</span></asp:HyperLink>
+        </asp:PlaceHolder>
         <asp:PlaceHolder ID="phNavEncryptDecrypt" runat="server" Visible="false">
             <asp:HyperLink ID="lnkNavEncryptDecrypt" runat="server" CssClass="ba-nav-item" NavigateUrl="~/EncryptDecrypt" data-icon="🔐" title="Encrypt/Decrypt"><span>🔐 Encrypt/Decrypt</span></asp:HyperLink>
         </asp:PlaceHolder>

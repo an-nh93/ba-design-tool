@@ -123,6 +123,15 @@ namespace BADesign.Pages
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureAppSettings;
 
 		/// <summary>
+		/// phFeaturePgpTool control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phFeaturePgpTool;
+
+		/// <summary>
 		/// lnkFeaturePgpTool control.
 		/// </summary>
 		/// <remarks>
@@ -130,6 +139,15 @@ namespace BADesign.Pages
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeaturePgpTool;
+
+		/// <summary>
+		/// lnkFeatureFeedback control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureFeedback;
 
 		/// <summary>
 		/// lnkFeatureCommunityShare control.

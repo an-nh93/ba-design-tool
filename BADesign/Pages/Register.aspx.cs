@@ -159,6 +159,8 @@ namespace BADesign.Pages
 
                 var hash = UiAuthHelper.HashPassword(password);
                 string roleName = null;
+                int userId = 0;
+                string otpCode = null;
 
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 {
@@ -190,15 +192,38 @@ namespace BADesign.Pages
                         roleName = r.ToString();
                     }
 
-                    // Không gán RoleId vào user - phòng ban chọn khi đăng ký chỉ để tham khảo (Telegram). Admin phải xác minh rồi gán role.
+                    // EmailVerified = 0: lần đầu đăng nhập sẽ phải nhập OTP gửi vào email
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = @"
-INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin, IsActive, RoleId)
-VALUES (@u, @p, NULL, @e, 0, 1, NULL);";
+INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin, IsActive, RoleId, EmailVerified)
+OUTPUT INSERTED.UserId
+VALUES (@u, @p, NULL, @e, 0, 1, NULL, 0);";
                         cmd.Parameters.AddWithValue("@u", userName);
                         cmd.Parameters.AddWithValue("@p", hash);
                         cmd.Parameters.AddWithValue("@e", email);
+                        userId = (int)cmd.ExecuteScalar();
+                    }
+
+                    // OTP 6 số, hết hạn sau 60 phút
+                    var rng = new System.Security.Cryptography.RNGCryptoServiceProvider();
+                    var otpBytes = new byte[4];
+                    rng.GetBytes(otpBytes);
+                    int otpNum = (int)(BitConverter.ToUInt32(otpBytes, 0) % 1000000);
+                    if (otpNum < 0) otpNum = -otpNum;
+                    if (otpNum < 100000) otpNum += 100000;
+                    otpCode = otpNum.ToString("D6");
+                    var expiresAt = DateTime.UtcNow.AddMinutes(60);
+                    using (var conn2 = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = conn2.CreateCommand())
+                    {
+                        cmd.CommandText = @"
+IF EXISTS (SELECT 1 FROM UiUserOtp WHERE UserId = @uid) UPDATE UiUserOtp SET OtpCode = @otp, ExpiresAt = @exp WHERE UserId = @uid;
+ELSE INSERT INTO UiUserOtp(UserId, OtpCode, ExpiresAt) VALUES (@uid, @otp, @exp);";
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@otp", otpCode);
+                        cmd.Parameters.AddWithValue("@exp", expiresAt);
+                        conn2.Open();
                         cmd.ExecuteNonQuery();
                     }
                 }
@@ -207,16 +232,15 @@ VALUES (@u, @p, NULL, @e, 0, 1, NULL);";
 
                 var baseUrl = UiAuthHelper.GetBaseUrlForEmail();
                 var loginUrl = baseUrl.TrimEnd('/') + "/Login";
-                // Bỏ http(s):// để tránh Outlook Safe Links tự wrap link thành URL rất dài
                 var loginUrlShort = loginUrl;
                 if (loginUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                     loginUrlShort = loginUrl.Substring(8);
                 else if (loginUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
                     loginUrlShort = loginUrl.Substring(7);
                 var err = BADesign.EmailHelper.SendEmail(email,
-                    "[Cadena Helper] Thông tin tài khoản đăng ký",
-                    string.Format("Chào bạn,\n\nBạn đã đăng ký tài khoản Cadena Helper thành công.\n\nUsername: {0}\nPassword: {1}\n\nĐăng nhập tại - sao chép và dán vào trình duyệt:\n{2}\n\nTrân trọng,\nCadena Helper Team",
-                        userName, password, loginUrlShort));
+                    "[Cadena Helper] Thông tin tài khoản đăng ký – xác thực email",
+                    string.Format("Chào bạn,\n\nBạn đã đăng ký tài khoản Cadena Helper thành công.\n\nUsername: {0}\nPassword: {1}\n\nMã OTP xác thực email (6 số): {2}\nMã có hiệu lực 60 phút. Khi đăng nhập lần đầu, bạn sẽ được yêu cầu nhập mã OTP này.\n\nĐăng nhập tại - sao chép và dán vào trình duyệt:\n{3}\n\nTrân trọng,\nCadena Helper Team",
+                        userName, password, otpCode, loginUrlShort));
                 if (!string.IsNullOrEmpty(err))
                 {
                     // Đăng ký thành công nhưng gửi email thất bại - vẫn trả success, chỉ log

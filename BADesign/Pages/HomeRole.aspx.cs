@@ -54,6 +54,7 @@ namespace BADesign.Pages
 				}
 
 				phFeatureEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
+				phFeaturePgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
 				lnkFeatureUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
 				lnkFeatureDbSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
 				phSuperAdminCards.Visible = UiAuthHelper.IsSuperAdmin;

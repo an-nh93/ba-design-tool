@@ -24,6 +24,21 @@ namespace UiBuilderFull
 		protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
 		/// <summary>
+		/// sm1 control.
+		/// </summary>
+		protected global::System.Web.UI.ScriptManager sm1;
+
+		/// <summary>
+		/// phLoginPanel control.
+		/// </summary>
+		protected global::System.Web.UI.WebControls.Panel phLoginPanel;
+
+		/// <summary>
+		/// phOtpPanel control.
+		/// </summary>
+		protected global::System.Web.UI.WebControls.Panel phOtpPanel;
+
+		/// <summary>
 		/// phSuccess control.
 		/// </summary>
 		/// <remarks>
