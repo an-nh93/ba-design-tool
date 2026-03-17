@@ -72,82 +72,7 @@
             pointer-events: none;
             filter: grayscale(0.3);
         }
-        .ba-table-wrap {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: auto;
-            margin-bottom: 1rem;
-            min-height: 270px;
-            max-height: min(55vh, 520px);
-        }
-        .ba-table { width: 100%; border-collapse: collapse; }
-        .ba-table thead { background: var(--bg-darker); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
-        .ba-table th {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            font-weight: 600;
-            font-size: 0.8125rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.03em;
-        }
-        .ba-table td {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.875rem;
-            color: var(--text-primary);
-        }
-        .ba-table tbody tr:hover { background: var(--bg-hover); }
-        .ba-table tbody tr:last-child td { border-bottom: none; }
-        .ba-copy-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.35rem 0.5rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            title: "Copy connection string";
-        }
-        .ba-copy-btn:hover { background: var(--primary-soft); color: var(--primary-light); border-color: var(--primary); }
-        .ba-copy-btn svg { width: 16px; height: 16px; }
-        .ba-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; }
-        .ba-empty-state { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 2rem 1rem; color: var(--text-muted); font-size: 0.9rem; }
-        .ba-empty-state-icon { font-size: 2rem; opacity: 0.6; line-height: 1; }
-        .ba-empty-state-link { color: var(--primary); text-decoration: none; font-weight: 500; cursor: pointer; }
-        .ba-empty-state-link:hover { text-decoration: underline; }
-        .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
-        /* Cột Thao tác: nút Action mở menu, menu có header context + tăng cao/khoảng cách */
-        .ba-actions-dropdown-wrap { position: relative; display: inline-block; }
-        .ba-actions-trigger { white-space: nowrap; padding: 0.25rem 0.5rem; font-size: 0.8125rem; }
-        .ba-actions-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 2px; width: 200px; min-width: 200px; max-height: 260px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); z-index: 100; flex-direction: column; overflow: hidden; }
-        .ba-actions-dropdown-wrap.ba-actions-open .ba-actions-menu { display: flex; }
-        .ba-actions-menu-header { flex-shrink: 0; display: flex; align-items: center; min-height: 28px; padding: 0 0.6rem; border-bottom: 1px solid var(--border); font-size: 0.75rem; line-height: 1.35; color: var(--text-muted); background: var(--bg-darker); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .ba-actions-menu-header strong { color: var(--text-primary); font-weight: 600; }
-        .ba-actions-menu-body { overflow-y: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 0.3rem; text-align: left; }
-        .ba-actions-menu .ba-btn { display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; width: 100%; text-align: left; margin: 0; padding: 0.35rem 0.6rem; border-radius: 4px; font-size: 0.8125rem; line-height: 1.3; min-height: 32px; box-sizing: border-box; border: none; }
-        .ba-actions-menu .ba-btn .ba-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.25em; min-width: 1.25em; font-size: 0.95rem; opacity: 0.95; flex-shrink: 0; }
-        .ba-actions-menu .ba-btn:hover { filter: brightness(1.15); background-color: rgba(255,255,255,0.08) !important; }
-        .ba-actions-menu .ba-btn:focus { outline: 2px solid var(--primary, #0d6efd); outline-offset: 2px; background-color: rgba(255,255,255,0.12) !important; }
-        .ba-actions-menu .ba-btn.ba-btn-primary:hover { filter: brightness(1.2); }
-        .ba-actions-menu .ba-btn.ba-btn-primary:focus { background-color: var(--primary, #0d6efd) !important; }
-        .ba-actions-menu .ba-btn.ba-btn-danger:hover { filter: brightness(1.2); }
-        .ba-actions-menu .ba-btn.ba-btn-danger:focus { background-color: var(--danger) !important; }
-        .ba-table thead th:last-child { width: 1%; white-space: nowrap; }
-        #tblServers td:last-child, #tblResults td:last-child { min-width: 0; width: 1%; white-space: nowrap; }
-        .ba-badge {
-            display: inline-block;
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-        .ba-badge-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); }
-        .ba-badge-fail { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        /* Lưới, bảng, menu Action, badge, pagination: dùng chung từ ba-layout.css */
         .toast-container {
             position: fixed;
             top: 20px;
@@ -179,51 +104,6 @@
         .toast.info .toast-icon { color: var(--primary); }
         .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .ba-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 0.75rem;
-            margin-bottom: 1rem;
-        }
-        .ba-card-title-wrap { display: flex; align-items: center; gap: 0.5rem; }
-        .ba-toggle-btn {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            padding: 0.25rem;
-            font-size: 1rem;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-        .ba-toggle-btn:hover { color: var(--primary-light); }
-        .ba-search-wrap { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
-        .ba-search-inp { min-width: 180px; }
-        .ba-pagination {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0.75rem;
-            flex-wrap: wrap;
-        }
-        .ba-pagination span { color: var(--text-muted); font-size: 0.875rem; }
-        .ba-pagination button {
-            padding: 0.35rem 0.6rem;
-            font-size: 0.8125rem;
-            border-radius: 4px;
-            border: 1px solid var(--border);
-            background: var(--bg-darker);
-            color: var(--text-primary);
-            cursor: pointer;
-        }
-        .ba-pagination button:hover:not(:disabled) { background: var(--bg-hover); }
-        .ba-pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .ba-pagination .ba-pager-size { min-width: 80px; background: var(--bg-card); color: var(--text-primary); border: 1px solid var(--border); border-radius: 4px; }
-        .ba-status-ok { color: var(--success); }
-        .ba-status-fail { color: var(--danger); }
-        .ba-status-none { color: var(--text-muted); }
         .ba-btn-log { margin-left: 4px; }
         .ba-section-collapsed .ba-card-body { display: none; }
         /* Modal + nút × dùng chung từ ba-layout.css */
@@ -1062,6 +942,9 @@
             });
             $tb.find('.ba-actions-menu .ba-btn').on('click', function() {
                 $(this).closest('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+            });
+            $(document).off('click.baActionsClose').on('click.baActionsClose', function(e) {
+                if (!$(e.target).closest('.ba-actions-dropdown-wrap').length) $('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
             });
             $tb.find('.ba-btn-log').on('click', function() {
                 var id = parseInt($(this).data('id'), 10);

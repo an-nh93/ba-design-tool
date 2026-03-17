@@ -34,7 +34,7 @@
         .ba-sidebar {
             width: 240px; background: var(--bg-darker); border-right: 1px solid var(--border);
             padding: 1.5rem 0; flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto;
-            position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000;
+            position: fixed; left: 0; top: 0; bottom: 0; z-index: 9999;
             transition: width 0.25s ease;
         }
         .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }

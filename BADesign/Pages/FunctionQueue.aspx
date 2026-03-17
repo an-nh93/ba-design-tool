@@ -23,7 +23,7 @@
         .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
         .ba-card-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem; }
         .ba-table-wrap { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; overflow-y: auto; max-height: min(85vh, 900px); min-width: 0; -webkit-overflow-scrolling: touch; }
-        .ba-table { width: 100%; min-width: 880px; border-collapse: collapse; }
+        .ba-table { width: 100%; min-width: 1200px; border-collapse: collapse; }
         .ba-table thead { background: var(--bg-darker); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
         .ba-table th { padding: 0.75rem 1rem; text-align: left; font-weight: 600; font-size: 0.8125rem; color: var(--text-secondary); white-space: nowrap; }
         .ba-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); font-size: 0.875rem; color: var(--text-primary); vertical-align: middle; }
@@ -33,8 +33,12 @@
         .ba-badge-completed { background: rgba(16, 185, 129, 0.2); color: #10b981; }
         .ba-badge-failed { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
         .ba-badge-cancelled { background: rgba(113, 113, 122, 0.3); color: var(--text-muted); }
-        .ba-detail-cell { max-width: 220px; word-break: break-all; font-size: 0.8125rem; }
+        .ba-detail-cell { min-width: 0; max-width: none; word-break: break-word; font-size: 0.8125rem; }
         .ba-msg-cell { max-width: 280px; word-break: break-word; font-size: 0.8125rem; color: var(--text-muted); }
+        /* Độ rộng tối thiểu cột Chi tiết, Bắt đầu, Kết thúc */
+        .ba-table .col-detail { min-width: 340px; }
+        .ba-table .col-start { min-width: 180px; white-space: nowrap; }
+        .ba-table .col-end { min-width: 180px; white-space: nowrap; }
         .ba-progress-mini { width: 60px; height: 6px; background: var(--surface-alt); border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 6px; }
         .ba-progress-mini div { height: 100%; background: var(--primary); }
         #queueBody tr.empty-row td { text-align: center; color: var(--text-muted); padding: 2rem; }
@@ -131,12 +135,12 @@
                             <thead>
                                 <tr>
                                     <th class="ba-th-sort" data-sort="typeLabel">Loại <span class="ba-sort-icon"></span></th>
-                                    <th class="ba-th-sort" data-sort="_detail">Chi tiết <span class="ba-sort-icon"></span></th>
+                                    <th class="ba-th-sort col-detail" data-sort="_detail">Chi tiết <span class="ba-sort-icon"></span></th>
                                     <th class="ba-th-sort" data-sort="percentComplete">Tiến độ <span class="ba-sort-icon"></span></th>
                                     <th class="ba-th-sort" data-sort="status">Trạng thái <span class="ba-sort-icon"></span></th>
                                     <th class="ba-th-sort" data-sort="startedByUserName">Thực hiện bởi <span class="ba-sort-icon"></span></th>
-                                    <th class="ba-th-sort" data-sort="startTime">Bắt đầu <span class="ba-sort-icon"></span></th>
-                                    <th class="ba-th-sort" data-sort="completedAt">Kết thúc <span class="ba-sort-icon"></span></th>
+                                    <th class="ba-th-sort col-start" data-sort="startTime">Bắt đầu <span class="ba-sort-icon"></span></th>
+                                    <th class="ba-th-sort col-end" data-sort="completedAt">Kết thúc <span class="ba-sort-icon"></span></th>
                                     <th class="ba-th-sort col-msg" data-sort="message">Lỗi / Chi tiết <span class="ba-sort-icon"></span></th>
                                     <th class="col-action">Hành động</th>
                                 </tr>

@@ -1,18 +1,31 @@
-/* Sidebar collapse, theme switcher, user menu - dùng chung cho các trang có BaSidebar + BaTopBar */
-$(function() {
+/* Sidebar collapse - dùng native JS + capture phase để luôn nhận click trước (không phụ thuộc jQuery, tránh bị script khác chặn) */
+(function() {
     var key = 'baSidebarCollapsed';
-    var $sb = $('.ba-sidebar').first();
-    if ($sb.length && localStorage.getItem(key) === '1') $sb.addClass('collapsed');
-});
-$(document).on('click', '.ba-sidebar-toggle', function(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    var $sb = $(this).closest('.ba-sidebar');
-    if ($sb.length) {
-        $sb.toggleClass('collapsed');
-        try { localStorage.setItem('baSidebarCollapsed', $sb.hasClass('collapsed') ? '1' : '0'); } catch (err) {}
+    function restoreCollapsed() {
+        if (localStorage.getItem(key) !== '1') return;
+        var sb = document.querySelector('.ba-sidebar');
+        if (sb) sb.classList.add('collapsed');
+        sb = document.querySelector('.admin-sidebar');
+        if (sb) sb.classList.add('collapsed');
     }
-});
+    function onSidebarToggleClick(e) {
+        var target = e.target;
+        var toggle = target.closest && (target.closest('.ba-sidebar-toggle') || target.closest('.admin-sidebar-toggle'));
+        if (!toggle) return;
+        var sidebar = toggle.closest('.ba-sidebar') || toggle.closest('.admin-sidebar');
+        if (!sidebar) return;
+        e.preventDefault();
+        e.stopPropagation();
+        sidebar.classList.toggle('collapsed');
+        try { localStorage.setItem(key, sidebar.classList.contains('collapsed') ? '1' : '0'); } catch (err) {}
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', restoreCollapsed);
+    } else {
+        restoreCollapsed();
+    }
+    document.addEventListener('click', onSidebarToggleClick, true);
+})();
 function toggleUserMenu(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
     var dropdown = document.getElementById('userMenuDropdown');

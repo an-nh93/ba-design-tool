@@ -45,7 +45,7 @@
         .ba-container { display: flex; min-height: 100vh; overflow: hidden; }
         .ba-sidebar {
             width: 240px; background: var(--bg-darker); border-right: 1px solid var(--border);
-            padding: 1.5rem 0; flex-shrink: 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000; overflow-y: auto;
+            padding: 1.5rem 0; flex-shrink: 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 9999; overflow-y: auto;
             transition: width 0.25s ease;
         }
         .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }

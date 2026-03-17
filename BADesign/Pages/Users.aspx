@@ -173,65 +173,10 @@
         }
 
         /* ===== Table ===== */
-        .admin-table-container {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            overflow: hidden;
-            margin-bottom: 2rem;
-            max-height: min(900px, calc(100vh - 220px));
-            min-height: 400px;
-            overflow-y: auto;
-        }
-
-        .admin-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .admin-table thead {
-            background: var(--bg-darker);
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 1;
-        }
-
-        .admin-table thead th {
-            background: var(--bg-darker);
-        }
-
-        .admin-table th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .admin-table td {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.875rem;
-            color: var(--text-primary);
-        }
-
-        .admin-table tbody tr:hover {
-            background: var(--bg-hover);
-        }
-
-        .admin-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .admin-table th.admin-sortable {
-            cursor: pointer;
-            user-select: none;
-        }
-        .admin-table th.admin-sortable:hover { background: var(--bg-hover); }
-        .admin-table th .sort-icon { margin-left: 4px; opacity: 0.6; }
+        /* Bảng dùng chung từ ba-layout.css (.ba-table-wrap, .ba-table); chỉ override sortable cho Users */
+        .ba-table-wrap .ba-table th.admin-sortable { cursor: pointer; user-select: none; }
+        .ba-table-wrap .ba-table th.admin-sortable:hover { background: var(--bg-hover); }
+        .ba-table-wrap .ba-table th .sort-icon { margin-left: 4px; opacity: 0.6; }
 
         .admin-users-search {
             margin-bottom: 1rem;
@@ -288,52 +233,7 @@
             accent-color: var(--primary);
         }
 
-        .admin-btn {
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .admin-btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .admin-btn-primary:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .admin-btn-secondary {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-        }
-
-        .admin-btn-secondary:hover {
-            background: var(--bg-card);
-        }
-
-        .admin-btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-
-        .admin-btn-danger:hover {
-            background: #dc2626;
-        }
-
-        .admin-btn-sm {
-            padding: 0.375rem 0.75rem;
-            font-size: 0.8125rem;
-        }
+        /* Nút dùng chung từ ba-layout.css (.ba-btn, .ba-btn-primary, .ba-btn-secondary, .ba-btn-danger, .ba-btn-sm) */
 
         /* ===== Add User Form ===== */
         .admin-form-card {
@@ -500,35 +400,11 @@
             transition: transform linear;
         }
 
-        /* ===== Action Buttons ===== */
-        .admin-action-buttons {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-        }
-
         .admin-password-input {
             min-width: 140px;
         }
 
-        /* ===== Status Badge ===== */
-        .admin-badge {
-            display: inline-block;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.75rem;
-            font-weight: 500;
-        }
-
-        .admin-badge-success {
-            background: rgba(16, 185, 129, 0.2);
-            color: var(--success);
-        }
-
-        .admin-badge-danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: var(--danger);
-        }
+        /* Badge dùng chung từ ba-layout.css (.ba-badge, .ba-badge-ok, .ba-badge-fail) */
 
         /* ===== User Modal (Figma Style) ===== */
         .user-modal {
@@ -767,16 +643,16 @@
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="admin-content">
                     <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem;">
-                        <button type="button" class="admin-btn admin-btn-primary" onclick="showUserModal(); return false;">+ Add New User</button>
+                        <button type="button" class="ba-btn ba-btn-primary" onclick="showUserModal(); return false;">+ Add New User</button>
                     </div>
                     <div class="admin-users-search">
                         <div class="admin-users-search-wrap">
                             <input type="text" id="userSearchInput" placeholder="Search by Username, Full Name, Email, Role..." />
                         </div>
                     </div>
-                    <!-- Users Table -->
-                    <div class="admin-table-container">
-                        <table class="admin-table">
+                    <!-- Users Table: dùng chung ba-table-wrap, ba-table từ ba-layout.css -->
+                    <div class="ba-table-wrap">
+                        <table class="ba-table">
                             <thead>
                                 <tr>
                                     <th class="admin-sortable" data-col="userId"><span>ID <span class="sort-icon"></span></span></th>
@@ -799,32 +675,28 @@
                                             <td><%# Eval("Email") ?? "-" %></td>
                                             <td><%# Eval("RoleCode") ?? "-" %></td>
                                             <td>
-                                                <span class="admin-badge <%# (bool)Eval("IsSuperAdmin") ? "admin-badge-success" : "" %>">
+                                                <span class="ba-badge <%# (bool)Eval("IsSuperAdmin") ? "ba-badge-ok" : "" %>">
                                                     <%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>
                                                 </span>
                                             </td>
                                             <td>
-                                                <span class="admin-badge <%# (bool)Eval("IsActive") ? "admin-badge-success" : "admin-badge-danger" %>">
+                                                <span class="ba-badge <%# (bool)Eval("IsActive") ? "ba-badge-ok" : "ba-badge-fail" %>">
                                                     <%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>
                                                 </span>
                                             </td>
                                             <td>
-                                                <div class="admin-action-buttons">
-                                                    <button type="button" 
-                                                            class="admin-btn admin-btn-primary admin-btn-sm"
-                                                            onclick="editUser(<%# Eval("UserId") %>); return false;">
-                                                        Edit
-                                                    </button>
-                                                    <button type="button" 
-                                                            class="admin-btn admin-btn-secondary admin-btn-sm"
-                                                            onclick="resetPassword(<%# Eval("UserId") %>); return false;">
-                                                        Reset
-                                                    </button>
-                                                    <button type="button" 
-                                                            class="admin-btn admin-btn-danger admin-btn-sm"
-                                                            onclick="toggleActive(<%# Eval("UserId") %>); return false;">
-                                                        Toggle
-                                                    </button>
+                                                <div class="ba-actions">
+                                                    <div class="ba-actions-dropdown-wrap">
+                                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-actions-trigger" aria-haspopup="true" aria-expanded="false" title="Thao tác">Action</button>
+                                                        <div class="ba-actions-menu">
+                                                            <div class="ba-actions-menu-header" title="<%# HttpUtility.HtmlAttributeEncode((Eval("UserName") as string) ?? "") %>"><strong><%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %></strong></div>
+                                                            <div class="ba-actions-menu-body">
+                                                                <button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="editUser(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#9998;</span> Edit</button>
+                                                                <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="resetPassword(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#128274;</span> Reset</button>
+                                                                <button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="toggleActive(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#128260;</span> Toggle</button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -920,8 +792,8 @@
                     </div>
                 </div>
                 <div class="user-modal-footer">
-                    <button type="button" class="admin-btn admin-btn-primary" onclick="saveUser(); return false;" id="btnSaveUser">Save</button>
-                    <button type="button" class="admin-btn admin-btn-secondary" onclick="hideUserModal(); return false;">Cancel</button>
+                    <button type="button" class="ba-btn ba-btn-primary" onclick="saveUser(); return false;" id="btnSaveUser">Save</button>
+                    <button type="button" class="ba-btn ba-btn-secondary" onclick="hideUserModal(); return false;">Cancel</button>
                 </div>
             </div>
         </div>
@@ -1581,6 +1453,21 @@
             loadPermissionsAndRolePermissions();
             loadServers();
             bindUserSearchAndSort();
+            // Dropdown Action (mở/đóng menu theo ba-actions-dropdown-wrap)
+            $(document).on('click', '#usersTableBody .ba-actions-trigger', function(e) {
+                e.stopPropagation();
+                var $wrap = $(this).closest('.ba-actions-dropdown-wrap');
+                $('.ba-actions-dropdown-wrap').not($wrap).removeClass('ba-actions-open');
+                $wrap.toggleClass('ba-actions-open');
+                $(this).attr('aria-expanded', $wrap.hasClass('ba-actions-open'));
+            });
+            $(document).on('click', '#usersTableBody .ba-actions-menu .ba-btn', function() {
+                $(this).closest('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+            });
+            $(document).on('click.usersActionsClose', function(e) {
+                if (!$(e.target).closest('.ba-actions-dropdown-wrap').length)
+                    $('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+            });
         });
 
         $(document).on('click', '.user-modal', function(e) {
@@ -1600,7 +1487,6 @@
         });
         <% } %>
     </script>
-    <script src="../Scripts/ba-layout.js"></script>
     <script>
     (function() {
         var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
