@@ -130,26 +130,6 @@
             <div class="ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="ba-content">
-                    <div class="ba-card ba-card-collapsible" id="cardEmailIgnore" data-collapse-key="appSettings_emailIgnore">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailIgnore'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>Email Ignore (HR Multi-DB)</span>
-                        </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Các email/pattern trong danh sách được coi là nội bộ (đã reset). HR Helper Multi-DB sẽ load config từ đây. Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix.
-                        </p>
-                        <textarea id="txtEmailIgnore" class="ba-input" rows="6" placeholder="*@cadena.com.sg&#10;test@internal.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
-                        <div id="msgEmailIgnore" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
-                            <% if (CanEditSettings) { %>
-                            <button type="button" class="ba-btn ba-btn-primary" id="btnSave" onclick="saveEmailIgnore(); return false;">Lưu</button>
-                            <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
-                            <% } %>
-                        </div>
-                        </div>
-                    </div>
                     <div class="ba-card ba-card-collapsible" id="cardPublicBaseUrl" data-collapse-key="appSettings_publicBaseUrl" style="display:none">
                         <div class="ba-card-header" onclick="toggleAppSettingsCard('cardPublicBaseUrl'); return false;">
                             <span class="ba-card-toggle">▼</span>
@@ -173,26 +153,80 @@
                         </div>
                         </div>
                     </div>
-                    <div class="ba-card ba-card-collapsible" id="cardRegAllowedDomains" data-collapse-key="appSettings_regAllowedDomains">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardRegAllowedDomains'); return false;">
+                    <div class="ba-card ba-card-collapsible" id="cardRegistrationNotification" data-collapse-key="appSettings_registrationNotification">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardRegistrationNotification'); return false;">
                             <span class="ba-card-toggle">▼</span>
-                            <span>Email domain - Đăng ký</span>
+                            <span>Sign Up & Notifications</span>
                         </div>
                         <div class="ba-card-body">
                         <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Chỉ email có đuôi trong danh sách mới được đăng ký tài khoản mới. Mỗi dòng 1 pattern. Dùng <code>*@domain.com</code> cho suffix, ví dụ: <code>*@cadena.com.sg</code>, <code>*@cadena-hrmseries.com</code>, <code>*@cadena-it.com</code>.
+                            Cấu hình domain email được phép đăng ký và cách thông báo khi có tài khoản mới đăng ký (Telegram hoặc Email).
                         </p>
-                        <textarea id="txtRegAllowedDomains" class="ba-input" rows="5" placeholder="*@cadena.com.sg&#10;*@cadena-hrmseries.com&#10;*@cadena-it.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
-                        <div id="msgRegAllowedDomains" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-form-group" style="margin-bottom: 1rem;">
+                            <label class="ba-form-label">Email domain được phép đăng ký</label>
+                            <p style="color: var(--text-muted); font-size: 0.75rem; margin: 0.25rem 0 0.5rem 0;">Chỉ email có đuôi trong danh sách mới được đăng ký. Mỗi dòng 1 pattern, ví dụ <code>*@cadena.com.sg</code>.</p>
+                            <textarea id="txtRegAllowedDomains" class="ba-input" rows="3" placeholder="*@cadena.com.sg&#10;*@cadena-hrmseries.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
+                        </div>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Khi có tài khoản đăng ký, thông báo qua</label>
+                            <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem;">
+                                <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="regNotifyMethod" value="Email" id="regNotifyEmail" <%= !CanEditSettings ? "disabled" : "" %> />
+                                    <span style="margin-left: 0.35rem;">Email</span>
+                                </label>
+                                <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
+                                    <input type="radio" name="regNotifyMethod" value="Telegram" id="regNotifyTelegram" <%= !CanEditSettings ? "disabled" : "" %> />
+                                    <span style="margin-left: 0.35rem;">Telegram</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div id="panelRegNotifyEmail" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-main); border-radius: 6px; border: 1px solid var(--border);">
+                            <label class="ba-form-label">Gửi thông báo tới email (mỗi dòng 1 địa chỉ)</label>
+                            <p style="color: var(--text-muted); font-size: 0.75rem; margin: 0.25rem 0 0.5rem 0;">Hệ thống gửi email thông báo user mới đăng ký tới các địa chỉ này. Mặc định: <code>an.nh@cadena.com.sg</code></p>
+                            <textarea id="txtRegNotifyEmails" class="ba-input" rows="4" placeholder="an.nh@cadena.com.sg" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
+                        </div>
+                        <div id="panelRegNotifyTelegram" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-main); border-radius: 6px; border: 1px solid var(--border); display: none;">
+                            <p style="color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.5rem;">Gửi tin nhắn tới nhóm Telegram. Nếu chat not found thử: -100{số}, -{số} hoặc {số}.</p>
+                            <div class="ba-form-group" style="margin-bottom: 0.5rem;">
+                                <label class="ba-form-label">Telegram Bot API Key (Bot Token) (*)</label>
+                                <input type="text" id="txtTelegramBotToken" class="ba-input" placeholder="1234567890:AAHxxxx..." autocomplete="off" <%= !CanEditSettings ? "readonly" : "" %> />
+                            </div>
+                            <div class="ba-form-group" style="margin-bottom: 0;">
+                                <label class="ba-form-label">Telegram Group ID (Chat ID) (*)</label>
+                                <input type="text" id="txtTelegramChatId" class="ba-input" placeholder="-1001234567890" <%= !CanEditSettings ? "readonly" : "" %> />
+                            </div>
+                        </div>
+                        <div id="msgRegistrationNotification" class="ba-msg" style="display:none;"></div>
                         <div class="ba-actions" style="margin-top: 0.75rem;">
                             <% if (CanEditSettings) { %>
-                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveRegAllowedDomains" onclick="saveRegAllowedDomains(); return false;">Lưu</button>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveRegistrationNotification" onclick="saveRegistrationNotificationConfig(); return false;">Lưu</button>
                             <% } else { %>
                             <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
                         </div>
                     </div>
+                   <div class="ba-card ba-card-collapsible" id="cardEmailIgnore" data-collapse-key="appSettings_emailIgnore">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailIgnore'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>Email Ignore (HR Multi-DB)</span>
+                        </div>
+                        <div class="ba-card-body">
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            Các email/pattern trong danh sách được coi là nội bộ (đã reset). HR Helper Multi-DB sẽ load config từ đây. Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix.
+                        </p>
+                        <textarea id="txtEmailIgnore" class="ba-input" rows="6" placeholder="*@cadena.com.sg&#10;test@internal.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
+                        <div id="msgEmailIgnore" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSave" onclick="saveEmailIgnore(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
+                    
                     <div class="ba-card ba-card-collapsible" id="cardEmailServer" data-collapse-key="appSettings_emailServer">
                         <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailServer'); return false;">
                             <span class="ba-card-toggle">▼</span>
@@ -260,33 +294,6 @@
                         </div>
                         </div>
                     </div>
-                    <div class="ba-card ba-card-collapsible" id="cardTelegram" data-collapse-key="appSettings_telegram">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardTelegram'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>Telegram - Notification</span>
-                        </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Gửi tin nhắn thông báo tới nhóm Telegram. Nếu chat not found thử: -100{số}, -{số} hoặc {số}.
-                        </p>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
-                            <label class="ba-form-label">Telegram Bot API Key (Bot Token) (*)</label>
-                            <input type="text" id="txtTelegramBotToken" class="ba-input" placeholder="1234567890:AAHxxxx..." autocomplete="off" <%= !CanEditSettings ? "readonly" : "" %> />
-                        </div>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
-                            <label class="ba-form-label">Telegram Group ID (Chat ID) (*)</label>
-                            <input type="text" id="txtTelegramChatId" class="ba-input" placeholder="-1001234567890 hoặc -1234567890" <%= !CanEditSettings ? "readonly" : "" %> />
-                        </div>
-                        <div id="msgTelegram" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
-                            <% if (CanEditSettings) { %>
-                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveTelegram" onclick="saveTelegramConfig(); return false;">Lưu</button>
-                            <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
-                            <% } %>
-                        </div>
-                        </div>
-                    </div>
                     <div class="ba-card ba-card-collapsible" id="cardSftp" data-collapse-key="appSettings_sftp">
                         <div class="ba-card-header" onclick="toggleAppSettingsCard('cardSftp'); return false;">
                             <span class="ba-card-toggle">▼</span>
@@ -322,7 +329,7 @@
                         </div>
                         </div>
                     </div>
-                    <div class="ba-card ba-card-collapsible" id="cardResetPhone" data-collapse-key="appSettings_resetPhone">
+                    <div class="ba-card ba-card-collapsible collapsed" id="cardResetPhone" data-collapse-key="appSettings_resetPhone">
                         <div class="ba-card-header" onclick="toggleAppSettingsCard('cardResetPhone'); return false;">
                             <span class="ba-card-toggle">▼</span>
                             <span>Phone Default</span>
@@ -452,9 +459,9 @@
                     $('#btnSavePublicBaseUrl').prop('disabled', false);
                 });
             };
-            (function loadRegAllowedDomains() {
+            (function loadRegistrationNotificationConfig() {
                 $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadRegAllowedDomains") %>',
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadRegistrationNotificationConfig") %>',
                     type: 'POST',
                     contentType: 'application/json; charset=utf-8',
                     data: '{}',
@@ -462,30 +469,49 @@
                 }).done(function (r) {
                     var d = (typeof r.d !== 'undefined') ? r.d : r;
                     if (d && d.success) {
-                        $('#txtRegAllowedDomains').val(d.value || '');
+                        $('#txtRegAllowedDomains').val(d.allowedPatterns || '');
+                        var method = (d.notificationMethod || 'Email').trim();
+                        if (method !== 'Telegram' && method !== 'Email') method = 'Email';
+                        $('input[name="regNotifyMethod"]').val([method]);
+                        $('#txtRegNotifyEmails').val(d.notifyEmails || 'an.nh@cadena.com.sg');
+                        $('#txtTelegramBotToken').val(d.botToken || '');
+                        $('#txtTelegramChatId').val(d.chatId || '');
+                        toggleRegNotifyPanel();
                     }
                 });
             })();
-            window.saveRegAllowedDomains = function () {
-                $('#msgRegAllowedDomains').hide();
-                $('#btnSaveRegAllowedDomains').prop('disabled', true);
+            function toggleRegNotifyPanel() {
+                var isEmail = $('#regNotifyEmail').prop('checked');
+                $('#panelRegNotifyEmail').toggle(isEmail);
+                $('#panelRegNotifyTelegram').toggle(!isEmail);
+            }
+            $('input[name="regNotifyMethod"]').on('change', toggleRegNotifyPanel);
+            window.saveRegistrationNotificationConfig = function () {
+                $('#msgRegistrationNotification').hide();
+                $('#btnSaveRegistrationNotification').prop('disabled', true);
                 $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveRegAllowedDomains") %>',
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveRegistrationNotificationConfig") %>',
                     type: 'POST',
                     contentType: 'application/json; charset=utf-8',
-                    data: JSON.stringify({ value: $('#txtRegAllowedDomains').val() || '' }),
+                    data: JSON.stringify({
+                        allowedPatterns: $('#txtRegAllowedDomains').val() || '',
+                        notificationMethod: $('#regNotifyEmail').prop('checked') ? 'Email' : 'Telegram',
+                        notifyEmails: $('#txtRegNotifyEmails').val() || 'an.nh@cadena.com.sg',
+                        botToken: $('#txtTelegramBotToken').val() || '',
+                        chatId: $('#txtTelegramChatId').val() || ''
+                    }),
                     dataType: 'json'
                 }).done(function (r) {
                     var d = (typeof r.d !== 'undefined') ? r.d : r;
                     if (d && d.success) {
-                        $('#msgRegAllowedDomains').removeClass('error').addClass('success').text('Đã lưu.').show();
+                        $('#msgRegistrationNotification').removeClass('error').addClass('success').text('Đã lưu.').show();
                     } else {
-                        $('#msgRegAllowedDomains').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                        $('#msgRegistrationNotification').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
                     }
                 }).fail(function () {
-                    $('#msgRegAllowedDomains').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                    $('#msgRegistrationNotification').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
                 }).always(function () {
-                    $('#btnSaveRegAllowedDomains').prop('disabled', false);
+                    $('#btnSaveRegistrationNotification').prop('disabled', false);
                 });
             };
             (function loadEmailServerConfig() {
@@ -580,46 +606,6 @@
                     $('#msgEmailServer').removeClass('success').addClass('error').text(msg).show();
                 }).always(function () {
                     $('#btnTestEmailConnection').prop('disabled', false);
-                });
-            };
-            (function loadTelegramConfig() {
-                $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadTelegramConfig") %>',
-                    type: 'POST',
-                    contentType: 'application/json; charset=utf-8',
-                    data: '{}',
-                    dataType: 'json'
-                }).done(function (r) {
-                    var d = (typeof r.d !== 'undefined') ? r.d : r;
-                    if (d && d.success) {
-                        $('#txtTelegramBotToken').val(d.botToken || '');
-                        $('#txtTelegramChatId').val(d.chatId || '');
-                    }
-                });
-            })();
-            window.saveTelegramConfig = function () {
-                $('#msgTelegram').hide();
-                $('#btnSaveTelegram').prop('disabled', true);
-                $.ajax({
-                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveTelegramConfig") %>',
-                    type: 'POST',
-                    contentType: 'application/json; charset=utf-8',
-                    data: JSON.stringify({
-                        botToken: $('#txtTelegramBotToken').val() || '',
-                        chatId: $('#txtTelegramChatId').val() || ''
-                    }),
-                    dataType: 'json'
-                }).done(function (r) {
-                    var d = (typeof r.d !== 'undefined') ? r.d : r;
-                    if (d && d.success) {
-                        $('#msgTelegram').removeClass('error').addClass('success').text('Đã lưu.').show();
-                    } else {
-                        $('#msgTelegram').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
-                    }
-                }).fail(function () {
-                    $('#msgTelegram').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
-                }).always(function () {
-                    $('#btnSaveTelegram').prop('disabled', false);
                 });
             };
             (function loadSftpConfig() {

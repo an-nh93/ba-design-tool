@@ -38,6 +38,8 @@ namespace BADesign.Pages
         private const string EmailServer_SSLPort = "EmailServer_SSLPort";
 
         private const string Registration_AllowedEmailPatterns = "Registration_AllowedEmailPatterns";
+        private const string Registration_NotificationMethod = "Registration_NotificationMethod"; // "Email" | "Telegram"
+        private const string Registration_NotifyEmails = "Registration_NotifyEmails"; // Mỗi dòng 1 email, default an.nh@cadena.com.sg
         private const string App_PublicBaseUrl = "App_PublicBaseUrl";
         private const string Telegram_BotToken = "Telegram_BotToken";
         private const string Telegram_ChatId = "Telegram_ChatId";
@@ -144,6 +146,89 @@ ELSE
                     cmd.Parameters.AddWithValue("@uid", uid.HasValue ? (object)uid.Value : DBNull.Value);
                     conn.Open();
                     cmd.ExecuteNonQuery();
+                }
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Load cấu hình Đăng ký & Thông báo: domain đăng ký, cách thông báo (Email/Telegram), danh sách email nhận thông báo, Telegram config.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadRegistrationNotificationConfig()
+        {
+            try
+            {
+                string allowedPatterns = "", notificationMethod = "Email", notifyEmails = "an.nh@cadena.com.sg", botToken = "", chatId = "";
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"SELECT [Key], [Value] FROM BaAppSetting WHERE [Key] IN (
+                        N'Registration_AllowedEmailPatterns', N'Registration_NotificationMethod', N'Registration_NotifyEmails',
+                        N'Telegram_BotToken', N'Telegram_ChatId')";
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var k = r.GetString(0);
+                            var v = r.IsDBNull(1) ? null : r.GetString(1);
+                            if (k == Registration_AllowedEmailPatterns) allowedPatterns = v ?? "";
+                            else if (k == Registration_NotificationMethod) notificationMethod = (v ?? "Email").Trim();
+                            else if (k == Registration_NotifyEmails) notifyEmails = v ?? "an.nh@cadena.com.sg";
+                            else if (k == Telegram_BotToken) botToken = v ?? "";
+                            else if (k == Telegram_ChatId) chatId = v ?? "";
+                        }
+                    }
+                }
+                if (string.IsNullOrWhiteSpace(notificationMethod) || (notificationMethod != "Telegram" && notificationMethod != "Email"))
+                    notificationMethod = "Email";
+                return new { success = true, allowedPatterns = allowedPatterns, notificationMethod = notificationMethod, notifyEmails = notifyEmails, botToken = botToken, chatId = chatId };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveRegistrationNotificationConfig(string allowedPatterns, string notificationMethod, string notifyEmails, string botToken, string chatId)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = "Bạn không có quyền Settings." };
+                var method = (notificationMethod ?? "Email").Trim();
+                if (method != "Telegram" && method != "Email") method = "Email";
+                var uid = UiAuthHelper.CurrentUserId;
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                {
+                    conn.Open();
+                    foreach (var kv in new[] {
+                        new { Key = Registration_AllowedEmailPatterns, Val = (allowedPatterns ?? "").Trim() },
+                        new { Key = Registration_NotificationMethod, Val = method },
+                        new { Key = Registration_NotifyEmails, Val = (notifyEmails ?? "an.nh@cadena.com.sg").Trim() },
+                        new { Key = Telegram_BotToken, Val = (botToken ?? "").Trim() },
+                        new { Key = Telegram_ChatId, Val = (chatId ?? "").Trim() }
+                    })
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = @"
+IF EXISTS (SELECT 1 FROM BaAppSetting WHERE [Key] = @key)
+    UPDATE BaAppSetting SET [Value] = @val, UpdatedAt = SYSDATETIME(), UpdatedBy = @uid WHERE [Key] = @key;
+ELSE
+    INSERT INTO BaAppSetting ([Key], [Value], UpdatedBy) VALUES (@key, @val, @uid);";
+                            cmd.Parameters.AddWithValue("@key", kv.Key);
+                            cmd.Parameters.AddWithValue("@val", kv.Val);
+                            cmd.Parameters.AddWithValue("@uid", uid.HasValue ? (object)uid.Value : DBNull.Value);
+                            cmd.ExecuteNonQuery();
+                        }
+                    }
                 }
                 return new { success = true };
             }

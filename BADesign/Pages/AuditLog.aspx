@@ -57,12 +57,19 @@
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            overflow: auto;
+            overflow-x: auto;
+            overflow-y: auto;
             max-height: min(65vh, 600px);
         }
-        .ba-table { width: 100%; border-collapse: collapse; }
-        .ba-table thead { background: var(--bg-darker); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
-        .ba-table th {
+        .ba-table {
+            border-collapse: collapse;
+            table-layout: fixed;
+            width: 100%;
+            min-width: 900px;
+        }
+        .ba-table thead { border-bottom: 1px solid var(--border); }
+        .ba-table thead th {
+            background: var(--bg-darker);
             padding: 0.75rem 1rem;
             text-align: left;
             font-weight: 600;
@@ -71,21 +78,26 @@
             text-transform: uppercase;
             letter-spacing: 0.03em;
             white-space: nowrap;
+            box-sizing: border-box;
         }
-        .ba-table td {
+        .ba-table tbody td {
             padding: 0.75rem 1rem;
             border-bottom: 1px solid var(--border);
             font-size: 0.875rem;
             color: var(--text-primary);
             vertical-align: top;
+            box-sizing: border-box;
         }
         .ba-table tbody tr:hover { background: var(--bg-hover); }
-        .ba-table .col-time { width: 160px; }
-        .ba-table .col-user { width: 120px; }
-        .ba-table .col-action { width: 180px; }
-        .ba-table .col-detail { max-width: 320px; word-break: break-word; }
-        .ba-table .col-ip { width: 120px; }
-        .ba-table .col-device { max-width: 280px; font-size: 0.8125rem; color: var(--text-muted); }
+        .ba-table .col-time { width: 11%; min-width: 100px; }
+        .ba-table .col-user { width: 8%; min-width: 80px; }
+        .ba-table .col-action { width: 12%; min-width: 120px; }
+        .ba-table .col-detail { width: 32%; min-width: 200px; word-break: break-word; }
+        .ba-table .col-ip { width: 7%; min-width: 90px; }
+        .ba-table .col-device { width: 30%; min-width: 200px; font-size: 0.8125rem; color: var(--text-muted); word-break: break-word; }
+        /* Ghi đè ba-layout.css: không ép cột cuối 1%, giữ đúng % và màu header */
+        .ba-table-wrap .ba-table thead th:last-child { width: 30% !important; min-width: 200px !important; white-space: nowrap; background: var(--bg-darker) !important; }
+        .ba-table-wrap .ba-table td:last-child { width: 30% !important; min-width: 200px !important; white-space: normal; word-break: break-word; }
         .ba-empty { text-align: center; padding: 2rem; color: var(--text-muted); }
         .ba-pager { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
         .ba-pager-info { font-size: 0.875rem; color: var(--text-secondary); }

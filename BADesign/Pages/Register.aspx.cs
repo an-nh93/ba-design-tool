@@ -12,6 +12,8 @@ namespace BADesign.Pages
     public partial class Register : Page
     {
         private const string Registration_AllowedEmailPatterns = "Registration_AllowedEmailPatterns";
+        private const string Registration_NotificationMethod = "Registration_NotificationMethod";
+        private const string Registration_NotifyEmails = "Registration_NotifyEmails";
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -54,6 +56,61 @@ namespace BADesign.Pages
                 }
             }
             catch { return new string[0]; }
+        }
+
+        /// <summary>Gửi thông báo user mới đăng ký: theo App Settings gửi Telegram hoặc Email tới danh sách cấu hình.</summary>
+        private static void SendRegistrationNotification(string userName, string email, string roleName)
+        {
+            string method = "Email";
+            string notifyEmails = "an.nh@cadena.com.sg";
+            try
+            {
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT [Key], [Value] FROM BaAppSetting WHERE [Key] IN (N'Registration_NotificationMethod', N'Registration_NotifyEmails')";
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var k = r.GetString(0);
+                            var v = r.IsDBNull(1) ? null : r.GetString(1);
+                            if (k == Registration_NotificationMethod) method = (v ?? "Email").Trim();
+                            else if (k == Registration_NotifyEmails) notifyEmails = v ?? "an.nh@cadena.com.sg";
+                        }
+                    }
+                }
+            }
+            catch { return; }
+            if (string.Equals(method, "Telegram", StringComparison.OrdinalIgnoreCase))
+            {
+                try { TelegramHelper.SendNewUserNotification(userName, email, roleName); } catch { }
+                return;
+            }
+            var subject = "[Cadena Helper] User mới đăng ký - " + (userName ?? "");
+            var body = "Thông báo user mới đăng ký Cadena Helper.\r\n\r\n"
+                + "Username: " + (userName ?? "") + "\r\n"
+                + "Email: " + (email ?? "") + "\r\n"
+                + "Phòng ban: " + (roleName ?? "-") + "\r\n"
+                + "Thời gian: " + DateTime.Now.ToString("yyyy-MM-dd HH:mm") + "\r\n\r\n"
+                + "Vui lòng gán quyền cho user.";
+            var toList = (notifyEmails ?? "an.nh@cadena.com.sg")
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim())
+                .Where(s => !string.IsNullOrEmpty(s) && s.Contains("@"))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            foreach (var to in toList)
+            {
+                try
+                {
+                    var err = EmailHelper.SendEmail(to, subject, body, false);
+                    if (!string.IsNullOrEmpty(err))
+                        try { AppLogger.Log("Register.SendRegistrationNotification to " + to + ": " + err); } catch { }
+                }
+                catch (Exception ex) { try { AppLogger.Log("Register.SendRegistrationNotification: " + ex.Message); } catch { } }
+            }
         }
 
         [WebMethod(EnableSession = false)]
@@ -228,7 +285,7 @@ ELSE INSERT INTO UiUserOtp(UserId, OtpCode, ExpiresAt) VALUES (@uid, @otp, @exp)
                     }
                 }
 
-                try { TelegramHelper.SendNewUserNotification(userName, email, roleName); } catch { }
+                SendRegistrationNotification(userName, email, roleName);
 
                 var baseUrl = UiAuthHelper.GetBaseUrlForEmail();
                 var loginUrl = baseUrl.TrimEnd('/') + "/Login";
