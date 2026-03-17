@@ -588,6 +588,7 @@
                     <span class="ba-conn-label" style="font-size: 0.875rem;"><span>Server: <strong><%= ConnectedServer %></strong></span><span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span></span>
                     <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">← Về Database Search</a>
                     <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a>
+                    <a href="<%= PgpToolUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">PGP Tool</a>
                 </div>
                 <% } %>
                 <div class="ba-content">
@@ -1385,7 +1386,7 @@
                         <button type="button" class="ba-btn ba-btn-primary" id="btnGenerateAndRunDeleteScript" onclick="generateAndRunDeleteScript(); return false;">Generate and Run</button>
                     </div>
                     <label class="ba-form-label" style="display: block; margin-bottom: 0.25rem;">Script (copy hoặc chạy)</label>
-                    <textarea id="txtDeleteScriptOutput" class="ba-input" readonly rows="14" placeholder="Script sẽ hiển thị sau khi Generate..." style="width: 100%; font-family: Consolas, monospace; font-size: 0.8125rem;"></textarea>
+                    <textarea id="txtDeleteScriptOutput" class="ba-input" readonly rows="22" placeholder="Script sẽ hiển thị sau khi Generate... (keo thanh cuon de xem het)" style="width: 100%; font-family: Consolas, monospace; font-size: 0.8125rem; min-height: 320px;"></textarea>
                 </div>
                 <div class="ba-modal-footer">
                     <button type="button" class="ba-btn ba-btn-secondary" onclick="hideGenerateDeleteScriptModal(); return false;">Đóng</button>

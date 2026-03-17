@@ -639,16 +639,7 @@
             });
             $('#selKeyType, #txtKeyEmployeeId, #txtKeyString').on('change input', function () { syncSharedKeyToDec(); });
             $('#selKeyTypeDec, #txtKeyEmployeeIdDec, #txtKeyStringDec').on('change input', function () { syncSharedKeyToEnc(); });
-            $(document).on('click', '.ba-info-icon', function (e) {
-                e.stopPropagation();
-                var $wrap = $(this).closest('.ba-info-wrap');
-                var $pop = $wrap.find('.ba-info-popover');
-                $pop.toggleClass('show').css('display', $pop.hasClass('show') ? 'block' : 'none');
-            });
-            $(document).on('click', function () {
-                $('.ba-info-popover').removeClass('show').hide();
-            });
-            $(document).on('click', '.ba-info-popover', function (e) { e.stopPropagation(); });
+            /* Popover info icon: xử lý bởi ba-layout.js (tránh bind trùng khiến popover toggle 2 lần rồi đóng ngay) */
 
             function getKey(keyType, idNum, idStr) {
                 var t = (keyType || 'none').toLowerCase();

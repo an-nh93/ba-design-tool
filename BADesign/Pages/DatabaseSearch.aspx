@@ -78,6 +78,7 @@
             border-radius: 8px;
             overflow: auto;
             margin-bottom: 1rem;
+            min-height: 270px;
             max-height: min(55vh, 520px);
         }
         .ba-table { width: 100%; border-collapse: collapse; }
@@ -120,6 +121,24 @@
         .ba-empty-state-link { color: var(--primary); text-decoration: none; font-weight: 500; cursor: pointer; }
         .ba-empty-state-link:hover { text-decoration: underline; }
         .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+        /* Cột Thao tác: nút Action mở menu, menu có header context + tăng cao/khoảng cách */
+        .ba-actions-dropdown-wrap { position: relative; display: inline-block; }
+        .ba-actions-trigger { white-space: nowrap; padding: 0.25rem 0.5rem; font-size: 0.8125rem; }
+        .ba-actions-menu { display: none; position: absolute; right: 0; top: 100%; margin-top: 2px; width: 200px; min-width: 200px; max-height: 260px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); z-index: 100; flex-direction: column; overflow: hidden; }
+        .ba-actions-dropdown-wrap.ba-actions-open .ba-actions-menu { display: flex; }
+        .ba-actions-menu-header { flex-shrink: 0; display: flex; align-items: center; min-height: 28px; padding: 0 0.6rem; border-bottom: 1px solid var(--border); font-size: 0.75rem; line-height: 1.35; color: var(--text-muted); background: var(--bg-darker); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .ba-actions-menu-header strong { color: var(--text-primary); font-weight: 600; }
+        .ba-actions-menu-body { overflow-y: auto; flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 0.3rem; text-align: left; }
+        .ba-actions-menu .ba-btn { display: flex; align-items: center; justify-content: flex-start; gap: 0.5rem; width: 100%; text-align: left; margin: 0; padding: 0.35rem 0.6rem; border-radius: 4px; font-size: 0.8125rem; line-height: 1.3; min-height: 32px; box-sizing: border-box; border: none; }
+        .ba-actions-menu .ba-btn .ba-action-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.25em; min-width: 1.25em; font-size: 0.95rem; opacity: 0.95; flex-shrink: 0; }
+        .ba-actions-menu .ba-btn:hover { filter: brightness(1.15); background-color: rgba(255,255,255,0.08) !important; }
+        .ba-actions-menu .ba-btn:focus { outline: 2px solid var(--primary, #0d6efd); outline-offset: 2px; background-color: rgba(255,255,255,0.12) !important; }
+        .ba-actions-menu .ba-btn.ba-btn-primary:hover { filter: brightness(1.2); }
+        .ba-actions-menu .ba-btn.ba-btn-primary:focus { background-color: var(--primary, #0d6efd) !important; }
+        .ba-actions-menu .ba-btn.ba-btn-danger:hover { filter: brightness(1.2); }
+        .ba-actions-menu .ba-btn.ba-btn-danger:focus { background-color: var(--danger) !important; }
+        .ba-table thead th:last-child { width: 1%; white-space: nowrap; }
+        #tblServers td:last-child, #tblResults td:last-child { min-width: 0; width: 1%; white-space: nowrap; }
         .ba-badge {
             display: inline-block;
             padding: 0.2rem 0.5rem;
@@ -364,7 +383,7 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Dán connection string vào ô bên dưới rồi bấm Connect để mở HR Helper.</p>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Dán connection string vào ô bên dưới rồi bấm Connect (HR Helper) hoặc PGP Tool.</p>
                             <div class="ba-form-group" style="margin-bottom: 1rem;">
                                 <div class="ba-form-label-row">
                                     <label class="ba-form-label" for="txtConnStr">Connection String</label>
@@ -375,7 +394,8 @@
                                 </div>
                                 <input type="text" id="txtConnStr" class="ba-input" placeholder="Data Source=...;Initial Catalog=...;User ID=...;Password=..." style="width:100%; font-family: Consolas, monospace; font-size: 0.8125rem;" />
                             </div>
-                            <button type="button" class="ba-btn ba-btn-primary" id="btnConnStrConnect" onclick="connectByConnStr(); return false;">Connect</button>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnConnStrConnect" onclick="connectByConnStr(); return false;">Connect (HR Helper)</button>
+                            <button type="button" class="ba-btn ba-btn-secondary" id="btnConnStrPgpTool" onclick="connectToPgpToolByConnStr(); return false;" style="margin-left: 0.5rem;">PGP Tool</button>
                         </div>
                     </div>
                     <!-- Server config (chỉ khi đăng nhập + có quyền DatabaseSearch) -->
@@ -1015,12 +1035,16 @@
                     statusCell = '<span class="ba-status-fail" title="Lỗi">✕</span> ' +
                         '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-log" data-id="' + s.id + '" title="Xem log lỗi">Log</button>';
                 }
-                var actions = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;">Quét</button>';
-                if (canBulkReset) actions += ' <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-multidb-btn" onclick="connectMultiDb(' + s.id + '); return false;" title="Connect Multi-DB Reset">Multi-DB</button>';
+                var escT = function(x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+                var serverLabel = escT(s.serverName);
+                var menuHeader = '<div class="ba-actions-menu-header" title="' + serverLabel + '"><strong>' + serverLabel + '</strong></div>';
+                var menuBtns = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;"><span class="ba-action-icon">🔍</span> Quét</button>';
+                if (canBulkReset) menuBtns += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-multidb-btn" onclick="connectMultiDb(' + s.id + '); return false;" title="Connect Multi-DB Reset"><span class="ba-action-icon">🗃️</span> Multi-DB</button>';
                 if (canManageServers) {
-                    actions = '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;">Sửa</button> ' + actions + ' ' +
-                        '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + ', \'' + String(s.serverName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\'); return false;">Xóa</button>';
+                    menuBtns = '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;"><span class="ba-action-icon">✏️</span> Sửa</button>' + menuBtns +
+                        '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="deleteServer(' + s.id + ', \'' + String(s.serverName || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'") + '\'); return false;"><span class="ba-action-icon">🗑️</span> Xóa</button>';
                 }
+                var actions = '<div class="ba-actions-dropdown-wrap"><button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-actions-trigger" aria-haspopup="true" aria-expanded="false" title="Thao tác">Action</button><div class="ba-actions-menu">' + menuHeader + '<div class="ba-actions-menu-body">' + menuBtns + '</div></div></div>';
                 html += '<tr data-id="' + s.id + '">' +
                     '<td>' + (s.serverName || '-') + '</td>' +
                     '<td>' + (s.port != null ? s.port : '-') + '</td>' +
@@ -1029,6 +1053,16 @@
                     '<td><div class="ba-actions">' + actions + '</div></td></tr>';
             });
             $tb.html(html);
+            $tb.find('.ba-actions-trigger').on('click', function(e) {
+                e.stopPropagation();
+                var $wrap = $(this).closest('.ba-actions-dropdown-wrap');
+                $('.ba-actions-dropdown-wrap').not($wrap).removeClass('ba-actions-open');
+                $wrap.toggleClass('ba-actions-open');
+                $(this).attr('aria-expanded', $wrap.hasClass('ba-actions-open'));
+            });
+            $tb.find('.ba-actions-menu .ba-btn').on('click', function() {
+                $(this).closest('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+            });
             $tb.find('.ba-btn-log').on('click', function() {
                 var id = parseInt($(this).data('id'), 10);
                 showErrorDetail(id);
@@ -2501,6 +2535,32 @@
             });
         }
 
+        function connectToPgpTool(serverId, databaseName) {
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/PrepareConnectByServerAndDb") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ serverId: serverId, databaseName: databaseName || '' }),
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.token) {
+                        window.location.href = '<%= ResolveUrl("~/PgpTool") %>?k=' + encodeURIComponent(d.token);
+                    } else {
+                        showToast((d && d.message) ? d.message : 'Không thể kết nối.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = 'Lỗi kết nối.';
+                    try {
+                        var j = JSON.parse(xhr.responseText);
+                        if (j.d && j.d.message) msg = j.d.message;
+                    } catch (e) {}
+                    showToast(msg, 'error');
+                }
+            });
+        }
+
         function connectToDatabase(connectionString, server, database) {
             if (!connectionString) {
                 showToast('Không có connection string.', 'error');
@@ -2589,12 +2649,19 @@
                 var hasServerId = !!(r.serverId && r.database);
                 var actions = '';
                 if (hasServerId) {
-                    actions += '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm ba-connect-btn" data-idx="' + globalIdx + '" title="Connect">Connect</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-load-log-btn ' + (canShrinkLog ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canShrinkLog ? 'Lấy dung lượng log' : 'Cần quyền Shrink log') + '">Lấy log</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-backup-btn ' + (canBackup ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canBackup ? 'Backup' : 'Cần quyền Backup') + '">Backup</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-restore-btn ' + (canRestore ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canRestore ? 'Restore' : 'Cần quyền Restore') + '">Restore</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-shrink-log-btn ' + (canShrinkLog ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canShrinkLog ? 'Shrink log' : 'Cần quyền Shrink log') + '">Shrink log</button> ';
-                    actions += '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm ba-delete-db-btn ' + (canDelete ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canDelete ? 'Xóa database' : 'Cần quyền Xóa database') + '">Xóa</button>';
+                    var escT = function(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+                    var dbLabel = escT(r.database);
+                    var serverLabel = escT(r.server);
+                    var menuHeader = '<div class="ba-actions-menu-header" title="' + serverLabel + ' \\ ' + dbLabel + '"><strong>' + dbLabel + '</strong></div>';
+                    var menuBtns = '';
+                    menuBtns += '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm ba-connect-btn" data-idx="' + globalIdx + '" title="Connect HR Helper"><span class="ba-action-icon">🔗</span> Connect</button>';
+                    menuBtns += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-pgptool-btn" data-idx="' + globalIdx + '" title="Mở PGP Tool với database này"><span class="ba-action-icon">🔒</span> PGP Tool</button>';
+                    menuBtns += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-load-log-btn ' + (canShrinkLog ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canShrinkLog ? 'Lấy dung lượng log' : 'Cần quyền Shrink log') + '"><span class="ba-action-icon">📄</span> Lấy log</button>';
+                    menuBtns += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-backup-btn ' + (canBackup ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canBackup ? 'Backup' : 'Cần quyền Backup') + '"><span class="ba-action-icon">☁️</span> Backup</button>';
+                    menuBtns += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-restore-btn ' + (canRestore ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canRestore ? 'Restore' : 'Cần quyền Restore') + '"><span class="ba-action-icon">🗄️</span> Restore</button>';
+                    menuBtns += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-shrink-log-btn ' + (canShrinkLog ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canShrinkLog ? 'Shrink log' : 'Cần quyền Shrink log') + '"><span class="ba-action-icon">📉</span> Shrink log</button>';
+                    menuBtns += '<button type="button" class="ba-btn ba-btn-danger ba-btn-sm ba-delete-db-btn ' + (canDelete ? '' : 'ba-btn-disabled') + '" data-idx="' + globalIdx + '" title="' + (canDelete ? 'Xóa database' : 'Cần quyền Xóa database') + '"><span class="ba-action-icon">🗑️</span> Xóa</button>';
+                    actions = '<div class="ba-actions-dropdown-wrap"><button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-actions-trigger" aria-haspopup="true" aria-expanded="false" title="Thao tác">Action</button><div class="ba-actions-menu">' + menuHeader + '<div class="ba-actions-menu-body">' + menuBtns + '</div></div></div>';
                 } else {
                     actions = '<span class="ba-badge ba-badge-fail">—</span>';
                 }
@@ -2628,6 +2695,12 @@
                 var r = results[idx];
                 if (!r || !r.serverId || !r.database) { showToast('Không đủ thông tin để kết nối.', 'error'); return; }
                 connectToDatabaseByServerAndDb(r.serverId, r.database);
+            });
+            $tb.find('.ba-pgptool-btn').on('click', function() {
+                var idx = parseInt($(this).data('idx'), 10);
+                var r = results[idx];
+                if (!r || !r.serverId || !r.database) { showToast('Không đủ thông tin để kết nối.', 'error'); return; }
+                connectToPgpTool(r.serverId, r.database);
             });
             $tb.find('.ba-backup-btn').on('click', function() {
                 if ($(this).hasClass('ba-btn-disabled')) return;
@@ -2664,6 +2737,19 @@
                 if (!r || !r.serverId || !r.database) return;
                 showShrinkLogModal(r.serverId, r.database, (r.server || '') + ' / ' + (r.database || ''));
             });
+            $tb.find('.ba-actions-trigger').on('click', function(e) {
+                e.stopPropagation();
+                var $wrap = $(this).closest('.ba-actions-dropdown-wrap');
+                $('.ba-actions-dropdown-wrap').not($wrap).removeClass('ba-actions-open');
+                $wrap.toggleClass('ba-actions-open');
+                $(this).attr('aria-expanded', $wrap.hasClass('ba-actions-open'));
+            });
+            $tb.find('.ba-actions-menu .ba-btn').on('click', function() {
+                $(this).closest('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+            });
+            $(document).off('click.baActionsClose').on('click.baActionsClose', function(e) {
+                if (!$(e.target).closest('.ba-actions-dropdown-wrap').length) $('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+            });
             var selOpts = PAGE_SIZE_OPTS.map(function(n) { return '<option value="' + n + '"' + (n === dbPageSize ? ' selected' : '') + '>' + n + '</option>'; }).join('');
             var pagerHtml = '<span>Trang ' + dbPage + ' / ' + pages + ' (' + total + ' database)</span> ' +
                 '<select class="ba-pager-size" id="selDbPageSize" style="width:auto;padding:0.25rem 0.5rem;margin:0 0.5rem;">' + selOpts + '</select> ' +
@@ -2686,15 +2772,20 @@
             document.body.removeChild(ta);
         }
 
-        function connectByConnStr() {
+        function connectByConnStr() { connectByConnStrCore('<%= ResolveUrl("~/Pages/HRHelper.aspx") %>'); }
+        function connectToPgpToolByConnStr() { connectByConnStrCore('<%= ResolveUrl("~/PgpTool") %>'); }
+        function connectByConnStrCore(redirectUrl) {
             var cs = ($('#txtConnStr').val() || '').trim();
             if (!cs) {
                 showToast('Nhập connection string.', 'error');
                 return;
             }
             var $btn = $('#btnConnStrConnect');
+            var $btnPgp = $('#btnConnStrPgpTool');
             var origText = $btn.text();
+            var origPgp = $btnPgp.text();
             $btn.prop('disabled', true).text('Đang kết nối...');
+            $btnPgp.prop('disabled', true).text('Đang kết nối...');
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/PrepareConnect") %>',
                 type: 'POST',
@@ -2705,14 +2796,16 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success && d.token) {
-                        window.location.href = '<%= ResolveUrl("~/Pages/HRHelper.aspx") %>?k=' + encodeURIComponent(d.token);
+                        window.location.href = redirectUrl + '?k=' + encodeURIComponent(d.token);
                     } else {
                         $btn.prop('disabled', false).text(origText);
+                        $btnPgp.prop('disabled', false).text(origPgp);
                         showToast(d && d.message ? d.message : 'Không thể kết nối.', 'error');
                     }
                 },
                 error: function(xhr, status, err) {
                     $btn.prop('disabled', false).text(origText);
+                    $btnPgp.prop('disabled', false).text(origPgp);
                     var msg = 'Lỗi kết nối.';
                     if (xhr.responseText) {
                         try {

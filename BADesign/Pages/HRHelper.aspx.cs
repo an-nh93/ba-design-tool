@@ -34,6 +34,18 @@ namespace BADesign.Pages
             }
         }
 
+        /// <summary>URL to PGP Tool with current connection token k (for Key từ cấu hình DB).</summary>
+        public string PgpToolUrl
+        {
+            get
+            {
+                var k = Request.QueryString["k"];
+                var baseUrl = ResolveUrl("~/PgpTool");
+                if (string.IsNullOrWhiteSpace(k)) return baseUrl;
+                return baseUrl + "?k=" + System.Web.HttpUtility.UrlEncode(k);
+            }
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             var k = Request.QueryString["k"];
@@ -3393,12 +3405,24 @@ COMMIT TRAN;";
             using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandText = generatorSql;
-                cmd.CommandTimeout = 120;
+                cmd.CommandTimeout = 300; // Generator query metadata + build script; 5 phut tranh timeout DB phuc tap
                 conn.Open();
                 using (var r = cmd.ExecuteReader())
                 {
                     while (r.Read())
                         if (!r.IsDBNull(0)) lines.Add(r.GetString(0));
+                }
+            }
+            // Gop dong bi cat (vd "WHERE fk.referenced_obj" + "ect_id IN ..." do truncate)
+            for (var i = 0; i < lines.Count - 1; i++)
+            {
+                var a = lines[i].TrimEnd();
+                var b = lines[i + 1].TrimStart();
+                if (a.EndsWith("referenced_obj", StringComparison.OrdinalIgnoreCase) && b.StartsWith("ect_id", StringComparison.OrdinalIgnoreCase))
+                {
+                    lines[i] = lines[i].TrimEnd() + "ect_object_id" + (b.Length > 6 ? b.Substring(6) : "");
+                    lines.RemoveAt(i + 1);
+                    i--;
                 }
             }
             var template = string.Join("\r\n", lines);
