@@ -2696,6 +2696,7 @@
             if (e) {
                 e.preventDefault();
                 e.stopPropagation();
+                if (e.keyCode === 13 || e.which === 13 || (e.type === 'click' && e.detail === 0)) return false;
             }
             var currentTheme = localStorage.getItem('theme') || 'light';
             var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -3375,6 +3376,7 @@
             if (e) {
                 e.preventDefault();
                 e.stopPropagation();
+                if (e.keyCode === 13 || e.which === 13 || (e.type === 'click' && e.detail === 0)) return false;
             }
             var currentTheme = localStorage.getItem('theme') || 'dark';
             var newTheme = currentTheme === 'dark' ? 'light' : 'dark';

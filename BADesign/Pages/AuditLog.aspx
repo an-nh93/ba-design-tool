@@ -355,6 +355,13 @@
             loadActionCodes();
 
             document.getElementById('btnSearch').onclick = function () { pageIndex = 0; loadPage(); };
+            function onFilterKeydown(e) {
+                if (e.keyCode === 13) { e.preventDefault(); pageIndex = 0; loadPage(); }
+            }
+            ['dateFrom', 'dateTo', 'actionCode', 'filterUserOrIp'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) el.addEventListener('keydown', onFilterKeydown);
+            });
             document.getElementById('btnPrev').onclick = function () { if (pageIndex > 0) { pageIndex--; loadPage(); } };
             document.getElementById('btnNext').onclick = function () { if ((pageIndex + 1) * pageSize < totalCount) { pageIndex++; loadPage(); } };
 

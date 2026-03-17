@@ -681,7 +681,8 @@
                 render();
             });
 
-            $('#themeSwitcher').on('click', function () {
+            $('#themeSwitcher').on('click', function (e) {
+                if (e.originalEvent && (e.originalEvent.detail === 0 || e.originalEvent.keyCode === 13)) return;
                 document.body.classList.toggle('light-theme');
                 var isLight = document.body.classList.contains('light-theme');
                 $(this).html(isLight ? '☀️ Light' : '🌙 Dark');

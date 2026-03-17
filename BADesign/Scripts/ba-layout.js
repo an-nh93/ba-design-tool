@@ -61,6 +61,8 @@ function applyTheme(theme) {
 }
 function toggleTheme(e) {
     if (e) { e.preventDefault(); e.stopPropagation(); }
+    /* Chỉ đổi theme khi user click chuột vào icon. Bỏ qua khi: Enter (keyCode 13) hoặc click do script/keyboard (detail === 0) */
+    if (e && (e.keyCode === 13 || e.which === 13 || (e.type === 'click' && e.detail === 0))) return false;
     var currentTheme = localStorage.getItem('theme') || 'dark';
     applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
     return false;
