@@ -250,6 +250,22 @@
                                     <label><input type="radio" name="encExt" value=".asc" /> .asc (ASCII armored)</label>
                                 </div>
                             </div>
+                            <div class="ba-form-group" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                <label class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer; margin: 0;">
+                                    <input type="checkbox" id="encryptCompress" checked />
+                                    <span>Nén trước khi mã hóa (ZIP – chuẩn PGP, tương thích code giải mã PgpCompressedData)</span>
+                                </label>
+                                <span class="ba-info-wrap">
+                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                    <div class="ba-info-popover" style="display: none;">
+                                        <strong>Nén trước khi mã hóa là gì?</strong><br/><br/>
+                                        Khi bật, dữ liệu sẽ được <strong>nén (ZIP)</strong> trước khi mã hóa. Đây là cách làm chuẩn của PGP/OpenPGP và hầu hết công cụ (GnuPG, etc.):<br/><br/>
+                                        • <strong>Lợi ích:</strong> Giảm kích thước file mã hóa, đặc biệt với file text hoặc dữ liệu lặp.<br/>
+                                        • <strong>Luồng xử lý:</strong> File gốc → Nén (ZIP) → Mã hóa → File .pgp/.asc. Bên giải mã sẽ gặp PgpCompressedData, giải nén rồi lấy nội dung (PgpLiteralData).<br/><br/>
+                                        Khi tắt, dữ liệu được mã hóa trực tiếp không nén (PgpLiteralData). File có thể lớn hơn nhưng quá trình mã hóa/giải mã nhanh hơn. Code giải mã Cadena hỗ trợ cả hai dạng.
+                                    </div>
+                                </span>
+                            </div>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnEncrypt">Mã hóa và tải file</button>
                             <div id="encryptErr" class="ba-err" style="display: none;"></div>
                         </div>
@@ -631,15 +647,17 @@
                     if ($(e.target).closest('.ba-info-wrap').length) return;
                     $('.ba-info-popover.show').removeClass('show').hide();
                 });
-                $('.ba-info-icon').on('click', function (e) {
+                $(document).on('click', '.ba-info-icon', function (e) {
+                    e.preventDefault();
                     e.stopPropagation();
-                    var pop = $(this).siblings('.ba-info-popover');
+                    var $wrap = $(this).closest('.ba-info-wrap');
+                    var pop = $wrap.find('.ba-info-popover');
                     if (!pop.length) return;
                     var isShow = pop.hasClass('show');
                     $('.ba-info-popover.show').not(pop).removeClass('show').hide();
                     if (isShow) { pop.removeClass('show').hide(); } else { pop.addClass('show').show(); }
                 });
-                $('.ba-info-popover').on('click', function (e) { e.stopPropagation(); });
+                $(document).on('click', '.ba-info-popover', function (e) { e.stopPropagation(); });
             })();
 
             $('#genCaptchaClose, #genCaptchaCancel').on('click', function () { $('#genCaptchaModal').hide(); });
@@ -792,21 +810,23 @@
                 setTimeout(function () {
                     fileToBase64(inpFile, function (inpB64) {
                         var pubB64 = (keySrc === 'config' && currentConfigKeys) ? currentConfigKeys.encryptionPublicKey : keyB64;
+                        var compress = $('#encryptCompress').is(':checked');
                         if (keySrc === 'file') {
                             showProgress('Đang mã hóa file...', 'Đang đọc public key...');
                             fileToBase64(keyFile, function (k) {
-                                doEncrypt(inpB64, inpFile.name, k, ext);
+                                doEncrypt(inpB64, inpFile.name, k, ext, compress);
                             });
                         } else {
-                            doEncrypt(inpB64, inpFile.name, pubB64, ext);
+                            doEncrypt(inpB64, inpFile.name, pubB64, ext, compress);
                         }
                     });
                 }, 100);
             });
-            function doEncrypt(inpB64, origName, pubB64, ext) {
+            function doEncrypt(inpB64, origName, pubB64, ext, compress) {
+                if (typeof compress === 'undefined') compress = true;
                 $.ajax({
                     type: 'POST', url: encryptUrl,
-                    data: JSON.stringify({ inputFileBase64: inpB64, inputFileName: origName, publicKeyBase64: pubB64, armor: ext === '.asc' }),
+                    data: JSON.stringify({ inputFileBase64: inpB64, inputFileName: origName, publicKeyBase64: pubB64, armor: ext === '.asc', compress: compress }),
                     contentType: 'application/json; charset=utf-8', dataType: 'json',
                     timeout: 120000,
                     success: function (r) {

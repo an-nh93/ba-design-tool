@@ -10,6 +10,7 @@ using System.Web.Script.Services;
 using System.Web.UI;
 using BADesign;
 using BADesign.Helpers.Security;
+using Org.BouncyCastle.Bcpg;
 using PgpCore;
 
 namespace BADesign.Pages
@@ -121,10 +122,10 @@ namespace BADesign.Pages
 			}
 		}
 
-		/// <summary>Mã hóa file PGP – nhận file + public key (Base64), trả về file đã mã hóa (.pgp hoặc .asc).</summary>
+		/// <summary>Mã hóa file PGP – nhận file + public key (Base64), trả về file đã mã hóa (.pgp hoặc .asc). compress: true = nén ZIP trước khi encrypt (chuẩn PGP, tương thích PgpCompressedData).</summary>
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static object EncryptPgp(string inputFileBase64, string inputFileName, string publicKeyBase64, bool armor)
+		public static object EncryptPgp(string inputFileBase64, string inputFileName, string publicKeyBase64, bool armor, bool compress = true)
 		{
 			try
 			{
@@ -163,6 +164,7 @@ namespace BADesign.Pages
 						var encryptionKeys = new EncryptionKeys(keyStream);
 						using (var pgp = new PGP(encryptionKeys))
 						{
+							pgp.CompressionAlgorithm = compress ? CompressionAlgorithmTag.Zip : CompressionAlgorithmTag.Uncompressed;
 							await pgp.EncryptAsync(inpStream, outStream, armor, withIntegrityCheck: true, name: baseName);
 						}
 						return outStream.ToArray();
