@@ -23,10 +23,22 @@ namespace BADesign.Pages
 		/// </remarks>
 		protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
-		/// <summary>BaSidebar control.</summary>
+		/// <summary>
+		/// ucBaSidebar control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::BADesign.BaSidebar ucBaSidebar;
 
-		/// <summary>BaTopBar control.</summary>
+		/// <summary>
+		/// ucBaTopBar control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::BADesign.BaTopBar ucBaTopBar;
 	}
 }

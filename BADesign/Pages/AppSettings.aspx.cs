@@ -41,6 +41,7 @@ namespace BADesign.Pages
         private const string App_PublicBaseUrl = "App_PublicBaseUrl";
         private const string Telegram_BotToken = "Telegram_BotToken";
         private const string Telegram_ChatId = "Telegram_ChatId";
+        private const string App_ResetPhoneDefault = "App_ResetPhoneDefault";
 
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -414,6 +415,63 @@ ELSE
                             cmd.ExecuteNonQuery();
                         }
                     }
+                }
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Số điện thoại mặc định khi reset (Restore database / HR Helper). Nếu chưa cấu hình trả về rỗng, UI dùng default 0987654321.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadResetPhoneDefault()
+        {
+            try
+            {
+                string value = null;
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT [Value] FROM BaAppSetting WHERE [Key] = @key";
+                    cmd.Parameters.AddWithValue("@key", App_ResetPhoneDefault);
+                    conn.Open();
+                    var obj = cmd.ExecuteScalar();
+                    value = obj != null && obj != DBNull.Value ? obj.ToString().Trim() : "";
+                }
+                return new { success = true, value = value ?? "" };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveResetPhoneDefault(string value)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = "Bạn không có quyền Settings." };
+                var uid = UiAuthHelper.CurrentUserId;
+                var val = (value ?? "").Trim();
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+IF EXISTS (SELECT 1 FROM BaAppSetting WHERE [Key] = @key)
+    UPDATE BaAppSetting SET [Value] = @val, UpdatedAt = SYSDATETIME(), UpdatedBy = @uid WHERE [Key] = @key;
+ELSE
+    INSERT INTO BaAppSetting ([Key], [Value], UpdatedBy) VALUES (@key, @val, @uid);";
+                    cmd.Parameters.AddWithValue("@key", App_ResetPhoneDefault);
+                    cmd.Parameters.AddWithValue("@val", val);
+                    cmd.Parameters.AddWithValue("@uid", uid.HasValue ? (object)uid.Value : DBNull.Value);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
                 }
                 return new { success = true };
             }

@@ -2060,7 +2060,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = @"UPDATE BaJob SET Status = N'Cancelled', Message = N'Đã hủy bởi người dùng', CompletedAt = SYSDATETIME() WHERE Id = @id AND Status = N'Running' AND StartedByUserId = @uid AND JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')";
+                    cmd.CommandText = @"UPDATE BaJob SET Status = N'Cancelled', Message = N'Đã hủy bởi người dùng', CompletedAt = SYSDATETIME() WHERE Id = @id AND Status = N'Running' AND StartedByUserId = @uid AND JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')";
                     cmd.Parameters.AddWithValue("@id", jobId);
                     cmd.Parameters.AddWithValue("@uid", uid);
                     conn.Open();
@@ -2174,6 +2174,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         if (typeVal == "Restore") typeFilter = " AND J.JobType = N'Restore'";
                         else if (typeVal == "Backup") typeFilter = " AND J.JobType = N'Backup'";
                         else if (typeVal == "HRHelperUpdateUser") typeFilter = " AND J.JobType = N'HRHelperUpdateUser'";
+                        else if (typeVal == "HRHelperUpdateUserSignature") typeFilter = " AND J.JobType = N'HRHelperUpdateUserSignature'";
                         else if (typeVal == "HRHelperUpdateEmployee") typeFilter = " AND J.JobType = N'HRHelperUpdateEmployee'";
                         else if (typeVal == "HRHelperUpdateOther") typeFilter = " AND J.JobType = N'HRHelperUpdateOther'";
                         else if (typeVal == "HRHelperMultiDbAnalyze") typeFilter = " AND J.JobType = N'HRHelperMultiDbAnalyze'";
@@ -2186,9 +2187,9 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
   J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.Payload
 FROM BaJob J
 LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
-WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')
+WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')
   AND " + timeFilter + @"
-  AND (" + serverFilter + " OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND J.StartedByUserId = @uid))" + typeFilter + @"
+  AND (" + serverFilter + " OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND J.StartedByUserId = @uid))" + typeFilter + @"
 ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                     using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = conn.CreateCommand())
@@ -2206,6 +2207,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                 var typeLabel = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase) ? "Backup"
                                     : string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) ? "Restore"
                                     : string.Equals(jobType, "HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) ? "Update User"
+                                    : string.Equals(jobType, "HRHelperUpdateUserSignature", StringComparison.OrdinalIgnoreCase) ? "Update User Signature"
                                     : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? "Update Employee"
                                     : string.Equals(jobType, "HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) ? "Update Company/Other"
                                     : string.Equals(jobType, "HRHelperMultiDbAnalyze", StringComparison.OrdinalIgnoreCase) ? "Phân tích Multi-DB"
@@ -2322,10 +2324,10 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
   J.StartTime, J.Status, J.PercentComplete, J.Message, J.CompletedAt, J.Payload
 FROM BaJob J
 LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
-WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')
+WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')
   AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
   AND NOT EXISTS (SELECT 1 FROM BaJobDismissedByUser d WHERE d.JobId = J.Id AND d.UserId = @uid)
-  AND (" + serverFilter + @" OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND J.StartedByUserId = @uid))
+  AND (" + serverFilter + @" OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND J.StartedByUserId = @uid))
 ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                         using (var cmd = conn.CreateCommand())
                         {
@@ -2339,6 +2341,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     var typeLabel = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase) ? "Backup"
                                         : string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) ? "Restore"
                                         : string.Equals(jobType, "HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) ? "Update User"
+                                        : string.Equals(jobType, "HRHelperUpdateUserSignature", StringComparison.OrdinalIgnoreCase) ? "Update User Signature"
                                         : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? "Update Employee"
                                         : string.Equals(jobType, "HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) ? "Update Company/Other"
                                         : string.Equals(jobType, "HRHelperMultiDbAnalyze", StringComparison.OrdinalIgnoreCase) ? "Phân tích Multi-DB"
@@ -2434,7 +2437,7 @@ ORDER BY F.CreatedAt DESC";
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"SELECT Id, JobType, ServerName, DatabaseName, StartTime, Status, Message, PercentComplete
-FROM BaJob WHERE JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND StartedByUserId = @uid AND Status = N'Running'
+FROM BaJob WHERE JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND StartedByUserId = @uid AND Status = N'Running'
 ORDER BY StartTime DESC";
                     cmd.Parameters.AddWithValue("@uid", userId);
                     conn.Open();

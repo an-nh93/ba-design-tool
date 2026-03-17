@@ -778,11 +778,11 @@
                             <div class="ba-form-group">
                                 <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                     <input type="checkbox" id="restoreModalAutoReset" />
-                                    <span>Sử dụng hệ thống tự động reset thông tin User, Employee, Company Info (sau khi restore xong)</span>
+                                    <span>Tích hợp tự động reset thông tin User, Employee, Company Info (sau khi restore xong)</span>
                                 </label>
                             </div>
                             <div id="restoreModalAutoResetFields" style="display: none; margin-left: 1.5rem; margin-top: 0.5rem; padding: 0.75rem; background: var(--surface-alt); border-radius: 6px; border: 1px solid var(--border-color);">
-                                <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.75rem;">Email (*) bắt buộc, phải thuộc domain trong Email Ignore (HR Multi-DB) tại App Settings. Password và Phone tùy chọn; mặc định: Password = 1, Phone = 0987654321.</p>
+                                <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.75rem;">Email (*) bắt buộc, phải thuộc domain trong Email Ignore (HR Multi-DB) tại App Settings. Password và Phone tùy chọn; mặc định: Password = 1, Phone sẽ load trong App Setting nếu chưa Setup = 0987654321.</p>
                                 <div class="ba-form-group" style="margin-bottom: 0.5rem;">
                                     <label class="ba-form-label">Email <span style="color: var(--danger, #c00);">(*)</span></label>
                                     <input type="text" id="restoreModalResetEmail" class="ba-input" placeholder="vd: an.nh@cadena.com.sg" />
@@ -1893,6 +1893,7 @@
             $('#restoreModalBackupSetsWrap').hide();
             resetRestoreModalOptions();
             $('#restoreModal').addClass('show');
+            loadRestoreModalResetPhoneFromSettings();
         }
 
         function showRestoreModalStandalone() {
@@ -1904,6 +1905,23 @@
             $('#restoreModalBackupSetsWrap').hide();
             resetRestoreModalOptions();
             $('#restoreModal').addClass('show');
+            loadRestoreModalResetPhoneFromSettings();
+        }
+
+        function loadRestoreModalResetPhoneFromSettings() {
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadResetPhoneDefault") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: '{}',
+                dataType: 'json'
+            }).done(function (r) {
+                var d = (typeof r.d !== 'undefined') ? r.d : r;
+                if (d && d.success) {
+                    var v = (d.value || '').trim();
+                    $('#restoreModalResetPhone').val(v || '0987654321');
+                }
+            });
         }
 
         function hideRestoreModal() {

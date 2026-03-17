@@ -604,7 +604,10 @@
                         <div class="ba-card ba-card-scrollable">
                             <h2 class="ba-card-title">User Management</h2>
                             <div class="ba-grid-toolbar" style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
-                                <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataUsers" onclick="loadUsers(); return false;">View Data</button>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataUsers" onclick="loadUsers(); return false;">View Data</button>
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnUpdateUserSignature" onclick="updateUserSignature(); return false;" style="display: none;" disabled title="Chọn ít nhất 1 user ở bảng dưới">Update User Signature</button>
+                                </div>
                                 <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant... (có dấu / không dấu)" style="width: 360px; flex: none; margin-left: auto;" />
                             </div>
                             <div class="ba-table-wrap">
@@ -690,6 +693,15 @@
                                 <div class="ba-actions" style="margin-top: 1rem;">
                                     <button type="button" class="ba-btn ba-btn-primary" onclick="updateUsers(); return false;">Generate and Update</button>
                                 </div>
+                                </div>
+                            </div>
+                            <div class="ba-card ba-update-section ba-collapse-section" id="sectionUpdateUserSignature" style="display: none;">
+                                <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
+                                    <span class="ba-collapse-icon">▼</span>
+                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Update User Signature</h3>
+                                </div>
+                                <div class="ba-collapse-body">
+                                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0;">Một số trường hợp nếu User Signature trong DB không khớp với giá trị tính từ thông tin hiện tại thì user không đăng nhập được. Chọn user ở bảng trên rồi bấm nút <strong>Update User Signature</strong> ở toolbar (chạy nền, xem tiến độ tại chuông / Function Queue).</p>
                                 </div>
                             </div>
                             <div class="ba-card ba-update-section ba-collapse-section" id="sectionGenerateScript">
@@ -1191,6 +1203,8 @@
                                         </label>
                                         <span style="font-size: 0.8125rem; color: var(--text-muted);">Sắp xếp:</span>
                                         <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm phone-sort-btn" data-sort="name" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;">Tên bảng <span class="sort-icon" id="phoneSortNameIcon"></span></button>
+                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm phone-sort-btn" data-sort="status" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;">Trạng thái <span class="sort-icon" id="phoneSortStatusIcon"></span></button>
+                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="selectPhoneColumnsNeedReset(); return false;" style="padding: 0.25rem 0.5rem; font-size: 0.8125rem;">Chọn cột cần reset</button>
                                         <span id="phoneSelectedCount" style="font-size: 0.8125rem; color: var(--primary); font-weight: 500;"></span>
                                         <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
                                             <input type="checkbox" id="chkPhoneFilterSelected" />
@@ -1213,7 +1227,7 @@
                                             <div class="ba-info-popover" style="display: none;">Số điện thoại sẽ gán cho tất cả cột đã chọn trong danh sách bảng có cột Phone. Bấm &quot;Reset các cột đã chọn&quot; để thực hiện.</div>
                                         </span>
                                     </div>
-                                    <input type="text" id="txtOtherPhoneColumnsPhone" class="ba-input" placeholder="VD: 0123456789" style="max-width: 400px;" />
+                                    <input type="text" id="txtOtherPhoneColumnsPhone" class="ba-input" placeholder="Mặc định: 0987654321 (load từ App Settings khi tải danh sách)" style="max-width: 400px;" />
                                 </div>
                                 <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-primary" id="btnResetPhoneColumns" onclick="resetPhoneColumns(); return false;" disabled>Reset các cột đã chọn <span id="btnPhoneCount"></span></button>
@@ -1544,6 +1558,7 @@
             });
         }
         var users = [];
+        var hasUserSignatureSupport = false;
         var employees = [];
         var company = null;
         var usersDataLoaded = false;
@@ -1621,6 +1636,9 @@
             // Clear session khi reload trang
             $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ClearEmployeesSession") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ k: hrToken }), timeout: 10000, error: function() {} });
             $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/ClearUsersSession") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ k: hrToken }), timeout: 10000, error: function() {} });
+
+            // Kiểm tra DB có cột User Signature (GeneralCalcSignature/GeneralOidcSignature) để hiện nút Update User Signature ngay khi load trang
+            checkUserSignatureSupport();
 
             // Nếu trước đó có start job (vd. delete employee), reload vẫn hiện overlay ngay để không mất loading / data treo
             try {
@@ -2200,7 +2218,12 @@
             $('#chkSelectAllUsers').off('change').prop('checked', false).on('change', function() {
                 var v = $(this).prop('checked');
                 $('.chkUser').prop('checked', v);
+                if (hasUserSignatureSupport && typeof updateUpdateUserSignatureButtonState === 'function') updateUpdateUserSignatureButtonState();
             });
+            $tb.off('change.userSig').on('change.userSig', '.chkUser', function() {
+                if (hasUserSignatureSupport && typeof updateUpdateUserSignatureButtonState === 'function') updateUpdateUserSignatureButtonState();
+            });
+            if (hasUserSignatureSupport && typeof updateUpdateUserSignatureButtonState === 'function') updateUpdateUserSignatureButtonState();
 
             $pg.show().empty();
             $pg.append('<span>Trang ' + userPage + ' / ' + pages + ' (' + total + ' user)</span> ');
@@ -2917,6 +2940,11 @@
                 return key.indexOf(q) >= 0;
             });
             filtered.sort(function(a, b) {
+                if (phoneColumnsSortCol === 'status') {
+                    var va = a.status === 'NotReset' ? 0 : 1;
+                    var vb = b.status === 'NotReset' ? 0 : 1;
+                    return phoneColumnsSortDir * (va - vb);
+                }
                 var va = ((a.schema || 'dbo') + '.' + (a.table || '') + '.' + (a.column || '')).toLowerCase();
                 var vb = ((b.schema || 'dbo') + '.' + (b.table || '') + '.' + (b.column || '')).toLowerCase();
                 return phoneColumnsSortDir * va.localeCompare(vb);
@@ -2928,20 +2956,38 @@
             var html = '';
             filtered.forEach(function(item) {
                 var key = (item.schema || 'dbo') + '.' + (item.table || '') + '.' + (item.column || '');
+                var isNotReset = item.status === 'NotReset';
+                var statusCls = isNotReset ? 'var(--warning)' : 'var(--success)';
+                var statusLabel = isNotReset ? 'Cần reset' : 'OK';
+                var reasonPart = item.reason ? ' — ' + (item.reason || '') : '';
+                var needResetAttr = isNotReset ? ' data-need-reset="1"' : '';
                 var sch = (item.schema || 'dbo').replace(/"/g, '&quot;'), tbl = (item.table || '').replace(/"/g, '&quot;'), col = (item.column || '').replace(/"/g, '&quot;');
                 var ck = (item.schema || 'dbo') + '|' + (item.table || '') + '|' + (item.column || '');
                 var checkedAttr = checked.indexOf(ck) >= 0 ? ' checked' : '';
                 var checkedClass = checked.indexOf(ck) >= 0 ? ' ba-column-row-checked' : '';
                 html += '<div class="ba-column-row' + checkedClass + '" style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem; padding: 0.3rem 0.5rem;" tabindex="0">' +
-                    '<label class="ba-checkbox" style="display: flex; align-items: center; cursor: pointer; font-size: 0.875rem; flex: 1; min-width: 0; margin: 0;">' +
-                    '<input type="checkbox" class="chkPhoneColumn" data-schema="' + sch + '" data-table="' + tbl + '" data-column="' + col + '"' + checkedAttr + ' />' +
-                    '<span style="margin-left: 0.5rem; font-family: monospace;">' + key + '</span>' +
+                    '<label class="ba-checkbox" style="display: flex; flex-wrap: wrap; align-items: center; cursor: pointer; font-size: 0.875rem; gap: 0.35rem; flex: 1; min-width: 0; margin: 0;">' +
+                    '<input type="checkbox" class="chkPhoneColumn" data-schema="' + sch + '" data-table="' + tbl + '" data-column="' + col + '"' + needResetAttr + checkedAttr + ' />' +
+                    '<span style="font-family: monospace;">' + key + '</span>' +
+                    '<span style="color: ' + statusCls + '; font-size: 0.75rem; font-weight: 500;">[' + statusLabel + ']</span>' +
+                    (reasonPart ? '<span style="color: ' + statusCls + '; font-size: 0.75rem;">' + reasonPart + '</span>' : '') +
                     '<button type="button" class="ba-copy-select-btn" data-schema="' + sch + '" data-table="' + tbl + '" data-column="' + col + '" title="Copy câu SELECT">📋</button>' +
                     '</label>' +
                     '</div>';
             });
             $('#phoneColumnsList').html(html);
-            $('#phoneSortNameIcon').text(phoneColumnsSortDir === 1 ? '↑' : '↓');
+            $('#phoneSortNameIcon').text(phoneColumnsSortCol === 'name' ? (phoneColumnsSortDir === 1 ? '↑' : '↓') : '');
+            $('#phoneSortStatusIcon').text(phoneColumnsSortCol === 'status' ? (phoneColumnsSortDir === 1 ? '↑' : '↓') : '');
+            updatePhoneSelectedCount();
+        }
+
+        function selectPhoneColumnsNeedReset() {
+            $('.chkPhoneColumn').each(function() {
+                var needReset = $(this).attr('data-need-reset') === '1';
+                $(this).prop('checked', needReset);
+                $(this).closest('.ba-column-row').toggleClass('ba-column-row-checked', needReset);
+            });
+            $('#chkSelectAllPhoneColumns').prop('checked', false);
             updatePhoneSelectedCount();
         }
 
@@ -2986,11 +3032,18 @@
                     }
                     phoneColumnsList = d.list || [];
                     hideProgress();
+                    if (d.defaultPhone)
+                        $('#txtOtherPhoneColumnsPhone').val($('#txtOtherPhoneColumnsPhone').val().trim() || d.defaultPhone);
                     if (phoneColumnsList.length === 0) {
                         $('#phoneColumnsStatus').html('<span style="color: var(--text-muted);">Không tìm thấy bảng nào có cột Phone (kiểu text).</span>');
                         return;
                     }
-                    $('#phoneColumnsStatus').html('<span style="color: var(--success);">Tìm thấy ' + phoneColumnsList.length + ' cột Phone.</span>');
+                    var notReset = phoneColumnsList.filter(function(x) { return x.status === 'NotReset'; }).length;
+                    var resetCount = phoneColumnsList.length - notReset;
+                    $('#phoneColumnsStatus').html(
+                        '<span style="color: var(--success);">Tìm thấy ' + phoneColumnsList.length + ' cột Phone.</span> ' +
+                        '<span style="color: var(--warning);">Cần reset: ' + notReset + '</span>. ' +
+                        '<span style="color: var(--text-muted);">Đã reset: ' + resetCount + '</span>');
                     $('#searchPhoneColumns').val('');
                     $('#phoneColumnsControls').show();
                     $('#phoneColumnsListWrap').show();
@@ -3005,7 +3058,9 @@
                     $('#searchPhoneColumns').off('input').on('input', renderPhoneColumnsList);
                     $('#chkPhoneFilterSelected').off('change').on('change', renderPhoneColumnsList);
                     $('.phone-sort-btn').off('click').on('click', function() {
-                        phoneColumnsSortDir = -phoneColumnsSortDir;
+                        var col = $(this).data('sort');
+                        if (phoneColumnsSortCol === col) phoneColumnsSortDir = -phoneColumnsSortDir;
+                        else { phoneColumnsSortCol = col; phoneColumnsSortDir = 1; }
                         renderPhoneColumnsList();
                     });
                     $(document).off('change', '.chkPhoneColumn').on('change', '.chkPhoneColumn', function() {
@@ -3803,6 +3858,82 @@
             return list.map(function(u) { return u.userID; });
         }
 
+        function checkUserSignatureSupport() {
+            if (!hrToken) return;
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/HasUserSignatureColumn") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken }),
+                timeout: 10000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.hasColumn) {
+                        hasUserSignatureSupport = true;
+                        $('#btnUpdateUserSignature').show();
+                        $('#sectionUpdateUserSignature').show();
+                        updateUpdateUserSignatureButtonState();
+                    }
+                }
+            });
+        }
+
+        function updateUpdateUserSignatureButtonState() {
+            if (!hasUserSignatureSupport) return;
+            var n = $('#tblUsers .chkUser:checked').length;
+            $('#btnUpdateUserSignature').prop('disabled', n === 0).attr('title', n === 0 ? 'Chọn ít nhất 1 user ở bảng trên' : '');
+        }
+
+        function updateUserSignature() {
+            var selected = [];
+            $('.chkUser:checked').each(function() { selected.push(parseInt($(this).data('id'), 10)); });
+            if (selected.length === 0) {
+                showToast('Chọn ít nhất 1 user ở bảng trên.', 'error');
+                return;
+            }
+            if (typeof baConfirm !== 'function') {
+                if (!confirm('Bạn có chắc muốn update User Signature cho ' + selected.length + ' user đã chọn không?')) return;
+                doUpdateUserSignature(selected);
+                return;
+            }
+            baConfirm('Bạn có chắc muốn update User Signature cho ' + selected.length + ' user đã chọn không?', function() { doUpdateUserSignature(selected); }, null, 'Đồng ý', 'Hủy');
+        }
+
+        function doUpdateUserSignature(targetIds) {
+            var $btn = $('#btnUpdateUserSignature');
+            $btn.prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartHRHelperUpdateUserSignatureJob") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, userIds: targetIds }),
+                timeout: 15000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success) {
+                        showToast(d.message || 'Đã đưa Update User Signature vào hàng đợi. Xem tiến độ tại chuông / Function Queue.', 'success');
+                        if (typeof checkHRHelperJobsAndShowOverlay === 'function') checkHRHelperJobsAndShowOverlay();
+                        if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
+                    } else {
+                        showToast(d && d.message ? d.message : 'Lỗi.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = 'Lỗi kết nối.';
+                    try {
+                        var j = xhr.responseJSON && (xhr.responseJSON.d || xhr.responseJSON);
+                        if (j && j.message) msg = j.message;
+                    } catch (e) {}
+                    showToast(msg, 'error');
+                },
+                complete: function() {
+                    $btn.prop('disabled', $('#tblUsers .chkUser:checked').length === 0);
+                }
+            });
+        }
+
         /** User names của các user đang chọn (hoặc tất cả nếu không chọn ai) – dùng cho Generate script. */
         function getSelectedUserNames() {
             var ids = getUpdateTargetIds();
@@ -4482,7 +4613,7 @@
                             var st = j.status || ''; var msg = (j.message || '').trim(); var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var jobType = j.type || 'Restore';
                             var typeLabel = (j.typeLabel || (jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : jobType === 'HRHelperMultiDbReset' ? 'Reset Multi-DB' : jobType === 'HRHelperDeleteEmployee' ? 'Xóa Employee' : jobType) || 'Restore').replace(/</g, '&lt;');
-                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
+                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser' || jobType === 'HRHelperUpdateUserSignature') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
                             var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
                             var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset' || jobType === 'HRHelperDeleteEmployee') && currentUserId && startedByUid === currentUserId;
                             var serverPct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : 0;

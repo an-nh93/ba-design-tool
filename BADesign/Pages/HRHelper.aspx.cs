@@ -482,6 +482,135 @@ VALUES (N'HRHelperUpdateUser', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runni
             }
         }
 
+        /// <summary>Kiểm tra database HR có bảng Security_Users với cột liên quan User Signature (UserSignature, GeneralCalcSignature, GeneralOidcSignature). Nếu không có thì ẩn nút Update User Signature.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object HasUserSignatureColumn(string k)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, hasColumn = false };
+                using (var conn = new SqlConnection(info.ConnectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = @"
+SELECT 1 FROM sys.columns c
+INNER JOIN sys.tables t ON t.object_id = c.object_id
+WHERE t.name = N'Security_Users' AND c.name IN (N'UserSignature', N'GeneralCalcSignature', N'GeneralOidcSignature')";
+                    conn.Open();
+                    var has = cmd.ExecuteScalar() != null;
+                    return new { success = true, hasColumn = has };
+                }
+            }
+            catch
+            {
+                return new { success = false, hasColumn = false };
+            }
+        }
+
+        /// <summary>Đưa Update User Signature vào job nền. Công thức tính UserSignature phải khớp với logic login Cadena (UserName + ID + Password hash).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartHRHelperUpdateUserSignatureJob(string k, List<long> userIds)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0 };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database.", jobId = 0 };
+                if (userIds == null || userIds.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 user.", jobId = 0 };
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var connStr = info.ConnectionString;
+                var serverName = info.Server ?? "";
+                var databaseName = info.Database ?? "";
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
+VALUES (N'HRHelperUpdateUserSignature', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", serverName);
+                    cmd.Parameters.AddWithValue("@db", databaseName);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                UserActionLogHelper.Log("HRHelper.UpdateUserSignature", "database=" + databaseName + ", userIds=" + userIds.Count);
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var result = ExecuteUpdateUserSignatureCore(connStr, userIds);
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", result.Item1, result.Item2);
+                    }
+                    catch (Exception ex)
+                    {
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", false, ex.Message);
+                    }
+                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUserSignature", null, userId);
+                });
+                return new { success = true, jobId = jobId, message = "Đã đưa Update User Signature vào hàng đợi." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
+
+        /// <summary>Cập nhật cột UserSignature theo Cadena: GetPlainSignature() = ID+UserName+EmployeeID+AzureADIdentifier+OktaIdentifier+GoogleIdentifier+GeneralOidcIdentifier (nối liền, null = ''), UserSignature = SHA256(plain).</summary>
+        private static Tuple<bool, string> ExecuteUpdateUserSignatureCore(string connectionString, List<long> userIds)
+        {
+            if (userIds == null || userIds.Count == 0)
+                return Tuple.Create(false, "Không có user nào.");
+            var ids = string.Join(",", userIds.Select(x => x.ToString()));
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                // Cadena entity dùng UserSignature; một số DB có GeneralCalcSignature/GeneralOidcSignature. Ưu tiên UserSignature trước.
+                string signatureColumn = null;
+                using (var cmdCol = conn.CreateCommand())
+                {
+                    cmdCol.CommandText = @"
+SELECT TOP 1 c.name FROM sys.columns c
+INNER JOIN sys.tables t ON t.object_id = c.object_id
+WHERE t.name = N'Security_Users' AND c.name IN (N'UserSignature', N'GeneralCalcSignature', N'GeneralOidcSignature')
+ORDER BY CASE c.name WHEN N'UserSignature' THEN 1 WHEN N'GeneralCalcSignature' THEN 2 ELSE 3 END";
+                    var obj = cmdCol.ExecuteScalar();
+                    signatureColumn = obj != null ? obj.ToString() : null;
+                }
+                if (string.IsNullOrEmpty(signatureColumn))
+                    return Tuple.Create(false, "Bảng Security_Users không có cột UserSignature / GeneralCalcSignature / GeneralOidcSignature.");
+                // Cadena GetPlainSignature(): ID + UserName + Employee?.ID + AzureADIdentifier + OktaIdentifier + GoogleIdentifier + GeneralOidcIdentifier (nối liền, null = empty)
+                var updateSql = string.Format(@"
+UPDATE U SET U.[{0}] = CONVERT(NVARCHAR(128), HASHBYTES('SHA2_256', CONVERT(NVARCHAR(MAX),
+  CONCAT(
+    CAST(U.ID AS NVARCHAR(20)),
+    ISNULL(U.UserName, N''),
+    ISNULL(CAST(U.EmployeeID AS NVARCHAR(20)), N''),
+    ISNULL(U.AzureADIdentifier, N''),
+    ISNULL(U.OktaIdentifier, N''),
+    ISNULL(U.GoogleIdentifier, N''),
+    ISNULL(U.GeneralOidcIdentifier, N'')
+  ))), 2)
+FROM dbo.Security_Users U
+WHERE U.ID IN ({1})", signatureColumn, ids);
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = updateSql;
+                    cmd.CommandTimeout = 120;
+                    cmd.ExecuteNonQuery();
+                }
+            }
+            return Tuple.Create(true, "Đã cập nhật User Signature cho " + userIds.Count + " user.");
+        }
+
         /// <summary>Generate SQL UPDATE script for Security_Users (password + flags). No DB access; deterministic hash (no salt).</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -1276,7 +1405,7 @@ WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @co
             public string column { get; set; }
         }
 
-        /// <summary>Lấy danh sách tất cả table.column có tên chứa "Phone" và kiểu dữ liệu text. Chỉ base table, có maxLen và dataType.</summary>
+        /// <summary>Lấy danh sách table.column có Phone; status (NotReset/Reset) và reason. Staffing_Employees (MobilePhone1,2, HomePhone1,2) giải mã như email. defaultPhone từ App Settings (0987654321 nếu chưa cấu hình).</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetTablesWithPhoneColumns(string k)
@@ -1286,6 +1415,7 @@ WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @co
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
+                var defaultPhone = LoadResetPhoneDefaultFromAppDb();
                 var sql = @"
 SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.CHARACTER_MAXIMUM_LENGTH, c.DATA_TYPE
 FROM INFORMATION_SCHEMA.COLUMNS c
@@ -1299,7 +1429,7 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                 {
                     cmd.CommandText = sql;
                     conn.Open();
-                    var list = new List<object>();
+                    var rows = new List<object[]>();
                     using (var r = cmd.ExecuteReader())
                     {
                         while (r.Read())
@@ -1317,10 +1447,24 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
                                     maxLen = parsed;
                             }
                             var dataType = MyConvert.To<string>(r.GetValue(4)) ?? "nvarchar";
-                            list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col, maxLen = maxLen, dataType = dataType });
+                            rows.Add(new object[] { schema, table, col, maxLen, dataType });
                         }
                     }
-                    return new { success = true, list = list };
+                    var list = new List<object>();
+                    foreach (object[] row in rows)
+                    {
+                        var schema = (string)row[0];
+                        var table = (string)row[1];
+                        var col = (string)row[2];
+                        var maxLen = (int?)row[3];
+                        var dataType = (string)row[4];
+                        string status = "Reset";
+                        string reason = "";
+                        if (ColumnNeedsResetPhone(conn, schema, table, col, defaultPhone, out reason))
+                            status = "NotReset";
+                        list.Add(new { schema = schema, table = table, column = col, key = schema + "." + table + "." + col, maxLen = maxLen, dataType = dataType, status = status, reason = reason });
+                    }
+                    return new { success = true, list = list, defaultPhone = defaultPhone };
                 }
             }
             catch (Exception ex)
@@ -1949,6 +2093,116 @@ VALUES (N'HRHelperMultiDbAnalyze', @sname, N'Multi', @uid, @uname, SYSDATETIME()
                 (string.Equals(col, "PersonalEmailAddress", StringComparison.OrdinalIgnoreCase) || string.Equals(col, "BusinessEmailAddress", StringComparison.OrdinalIgnoreCase)))
                 return "EmployeeID";
             return null;
+        }
+
+        /// <summary>Cột phone mã hóa: Staffing_Employees (MobilePhone1, MobilePhone2, HomePhone1, HomePhone2) key ID; Staffing_EmployeeInformations cùng tên cột key EmployeeID.</summary>
+        private static string GetEncryptedPhoneKeyColumn(string schema, string table, string column)
+        {
+            var tbl = (table ?? "").Trim();
+            var col = (column ?? "").Trim();
+            if (string.Equals(tbl, "Staffing_Employees", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(col, "MobilePhone1", StringComparison.OrdinalIgnoreCase) || string.Equals(col, "MobilePhone2", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(col, "HomePhone1", StringComparison.OrdinalIgnoreCase) || string.Equals(col, "HomePhone2", StringComparison.OrdinalIgnoreCase)))
+                return "ID";
+            if (string.Equals(tbl, "Staffing_EmployeeInformations", StringComparison.OrdinalIgnoreCase) &&
+                (string.Equals(col, "MobilePhone1", StringComparison.OrdinalIgnoreCase) || string.Equals(col, "MobilePhone2", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(col, "HomePhone1", StringComparison.OrdinalIgnoreCase) || string.Equals(col, "HomePhone2", StringComparison.OrdinalIgnoreCase)))
+                return "EmployeeID";
+            return null;
+        }
+
+        private static bool ColumnNeedsResetPhone(SqlConnection conn, string schema, string table, string column, string defaultPhone, out string reason)
+        {
+            reason = "";
+            var fullName = "[" + (schema ?? "dbo").Replace("]", "]]") + "].[" + (table ?? "").Replace("]", "]]") + "]";
+            var colName = "[" + (column ?? "").Replace("]", "]]") + "]";
+            var keyCol = GetEncryptedPhoneKeyColumn(schema, table, column);
+            var defaultTrim = (defaultPhone ?? "").Trim();
+            try
+            {
+                if (!string.IsNullOrEmpty(keyCol))
+                {
+                    var keyColSafe = "[" + keyCol.Replace("]", "]]") + "]";
+                    var whereClause = " WHERE LTRIM(RTRIM(ISNULL(" + colName + ",'')) ) <> ''";
+                    var selectBase = "SELECT TOP 50 " + keyColSafe + ", " + colName + " FROM " + fullName + " WITH (NOLOCK)" + whereClause;
+                    foreach (var orderDir in new[] { " ASC", " DESC" })
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 15;
+                            cmd.CommandText = selectBase + " ORDER BY " + keyColSafe + orderDir;
+                            using (var rd = cmd.ExecuteReader())
+                            {
+                                while (rd.Read())
+                                {
+                                    var keyVal = rd.GetValue(0);
+                                    var rawVal = rd.GetValue(1);
+                                    if (rawVal == null || rawVal == DBNull.Value) continue;
+                                    var raw = ((rawVal as string) ?? rawVal.ToString()).Trim();
+                                    if (string.IsNullOrEmpty(raw)) continue;
+                                    string phone = null;
+                                    try
+                                    {
+                                        var k = keyVal != null && keyVal != DBNull.Value ? MyConvert.To<long?>(keyVal) : null;
+                                        phone = DataSecurityWrapper.DecryptData<string>(raw, k)?.Trim();
+                                    }
+                                    catch { continue; }
+                                    if (string.IsNullOrEmpty(phone)) continue;
+                                    if (!string.Equals(phone, defaultTrim, StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        var sample = phone.Length > 20 ? phone.Substring(0, 17) + "..." : phone;
+                                        reason = "Có số chưa reset (VD: " + HttpUtility.HtmlEncode(sample) + ")";
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 15;
+                        cmd.CommandText = "SELECT TOP 50 " + colName + " FROM " + fullName + " WITH (NOLOCK) WHERE LTRIM(RTRIM(ISNULL(" + colName + ",'')) ) <> ''";
+                        using (var rd = cmd.ExecuteReader())
+                        {
+                            while (rd.Read())
+                            {
+                                var val = rd.GetValue(0);
+                                if (val == null || val == DBNull.Value) continue;
+                                var phone = ((val as string) ?? val.ToString()).Trim();
+                                if (string.IsNullOrEmpty(phone)) continue;
+                                if (!string.Equals(phone, defaultTrim, StringComparison.OrdinalIgnoreCase))
+                                {
+                                    var sample = phone.Length > 20 ? phone.Substring(0, 17) + "..." : phone;
+                                    reason = "Có số chưa reset (VD: " + HttpUtility.HtmlEncode(sample) + ")";
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        private static string LoadResetPhoneDefaultFromAppDb()
+        {
+            try
+            {
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT [Value] FROM BaAppSetting WHERE [Key] = N'App_ResetPhoneDefault'";
+                    conn.Open();
+                    var obj = cmd.ExecuteScalar();
+                    var v = obj != null && obj != DBNull.Value ? obj.ToString().Trim() : "";
+                    return string.IsNullOrEmpty(v) ? "0987654321" : v;
+                }
+            }
+            catch { return "0987654321"; }
         }
 
         private static bool DatabaseNeedsReset(SqlConnection conn, List<string> emailIgnore, out string reason)

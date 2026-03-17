@@ -115,6 +115,7 @@
                                 <option value="Restore">Restore</option>
                                 <option value="Backup">Backup</option>
                                 <option value="HRHelperUpdateUser">Update User</option>
+                                <option value="HRHelperUpdateUserSignature">Update User Signature</option>
                                 <option value="HRHelperUpdateEmployee">Update Employee</option>
                                 <option value="HRHelperUpdateOther">Update Company/Other</option>
                                 <option value="HRHelperMultiDbAnalyze">Phân tích Multi-DB</option>
@@ -657,7 +658,7 @@
                                     var st = j.status || '', msg = (j.message || '').trim(), msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                                     var jobType = j.type || 'Restore';
                                     var typeLabel = (j.typeLabel || jobType || 'Restore').replace(/</g, '&lt;');
-                                    var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
+                                    var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser' || jobType === 'HRHelperUpdateUserSignature') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
                                     var dbName = (j.databaseName || j.DatabaseName || '').trim();
                                     var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
                                     var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có tích hợp Reset thông tin">Có Reset' : 'ba-notif-no-reset-tag" title="Restore không reset">Không Reset') + '</span> ') : '';

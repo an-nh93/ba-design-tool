@@ -83,7 +83,7 @@
             overflow: hidden;
         }
         .ba-card-collapsible .ba-card-header {
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; justify-content: flex-start; gap: 8px;
             padding: 0.75rem 1rem;
             cursor: pointer;
             user-select: none;
@@ -150,7 +150,7 @@
                         </div>
                         </div>
                     </div>
-                    <div class="ba-card ba-card-collapsible" id="cardPublicBaseUrl" data-collapse-key="appSettings_publicBaseUrl">
+                    <div class="ba-card ba-card-collapsible" id="cardPublicBaseUrl" data-collapse-key="appSettings_publicBaseUrl" style="display:none">
                         <div class="ba-card-header" onclick="toggleAppSettingsCard('cardPublicBaseUrl'); return false;">
                             <span class="ba-card-toggle">▼</span>
                             <span>Public URL</span>
@@ -316,6 +316,29 @@
                         <div class="ba-actions" style="margin-top: 0.75rem;">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSaveSftp" onclick="saveSftpConfig(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="ba-card ba-card-collapsible" id="cardResetPhone" data-collapse-key="appSettings_resetPhone">
+                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardResetPhone'); return false;">
+                            <span class="ba-card-toggle">▼</span>
+                            <span>Phone Default</span>
+                        </div>
+                        <div class="ba-card-body">
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                            Số điện thoại mặc định khi restore database hoặc reset cột Phone trong HR Helper. Nếu không cấu hình, hệ thống dùng <code>0987654321</code>.
+                        </p>
+                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                            <label class="ba-form-label">Số điện thoại mặc định</label>
+                            <input type="text" id="txtResetPhoneDefault" class="ba-input" placeholder="0987654321" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div id="msgResetPhone" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveResetPhone" onclick="saveResetPhoneDefault(); return false;">Lưu</button>
                             <% } else { %>
                             <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
@@ -616,6 +639,41 @@
                     }
                 });
             })();
+            (function loadResetPhoneDefault() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadResetPhoneDefault") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success)
+                        $('#txtResetPhoneDefault').val(d.value || '');
+                });
+            })();
+            window.saveResetPhoneDefault = function () {
+                $('#msgResetPhone').hide();
+                $('#btnSaveResetPhone').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveResetPhoneDefault") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({ value: ($('#txtResetPhoneDefault').val() || '').trim() }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgResetPhone').removeClass('error').addClass('success').text('Đã lưu.').show();
+                    } else {
+                        $('#msgResetPhone').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                    }
+                }).fail(function () {
+                    $('#msgResetPhone').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                }).always(function () {
+                    $('#btnSaveResetPhone').prop('disabled', false);
+                });
+            };
             window.saveSftpConfig = function () {
                 $('#msgSftp').hide();
                 $('#btnSaveSftp').prop('disabled', true);
