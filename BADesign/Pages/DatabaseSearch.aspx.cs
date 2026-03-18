@@ -922,6 +922,7 @@ WHERE r.rn = 1";
             bool checksum = false;
             bool verifyBackup = false;
             bool continueOnError = false;
+            int stripeCount = 1;
             try
             {
                 if (!string.IsNullOrWhiteSpace(requestJson))
@@ -939,6 +940,7 @@ WHERE r.rn = 1";
                         if (dict.ContainsKey("checksum") && dict["checksum"] != null) checksum = dict["checksum"].ToObject<bool>();
                         if (dict.ContainsKey("verifyBackup") && dict["verifyBackup"] != null) verifyBackup = dict["verifyBackup"].ToObject<bool>();
                         if (dict.ContainsKey("continueOnError") && dict["continueOnError"] != null) continueOnError = dict["continueOnError"].ToObject<bool>();
+                        if (dict.ContainsKey("stripeCount") && dict["stripeCount"] != null) { var n = dict["stripeCount"].ToObject<int>(); stripeCount = n < 1 ? 1 : (n > 64 ? 64 : n); }
                     }
                 }
             }
@@ -1019,6 +1021,7 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                 var checksumCopy = checksum;
                 var verifyBackupCopy = verifyBackup;
                 var continueOnErrorCopy = continueOnError;
+                var stripeCountCopy = stripeCount < 1 ? 1 : (stripeCount > 64 ? 64 : stripeCount);
                 System.Threading.Tasks.Task.Run(() =>
                 {
                     SqlConnection conn = null;
@@ -1044,15 +1047,25 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                         var safeName = new string(databaseNameCopy.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '.').ToArray());
                         if (string.IsNullOrEmpty(safeName)) safeName = "db";
                         var stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-                        fileName = safeName + "_" + stamp + ".bak";
-                        var fullPath = path.TrimEnd('\\') + "\\" + fileName;
+                        var pathBase = path.TrimEnd('\\') + "\\";
                         int suffix = 0;
-                        while (System.IO.File.Exists(fullPath))
+                        var fullPaths = new List<string>();
+                        for (; ; )
                         {
-                            suffix++;
-                            fileName = safeName + "_" + stamp + "_" + suffix + ".bak";
-                            fullPath = path.TrimEnd('\\') + "\\" + fileName;
+                            fullPaths.Clear();
+                            for (int i = 1; i <= stripeCountCopy; i++)
+                            {
+                                var fname = stripeCountCopy == 1
+                                    ? (suffix == 0 ? safeName + "_" + stamp + ".bak" : safeName + "_" + stamp + "_" + suffix + ".bak")
+                                    : (suffix == 0 ? safeName + "_" + stamp + "_" + i + ".bak" : safeName + "_" + stamp + "_" + suffix + "_" + i + ".bak");
+                                fullPaths.Add(pathBase + fname);
+                            }
+                            if (fullPaths.Any(f => System.IO.File.Exists(f)))
+                                suffix++;
+                            else
+                                break;
                         }
+                        fileName = System.IO.Path.GetFileName(fullPaths[0]);
                         var withClauses = new List<string> { "INIT" };
                         withClauses.Add(compressionCopy ? "COMPRESSION" : "NO_COMPRESSION");
                         if (copyOnlyCopy) withClauses.Add("COPY_ONLY");
@@ -1066,13 +1079,23 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                         using (var cmd = conn.CreateCommand())
                         {
                             cmd.CommandTimeout = 3600;
-                            cmd.CommandText = "BACKUP DATABASE [" + dbSafe + "] TO DISK = @path WITH " + withClause;
-                            cmd.Parameters.AddWithValue("@path", fullPath);
+                            if (stripeCountCopy == 1)
+                            {
+                                cmd.CommandText = "BACKUP DATABASE [" + dbSafe + "] TO DISK = @path WITH " + withClause;
+                                cmd.Parameters.AddWithValue("@path", fullPaths[0]);
+                            }
+                            else
+                            {
+                                var diskParams = string.Join(", ", fullPaths.Select((_, i) => "DISK = @path" + (i + 1)));
+                                cmd.CommandText = "BACKUP DATABASE [" + dbSafe + "] TO " + diskParams + " WITH " + withClause;
+                                for (int i = 0; i < fullPaths.Count; i++)
+                                    cmd.Parameters.AddWithValue("@path" + (i + 1), fullPaths[i]);
+                            }
                             cmd.ExecuteNonQuery();
                         }
-                        UserActionLogHelper.Log("DatabaseSearch.BackupJob", "database=" + databaseNameCopy + " -> file=" + fileName);
+                        UserActionLogHelper.Log("DatabaseSearch.BackupJob", "database=" + databaseNameCopy + " -> file(s)=" + string.Join(",", fullPaths.Select(System.IO.Path.GetFileName)));
                         status = "Completed";
-                        message = "Đã backup. File: " + fileName;
+                        message = fullPaths.Count == 1 ? "Đã backup. File: " + fileName : ("Đã backup " + fullPaths.Count + " file: " + string.Join(", ", fullPaths.Select(System.IO.Path.GetFileName)));
                         if (verifyBackupCopy)
                         {
                             try
@@ -1080,8 +1103,18 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                                 using (var cmdVerify = conn.CreateCommand())
                                 {
                                     cmdVerify.CommandTimeout = 600;
-                                    cmdVerify.CommandText = "RESTORE VERIFYONLY FROM DISK = @path";
-                                    cmdVerify.Parameters.AddWithValue("@path", fullPath);
+                                    if (fullPaths.Count == 1)
+                                    {
+                                        cmdVerify.CommandText = "RESTORE VERIFYONLY FROM DISK = @path";
+                                        cmdVerify.Parameters.AddWithValue("@path", fullPaths[0]);
+                                    }
+                                    else
+                                    {
+                                        var diskParams = string.Join(", ", fullPaths.Select((_, i) => "DISK = @path" + (i + 1)));
+                                        cmdVerify.CommandText = "RESTORE VERIFYONLY FROM " + diskParams;
+                                        for (int i = 0; i < fullPaths.Count; i++)
+                                            cmdVerify.Parameters.AddWithValue("@path" + (i + 1), fullPaths[i]);
+                                    }
                                     cmdVerify.ExecuteNonQuery();
                                 }
                             }
@@ -1129,6 +1162,7 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                             appConn.Open();
                             cmd.ExecuteNonQuery();
                         }
+                        Helpers.BaJobWorkerNotify.Notify(jobIdCopy);
                         PushBackupJobsUpdated(serverIdCopy);
                     }
                     catch { }
@@ -1637,10 +1671,10 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                 Helpers.BaJobHubHelper.PushJobsUpdated("Backup", sid, null);
         }
 
-        /// <summary>Bắt đầu restore chạy nền. withAutoReset: sau restore gọi reset User/Employee/Company (email/phone). resetEmail/Password/Phone: mặc định email=UserName@cadena.com.sg, password=1, phone=0987654321.</summary>
+        /// <summary>Bắt đầu restore chạy nền. backupFileNamesJson: optional JSON array of file names (vd. ["f1.bak","f2.bak"]) cho backup chia nhiều file; nếu có thì bỏ qua backupFileName đơn. withAutoReset: sau restore gọi reset User/Employee/Company (email/phone).</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object StartRestore(int serverId, string databaseName, string backupFileName, string positionsJson, string recoveryState, bool withReplace, bool withShrinkLog = false, bool withAutoReset = false, string resetEmail = null, string resetPassword = null, string resetPhone = null)
+        public static object StartRestore(int serverId, string databaseName, string backupFileName, string positionsJson, string recoveryState, bool withReplace, bool withShrinkLog = false, bool withAutoReset = false, string resetEmail = null, string resetPassword = null, string resetPhone = null, string backupFileNamesJson = null)
         {
             try
             {
@@ -1651,9 +1685,22 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                 var accessibleIds = GetAccessibleServerIds();
                 if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
                     return new { success = false, message = "Không có quyền.", sessionId = 0, jobId = 0 };
-                if (string.IsNullOrWhiteSpace(databaseName) || string.IsNullOrWhiteSpace(backupFileName))
-                    return new { success = false, message = "Nhập tên database đích và chọn file backup.", sessionId = 0, jobId = 0 };
+                var backupFileList = new List<string>();
+                if (!string.IsNullOrWhiteSpace(backupFileNamesJson))
+                {
+                    try
+                    {
+                        var arr = Newtonsoft.Json.JsonConvert.DeserializeObject<string[]>(backupFileNamesJson);
+                        if (arr != null) foreach (var f in arr) { var t = (f ?? "").Trim(); if (!string.IsNullOrEmpty(t)) backupFileList.Add(t); }
+                    }
+                    catch { }
+                }
+                if (backupFileList.Count == 0 && !string.IsNullOrWhiteSpace(backupFileName))
+                    backupFileList.Add(backupFileName.Trim());
+                if (string.IsNullOrWhiteSpace(databaseName) || backupFileList.Count == 0)
+                    return new { success = false, message = "Nhập tên database đích và chọn ít nhất một file backup (có thể chọn nhiều file cho backup đã chia).", sessionId = 0, jobId = 0 };
                 databaseName = databaseName.Trim();
+                backupFileName = backupFileList[0];
                 // Defaults cho auto-reset
                 var emailForReset = (resetEmail ?? "").Trim();
                 var passwordForReset = (resetPassword ?? "").Trim();
@@ -1676,16 +1723,22 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                 var restorePath = GetRestorePathForServer(serverId);
                 if (string.IsNullOrEmpty(restorePath))
                     return new { success = false, message = "Chưa cấu hình đường dẫn backup/restore.", sessionId = 0, jobId = 0 };
-                var backupFileNameNorm = NormalizeBackupRelativePath(backupFileName);
-                if (backupFileNameNorm.Contains("..") || backupFileNameNorm.Contains("/"))
-                    return new { success = false, message = "Tên file không hợp lệ.", sessionId = 0, jobId = 0 };
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server.", sessionId = 0, jobId = 0 };
                 var backupRoot = restorePath.Trim().TrimEnd('\\');
-                var fullPath = string.IsNullOrEmpty(backupFileNameNorm) ? backupRoot : System.IO.Path.Combine(backupRoot, backupFileNameNorm);
-                fullPath = System.IO.Path.GetFullPath(fullPath);
-                if (!fullPath.StartsWith(System.IO.Path.GetFullPath(backupRoot), StringComparison.OrdinalIgnoreCase))
-                    return new { success = false, message = "Đường dẫn file không hợp lệ.", sessionId = 0, jobId = 0 };
+                var fullPaths = new List<string>();
+                foreach (var bf in backupFileList)
+                {
+                    var norm = NormalizeBackupRelativePath(bf);
+                    if (norm.Contains("..") || norm.Contains("/"))
+                        return new { success = false, message = "Tên file không hợp lệ: " + (bf ?? ""), sessionId = 0, jobId = 0 };
+                    var fp = string.IsNullOrEmpty(norm) ? backupRoot : System.IO.Path.Combine(backupRoot, norm);
+                    fp = System.IO.Path.GetFullPath(fp);
+                    if (!fp.StartsWith(System.IO.Path.GetFullPath(backupRoot), StringComparison.OrdinalIgnoreCase))
+                        return new { success = false, message = "Đường dẫn file không hợp lệ.", sessionId = 0, jobId = 0 };
+                    fullPaths.Add(fp);
+                }
+                var fullPath = fullPaths[0];
 
                 List<int> positions = new List<int>();
                 if (!string.IsNullOrWhiteSpace(positionsJson))
@@ -1720,7 +1773,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
 
                 if (UseBackgroundWorker())
                 {
-                    var payloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(new Dictionary<string, object> {
+                    var payloadDict = new Dictionary<string, object> {
                         { "withReplace", withReplace },
                         { "withShrinkLog", withShrinkLog },
                         { "withAutoReset", withAutoReset },
@@ -1729,7 +1782,10 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                         { "emailForReset", emailForReset ?? "" },
                         { "passwordForReset", passwordForReset ?? "" },
                         { "phoneForReset", phoneForReset ?? "" }
-                    });
+                    };
+                    if (backupFileList.Count > 1)
+                        payloadDict["backupFileNames"] = backupFileList;
+                    var payloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(payloadDict);
                     int pendingJobId = 0;
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
@@ -1764,12 +1820,17 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), 0, N'
                             cmd.Parameters.AddWithValue("@sid", serverId);
                             cmd.Parameters.AddWithValue("@db", databaseName);
                             cmd.Parameters.AddWithValue("@uid", userId);
-                            var notePending = "File: " + backupFileName + " (Pending Worker)";
+                            var notePending = backupFileList.Count > 1 ? ("Files: " + string.Join(", ", backupFileList) + " (Pending Worker)") : ("File: " + backupFileName + " (Pending Worker)");
                             cmd.Parameters.AddWithValue("@note", notePending);
                             appConn.Open();
                             cmd.ExecuteNonQuery();
                         }
                         UserActionLogHelper.Log("DatabaseSearch.StartRestore", "Pending Worker, jobId=" + pendingJobId + ", file=" + backupFileName + " -> " + databaseName);
+                    }
+                    lock (_restoreProgressUpdateTimerLock)
+                    {
+                        if (_restoreProgressUpdateTimer == null)
+                            _restoreProgressUpdateTimer = new System.Threading.Timer(UpdateAllRestoreProgressCallback, null, 2000, 2000);
                     }
                     return new { success = true, sessionId = 0, jobId = pendingJobId };
                 }
@@ -1836,7 +1897,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     try
                     {
                         System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
-                        DoRestoreWork(jobId, serverId, databaseName, fullPath, positions, recovery, withReplace, shrinkLog, doAutoReset, autoResetEmail, autoResetPassword, autoResetPhone, conn, sessionId);
+                        DoRestoreWork(jobId, serverId, databaseName, fullPaths, positions, recovery, withReplace, shrinkLog, doAutoReset, autoResetEmail, autoResetPassword, autoResetPhone, conn, sessionId);
                     }
                     finally
                     {
@@ -1849,7 +1910,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     if (_restoreProgressUpdateTimer == null)
                         _restoreProgressUpdateTimer = new System.Threading.Timer(UpdateAllRestoreProgressCallback, null, 2000, 2000);
                 }
-                var note = "File: " + backupFileName;
+                var note = fullPaths.Count > 1 ? ("Files: " + string.Join(", ", backupFileList)) : ("File: " + backupFileName);
                 if (withAutoReset)
                 {
                     var resetInfo = " | Reset: Email=" + (string.IsNullOrEmpty(emailForReset) ? "(mặc định)" : emailForReset) + ", Phone=" + (string.IsNullOrEmpty(phoneForReset) ? "(mặc định)" : phoneForReset) + ", Password=" + (string.IsNullOrEmpty(passwordForReset) ? "(mặc định)" : "***");
@@ -1867,7 +1928,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     cmd.ExecuteNonQuery();
                 }
                 var resetOption = withAutoReset ? "có reset" : "không reset";
-                var auditDetail = "file=" + backupFileName + " -> database=" + databaseName + ", autoReset=" + withAutoReset + ", option=" + resetOption;
+                var auditDetail = (fullPaths.Count > 1 ? "files=" + string.Join(";", backupFileList) : "file=" + backupFileName) + " -> database=" + databaseName + ", autoReset=" + withAutoReset + ", option=" + resetOption;
                 if (withAutoReset)
                     auditDetail += ", resetEmail=" + (string.IsNullOrEmpty(emailForReset) ? "(mặc định)" : emailForReset) + ", resetPhone=" + (string.IsNullOrEmpty(phoneForReset) ? "(mặc định)" : phoneForReset) + ", resetPassword=***";
                 UserActionLogHelper.Log("DatabaseSearch.StartRestore", auditDetail);
@@ -1879,12 +1940,15 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             }
         }
 
-        /// <summary>Thực hiện công việc Restore (dùng trong process qua Task.Run hoặc từ Worker qua ExecuteRestoreJob). Caller chịu trách nhiệm mở conn và RestoreSessions.TryAdd; DoRestoreWork sẽ Dispose conn và TryRemove trong finally.</summary>
-        private static void DoRestoreWork(int jobId, int serverId, string databaseName, string fullPath, List<int> positions, string recovery, bool withReplace, bool shrinkLog, bool doAutoReset, string autoResetEmail, string autoResetPassword, string autoResetPhone, SqlConnection conn, int sessionId)
+        /// <summary>Thực hiện công việc Restore (dùng trong process qua Task.Run hoặc từ Worker qua ExecuteRestoreJob). fullPaths: một hoặc nhiều file backup (cùng backup set).</summary>
+        private static void DoRestoreWork(int jobId, int serverId, string databaseName, List<string> fullPaths, List<int> positions, string recovery, bool withReplace, bool shrinkLog, bool doAutoReset, string autoResetEmail, string autoResetPassword, string autoResetPhone, SqlConnection conn, int sessionId)
         {
+            if (fullPaths == null || fullPaths.Count == 0) return;
+            var fullPath = fullPaths[0];
             var s = GetServerInfo(serverId);
             var appConnStr = UiAuthHelper.ConnStr;
             var dbSafe = databaseName.Replace("]", "]]");
+            var fromDiskClause = fullPaths.Count == 1 ? "FROM DISK = @path" : "FROM " + string.Join(", ", fullPaths.Select((_, i) => "DISK = @path" + (i + 1)));
             try
             {
                 System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
@@ -1930,8 +1994,9 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         using (var cmd = conn.CreateCommand())
                         {
                             cmd.CommandTimeout = 60;
-                            cmd.CommandText = "RESTORE FILELISTONLY FROM DISK = @path";
-                            cmd.Parameters.AddWithValue("@path", fullPath);
+                            cmd.CommandText = "RESTORE FILELISTONLY " + fromDiskClause;
+                            for (int i = 0; i < fullPaths.Count; i++)
+                                cmd.Parameters.AddWithValue(i == 0 ? "@path" : ("@path" + (i + 1)), fullPaths[i]);
                             using (var r = cmd.ExecuteReader())
                             {
                                 int dataIndex = 0;
@@ -1972,8 +2037,9 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandTimeout = 3600;
-                        cmd.CommandText = "RESTORE DATABASE [" + dbSafe + "] FROM DISK = @path WITH " + string.Join(", ", withClause);
-                        cmd.Parameters.AddWithValue("@path", fullPath);
+                        cmd.CommandText = "RESTORE DATABASE [" + dbSafe + "] " + fromDiskClause + " WITH " + string.Join(", ", withClause);
+                        for (int pi = 0; pi < fullPaths.Count; pi++)
+                            cmd.Parameters.AddWithValue(pi == 0 ? "@path" : ("@path" + (pi + 1)), fullPaths[pi]);
                         cmd.ExecuteNonQuery();
                     }
                     if (IsJobCancelled(jobId))
@@ -2123,15 +2189,6 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
                 }
             }
-            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-            using (var cmd = appConn.CreateCommand())
-            {
-                cmd.CommandText = "UPDATE BaJob SET Status = N'Running', SessionId = @sess WHERE Id = @id AND JobType = N'Restore'";
-                cmd.Parameters.AddWithValue("@sess", -jobId);
-                cmd.Parameters.AddWithValue("@id", jobId);
-                appConn.Open();
-                cmd.ExecuteNonQuery();
-            }
             var positions = new List<int>();
             var recovery = "RECOVERY";
             var withReplace = true;
@@ -2163,19 +2220,58 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             if (s == null) { MarkJobFailed(jobId, "Không tìm thấy server."); return; }
             var restorePath = GetRestorePathForServer(serverId);
             if (string.IsNullOrEmpty(restorePath)) { MarkJobFailed(jobId, "Chưa cấu hình đường dẫn restore."); return; }
-            var backupFileNameNorm = NormalizeBackupRelativePath(backupFileName ?? "");
-            var fullPath = string.IsNullOrEmpty(backupFileNameNorm) ? restorePath.Trim().TrimEnd('\\') : System.IO.Path.Combine(restorePath.Trim().TrimEnd('\\'), backupFileNameNorm);
-            fullPath = System.IO.Path.GetFullPath(fullPath);
+            var fullPaths = new List<string>();
+            var backupFileNamesList = new List<string>();
+            try
+            {
+                if (!string.IsNullOrEmpty(payloadJson))
+                {
+                    var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                    if (payload["backupFileNames"] != null && payload["backupFileNames"].Type == Newtonsoft.Json.Linq.JTokenType.Array)
+                    {
+                        foreach (var f in payload["backupFileNames"])
+                            backupFileNamesList.Add((string)f);
+                    }
+                }
+            }
+            catch { }
+            if (backupFileNamesList.Count == 0 && !string.IsNullOrWhiteSpace(backupFileName))
+                backupFileNamesList.Add(backupFileName.Trim());
+            var backupRoot = restorePath.Trim().TrimEnd('\\');
+            foreach (var bf in backupFileNamesList)
+            {
+                var norm = NormalizeBackupRelativePath(bf ?? "");
+                if (norm.Contains("..") || norm.Contains("/")) { MarkJobFailed(jobId, "Tên file không hợp lệ."); return; }
+                var fp = string.IsNullOrEmpty(norm) ? backupRoot : System.IO.Path.Combine(backupRoot, norm);
+                fp = System.IO.Path.GetFullPath(fp);
+                if (!fp.StartsWith(System.IO.Path.GetFullPath(backupRoot), StringComparison.OrdinalIgnoreCase)) { MarkJobFailed(jobId, "Đường dẫn file không hợp lệ."); return; }
+                fullPaths.Add(fp);
+            }
+            if (fullPaths.Count == 0) { MarkJobFailed(jobId, "Chưa có file backup."); return; }
             var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
             var conn = new SqlConnection(masterConn);
             try
             {
                 conn.Open();
-                var sessionId = -jobId;
+                int sessionId;
+                using (var cmdSpid = conn.CreateCommand())
+                {
+                    cmdSpid.CommandText = "SELECT @@SPID";
+                    sessionId = Convert.ToInt32(cmdSpid.ExecuteScalar());
+                }
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = "UPDATE BaJob SET Status = N'Running', SessionId = @sess WHERE Id = @id AND JobType = N'Restore'";
+                    cmd.Parameters.AddWithValue("@sess", sessionId);
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    appConn.Open();
+                    cmd.ExecuteNonQuery();
+                }
                 RestoreSessions.TryAdd(sessionId, conn);
                 try
                 {
-                    DoRestoreWork(jobId, serverId, databaseName, fullPath, positions, recovery, withReplace, shrinkLog, withAutoReset, emailForReset, passwordForReset, phoneForReset, conn, sessionId);
+                    DoRestoreWork(jobId, serverId, databaseName, fullPaths, positions, recovery, withReplace, shrinkLog, withAutoReset, emailForReset, passwordForReset, phoneForReset, conn, sessionId);
                 }
                 catch (Exception ex)
                 {
@@ -2477,34 +2573,117 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
             }
         }
 
-        /// <summary>Lấy thông tin reset (email, phone, password đã che) của lần restore có reset gần nhất cho server+database. Dùng cho popup chi tiết thông báo.</summary>
+        /// <summary>Lấy thông tin reset (email, phone, password đã che) của lần restore có reset. jobId: ưu tiên lấy từ đúng job; không có thì tìm theo serverId+databaseName. Dùng cho popup chi tiết thông báo.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object GetRestoreResetInfo(int serverId, string databaseName)
+        public static object GetRestoreResetInfo(int serverId, string databaseName, int jobId = 0)
         {
             try
             {
                 if (UiAuthHelper.IsAnonymous)
                     return new { success = false, message = "Cần đăng nhập.", resetDetail = (string)null };
-                if (string.IsNullOrWhiteSpace(databaseName))
-                    return new { success = false, message = "Thiếu database.", resetDetail = (string)null };
                 var accessibleIds = GetAccessibleServerIds();
-                if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
-                    return new { success = false, message = "Không có quyền truy cập server này.", resetDetail = (string)null };
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = conn.CreateCommand())
                 {
-                    cmd.CommandText = @"SELECT TOP 1 Note FROM BaDatabaseRestoreLog WHERE ServerId = @sid AND DatabaseName = @db AND Note LIKE N'%Reset:%' ORDER BY RestoredAt DESC";
-                    cmd.Parameters.AddWithValue("@sid", serverId);
-                    cmd.Parameters.AddWithValue("@db", databaseName.Trim());
                     conn.Open();
-                    var note = cmd.ExecuteScalar() as string;
-                    if (string.IsNullOrEmpty(note) || note.IndexOf("Reset:", StringComparison.OrdinalIgnoreCase) < 0)
-                        return new { success = true, resetDetail = (string)null };
-                    var idx = note.IndexOf(" | Reset:", StringComparison.OrdinalIgnoreCase);
-                    var resetPart = idx >= 0 ? note.Substring(idx + 3).Trim() : note; // "Reset: Email=..."
-                    return new { success = true, resetDetail = resetPart };
+                    string payloadJson = null;
+                    int? jobServerId = null;
+                    string jobDbName = null;
+                    if (jobId > 0)
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = @"SELECT Payload, ServerId, DatabaseName FROM BaJob WHERE Id = @id AND JobType = N'Restore'";
+                            cmd.Parameters.AddWithValue("@id", jobId);
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                if (r.Read())
+                                {
+                                    payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
+                                    jobServerId = r.IsDBNull(r.GetOrdinal("ServerId")) ? (int?)null : r.GetInt32(r.GetOrdinal("ServerId"));
+                                    jobDbName = r.IsDBNull(r.GetOrdinal("DatabaseName")) ? null : r.GetString(r.GetOrdinal("DatabaseName"));
+                                }
+                            }
+                        }
+                        if (jobServerId.HasValue && accessibleIds != null && accessibleIds.Contains(jobServerId.Value) && !string.IsNullOrWhiteSpace(jobDbName))
+                        {
+                            using (var cmd = conn.CreateCommand())
+                            {
+                                cmd.CommandText = @"SELECT TOP 1 Note FROM BaDatabaseRestoreLog WHERE ServerId = @sid AND DatabaseName = @db AND Note LIKE N'%Reset:%' ORDER BY RestoredAt DESC";
+                                cmd.Parameters.AddWithValue("@sid", jobServerId.Value);
+                                cmd.Parameters.AddWithValue("@db", jobDbName.Trim());
+                                var note = cmd.ExecuteScalar() as string;
+                                if (!string.IsNullOrEmpty(note) && note.IndexOf("Reset:", StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    var idx = note.IndexOf(" | Reset:", StringComparison.OrdinalIgnoreCase);
+                                    var resetPart = idx >= 0 ? note.Substring(idx + 3).Trim() : note;
+                                    return new { success = true, resetDetail = resetPart };
+                                }
+                            }
+                            if (!string.IsNullOrEmpty(payloadJson))
+                            {
+                                try
+                                {
+                                    var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                                    if (payload["withAutoReset"] != null && (bool)payload["withAutoReset"] || payload["emailForReset"] != null)
+                                    {
+                                        var email = (payload["emailForReset"] ?? "").ToString().Trim();
+                                        var phone = (payload["phoneForReset"] ?? "").ToString().Trim();
+                                        var password = (payload["passwordForReset"] ?? "").ToString().Trim();
+                                        if (string.IsNullOrEmpty(email)) email = "(mặc định)";
+                                        if (string.IsNullOrEmpty(phone)) phone = "(mặc định)";
+                                        if (string.IsNullOrEmpty(password)) password = "***";
+                                        return new { success = true, resetDetail = "Reset: Email=" + email + ", Phone=" + phone + ", Password=" + password };
+                                    }
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                    if (accessibleIds != null && (accessibleIds.Count == 0 || !accessibleIds.Contains(serverId)))
+                        return new { success = false, message = "Không có quyền truy cập server này.", resetDetail = (string)null };
+                    if (string.IsNullOrWhiteSpace(databaseName)) databaseName = jobDbName ?? "";
+                    if (string.IsNullOrWhiteSpace(databaseName))
+                        return new { success = false, message = "Thiếu database.", resetDetail = (string)null };
+                    serverId = jobServerId ?? serverId;
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"SELECT TOP 1 Note FROM BaDatabaseRestoreLog WHERE ServerId = @sid AND DatabaseName = @db AND Note LIKE N'%Reset:%' ORDER BY RestoredAt DESC";
+                        cmd.Parameters.AddWithValue("@sid", serverId);
+                        cmd.Parameters.AddWithValue("@db", databaseName.Trim());
+                        var note = cmd.ExecuteScalar() as string;
+                        if (!string.IsNullOrEmpty(note) && note.IndexOf("Reset:", StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            var idx = note.IndexOf(" | Reset:", StringComparison.OrdinalIgnoreCase);
+                            var resetPart = idx >= 0 ? note.Substring(idx + 3).Trim() : note;
+                            return new { success = true, resetDetail = resetPart };
+                        }
+                    }
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"SELECT TOP 1 Payload FROM BaJob WHERE JobType = N'Restore' AND ServerId = @sid AND DatabaseName = @db AND Status = N'Completed' AND Payload IS NOT NULL AND (Payload LIKE N'%emailForReset%' OR Payload LIKE N'%withAutoReset%') ORDER BY CompletedAt DESC";
+                        cmd.Parameters.AddWithValue("@sid", serverId);
+                        cmd.Parameters.AddWithValue("@db", databaseName.Trim());
+                        payloadJson = cmd.ExecuteScalar() as string;
+                    }
+                    if (!string.IsNullOrEmpty(payloadJson))
+                    {
+                        try
+                        {
+                            var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                            var email = (payload["emailForReset"] ?? "").ToString().Trim();
+                            var phone = (payload["phoneForReset"] ?? "").ToString().Trim();
+                            var password = (payload["passwordForReset"] ?? "").ToString().Trim();
+                            if (string.IsNullOrEmpty(email)) email = "(mặc định)";
+                            if (string.IsNullOrEmpty(phone)) phone = "(mặc định)";
+                            if (string.IsNullOrEmpty(password)) password = "***";
+                            var resetDetail = "Reset: Email=" + email + ", Phone=" + phone + ", Password=" + password;
+                            return new { success = true, resetDetail = resetDetail };
+                        }
+                        catch { }
+                    }
                 }
+                return new { success = true, resetDetail = (string)null };
             }
             catch (Exception ex)
             {

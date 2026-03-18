@@ -26,7 +26,8 @@
             resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
             if (hasReset) {
                 var srvId = job.serverId != null ? job.serverId : (job.ServerId != null ? job.ServerId : 0);
-                resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
+                var jobIdVal = job.id != null ? job.id : (job.Id != null ? job.Id : '');
+                resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-job-id="' + jobIdVal + '" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
             }
         }
         var payloadRows = '';
@@ -89,12 +90,14 @@
         });
         jQuery('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
             e.preventDefault(); e.stopPropagation();
-            var $btn = jQuery(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
+            var $btn = jQuery(this), jobId = $btn.data('job-id'), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
             var $popup = jQuery('#baResetInfoPopup');
             var apiBase = window.BA_API_BASE || '';
-            if ($popup.length && serverId != null && dbName && apiBase) {
+            if ($popup.length && apiBase && (serverId != null && dbName || jobId)) {
                 $popup.html('<span class="ba-reset-info-loading">Đang tải...</span>').show();
-                jQuery.ajax({ url: apiBase + '/GetRestoreResetInfo', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId, databaseName: dbName }) })
+                var payload = { serverId: serverId || 0, databaseName: dbName || '' };
+                if (jobId) payload.jobId = jobId;
+                jQuery.ajax({ url: apiBase + '/GetRestoreResetInfo', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify(payload) })
                     .done(function(res) { var d = res.d || res; if (d && d.success && d.resetDetail) { var raw = d.resetDetail.replace(/^Reset:\s*/i, '').trim(); var rows = []; raw.split(/\s*,\s*/).forEach(function(pair) { var idx = pair.indexOf('='); if (idx > 0) { var label = pair.substring(0, idx).trim(); var value = pair.substring(idx + 1).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); var lbl = label === 'Email' ? 'Email' : label === 'Phone' ? 'Phone' : label === 'Password' ? 'Password' : label; rows.push('<div class="ba-reset-info-row"><span class="ba-reset-info-label">' + lbl + '</span><span class="ba-reset-info-value">' + value + '</span></div>'); } }); $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">' + (rows.length ? rows.join('') : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>'); } else $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không có thông tin reset.</div>'); })
                     .fail(function() { $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không tải được thông tin.</div>'); });
             }
