@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
@@ -256,9 +257,10 @@ namespace BADesign.Pages
             catch (Exception ex) { return new { success = false, message = ex.Message }; }
         }
 
-        /// <summary>Chạy update user (dùng nội bộ cho WebMethod và job nền).</summary>
+        /// <summary>Chạy update user. Mỗi batch dùng connection riêng để retry không reuse connection đã đóng (gốc lỗi Batch update failed / connection closed).</summary>
         private static Tuple<bool, string> ExecuteUpdateUsersCore(string connectionString, List<long> userIds, bool isUpdatePassword, string password, int methodHash, bool isUpdateEmail, string email, bool ignoreWindowsAD)
         {
+            connectionString = EnsureMinConnectionTimeout(connectionString, 120);
             var hashType = methodHash == 512 ? SimpleHash.HashType.SHA512 : SimpleHash.HashType.SHA256;
             var chosenEmail = isUpdateEmail ? (email ?? "").Trim() : null;
             var updateUsers = LoadUsersForUpdate(connectionString, userIds);
@@ -267,16 +269,55 @@ namespace BADesign.Pages
             try
             {
                 var userTable = BuildUserDataTable(updateUsers, isUpdatePassword, password, hashType, isUpdateEmail, chosenEmail, ignoreWindowsAD);
-                using (var conn = new SqlConnection(connectionString))
+                const int batchSize = 2000;
+                int totalRows = userTable.Rows.Count;
+                int totalBatches = (int)Math.Ceiling(totalRows / (double)batchSize);
+                for (int b = 0; b < totalBatches; b++)
                 {
-                    conn.Open();
-                    using (var cmd = conn.CreateCommand())
+                    int startIdx = b * batchSize;
+                    int endIdx = Math.Min(startIdx + batchSize, totalRows) - 1;
+                    var batchDt = userTable.Clone();
+                    for (int i = startIdx; i <= endIdx; i++)
+                        batchDt.Rows.Add(userTable.Rows[i].ItemArray);
+                    bool batchOk = false;
+                    for (int attempt = 1; attempt <= 3 && !batchOk; attempt++)
                     {
-                        cmd.CommandTimeout = 600;
-                        cmd.CommandText = @"
-SET NOCOUNT ON;
-SET XACT_ABORT ON;
-SET LOCK_TIMEOUT 5000;
+                        try
+                        {
+                            RunOneBatchUpdateUser(connectionString, batchDt);
+                            batchOk = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            if (attempt == 3) throw new Exception("Batch update failed (batch " + (b + 1) + "/" + totalBatches + "): " + ex.Message);
+                        }
+                    }
+                }
+                var parts = new List<string>();
+                if (isUpdatePassword) parts.Add("Password (đã cập nhật)");
+                if (isUpdateEmail) parts.Add(string.IsNullOrEmpty(chosenEmail) ? "Email" : "Email = " + chosenEmail);
+                var summary = parts.Count > 0
+                    ? ("Đã cập nhật: " + string.Join(", ", parts) + " cho " + updateUsers.Count + " user.")
+                    : ("Đã update " + updateUsers.Count + " user.");
+                return Tuple.Create(true, summary);
+            }
+            catch (Exception ex)
+            {
+                return Tuple.Create(false, ex.Message);
+            }
+        }
+
+        /// <summary>Một batch update user: mở connection mới, tạo #UserTemp, bulk copy batchDt, UPDATE. Đóng connection. Retry = connection mới.</summary>
+        private static void RunOneBatchUpdateUser(string connectionString, DataTable batchDt)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 600;
+                    cmd.CommandText = @"
+SET NOCOUNT ON; SET XACT_ABORT ON; SET LOCK_TIMEOUT 5000;
 IF OBJECT_ID('tempdb..#UserTemp') IS NOT NULL DROP TABLE #UserTemp;
 CREATE TABLE #UserTemp(
     RowId INT IDENTITY(1,1) PRIMARY KEY,
@@ -294,69 +335,41 @@ CREATE TABLE #UserTemp(
     EmployeePersonalEmail NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
     UserID BIGINT NULL
 );";
-                        cmd.ExecuteNonQuery();
-                    }
-
-                    using (var bulk = new SqlBulkCopy(conn))
-                    {
-                        bulk.DestinationTableName = "#UserTemp";
-                        bulk.BulkCopyTimeout = 660;
-                        bulk.BatchSize = 5000;
-                        bulk.ColumnMappings.Add("Password", "Password");
-                        bulk.ColumnMappings.Add("IsWindowADAccount", "IsWindowADAccount");
-                        bulk.ColumnMappings.Add("IsRequireChangePassword", "IsRequireChangePassword");
-                        bulk.ColumnMappings.Add("LastLoginDateTime", "LastLoginDateTime");
-                        bulk.ColumnMappings.Add("IsLockedOut", "IsLockedOut");
-                        bulk.ColumnMappings.Add("LastPasswordChangedDateTime", "LastPasswordChangedDateTime");
-                        bulk.ColumnMappings.Add("FailedPasswordAttemptCount", "FailedPasswordAttemptCount");
-                        bulk.ColumnMappings.Add("ReceiveEmailTypeID", "ReceiveEmailTypeID");
-                        bulk.ColumnMappings.Add("UserEmailAddress", "UserEmailAddress");
-                        bulk.ColumnMappings.Add("UserName", "UserName");
-                        bulk.ColumnMappings.Add("EmployeeBusinessEmail", "EmployeeBusinessEmail");
-                        bulk.ColumnMappings.Add("EmployeePersonalEmail", "EmployeePersonalEmail");
-                        bulk.WriteToServer(userTable);
-                    }
-
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandTimeout = 600;
-                        cmd.CommandText = @"
-UPDATE UT SET UT.UserID = U.ID
+                    cmd.ExecuteNonQuery();
+                }
+                using (var bulk = new SqlBulkCopy(conn))
+                {
+                    bulk.DestinationTableName = "#UserTemp";
+                    bulk.BulkCopyTimeout = 660;
+                    bulk.BatchSize = 5000;
+                    bulk.ColumnMappings.Add("Password", "Password");
+                    bulk.ColumnMappings.Add("IsWindowADAccount", "IsWindowADAccount");
+                    bulk.ColumnMappings.Add("IsRequireChangePassword", "IsRequireChangePassword");
+                    bulk.ColumnMappings.Add("LastLoginDateTime", "LastLoginDateTime");
+                    bulk.ColumnMappings.Add("IsLockedOut", "IsLockedOut");
+                    bulk.ColumnMappings.Add("LastPasswordChangedDateTime", "LastPasswordChangedDateTime");
+                    bulk.ColumnMappings.Add("FailedPasswordAttemptCount", "FailedPasswordAttemptCount");
+                    bulk.ColumnMappings.Add("ReceiveEmailTypeID", "ReceiveEmailTypeID");
+                    bulk.ColumnMappings.Add("UserEmailAddress", "UserEmailAddress");
+                    bulk.ColumnMappings.Add("UserName", "UserName");
+                    bulk.ColumnMappings.Add("EmployeeBusinessEmail", "EmployeeBusinessEmail");
+                    bulk.ColumnMappings.Add("EmployeePersonalEmail", "EmployeePersonalEmail");
+                    bulk.WriteToServer(batchDt);
+                }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 600;
+                    cmd.CommandText = @"UPDATE UT SET UT.UserID = U.ID
 FROM #UserTemp UT
-JOIN dbo.Security_Users U WITH (READCOMMITTED) ON U.UserName = UT.UserName COLLATE DATABASE_DEFAULT;";
-                        cmd.ExecuteNonQuery();
-                        cmd.CommandText = "CREATE NONCLUSTERED INDEX IX_UT_UserID ON #UserTemp(UserID);";
-                        try { cmd.ExecuteNonQuery(); } catch { /* ignore */ }
-                    }
-
-                    int maxRowId = 0;
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandText = "SELECT ISNULL(MAX(RowId),0) FROM #UserTemp;";
-                        var o = cmd.ExecuteScalar();
-                        maxRowId = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt32(o);
-                    }
-
-                    if (maxRowId == 0)
-                        return Tuple.Create(true, "Không có bản ghi nào cần update.");
-                    const int batchSize = 2000;
-                    int totalBatches = (int)Math.Ceiling(maxRowId / (double)batchSize);
-
-                    for (int b = 0; b < totalBatches; b++)
-                    {
-                        int start = b * batchSize + 1;
-                        int end = Math.Min(maxRowId, start + batchSize - 1);
-
-                        for (int attempt = 1; attempt <= 3; attempt++)
-                        {
-                            try
-                            {
-                                using (var cmd = conn.CreateCommand())
-                                {
-                                    cmd.CommandTimeout = 120;
-                                    cmd.Parameters.AddWithValue("@Start", start);
-                                    cmd.Parameters.AddWithValue("@End", end);
-                                    cmd.CommandText = @"
+JOIN dbo.Security_Users U WITH (READCOMMITTED) ON U.UserName = UT.UserName COLLATE DATABASE_DEFAULT";
+                    cmd.ExecuteNonQuery();
+                    cmd.CommandText = "CREATE NONCLUSTERED INDEX IX_UT_UserID ON #UserTemp(UserID);";
+                    try { cmd.ExecuteNonQuery(); } catch { /* ignore */ }
+                }
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 120;
+                    cmd.CommandText = @"
 SET LOCK_TIMEOUT 5000;
 BEGIN TRAN;
 UPDATE U SET U.[Password]=UT.[Password], U.IsRequireChangePassword=UT.IsRequireChangePassword,
@@ -365,35 +378,15 @@ UPDATE U SET U.[Password]=UT.[Password], U.IsRequireChangePassword=UT.IsRequireC
     U.ReceiveEmailTypeID=UT.ReceiveEmailTypeID, U.UserEmailAddress=UT.UserEmailAddress
 FROM #UserTemp UT
 JOIN dbo.Security_Users U WITH (ROWLOCK, UPDLOCK) ON U.ID = UT.UserID
-WHERE UT.RowId BETWEEN @Start AND @End AND UT.UserID IS NOT NULL;
+WHERE UT.UserID IS NOT NULL;
 UPDATE E SET E.PersonalEmailAddress=UT.EmployeePersonalEmail, E.BusinessEmailAddress=UT.EmployeeBusinessEmail
 FROM #UserTemp UT
 JOIN dbo.Security_Users U WITH (READCOMMITTED) ON U.ID = UT.UserID
 JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = U.EmployeeID
-WHERE UT.RowId BETWEEN @Start AND @End AND UT.UserID IS NOT NULL;
+WHERE UT.UserID IS NOT NULL;
 COMMIT TRAN;";
-                                    cmd.ExecuteNonQuery();
-                                }
-                                break;
-                            }
-                            catch (Exception ex)
-                            {
-                                if (attempt == 3) throw new Exception("Batch update failed: " + ex.Message);
-                            }
-                        }
-                    }
+                    cmd.ExecuteNonQuery();
                 }
-                var parts = new List<string>();
-                if (isUpdatePassword) parts.Add("Password");
-                if (isUpdateEmail) parts.Add("Email");
-                var summary = parts.Count > 0
-                    ? ("Đã cập nhật: " + string.Join(", ", parts) + " cho " + updateUsers.Count + " user.")
-                    : ("Đã update " + updateUsers.Count + " user.");
-                return Tuple.Create(true, summary);
-            }
-            catch (Exception ex)
-            {
-                return Tuple.Create(false, ex.Message);
             }
         }
 
@@ -444,6 +437,26 @@ COMMIT TRAN;";
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
+                if (UseBackgroundWorker())
+                {
+                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email = email ?? "", ignoreWindowsAD });
+                    int pendingJobId = 0;
+                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = appConn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperUpdateUser', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        cmd.Parameters.AddWithValue("@sname", serverName);
+                        cmd.Parameters.AddWithValue("@db", databaseName);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@uname", userName);
+                        cmd.Parameters.AddWithValue("@payload", payload);
+                        appConn.Open();
+                        pendingJobId = (int)cmd.ExecuteScalar();
+                    }
+                    UserActionLogHelper.Log("HRHelper.UpdateUser", "Pending Worker, jobId=" + pendingJobId + ", userIds=" + (userIds?.Count ?? 0));
+                    return new { success = true, jobId = pendingJobId, message = "Đã đưa update user vào hàng đợi. Worker sẽ xử lý." };
+                }
                 int jobId;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
@@ -529,6 +542,26 @@ WHERE t.name = N'Security_Users' AND c.name IN (N'UserSignature', N'GeneralCalcS
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
+                if (UseBackgroundWorker())
+                {
+                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, userIds });
+                    int pendingJobId = 0;
+                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = appConn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperUpdateUserSignature', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        cmd.Parameters.AddWithValue("@sname", serverName);
+                        cmd.Parameters.AddWithValue("@db", databaseName);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@uname", userName);
+                        cmd.Parameters.AddWithValue("@payload", payload);
+                        appConn.Open();
+                        pendingJobId = (int)cmd.ExecuteScalar();
+                    }
+                    UserActionLogHelper.Log("HRHelper.UpdateUserSignature", "Pending Worker, jobId=" + pendingJobId);
+                    return new { success = true, jobId = pendingJobId, message = "Đã đưa Update User Signature vào hàng đợi. Worker sẽ xử lý." };
+                }
                 int jobId;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
@@ -664,6 +697,35 @@ WHERE U.ID IN ({1})", signatureColumn, ids);
             }
         }
 
+        /// <summary>Đảm bảo connection string có Connection Timeout đủ lớn cho job batch (tránh connection đóng giữa chừng).</summary>
+        private static string EnsureMinConnectionTimeout(string connectionString, int timeoutSeconds)
+        {
+            if (string.IsNullOrEmpty(connectionString) || timeoutSeconds <= 0) return connectionString;
+            try
+            {
+                var b = new SqlConnectionStringBuilder(connectionString);
+                if (b.ConnectTimeout < timeoutSeconds)
+                    b.ConnectTimeout = timeoutSeconds;
+                return b.ConnectionString;
+            }
+            catch { return connectionString; }
+        }
+
+        /// <summary>Ghép message kết quả + giá trị đã cập nhật (email, phone, lương) để hiển thị trong chi tiết thông báo.</summary>
+        private static string BuildHRHelperUpdateEmployeeResultMessage(string summary, bool updPersonal, string personalEmail, bool updBusiness, string businessEmail, bool updPayslip, string payslipCommon, bool updM1, string m1, bool updM2, string m2, bool updBasic, decimal basicSalary)
+        {
+            if (string.IsNullOrEmpty(summary)) return summary;
+            var parts = new List<string>();
+            if (updPersonal && !string.IsNullOrWhiteSpace(personalEmail)) parts.Add("Email cá nhân: " + (personalEmail.Length > 60 ? personalEmail.Substring(0, 60) + "…" : personalEmail));
+            if (updBusiness && !string.IsNullOrWhiteSpace(businessEmail)) parts.Add("Email công việc: " + (businessEmail.Length > 60 ? businessEmail.Substring(0, 60) + "…" : businessEmail));
+            if (updPayslip && !string.IsNullOrWhiteSpace(payslipCommon)) parts.Add("Payslip: (đã cập nhật)");
+            if (updM1 && !string.IsNullOrWhiteSpace(m1)) parts.Add("SĐT 1: " + m1);
+            if (updM2 && !string.IsNullOrWhiteSpace(m2)) parts.Add("SĐT 2: " + m2);
+            if (updBasic) parts.Add("Lương: " + basicSalary.ToString("N2"));
+            if (parts.Count == 0) return summary;
+            return summary + "\nGiá trị đã cập nhật: " + string.Join(" | ", parts);
+        }
+
         private static void UpdateBaJobCompleted(int jobId, string jobType, bool success, string message)
         {
             try
@@ -679,6 +741,28 @@ WHERE U.ID IN ({1})", signatureColumn, ids);
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
+                BaJobWorkerNotify.Notify(jobId);
+            }
+            catch { }
+        }
+
+        /// <summary>Cập nhật % và message cho job đang Running (Worker gọi sau mỗi batch để UI cập nhật).</summary>
+        private static void UpdateBaJobProgress(int jobId, string jobType, int percent, string message)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "UPDATE BaJob SET PercentComplete = @pct, Message = @msg WHERE Id = @id AND JobType = @jt AND Status = N'Running'";
+                    cmd.Parameters.AddWithValue("@pct", Math.Max(0, Math.Min(100, percent)));
+                    cmd.Parameters.AddWithValue("@msg", (object)message ?? DBNull.Value);
+                    cmd.Parameters.AddWithValue("@id", jobId);
+                    cmd.Parameters.AddWithValue("@jt", jobType);
+                    conn.Open();
+                    cmd.ExecuteNonQuery();
+                }
+                BaJobWorkerNotify.Notify(jobId);
             }
             catch { }
         }
@@ -1362,10 +1446,18 @@ WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @co
                         }
                     }
 
+                    var plainOnly = validWithMeta.Where(t => !IsEncryptedEmployeeColumn(t.Item1, t.Item2, t.Item3)).ToList();
                     var totalAffected = 0;
+                    if (plainOnly.Count < validWithMeta.Count)
+                    {
+                        var encResult = ResetEmailAndPhoneEncryptedForRestore(info.ConnectionString, emailVal, "", null, null);
+                        if (encResult.Item2 != null)
+                            return new { success = false, message = "Reset cột mã hóa (Staffing_Employees) lỗi: " + encResult.Item2 };
+                        totalAffected += encResult.Item1;
+                    }
                     using (var cmd = conn.CreateCommand())
                     {
-                        foreach (var t in validWithMeta)
+                        foreach (var t in plainOnly)
                         {
                             var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
                             var colName = "[" + t.Item3.Replace("]", "]]") + "]";
@@ -1531,10 +1623,18 @@ WHERE c.TABLE_SCHEMA = @schema AND c.TABLE_NAME = @table AND c.COLUMN_NAME = @co
                         }
                     }
 
+                    var plainOnly = validWithMeta.Where(t => !IsEncryptedEmployeeColumn(t.Item1, t.Item2, t.Item3)).ToList();
                     var totalAffected = 0;
+                    if (plainOnly.Count < validWithMeta.Count)
+                    {
+                        var encResult = ResetEmailAndPhoneEncryptedForRestore(info.ConnectionString, "", phone.Trim(), null, null);
+                        if (encResult.Item2 != null)
+                            return new { success = false, message = "Reset cột mã hóa (Staffing_Employees) lỗi: " + encResult.Item2 };
+                        totalAffected += encResult.Item1;
+                    }
                     using (var cmd = conn.CreateCommand())
                     {
-                        foreach (var t in validWithMeta)
+                        foreach (var t in plainOnly)
                         {
                             var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
                             var colName = "[" + t.Item3.Replace("]", "]]") + "]";
@@ -2306,6 +2406,40 @@ WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','Em
                 }
                 catch { }
             }
+
+            var defaultPhone = LoadResetPhoneDefaultFromAppDb();
+            var phoneCols = new List<Tuple<string, string, string>>();
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 30;
+                cmd.CommandText = @"
+SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME
+FROM INFORMATION_SCHEMA.COLUMNS c
+INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
+WHERE c.COLUMN_NAME LIKE N'%Phone%'
+  AND NOT (c.TABLE_SCHEMA = 'dbo' AND c.TABLE_NAME LIKE 'PAY_MasterPayroll%')
+  AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')";
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                    {
+                        var schema = MyConvert.To<string>(r.GetValue(0)) ?? "dbo";
+                        var table = MyConvert.To<string>(r.GetValue(1)) ?? "";
+                        var col = MyConvert.To<string>(r.GetValue(2)) ?? "";
+                        if (!string.IsNullOrEmpty(table) && !string.IsNullOrEmpty(col))
+                            phoneCols.Add(Tuple.Create(schema, table, col));
+                    }
+                }
+            }
+            foreach (var t in phoneCols)
+            {
+                string phoneReason;
+                if (ColumnNeedsResetPhone(conn, t.Item1, t.Item2, t.Item3, defaultPhone, out phoneReason))
+                {
+                    reason = phoneReason;
+                    return true;
+                }
+            }
             return false;
         }
 
@@ -2447,6 +2581,16 @@ WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','Em
             }
         }
 
+        private static bool UseBackgroundWorker()
+        {
+            try
+            {
+                var v = ConfigurationManager.AppSettings["UseBackgroundWorker"];
+                return string.Equals(v, "true", StringComparison.OrdinalIgnoreCase);
+            }
+            catch { return false; }
+        }
+
         /// <summary>Đưa reset Multi-DB xuống job nền. Trả về jobId; client disable nút và theo dõi qua chuông/Function Queue.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -2474,8 +2618,30 @@ WHERE c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','Em
                 var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
                 var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
                 var dbNamesList = toProcess.Select(d => d.DatabaseName ?? "").ToList();
+
+                if (UseBackgroundWorker())
+                {
+                    var connectionStringsPayload = toProcess.Select(d => new { DatabaseName = d.DatabaseName ?? "", ConnectionString = d.ConnectionString ?? "" }).ToList();
+                    var payloadPending = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, databaseNames = dbNamesList, connectionStrings = connectionStringsPayload });
+                    int pendingJobId = 0;
+                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = appConn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        cmd.Parameters.AddWithValue("@sname", multi.Server ?? "");
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@uname", userName);
+                        cmd.Parameters.AddWithValue("@payload", payloadPending);
+                        appConn.Open();
+                        pendingJobId = (int)cmd.ExecuteScalar();
+                    }
+                    UserActionLogHelper.Log("HRHelper.MultiDbReset", "Pending Worker, jobId=" + pendingJobId + ", dbCount=" + toProcess.Count);
+                    return new { success = true, jobId = pendingJobId, message = "Đã đưa reset Multi-DB vào hàng đợi. Worker sẽ xử lý. Theo dõi chuông và Function Queue." };
+                }
+
                 var payloadInitial = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, databaseNames = dbNamesList });
-                int jobId;
+                int jobId = 0;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
                 {
@@ -2492,6 +2658,12 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
 
                 System.Threading.Tasks.Task.Run(() =>
                 {
+                    var prevPriority = System.Threading.Thread.CurrentThread.Priority;
+                    try
+                    {
+                        System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
+                    }
+                    catch { }
                     var totalDbs = toProcess.Count;
                     var done = 0;
                     var totalAffected = 0;
@@ -2509,6 +2681,14 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                                         totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
                                     if (!string.IsNullOrEmpty(phoneTrim))
                                         totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
+                                }
+                                if (!string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim))
+                                {
+                                    var encResult = ResetEmailAndPhoneEncryptedForRestore(db.ConnectionString, emailTrim, phoneTrim, null, null);
+                                    if (encResult.Item2 != null)
+                                        errors.Add(db.DatabaseName + " (mã hóa): " + encResult.Item2);
+                                    else
+                                        totalAffected += encResult.Item1;
                                 }
                                 done++;
                             }
@@ -2530,9 +2710,11 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                                     conn.Open();
                                     updateCmd.ExecuteNonQuery();
                                 }
+                                BaJobWorkerNotify.Notify(jobId);
                                 BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
                             }
                             catch { }
+                            System.Threading.Thread.Sleep(0);
                         }
                         var msg = "Đã reset " + done + "/" + totalDbs + " DB. Tổng bản ghi: " + totalAffected;
                         if (!string.IsNullOrEmpty(emailTrim)) msg += ". Email: " + emailTrim;
@@ -2550,6 +2732,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                                 conn.Open();
                                 cmd.ExecuteNonQuery();
                             }
+                            BaJobWorkerNotify.Notify(jobId);
                             BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
                         }
                         catch { }
@@ -2563,6 +2746,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                         }
                         catch { }
                     }
+                    try { System.Threading.Thread.CurrentThread.Priority = prevPriority; } catch { }
                 });
 
                 return new { success = true, jobId = jobId, message = "Đã đưa reset Multi-DB vào hàng đợi. Theo dõi tiến độ trên chuông và Function Queue." };
@@ -2570,6 +2754,418 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
+
+        /// <summary>Worker gọi: đọc job HRHelperMultiDbReset Pending, chuyển Running, thực hiện reset theo Payload (connectionStrings, email, phone).</summary>
+        public static void ExecuteMultiDbResetJob(int jobId)
+        {
+            int userId = 0;
+            string payloadJson = null;
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT StartedByUserId, Payload FROM BaJob WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperMultiDbReset'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (!r.Read()) return;
+                    userId = r.IsDBNull(r.GetOrdinal("StartedByUserId")) ? 0 : r.GetInt32(r.GetOrdinal("StartedByUserId"));
+                    payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
+                }
+            }
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE BaJob SET Status = N'Running' WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperMultiDbReset'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                cmd.ExecuteNonQuery();
+            }
+
+            var emailTrim = "";
+            var phoneTrim = "";
+            var databases = new List<Tuple<string, string>>();
+            if (!string.IsNullOrEmpty(payloadJson))
+            {
+                try
+                {
+                    var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                    if (payload["email"] != null) emailTrim = (string)payload["email"] ?? "";
+                    if (payload["phone"] != null) phoneTrim = (string)payload["phone"] ?? "";
+                    var conns = payload["connectionStrings"] as Newtonsoft.Json.Linq.JArray;
+                    if (conns != null)
+                        foreach (var c in conns)
+                        {
+                            var dbName = c["DatabaseName"]?.ToString() ?? "";
+                            var connStr = c["ConnectionString"]?.ToString() ?? "";
+                            if (!string.IsNullOrEmpty(connStr)) databases.Add(Tuple.Create(dbName, connStr));
+                        }
+                }
+                catch { }
+            }
+            if (databases.Count == 0)
+            {
+                UpdateBaJobCompleted(jobId, "HRHelperMultiDbReset", false, "Payload thiếu connectionStrings.");
+                return;
+            }
+
+            var totalDbs = databases.Count;
+            var done = 0;
+            var totalAffected = 0;
+            var errors = new List<string>();
+            try
+            {
+                System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
+                foreach (var db in databases)
+                {
+                    var dbName = db.Item1;
+                    var connStr = db.Item2;
+                    try
+                    {
+                        using (var conn = new SqlConnection(connStr))
+                        {
+                            conn.Open();
+                            if (!string.IsNullOrEmpty(emailTrim))
+                                totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
+                            if (!string.IsNullOrEmpty(phoneTrim))
+                                totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
+                        }
+                        if (!string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim))
+                        {
+                            var encResult = ResetEmailAndPhoneEncryptedForRestore(connStr, emailTrim, phoneTrim, null, null);
+                            if (encResult.Item2 != null)
+                                errors.Add(dbName + " (mã hóa): " + encResult.Item2);
+                            else
+                                totalAffected += encResult.Item1;
+                        }
+                        done++;
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add(dbName + ": " + (ex.Message ?? "Lỗi"));
+                    }
+                    var pct = totalDbs > 0 ? (int)Math.Round((done * 100.0) / totalDbs) : 0;
+                    pct = Math.Min(pct, 99);
+                    try
+                    {
+                        using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                        using (var updateCmd = conn.CreateCommand())
+                        {
+                            updateCmd.CommandText = "UPDATE BaJob SET PercentComplete = @pct, Message = @msg WHERE Id = @id AND JobType = N'HRHelperMultiDbReset' AND Status = N'Running'";
+                            updateCmd.Parameters.AddWithValue("@pct", pct);
+                            updateCmd.Parameters.AddWithValue("@msg", done + " / " + totalDbs + " DB");
+                            updateCmd.Parameters.AddWithValue("@id", jobId);
+                            conn.Open();
+                            updateCmd.ExecuteNonQuery();
+                        }
+                        BaJobWorkerNotify.Notify(jobId);
+                        BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
+                    }
+                    catch { }
+                    System.Threading.Thread.Sleep(0);
+                }
+                var msg = "Đã reset " + done + "/" + totalDbs + " DB. Tổng bản ghi: " + totalAffected;
+                if (!string.IsNullOrEmpty(emailTrim)) msg += ". Email: " + emailTrim;
+                if (!string.IsNullOrEmpty(phoneTrim)) msg += ". Phone: " + phoneTrim;
+                if (errors.Count > 0)
+                    msg += ". Lỗi: " + string.Join("; ", errors.Take(5));
+                try
+                {
+                    using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = "UPDATE BaJob SET Status = N'Completed', PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = N'HRHelperMultiDbReset' AND Status = N'Running'";
+                        cmd.Parameters.AddWithValue("@msg", msg);
+                        cmd.Parameters.AddWithValue("@id", jobId);
+                        conn.Open();
+                        cmd.ExecuteNonQuery();
+                    }
+                    BaJobWorkerNotify.Notify(jobId);
+                    BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
+                }
+                catch { }
+            }
+            catch (Exception ex)
+            {
+                UpdateBaJobCompleted(jobId, "HRHelperMultiDbReset", false, ex.Message ?? "Lỗi");
+                BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
+            }
+        }
+
+        /// <summary>Worker gọi: đọc job HRHelperUpdateUser Pending, chuyển Running, gọi ExecuteUpdateUsersCore theo Payload.</summary>
+        public static void ExecuteHRHelperUpdateUserJob(int jobId)
+        {
+            int userId = 0;
+            string payloadJson = null;
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT StartedByUserId, Payload FROM BaJob WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateUser'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (!r.Read()) return;
+                    userId = r.IsDBNull(r.GetOrdinal("StartedByUserId")) ? 0 : r.GetInt32(r.GetOrdinal("StartedByUserId"));
+                    payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
+                }
+            }
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE BaJob SET Status = N'Running' WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateUser'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                cmd.ExecuteNonQuery();
+            }
+            if (string.IsNullOrEmpty(payloadJson)) { UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", false, "Payload trống."); return; }
+            string connStr = null;
+            List<long> userIds = null;
+            bool isUpdatePassword = false, isUpdateEmail = false, ignoreWindowsAD = false;
+            string password = "", email = "";
+            int methodHash = 0;
+            try
+            {
+                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                connStr = (string)payload["connectionString"];
+                var userIdsArr = payload["userIds"] as Newtonsoft.Json.Linq.JArray;
+                if (userIdsArr != null)
+                {
+                    userIds = new List<long>();
+                    foreach (var x in userIdsArr) userIds.Add((long)x);
+                }
+                if (payload["isUpdatePassword"] != null) isUpdatePassword = (bool)payload["isUpdatePassword"];
+                if (payload["password"] != null) password = (string)payload["password"] ?? "";
+                if (payload["methodHash"] != null) methodHash = (int)payload["methodHash"];
+                if (payload["isUpdateEmail"] != null) isUpdateEmail = (bool)payload["isUpdateEmail"];
+                if (payload["email"] != null) email = (string)payload["email"] ?? "";
+                if (payload["ignoreWindowsAD"] != null) ignoreWindowsAD = (bool)payload["ignoreWindowsAD"];
+            }
+            catch { UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", false, "Payload không hợp lệ."); return; }
+            if (string.IsNullOrEmpty(connStr) || userIds == null || userIds.Count == 0) { UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", false, "Payload thiếu connectionString hoặc userIds."); return; }
+            try
+            {
+                System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
+                var result = ExecuteUpdateUsersCore(connStr, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email, ignoreWindowsAD);
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", result.Item1, result.Item2);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUser", null, userId);
+            }
+            catch (Exception ex)
+            {
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", false, ex.Message);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUser", null, userId);
+            }
+        }
+
+        /// <summary>Worker gọi: đọc job HRHelperUpdateUserSignature Pending, chuyển Running, gọi ExecuteUpdateUserSignatureCore.</summary>
+        public static void ExecuteHRHelperUpdateUserSignatureJob(int jobId)
+        {
+            int userId = 0;
+            string payloadJson = null;
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT StartedByUserId, Payload FROM BaJob WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateUserSignature'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (!r.Read()) return;
+                    userId = r.IsDBNull(r.GetOrdinal("StartedByUserId")) ? 0 : r.GetInt32(r.GetOrdinal("StartedByUserId"));
+                    payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
+                }
+            }
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE BaJob SET Status = N'Running' WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateUserSignature'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                cmd.ExecuteNonQuery();
+            }
+            if (string.IsNullOrEmpty(payloadJson)) { UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", false, "Payload trống."); return; }
+            string connStr = null;
+            List<long> userIds = null;
+            try
+            {
+                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                connStr = (string)payload["connectionString"];
+                var userIdsArr = payload["userIds"] as Newtonsoft.Json.Linq.JArray;
+                if (userIdsArr != null)
+                {
+                    userIds = new List<long>();
+                    foreach (var x in userIdsArr) userIds.Add((long)x);
+                }
+            }
+            catch { UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", false, "Payload không hợp lệ."); return; }
+            if (string.IsNullOrEmpty(connStr) || userIds == null || userIds.Count == 0) { UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", false, "Payload thiếu connectionString hoặc userIds."); return; }
+            try
+            {
+                var result = ExecuteUpdateUserSignatureCore(connStr, userIds);
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", result.Item1, result.Item2);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUserSignature", null, userId);
+            }
+            catch (Exception ex)
+            {
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", false, ex.Message);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUserSignature", null, userId);
+            }
+        }
+
+        /// <summary>Worker gọi: đọc job HRHelperUpdateEmployee Pending, chuyển Running, gọi ExecuteUpdateEmployeesCore.</summary>
+        public static void ExecuteHRHelperUpdateEmployeeJob(int jobId)
+        {
+            BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] ExecuteHRHelperUpdateEmployeeJob bắt đầu.");
+            int userId = 0;
+            string payloadJson = null;
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT StartedByUserId, Payload FROM BaJob WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateEmployee'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (!r.Read()) { BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Không đọc được job, return."); return; }
+                    userId = r.IsDBNull(r.GetOrdinal("StartedByUserId")) ? 0 : r.GetInt32(r.GetOrdinal("StartedByUserId"));
+                    payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
+                }
+            }
+            BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Đã đọc payload, length=" + (payloadJson?.Length ?? 0));
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE BaJob SET Status = N'Running' WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateEmployee'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                cmd.ExecuteNonQuery();
+            }
+            if (string.IsNullOrEmpty(payloadJson)) { BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Payload trống."); UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, "Payload trống."); return; }
+            string connStr = null;
+            List<long> employeeIds = null;
+            int? companyID = null;
+            bool updPersonal = false, updBusiness = false, updPayslip = false, payslipByEmp = false, updM1 = false, updM2 = false, updBasic = false;
+            string personalEmail = "", businessEmail = "", payslipCommon = "", m1 = "", m2 = "";
+            decimal basicSalary = 0;
+            try
+            {
+                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                connStr = (string)payload["connectionString"];
+                if (payload["companyID"] != null && !payload["companyID"].ToString().Equals("")) companyID = (int?)payload["companyID"];
+                var employeeIdsArr = payload["employeeIds"] as Newtonsoft.Json.Linq.JArray;
+                if (employeeIdsArr != null)
+                {
+                    employeeIds = new List<long>();
+                    foreach (var x in employeeIdsArr) employeeIds.Add((long)x);
+                }
+                if (payload["updPersonal"] != null) updPersonal = (bool)payload["updPersonal"];
+                if (payload["personalEmail"] != null) personalEmail = (string)payload["personalEmail"] ?? "";
+                if (payload["updBusiness"] != null) updBusiness = (bool)payload["updBusiness"];
+                if (payload["businessEmail"] != null) businessEmail = (string)payload["businessEmail"] ?? "";
+                if (payload["updPayslip"] != null) updPayslip = (bool)payload["updPayslip"];
+                if (payload["payslipCommon"] != null) payslipCommon = (string)payload["payslipCommon"] ?? "";
+                if (payload["payslipByEmp"] != null) payslipByEmp = (bool)payload["payslipByEmp"];
+                if (payload["updM1"] != null) updM1 = (bool)payload["updM1"];
+                if (payload["m1"] != null) m1 = (string)payload["m1"] ?? "";
+                if (payload["updM2"] != null) updM2 = (bool)payload["updM2"];
+                if (payload["m2"] != null) m2 = (string)payload["m2"] ?? "";
+                if (payload["updBasic"] != null) updBasic = (bool)payload["updBasic"];
+                if (payload["basicSalary"] != null) basicSalary = (decimal)payload["basicSalary"];
+            }
+            catch { BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Payload không hợp lệ."); UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, "Payload không hợp lệ."); return; }
+            if (string.IsNullOrEmpty(connStr) || employeeIds == null || employeeIds.Count == 0) { BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Thiếu connectionString hoặc employeeIds."); UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, "Payload thiếu connectionString hoặc employeeIds."); return; }
+            BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] employeeIds count=" + employeeIds.Count + ", gọi ExecuteUpdateEmployeesCore.");
+            try
+            {
+                System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
+                var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary,
+                    onProgress: (pct, msg) =>
+                    {
+                        UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg);
+                        BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] progress " + pct + "% " + (msg ?? ""));
+                    });
+                BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] ExecuteUpdateEmployeesCore xong: success=" + result.Item1 + " msg=" + (result.Item2 ?? ""));
+                var fullMessage = BuildHRHelperUpdateEmployeeResultMessage(result.Item2, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, updM1, m1, updM2, m2, updBasic, basicSalary);
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, fullMessage);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
+            }
+            catch (Exception ex)
+            {
+                BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Exception: " + ex.Message);
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, ex.Message);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
+            }
+        }
+
+        /// <summary>Worker gọi: đọc job HRHelperUpdateOther Pending, chuyển Running, gọi ExecuteUpdateCompanyInfoCore.</summary>
+        public static void ExecuteHRHelperUpdateOtherJob(int jobId)
+        {
+            int userId = 0;
+            string payloadJson = null;
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT StartedByUserId, Payload FROM BaJob WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateOther'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (!r.Read()) return;
+                    userId = r.IsDBNull(r.GetOrdinal("StartedByUserId")) ? 0 : r.GetInt32(r.GetOrdinal("StartedByUserId"));
+                    payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
+                }
+            }
+            using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = appConn.CreateCommand())
+            {
+                cmd.CommandText = "UPDATE BaJob SET Status = N'Running' WHERE Id = @id AND Status IN (N'Pending', N'Running') AND JobType = N'HRHelperUpdateOther'";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                appConn.Open();
+                cmd.ExecuteNonQuery();
+            }
+            if (string.IsNullOrEmpty(payloadJson)) { UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", false, "Payload trống."); return; }
+            string connStr = null;
+            int? tenantID = null, companyID = null, sslPort = null;
+            bool isUpdateAll = false, useCommonEmail = false, enableSSL = false;
+            string commonEmail = "", hrEmailTo = "", hrEmailCC = "", payrollEmailTo = "", payrollEmailCC = "", contactEmail = "", outgoingServer = "", accountName = "", userName = "", emailAddress = "", password = "";
+            int serverPort = 0;
+            try
+            {
+                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                connStr = (string)payload["connectionString"];
+                if (payload["tenantID"] != null && payload["tenantID"].ToString() != "") tenantID = (int?)payload["tenantID"];
+                if (payload["companyID"] != null && payload["companyID"].ToString() != "") companyID = (int?)payload["companyID"];
+                if (payload["isUpdateAll"] != null) isUpdateAll = (bool)payload["isUpdateAll"];
+                if (payload["useCommonEmail"] != null) useCommonEmail = (bool)payload["useCommonEmail"];
+                if (payload["commonEmail"] != null) commonEmail = (string)payload["commonEmail"] ?? "";
+                if (payload["hrEmailTo"] != null) hrEmailTo = (string)payload["hrEmailTo"] ?? "";
+                if (payload["hrEmailCC"] != null) hrEmailCC = (string)payload["hrEmailCC"] ?? "";
+                if (payload["payrollEmailTo"] != null) payrollEmailTo = (string)payload["payrollEmailTo"] ?? "";
+                if (payload["payrollEmailCC"] != null) payrollEmailCC = (string)payload["payrollEmailCC"] ?? "";
+                if (payload["contactEmail"] != null) contactEmail = (string)payload["contactEmail"] ?? "";
+                if (payload["outgoingServer"] != null) outgoingServer = (string)payload["outgoingServer"] ?? "";
+                if (payload["serverPort"] != null) serverPort = (int)payload["serverPort"];
+                if (payload["accountName"] != null) accountName = (string)payload["accountName"] ?? "";
+                if (payload["userName"] != null) userName = (string)payload["userName"] ?? "";
+                if (payload["emailAddress"] != null) emailAddress = (string)payload["emailAddress"] ?? "";
+                if (payload["password"] != null) password = (string)payload["password"] ?? "";
+                if (payload["enableSSL"] != null) enableSSL = (bool)payload["enableSSL"];
+                if (payload["sslPort"] != null && payload["sslPort"].ToString() != "") sslPort = (int?)payload["sslPort"];
+            }
+            catch { UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", false, "Payload không hợp lệ."); return; }
+            if (string.IsNullOrEmpty(connStr)) { UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", false, "Payload thiếu connectionString."); return; }
+            try
+            {
+                var result = ExecuteUpdateCompanyInfoCore(connStr, tenantID, companyID, isUpdateAll, useCommonEmail, commonEmail, hrEmailTo, hrEmailCC, payrollEmailTo, payrollEmailCC, contactEmail, outgoingServer, serverPort, accountName, userName, emailAddress, password, enableSSL, sslPort);
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", result.Item1, result.Item2);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateOther", null, userId);
+            }
+            catch (Exception ex)
+            {
+                UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", false, ex.Message);
+                BaJobHubHelper.PushJobsUpdated("HRHelperUpdateOther", null, userId);
             }
         }
 
@@ -2610,12 +3206,26 @@ FROM INFORMATION_SCHEMA.COLUMNS c
 INNER JOIN INFORMATION_SCHEMA.TABLES t ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME AND t.TABLE_TYPE = 'BASE TABLE'
 WHERE {0}";
 
+        /// <summary>Cột email/phone trong Staffing_Employees và Staffing_EmployeeInformations được cập nhật có mã hóa (tab Employee Info / ResetEmailAndPhoneEncryptedForRestore). Bước reset plain không ghi vào các cột này.</summary>
+        private static bool IsEncryptedEmployeeColumn(string schema, string table, string column)
+        {
+            var tbl = string.Equals(table, "Staffing_Employees", StringComparison.OrdinalIgnoreCase) || string.Equals(table, "Staffing_EmployeeInformations", StringComparison.OrdinalIgnoreCase);
+            if (!tbl || !string.Equals(schema, "dbo", StringComparison.OrdinalIgnoreCase)) return false;
+            return string.Equals(column, "PersonalEmailAddress", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(column, "BusinessEmailAddress", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(column, "MobilePhone1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(column, "MobilePhone2", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(column, "HomePhone1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(column, "HomePhone2", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static List<Tuple<string, string, string, int?, string>> GetEmailColumns(SqlConnection conn)
         {
             var sql = string.Format(ColumnsQueryBase, @"c.COLUMN_NAME LIKE N'%Email%' AND c.COLUMN_NAME NOT IN ('EmailSubject','EmailBody')
   AND NOT (c.TABLE_NAME = 'Setting_EmailManagements' AND c.COLUMN_NAME = 'EmailID')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')");
-            return GetColumnsFromQuery(conn, sql);
+            var cols = GetColumnsFromQuery(conn, sql);
+            return cols.Where(t => !IsEncryptedEmployeeColumn(t.Item1, t.Item2, t.Item3)).ToList();
         }
 
         private static List<Tuple<string, string, string, int?, string>> GetPhoneColumns(SqlConnection conn)
@@ -2623,7 +3233,8 @@ WHERE {0}";
             var sql = string.Format(ColumnsQueryBase, @"c.COLUMN_NAME LIKE N'%Phone%'
   AND NOT (c.TABLE_SCHEMA = 'dbo' AND c.TABLE_NAME LIKE 'PAY_MasterPayroll%')
   AND c.DATA_TYPE IN ('nvarchar','varchar','ntext','nchar','char','text')");
-            return GetColumnsFromQuery(conn, sql);
+            var cols = GetColumnsFromQuery(conn, sql);
+            return cols.Where(t => !IsEncryptedEmployeeColumn(t.Item1, t.Item2, t.Item3)).ToList();
         }
 
         private static List<Tuple<string, string, string, int?, string>> GetColumnsFromQuery(SqlConnection conn, string sql)
@@ -2745,12 +3356,29 @@ WHERE {0}";
                 }
                 if (totalCount == 0)
                     return Tuple.Create(0, (string)null);
-                // Chunk động theo số record: dự án nhỏ (500 NV) ~ 10 lần cập nhật, lớn (50k NV) ~ 60 lần
-                int desiredChunks = Math.Min(60, Math.Max(10, totalCount / 500));
+                // Chunk động: data nhỏ (300–1000) cần đủ chunk để progress 20%→100% mượt (tối thiểu 5 bước); 50k–100k dùng chunk lớn
+                int desiredChunks;
+                int minChunk;
+                const int MinChunksForProgress = 5; // Đảm bảo progress bar/chuông không treo 0% rồi nhảy 100%
+                if (totalCount >= 20000)
+                {
+                    desiredChunks = Math.Min(40, Math.Max(15, totalCount / 2500));
+                    minChunk = 1500;
+                }
+                else
+                {
+                    desiredChunks = Math.Min(60, Math.Max(10, totalCount / 500));
+                    minChunk = totalCount < 1000 ? 50 : 100;
+                }
                 int chunkSize = (int)Math.Ceiling(totalCount / (double)desiredChunks);
-                int minChunk = totalCount < 1000 ? 50 : 100;
                 if (chunkSize < minChunk) chunkSize = minChunk;
                 int totalChunks = (int)Math.Ceiling(totalCount / (double)chunkSize);
+                if (totalCount < 2000 && totalChunks < MinChunksForProgress)
+                {
+                    totalChunks = MinChunksForProgress;
+                    chunkSize = (int)Math.Ceiling(totalCount / (double)totalChunks);
+                    if (chunkSize < 1) chunkSize = 1;
+                }
                 var totalUpdated = 0;
                 for (int c = 0; c < totalChunks; c++)
                 {
@@ -2783,6 +3411,8 @@ WHERE {0}";
                         updPayslip: false, payslipCommon: null, payslipByEmp: false,
                         updM1: !string.IsNullOrEmpty(phoneTrim), m1: phoneTrim,
                         updM2: !string.IsNullOrEmpty(phoneTrim), m2: phoneTrim,
+                        updH1: !string.IsNullOrEmpty(phoneTrim), h1: phoneTrim,
+                        updH2: !string.IsNullOrEmpty(phoneTrim), h2: phoneTrim,
                         updBasic: false, basicSalary: 0);
                     using (var conn = new SqlConnection(connectionString))
                     {
@@ -2801,6 +3431,8 @@ CREATE TABLE #EmployeeTemp(
     PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
     MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
     MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    HomePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    HomePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
     BasicSalary NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL
 );";
                             cmd.ExecuteNonQuery();
@@ -2816,6 +3448,8 @@ CREATE TABLE #EmployeeTemp(
                             bulk.ColumnMappings.Add("PayslipPassword", "PayslipPassword");
                             bulk.ColumnMappings.Add("MobilePhone1", "MobilePhone1");
                             bulk.ColumnMappings.Add("MobilePhone2", "MobilePhone2");
+                            bulk.ColumnMappings.Add("HomePhone1", "HomePhone1");
+                            bulk.ColumnMappings.Add("HomePhone2", "HomePhone2");
                             bulk.ColumnMappings.Add("BasicSalary", "BasicSalary");
                             bulk.WriteToServer(dt);
                         }
@@ -2828,16 +3462,23 @@ BEGIN TRAN;
 UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),
     E.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,E.BusinessEmailAddress),
     E.MobilePhone1=COALESCE(B.MobilePhone1,E.MobilePhone1),
-    E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2)
+    E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2),
+    E.HomePhone1=COALESCE(B.HomePhone1,E.HomePhone1),
+    E.HomePhone2=COALESCE(B.HomePhone2,E.HomePhone2)
 FROM #EmployeeTemp B
 JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = B.EmployeeID
-WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL);
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL) OR (B.HomePhone1 IS NOT NULL) OR (B.HomePhone2 IS NOT NULL);
+/* Cập nhật Staffing_EmployeeInformations: join trực tiếp B.EmployeeID = EI.EmployeeID */
 IF OBJECT_ID('dbo.Staffing_EmployeeInformations','U') IS NOT NULL
 UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.PersonalEmailAddress),
-    EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress)
+    EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress),
+    EI.MobilePhone1=COALESCE(B.MobilePhone1,EI.MobilePhone1),
+    EI.MobilePhone2=COALESCE(B.MobilePhone2,EI.MobilePhone2),
+    EI.HomePhone1=COALESCE(B.HomePhone1,EI.HomePhone1),
+    EI.HomePhone2=COALESCE(B.HomePhone2,EI.HomePhone2)
 FROM #EmployeeTemp B
 JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = B.EmployeeID
-WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL);
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL) OR (B.HomePhone1 IS NOT NULL) OR (B.HomePhone2 IS NOT NULL);
 COMMIT TRAN;";
                             cmd.ExecuteNonQuery();
                         }
@@ -2845,6 +3486,8 @@ COMMIT TRAN;";
                     totalUpdated += employees.Count;
                     if (progressCallback != null)
                         progressCallback(c + 1, totalChunks);
+                    // Yield để request khác (web) không bị treo khi data lớn (50k+)
+                    System.Threading.Thread.Sleep(0);
                 }
                 return Tuple.Create(totalUpdated, (string)null);
             }
@@ -3120,6 +3763,26 @@ COMMIT TRAN;";
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
+                if (UseBackgroundWorker())
+                {
+                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, tenantID, companyID, isUpdateAll, useCommonEmail, commonEmail = commonEmail ?? "", hrEmailTo = hrEmailTo ?? "", hrEmailCC = hrEmailCC ?? "", payrollEmailTo = payrollEmailTo ?? "", payrollEmailCC = payrollEmailCC ?? "", contactEmail = contactEmail ?? "", outgoingServer = outgoingServer ?? "", serverPort, accountName = accountName ?? "", userName = userName ?? "", emailAddress = emailAddress ?? "", password = password ?? "", enableSSL, sslPort });
+                    int pendingJobId = 0;
+                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = appConn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        cmd.Parameters.AddWithValue("@sname", serverName);
+                        cmd.Parameters.AddWithValue("@db", databaseName);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@uname", userName2);
+                        cmd.Parameters.AddWithValue("@payload", payload);
+                        appConn.Open();
+                        pendingJobId = (int)cmd.ExecuteScalar();
+                    }
+                    UserActionLogHelper.Log("HRHelper.UpdateOther", "Pending Worker, jobId=" + pendingJobId);
+                    return new { success = true, jobId = pendingJobId, message = "Đã đưa update company/other vào hàng đợi. Worker sẽ xử lý." };
+                }
                 int jobId;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
@@ -3352,7 +4015,7 @@ VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runn
                 if (updPayslip && !payslipByEmp && string.IsNullOrWhiteSpace(payslipCommon))
                     return new { success = false, message = "Nhập Payslip Password Common khi bật Update Payslip mà không chọn Encrypt by Employee." };
 
-                var result = ExecuteUpdateEmployeesCore(info.ConnectionString, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
+                var result = ExecuteUpdateEmployeesCore(info.ConnectionString, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary);
                 return new { success = result.Item1, message = result.Item2 };
             }
             catch (Exception ex)
@@ -3387,6 +4050,26 @@ VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runn
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
+                if (UseBackgroundWorker())
+                {
+                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, companyID, employeeIds, updPersonal, personalEmail = personalEmail ?? "", updBusiness, businessEmail = businessEmail ?? "", updPayslip, payslipCommon = payslipCommon ?? "", payslipByEmp, updM1, m1 = m1 ?? "", updM2, m2 = m2 ?? "", updBasic, basicSalary });
+                    int pendingJobId = 0;
+                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = appConn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        cmd.Parameters.AddWithValue("@sname", serverName);
+                        cmd.Parameters.AddWithValue("@db", databaseName);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@uname", userName);
+                        cmd.Parameters.AddWithValue("@payload", payload);
+                        appConn.Open();
+                        pendingJobId = (int)cmd.ExecuteScalar();
+                    }
+                    UserActionLogHelper.Log("HRHelper.UpdateEmployee", "Pending Worker, jobId=" + pendingJobId + ", employeeIds=" + (employeeIds?.Count ?? 0));
+                    return new { success = true, jobId = pendingJobId, message = "Đã đưa update employee vào hàng đợi. Worker sẽ xử lý." };
+                }
                 int jobId;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
@@ -3410,15 +4093,18 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                 UserActionLogHelper.Log("HRHelper.UpdateEmployee", empDetail);
                 System.Threading.Tasks.Task.Run(() =>
                 {
+                    var prevPriority = System.Threading.Thread.CurrentThread.Priority;
+                    try { System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal; } catch { }
                     try
                     {
-                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
+                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary);
                         UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, result.Item2);
                     }
                     catch (Exception ex)
                     {
                         UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, ex.Message);
                     }
+                    finally { try { System.Threading.Thread.CurrentThread.Priority = prevPriority; } catch { } }
                     BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
                 });
                 return new { success = true, jobId = jobId, message = "Đã đưa update employee vào hàng đợi." };
@@ -3429,121 +4115,65 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
             }
         }
 
-        /// <summary>Chạy update employee (trả về Tuple cho job nền).</summary>
+        /// <summary>Tính batch size theo totalRows để có ~12–40 batch, % cập nhật mượt. Ví dụ: 100→10, 200→17, 500→42, 1k→40, 1.5k→60, 2k→50, 3k→75, 5k→125, 10k→250, 15k→375, 20k→500, 50k→1250.</summary>
+        private static int GetEmployeeUpdateBatchSize(int totalRows)
+        {
+            if (totalRows <= 0) return 10;
+            int targetBatches = Math.Min(40, Math.Max(12, totalRows / 400));
+            int batchSize = (int)Math.Ceiling(totalRows / (double)targetBatches);
+            return Math.Max(10, Math.Min(2000, batchSize));
+        }
+
+        /// <summary>Chạy update employee (trả về Tuple cho job nền). onProgress(jobId, percent, message) gọi sau mỗi batch khi chạy từ Worker.</summary>
         private static Tuple<bool, string> ExecuteUpdateEmployeesCore(string connectionString, List<long> employeeIds,
             bool updPersonal, string personalEmail, bool updBusiness, string businessEmail,
             bool updPayslip, string payslipCommon, bool payslipByEmp,
-            bool updM1, string m1, bool updM2, string m2, bool updBasic, decimal basicSalary)
+            bool updM1, string m1, bool updM2, string m2,
+            bool updH1, string h1, bool updH2, string h2,
+            bool updBasic, decimal basicSalary,
+            Action<int, string> onProgress = null)
         {
+            connectionString = EnsureMinConnectionTimeout(connectionString, 120);
             try
             {
+                BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: LoadEmployeesForUpdate bắt đầu (target DB).");
                 var employees = LoadEmployeesForUpdate(connectionString, employeeIds);
                 if (employees == null || employees.Count == 0)
                     return Tuple.Create(false, "Không tìm thấy employee cần update.");
-                var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updBasic, basicSalary);
-                using (var conn = new SqlConnection(connectionString))
+                BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: LoadEmployees xong count=" + employees.Count + ", BuildEmployeeDataTable.");
+                var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updH1, h1, updH2, h2, updBasic, basicSalary);
+                int totalRows = dt.Rows.Count;
+                int batchSize = GetEmployeeUpdateBatchSize(totalRows);
+                int totalBatches = (int)Math.Ceiling(totalRows / (double)batchSize);
+                BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: totalBatches=" + totalBatches + " totalRows=" + totalRows + " batchSize=" + batchSize);
+                onProgress?.Invoke(0, totalBatches <= 0 ? "Đang bắt đầu..." : "Đang xử lý 0/" + totalRows + " nhân viên (batch 0/" + totalBatches + ")");
+                for (int b = 0; b < totalBatches; b++)
                 {
-                    conn.Open();
-                    using (var cmd = conn.CreateCommand())
+                    BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + (b + 1) + "/" + totalBatches + " bắt đầu.");
+                    int startIdx = b * batchSize;
+                    int endIdx = Math.Min(startIdx + batchSize, totalRows) - 1;
+                    var batchDt = dt.Clone();
+                    for (int i = startIdx; i <= endIdx; i++)
+                        batchDt.Rows.Add(dt.Rows[i].ItemArray);
+                    bool batchOk = false;
+                    for (int attempt = 1; attempt <= 3 && !batchOk; attempt++)
                     {
-                        cmd.CommandTimeout = 600;
-                        cmd.CommandText = @"
-SET NOCOUNT ON; SET XACT_ABORT ON; SET LOCK_TIMEOUT 5000;
-IF OBJECT_ID('tempdb..#EmployeeTemp') IS NOT NULL DROP TABLE #EmployeeTemp;
-CREATE TABLE #EmployeeTemp(
-    RowId INT IDENTITY(1,1) PRIMARY KEY,
-    EmployeeID BIGINT NOT NULL,
-    PersonalEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
-    BusinessEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
-    PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
-    MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
-    MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
-    BasicSalary NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL
-);";
-                        cmd.ExecuteNonQuery();
-                    }
-                    using (var bulk = new SqlBulkCopy(conn))
-                    {
-                        bulk.DestinationTableName = "#EmployeeTemp";
-                        bulk.BulkCopyTimeout = 660;
-                        bulk.BatchSize = 5000;
-                        bulk.ColumnMappings.Add("EmployeeID", "EmployeeID");
-                        bulk.ColumnMappings.Add("PersonalEmailAddress", "PersonalEmailAddress");
-                        bulk.ColumnMappings.Add("BusinessEmailAddress", "BusinessEmailAddress");
-                        bulk.ColumnMappings.Add("PayslipPassword", "PayslipPassword");
-                        bulk.ColumnMappings.Add("MobilePhone1", "MobilePhone1");
-                        bulk.ColumnMappings.Add("MobilePhone2", "MobilePhone2");
-                        bulk.ColumnMappings.Add("BasicSalary", "BasicSalary");
-                        bulk.WriteToServer(dt);
-                    }
-                    int maxRowId = 0;
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandText = "SELECT ISNULL(MAX(RowId),0) FROM #EmployeeTemp;";
-                        var o = cmd.ExecuteScalar();
-                        maxRowId = (o == null || o == DBNull.Value) ? 0 : Convert.ToInt32(o);
-                    }
-                    if (maxRowId == 0)
-                        return Tuple.Create(true, "Không có bản ghi nào.");
-                    const int batchSize = 2000;
-                    int totalBatches = (int)Math.Ceiling(maxRowId / (double)batchSize);
-                    for (int b = 0; b < totalBatches; b++)
-                    {
-                        int start = b * batchSize + 1;
-                        int end = Math.Min(maxRowId, start + batchSize - 1);
-                        for (int attempt = 1; attempt <= 3; attempt++)
+                        try
                         {
-                            try
-                            {
-                                using (var cmd = conn.CreateCommand())
-                                {
-                                    cmd.CommandTimeout = 120;
-                                    cmd.Parameters.AddWithValue("@Start", start);
-                                    cmd.Parameters.AddWithValue("@End", end);
-                                    cmd.CommandText = @"
-SET LOCK_TIMEOUT 5000;
-BEGIN TRAN;
-IF OBJECT_ID('tempdb..#B') IS NOT NULL DROP TABLE #B;
-SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, BasicSalary
-INTO #B FROM #EmployeeTemp WHERE RowId BETWEEN @Start AND @End;
-CREATE NONCLUSTERED INDEX IX_B_EmployeeID ON #B(EmployeeID);
-UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),
-    E.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,E.BusinessEmailAddress),
-    E.PayslipPassword=COALESCE(B.PayslipPassword,E.PayslipPassword),
-    E.MobilePhone1=COALESCE(B.MobilePhone1,E.MobilePhone1),
-    E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2)
-FROM #B B
-JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = B.EmployeeID
-WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.PayslipPassword IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL);
-IF OBJECT_ID('dbo.Staffing_EmployeeInformations','U') IS NOT NULL
-UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.PersonalEmailAddress),
-    EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress)
-FROM #B B
-JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = B.EmployeeID
-WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL);
-IF EXISTS(SELECT 1 FROM #B WHERE BasicSalary IS NOT NULL)
-BEGIN
-    IF OBJECT_ID('dbo.PAY_EmployeeSalaries','U') IS NOT NULL
-    UPDATE ES SET ES.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (ROWLOCK, UPDLOCK) ON ES.EmployeeID=B.EmployeeID WHERE B.BasicSalary IS NOT NULL;
-    IF OBJECT_ID('dbo.PAY_EmployeeSalaryDetails','U') IS NOT NULL
-    UPDATE ESD SET ESD.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (READCOMMITTED) ON ES.EmployeeID=B.EmployeeID JOIN dbo.PAY_EmployeeSalaryDetails ESD WITH (ROWLOCK, UPDLOCK) ON ESD.EmployeeSalaryID=ES.ID WHERE B.BasicSalary IS NOT NULL;
-    UPDATE T SET T.BasicSalary=B.BasicSalary
-    FROM #B B
-    JOIN dbo.Staffing_Transactions T WITH (ROWLOCK, UPDLOCK) ON T.EmployeeID=B.EmployeeID AND T.IsActiveTransaction=1
-    WHERE B.BasicSalary IS NOT NULL;
-END
-DROP TABLE #B;
-COMMIT TRAN;";
-                                    cmd.ExecuteNonQuery();
-                                }
-                                break;
-                            }
-                            catch (Exception ex)
-                            {
-                                if (attempt == 3) return Tuple.Create(false, "Batch update failed: " + ex.Message);
-                            }
+                            RunOneBatchUpdateEmployee(connectionString, batchDt);
+                            batchOk = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + (b + 1) + "/" + totalBatches + " attempt " + attempt + " failed: " + ex.Message);
+                            if (attempt == 3) return Tuple.Create(false, "Batch update failed (batch " + (b + 1) + "/" + totalBatches + "): " + ex.Message);
                         }
                     }
+                    BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + (b + 1) + "/" + totalBatches + " xong.");
+                    int pct = totalBatches <= 0 ? 100 : (int)Math.Round((b + 1) * 100.0 / totalBatches);
+                    int doneRows = Math.Min((b + 1) * batchSize, totalRows);
+                    onProgress?.Invoke(Math.Min(pct, 99), "Đang xử lý " + doneRows + "/" + totalRows + " nhân viên (batch " + (b + 1) + "/" + totalBatches + ")");
+                    System.Threading.Thread.Sleep(0);
                 }
                 var parts = new List<string>();
                 if (updPersonal) parts.Add("Thông tin cá nhân");
@@ -3560,6 +4190,103 @@ COMMIT TRAN;";
             catch (Exception ex)
             {
                 return Tuple.Create(false, ex.Message);
+            }
+        }
+
+        /// <summary>Một batch update employee: connection mới, #EmployeeTemp + bulk slice, rồi UPDATE. Retry = connection mới.</summary>
+        private static void RunOneBatchUpdateEmployee(string connectionString, DataTable batchDt)
+        {
+            BaJobWorkerNotify.Log("RunOneBatchUpdateEmployee: mở connection tới DB đích (target).");
+            using (var conn = new SqlConnection(connectionString))
+            {
+                conn.Open();
+                BaJobWorkerNotify.Log("RunOneBatchUpdateEmployee: connection đã mở, tạo #EmployeeTemp.");
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 600;
+                    cmd.CommandText = @"
+SET NOCOUNT ON; SET XACT_ABORT ON; SET LOCK_TIMEOUT 60000;
+IF OBJECT_ID('tempdb..#EmployeeTemp') IS NOT NULL DROP TABLE #EmployeeTemp;
+CREATE TABLE #EmployeeTemp(
+    RowId INT IDENTITY(1,1) PRIMARY KEY,
+    EmployeeID BIGINT NOT NULL,
+    PersonalEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    BusinessEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    HomePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    HomePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
+    BasicSalary NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL
+);";
+                    cmd.ExecuteNonQuery();
+                }
+                BaJobWorkerNotify.Log("RunOneBatchUpdateEmployee: BulkCopy " + batchDt.Rows.Count + " rows vào #EmployeeTemp.");
+                using (var bulk = new SqlBulkCopy(conn))
+                {
+                    bulk.DestinationTableName = "#EmployeeTemp";
+                    bulk.BulkCopyTimeout = 660;
+                    bulk.BatchSize = 5000;
+                    bulk.ColumnMappings.Add("EmployeeID", "EmployeeID");
+                    bulk.ColumnMappings.Add("PersonalEmailAddress", "PersonalEmailAddress");
+                    bulk.ColumnMappings.Add("BusinessEmailAddress", "BusinessEmailAddress");
+                    bulk.ColumnMappings.Add("PayslipPassword", "PayslipPassword");
+                    bulk.ColumnMappings.Add("MobilePhone1", "MobilePhone1");
+                    bulk.ColumnMappings.Add("MobilePhone2", "MobilePhone2");
+                    bulk.ColumnMappings.Add("HomePhone1", "HomePhone1");
+                    bulk.ColumnMappings.Add("HomePhone2", "HomePhone2");
+                    bulk.ColumnMappings.Add("BasicSalary", "BasicSalary");
+                    bulk.WriteToServer(batchDt);
+                }
+                BaJobWorkerNotify.Log("RunOneBatchUpdateEmployee: BulkCopy xong, chạy UPDATE batch (Staffing_Employees, ...).");
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 600;
+                    cmd.CommandText = @"
+SET LOCK_TIMEOUT 60000;
+BEGIN TRAN;
+IF OBJECT_ID('tempdb..#B') IS NOT NULL DROP TABLE #B;
+SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, HomePhone1, HomePhone2, BasicSalary
+INTO #B FROM #EmployeeTemp;
+CREATE NONCLUSTERED INDEX IX_B_EmployeeID ON #B(EmployeeID);
+UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),
+    E.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,E.BusinessEmailAddress),
+    E.PayslipPassword=COALESCE(B.PayslipPassword,E.PayslipPassword),
+    E.MobilePhone1=COALESCE(B.MobilePhone1,E.MobilePhone1),
+    E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2),
+    E.HomePhone1=COALESCE(B.HomePhone1,E.HomePhone1),
+    E.HomePhone2=COALESCE(B.HomePhone2,E.HomePhone2)
+FROM #B B
+JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = B.EmployeeID
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.PayslipPassword IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL) OR (B.HomePhone1 IS NOT NULL) OR (B.HomePhone2 IS NOT NULL);
+/* Cập nhật Staffing_EmployeeInformations (email + phone mã hóa): join trực tiếp #B.EmployeeID = EI.EmployeeID (FK tới Staffing_Employees.ID) */
+IF OBJECT_ID('dbo.Staffing_EmployeeInformations','U') IS NOT NULL
+UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.PersonalEmailAddress),
+    EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress),
+    EI.MobilePhone1=COALESCE(B.MobilePhone1,EI.MobilePhone1),
+    EI.MobilePhone2=COALESCE(B.MobilePhone2,EI.MobilePhone2),
+    EI.HomePhone1=COALESCE(B.HomePhone1,EI.HomePhone1),
+    EI.HomePhone2=COALESCE(B.HomePhone2,EI.HomePhone2)
+FROM #B B
+JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = B.EmployeeID
+WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL) OR (B.HomePhone1 IS NOT NULL) OR (B.HomePhone2 IS NOT NULL);
+IF EXISTS(SELECT 1 FROM #B WHERE BasicSalary IS NOT NULL)
+BEGIN
+    IF OBJECT_ID('dbo.PAY_EmployeeSalaries','U') IS NOT NULL
+    UPDATE ES SET ES.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (ROWLOCK, UPDLOCK) ON ES.EmployeeID=B.EmployeeID WHERE B.BasicSalary IS NOT NULL;
+    IF OBJECT_ID('dbo.PAY_EmployeeSalaryDetails','U') IS NOT NULL
+    UPDATE ESD SET ESD.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (READCOMMITTED) ON ES.EmployeeID=B.EmployeeID JOIN dbo.PAY_EmployeeSalaryDetails ESD WITH (ROWLOCK, UPDLOCK) ON ESD.EmployeeSalaryID=ES.ID WHERE B.BasicSalary IS NOT NULL;
+    /* Cập nhật BasicSalary cho tất cả transaction của nhân viên (không chỉ IsActiveTransaction=1) */
+    UPDATE T SET T.BasicSalary=B.BasicSalary
+    FROM #B B
+    JOIN dbo.Staffing_Transactions T WITH (ROWLOCK, UPDLOCK) ON T.EmployeeID=B.EmployeeID
+    WHERE B.BasicSalary IS NOT NULL;
+END
+DROP TABLE #B;
+COMMIT TRAN;";
+                    cmd.ExecuteNonQuery();
+                }
+                BaJobWorkerNotify.Log("RunOneBatchUpdateEmployee: UPDATE xong.");
             }
         }
 
@@ -3596,7 +4323,9 @@ COMMIT TRAN;";
         private static DataTable BuildEmployeeDataTable(List<EmployeeForUpdate> employees,
             bool updPersonal, string personalEmail, bool updBusiness, string businessEmail,
             bool updPayslip, string payslipCommon, bool payslipByEmp,
-            bool updM1, string m1, bool updM2, string m2, bool updBasic, decimal basicSalary)
+            bool updM1, string m1, bool updM2, string m2,
+            bool updH1, string h1, bool updH2, string h2,
+            bool updBasic, decimal basicSalary)
         {
             var dt = new DataTable();
             dt.Columns.Add("EmployeeID", typeof(long));
@@ -3605,6 +4334,8 @@ COMMIT TRAN;";
             dt.Columns.Add("PayslipPassword", typeof(string));
             dt.Columns.Add("MobilePhone1", typeof(string));
             dt.Columns.Add("MobilePhone2", typeof(string));
+            dt.Columns.Add("HomePhone1", typeof(string));
+            dt.Columns.Add("HomePhone2", typeof(string));
             dt.Columns.Add("BasicSalary", typeof(string));
             foreach (var e in employees)
             {
@@ -3616,6 +4347,8 @@ COMMIT TRAN;";
                 row["PayslipPassword"] = updPayslip && !string.IsNullOrWhiteSpace(payslipSrc) ? (object)DataSecurityWrapper.EncryptData(payslipSrc, e.EmployeeID) : DBNull.Value;
                 row["MobilePhone1"] = updM1 && !string.IsNullOrWhiteSpace(m1) ? (object)DataSecurityWrapper.EncryptData(m1, e.EmployeeID) : DBNull.Value;
                 row["MobilePhone2"] = updM2 && !string.IsNullOrWhiteSpace(m2) ? (object)DataSecurityWrapper.EncryptData(m2, e.EmployeeID) : DBNull.Value;
+                row["HomePhone1"] = updH1 && !string.IsNullOrWhiteSpace(h1) ? (object)DataSecurityWrapper.EncryptData(h1, e.EmployeeID) : DBNull.Value;
+                row["HomePhone2"] = updH2 && !string.IsNullOrWhiteSpace(h2) ? (object)DataSecurityWrapper.EncryptData(h2, e.EmployeeID) : DBNull.Value;
                 row["BasicSalary"] = updBasic ? (object)DataSecurityWrapper.EncryptData(basicSalary, e.EmployeeID) : DBNull.Value;
                 dt.Rows.Add(row);
             }

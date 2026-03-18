@@ -293,15 +293,35 @@
                                     var jobIdVal = jobIdPart ? parseInt(jobIdPart.value, 10) : 0;
                                     var actionCode = (r.actionCode || '').toString();
                                     var isMultiDbReset = (actionCode === 'HRHelper.MultiDbReset') && jobIdVal > 0;
+                                    var needJobResult = jobIdVal > 0 && ['HRHelper.UpdateEmployee','HRHelper.UpdateUser','HRHelper.UpdateUserSignature','HRHelper.UpdateOther','HRHelper.MultiDbReset'].indexOf(actionCode) >= 0;
+                                    var extraRows = '';
+                                    if (isMultiDbReset) extraRows += '<tr id="auditDbListRow"><th>Danh sách database</th><td id="auditDbListCell">Đang tải...</td></tr>';
+                                    if (needJobResult) extraRows += '<tr id="auditJobResultRow"><th>Kết quả job</th><td id="auditJobResultCell">Đang tải...</td></tr>';
                                     var html = parts.length > 0
                                         ? '<table class="ba-audit-detail-table"><tbody>' + parts.map(function(p) {
                                             var lbl = (p.label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                                             var val = (p.value || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                                             return '<tr><th>' + (lbl || '—') + '</th><td>' + val + '</td></tr>';
-                                        }).join('') + (isMultiDbReset ? '<tr id="auditDbListRow"><th>Danh sách database</th><td id="auditDbListCell">Đang tải...</td></tr>' : '') + '</tbody></table>'
+                                        }).join('') + extraRows + '</tbody></table>'
                                         : '<div class="ba-audit-detail-plain">' + (detail || '—').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>') + '</div>';
                                     document.getElementById('auditDetailModalBody').innerHTML = html;
                                     document.getElementById('auditDetailModal').classList.add('show');
+                                    if (needJobResult) {
+                                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobResult") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobIdVal }),
+                                            success: function(res) {
+                                                var d = res.d || res;
+                                                var $cell = $('#auditJobResultCell');
+                                                if (!$cell.length) return;
+                                                if (!d || !d.success) { $cell.text('—'); return; }
+                                                var st = (d.status || '').toString();
+                                                var msg = (d.message || '').toString().trim();
+                                                var statusLabel = st === 'Completed' ? 'Thành công' : (st === 'Failed' ? 'Lỗi' : (st === 'Running' ? 'Đang chạy' : st));
+                                                var text = statusLabel + (msg ? '\n' + msg : '');
+                                                $cell.html(text.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>'));
+                                            },
+                                            error: function() { var $c = $('#auditJobResultCell'); if ($c.length) $c.text('—'); }
+                                        });
+                                    }
                                     if (isMultiDbReset) {
                                         $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobPayload") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobIdVal }),
                                             success: function(res) {
@@ -567,7 +587,7 @@
                     $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) { $p.hide(); } else { loadRestoreJobsPanel(); $p.show(); } });
                     $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
                     $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
-                    if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { if ($('#restoreJobsPanel').is(':visible')) loadRestoreJobsPanel(); else { $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }); var newBugs = d.newBugs || []; var total = jobs.length + newBugs.length; if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible'); } } }); } }); }
+                    if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { loadRestoreJobsPanel(); }); }
                 }
             });
         })();

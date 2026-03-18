@@ -5,7 +5,7 @@
 IF NOT EXISTS (SELECT 1 FROM dbo.UiPermission WHERE Code = N'DatabaseManageServers')
 BEGIN
     INSERT INTO dbo.UiPermission (Code, Name, [Description]) VALUES 
-    (N'DatabaseManageServers', N'Database Manage Servers', N'Thêm, sửa, xóa server trong cấu hình Database Search');
+    (N'DatabaseManageServers', N'Database Manage Servers', N'Quản lý cấu hình server: thêm, sửa, xóa server trong Database Search; thấy tất cả server. Dùng cho manager.');
     PRINT 'UiPermission DatabaseManageServers added.';
 END
 GO

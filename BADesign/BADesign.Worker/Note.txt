@@ -1,0 +1,3 @@
+Create Service: sc create BADesignWorker binPath= "C:\SourceHost\BADesignerTool\Worker\BADesign.Worker.exe" start= auto
+
+Start Service: sc start BADesignWorker

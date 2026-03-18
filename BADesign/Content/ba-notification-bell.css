@@ -175,12 +175,12 @@
 .ba-notif-item .ba-notif-cancel-btn:hover:not(:disabled) { background: var(--danger, #ef4444); color: #fff; }
 .ba-notif-item .ba-notif-cancel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Modal chi tiết thông báo: z-index cao hơn overlay "Đang xử lý" để popup luôn nằm trên */
+/* Modal chi tiết thông báo: luôn nổi trên panel chuông và overlay */
 #notificationDetailModal,
 .ba-notif-detail-modal {
     position: fixed;
     inset: 0;
-    z-index: 10100;
+    z-index: 12000;
     display: none;
     align-items: center;
     justify-content: center;

@@ -370,12 +370,15 @@
             opacity: 1;
         }
         /* Overlay chừa menu trái (sidebar) để user vẫn dùng được các chức năng khác */
+        /* Overlay full viewport (kể cả khi sidebar thu hẹp) để không bị hở */
         .ba-progress-overlay {
             position: fixed;
-            left: 240px;
+            left: 0;
             top: 0;
             right: 0;
             bottom: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(0, 0, 0, 0.8);
             z-index: 10000;
             display: none;
@@ -385,16 +388,18 @@
             gap: 1.5rem;
         }
         .ba-progress-overlay.show { display: flex; }
-        /* Overlay khi có HR Helper job đang chạy: chừa header + menu trái */
+        /* Overlay full viewport (kể cả khi sidebar thu hẹp). z-index thấp hơn .ba-notif-panel (10050) để bấm chuông vẫn xem được % */
         .ba-hr-job-overlay {
             display: none;
             position: fixed;
-            left: 240px;
-            top: 56px;
+            left: 0;
+            top: 0;
             right: 0;
             bottom: 0;
+            width: 100%;
+            height: 100%;
             background: rgba(0,0,0,0.75);
-            z-index: 9999;
+            z-index: 1050;
             align-items: center;
             justify-content: center;
             flex-direction: column;
@@ -404,15 +409,39 @@
         .ba-hr-job-overlay .ba-hr-job-spinner {
             width: 48px;
             height: 48px;
+            min-width: 48px;
+            min-height: 48px;
             border: 4px solid var(--border);
             border-top-color: var(--primary);
             border-radius: 50%;
-            animation: ba-spin 0.9s linear infinite;
+            will-change: transform;
         }
-        @@keyframes ba-spin { to { transform: rotate(360deg); } }
         .ba-hr-job-overlay .ba-hr-job-text {
             color: var(--text-primary);
             font-size: 1rem;
+        }
+        .ba-hr-job-overlay-inner {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            max-width: 480px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        .ba-hr-job-overlay-detail {
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            max-width: 420px;
+            text-align: center;
+            line-height: 1.5;
+            margin-top: 0.25rem;
         }
         .ba-progress-content {
             background: var(--bg-card);
@@ -584,6 +613,8 @@
             <main class="ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <% if (!IsMultiDbMode) { %>
+                <input type="hidden" id="hrCurrentServer" value="<%= Server.HtmlEncode(ConnectedServer ?? "") %>" />
+                <input type="hidden" id="hrCurrentDatabase" value="<%= Server.HtmlEncode(ConnectedDatabase ?? "") %>" />
                 <div class="ba-hr-conn-bar" style="padding: 0.5rem 2rem; background: var(--bg-darker, #161616); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                     <span class="ba-conn-label" style="font-size: 0.875rem;"><span>Server: <strong><%= ConnectedServer %></strong></span><span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span></span>
                     <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">← Về Database Search</a>
@@ -837,7 +868,7 @@
                                                     <div class="ba-info-popover" style="display: none;">Cập nhật mật khẩu payslip. Bật &quot;Encrypt by Employee (Local ID)&quot; để mã hóa theo từng nhân viên; không bật thì dùng chuỗi chung.</div>
                                                 </span>
                                             </div>
-                                            <div class="ba-checkbox" style="margin-top: 0.5rem;"><input type="checkbox" id="chkPayslipByEmployee" /><label for="chkPayslipByEmployee">Encrypt by Employee (Local ID)</label></div>
+                                            <div class="ba-checkbox" style="margin-top: 0.5rem; margin-left: 1.5rem;"><input type="checkbox" id="chkPayslipByEmployee" /><label for="chkPayslipByEmployee">Encrypt by Employee (Local ID)</label></div>
                                             <input type="text" id="txtPayslipCommon" class="ba-input" placeholder="Payslip common (nếu không encrypt by employee)" style="margin-top: 0.5rem;" disabled />
                                         </div>
                                     </div>
@@ -1310,6 +1341,14 @@
                     <% } %>
                 </div>
             </main>
+            <!-- HR job overlay đặt trong ba-container để nằm dưới .ba-top-bar (z 1100), không che chuông thông báo -->
+            <div id="hrJobOverlay" class="ba-hr-job-overlay">
+                <div class="ba-hr-job-overlay-inner">
+                    <div class="ba-hr-job-spinner"></div>
+                    <div class="ba-hr-job-text">Đang xử lý... Không thao tác cho đến khi job hoàn thành.</div>
+                    <div id="hrJobOverlayDetail" class="ba-hr-job-overlay-detail" style="display:none;"></div>
+                </div>
+            </div>
         </div>
         <div id="columnContextMenu" class="ba-column-context-menu">
             <div class="ba-column-context-menu-item" data-action="lock">🔒 Khóa cột</div>
@@ -1333,12 +1372,6 @@
                 </div>
                 <div class="ba-progress-text" id="progressText">Đang khởi tạo...</div>
             </div>
-        </div>
-
-        <!-- HR Helper job running overlay: che màn hình khi có job update user/employee/other đang chạy -->
-        <div id="hrJobOverlay" class="ba-hr-job-overlay">
-            <div class="ba-hr-job-spinner"></div>
-            <div class="ba-hr-job-text">Đang xử lý... Không thao tác cho đến khi job hoàn thành.</div>
         </div>
 
         <!-- Confirm Modal -->
@@ -1643,8 +1676,11 @@
             // Nếu trước đó có start job (vd. delete employee), reload vẫn hiện overlay ngay để không mất loading / data treo
             try {
                 if (sessionStorage.getItem('baHRHelperJobRunning')) {
+                    window.__hrOverlayWaitingForJob = true;
                     $('#hrJobOverlay').addClass('show');
                     $('#hrJobOverlay .ba-hr-job-text').text('Đang kiểm tra job... Không thao tác cho đến khi job hoàn thành.');
+                    $('#hrJobOverlayDetail').empty().hide();
+                    startHrOverlayPoll();
                 }
             } catch (e) {}
             // Kiểm tra job HR Helper đang chạy (update user/employee/other) → hiển thị overlay; SignalR để cập nhật khi job xong
@@ -1748,10 +1784,13 @@
             $('#chkUpdPayslip').on('change', function() {
                 var checked = $(this).is(':checked');
                 $('#txtPayslipCommon').prop('disabled', !checked || $('#chkPayslipByEmployee').is(':checked'));
+                $('#chkPayslipByEmployee').prop('disabled', !checked);
+                if (!checked) $('#chkPayslipByEmployee').prop('checked', false);
             });
             $('#chkPayslipByEmployee').on('change', function() {
                 $('#txtPayslipCommon').prop('disabled', !$('#chkUpdPayslip').is(':checked') || $(this).is(':checked'));
             });
+            $('#chkPayslipByEmployee').prop('disabled', !$('#chkUpdPayslip').is(':checked'));
             $('#chkUpdMobile1').on('change', function() {
                 $('#txtMobile1').prop('disabled', !$(this).is(':checked'));
             });
@@ -1894,9 +1933,26 @@
             $t.find('.toast-close').on('click', function() { clearTimeout(tmr); $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); });
         }
 
-        /** Gọi GetMyRunningHRHelperJobs: nếu có job đang chạy thì show overlay, không thì hide (và toast khi vừa xong). Nếu vừa xong mà có pendingMultiDbAnalyzeJobId thì lấy kết quả phân tích và render bảng Multi-DB. */
+        var hrJobOverlayPollTimer = null;
+        var hrJobOverlayFastPollCount = 0;
+        /** Bắt đầu poll overlay: 1s trong ~20 lần đầu (để sớm bắt job Running và cập nhật % lên overlay), sau đó 3s. */
+        function startHrOverlayPoll() {
+            if (hrJobOverlayPollTimer) return;
+            hrJobOverlayFastPollCount = 0;
+            function tick() {
+                checkHRHelperJobsAndShowOverlay();
+                hrJobOverlayFastPollCount++;
+                if (hrJobOverlayFastPollCount === 21) {
+                    clearInterval(hrJobOverlayPollTimer);
+                    hrJobOverlayPollTimer = setInterval(tick, 3000);
+                }
+            }
+            hrJobOverlayPollTimer = setInterval(tick, 1000);
+        }
+        /** Gọi GetMyRunningHRHelperJobs: nếu có job đang chạy thì show overlay (và cập nhật %/chi tiết), không thì hide (và toast khi vừa xong). Khi overlay đang hiện thì poll mỗi 3s để tắt ngay khi job xong. Nếu overlay đang hiện do vừa bấm Update (__hrOverlayWaitingForJob) thì khi count=0 chưa tắt, đợi đến khi thấy job Running rồi mới cho phép tắt khi count=0. */
         function checkHRHelperJobsAndShowOverlay() {
             var wasShowing = $('#hrJobOverlay').hasClass('show');
+            var waitingForJob = !!(window.__hrOverlayWaitingForJob === true);
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetMyRunningHRHelperJobs") %>',
                 type: 'POST',
@@ -1906,38 +1962,82 @@
                 timeout: 15000,
                 success: function(res) {
                     var d = res.d || res;
-                    var count = (d && d.success && d.runningCount) ? parseInt(d.runningCount, 10) : 0;
-                    var jobs = (d && d.jobs) ? d.jobs : [];
+                    var count = 0;
+                    if (d && (d.success === true || d.Success === true)) {
+                        var rc = d.runningCount != null ? d.runningCount : d.RunningCount;
+                        if (rc != null) count = parseInt(rc, 10) || 0;
+                    }
+                    var jobs = (d && (d.jobs || d.Jobs)) ? (d.jobs || d.Jobs) : [];
                     var isAnalyzeJob = jobs.some(function(j) { return (j.jobType || '').indexOf('MultiDbAnalyze') >= 0; });
+                    var curServer = ($('#hrCurrentServer').val() || '').trim();
+                    var curDb = ($('#hrCurrentDatabase').val() || '').trim();
+                    var jobMatchesCurrentDb = !isMultiDbMode && curServer !== '' && curDb !== '' && jobs.some(function(j) {
+                        var js = j.serverName != null ? j.serverName : j.ServerName;
+                        var jd = j.databaseName != null ? j.databaseName : j.DatabaseName;
+                        return (js || '').trim() === curServer && (jd || '').trim() === curDb;
+                    });
                     if (count > 0) {
+                        window.__hrOverlayWaitingForJob = false;
+                        if (hrJobOverlayPollTimer) clearInterval(hrJobOverlayPollTimer);
+                        hrJobOverlayPollTimer = setInterval(function() { checkHRHelperJobsAndShowOverlay(); }, 3000);
                         $('#btnMultiAnalyze').prop('disabled', true);
                         $('#btnMultiReset').prop('disabled', true);
                         $('#btnMultiSelectNotReset').prop('disabled', true);
                         var pctStr = '';
                         if (jobs.length > 0) {
                             var j0 = jobs[0];
-                            var pct = (j0.percentComplete != null && j0.percentComplete !== '') ? parseInt(j0.percentComplete, 10) : (j0.percentcomplete != null ? parseInt(j0.percentcomplete, 10) : null);
+                            var pctVal = j0.percentComplete != null ? j0.percentComplete : (j0.PercentComplete != null ? j0.PercentComplete : j0.percentcomplete);
+                            var pct = (pctVal != null && pctVal !== '') ? parseInt(pctVal, 10) : null;
                             if (pct != null && !isNaN(pct)) pctStr = ' ' + pct + '%';
                         }
                         if (isMultiDbMode) {
                             var msg = isAnalyzeJob ? ('Đang phân tích nền... (có thể dùng trang bình thường).' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
                             setMultiDbAnalyzeUIState(true, msg, null);
-                        } else {
+                        } else if (jobMatchesCurrentDb || (jobs.length > 0 && (wasShowing || waitingForJob))) {
+                            /* Cập nhật overlay: khi job khớp DB hiện tại HOẶC overlay đang hiện / đang chờ (vừa submit) để tránh lệch server/db format mà vẫn hiện % và tự đóng khi xong */
                             $('#hrJobOverlay').addClass('show');
-                            var jt = (jobs[0] && jobs[0].jobType) ? jobs[0].jobType : '';
+                            var j0 = jobs[0];
+                            var jt = (j0 && (j0.jobType || j0.JobType)) ? (j0.jobType || j0.JobType) : '';
                             var overlayText = (jt === 'HRHelperDeleteEmployee') ? ('Đang xóa employee...' + pctStr) : (isAnalyzeJob ? ('Đang phân tích Multi-DB...' + pctStr) : ('Đang xử lý...' + pctStr));
                             $('#hrJobOverlay .ba-hr-job-text').text(overlayText + ' Không thao tác cho đến khi job hoàn thành.');
+                            var detailHtml = '';
+                            var j0msg = j0.message != null ? j0.message : j0.Message;
+                            if ((j0msg || '').trim()) detailHtml += (j0msg || '').trim().replace(/</g, '&lt;');
+                            var j0payload = j0.payload != null ? j0.payload : j0.Payload;
+                            if ((j0payload || '').trim() && (jt === 'HRHelperUpdateEmployee' || jt === 'HRHelperUpdateUser' || jt === 'HRHelperUpdateOther')) {
+                                try {
+                                    var pl = JSON.parse((j0payload || '').replace(/^[\s\uFEFF]+|[\s\uFEFF]+$/g, ''));
+                                    var parts = [];
+                                    if (pl.updPersonal || pl.updatePersonalInfo) parts.push('Thông tin cá nhân');
+                                    if (pl.updBusiness || pl.updateBusinessEmail) parts.push('Email công việc');
+                                    if (pl.updPayslip) parts.push('Payslip');
+                                    if (pl.updM1) parts.push('M1');
+                                    if (pl.updM2) parts.push('M2');
+                                    if (pl.updBasic) parts.push('Basic Salary');
+                                    if (parts.length) { if (detailHtml) detailHtml += '<br/>'; detailHtml += 'Nội dung cập nhật: ' + parts.join(', '); }
+                                } catch (e) {}
+                            }
+                            var $detail = $('#hrJobOverlayDetail');
+                            if (detailHtml) { $detail.html(detailHtml).show(); } else { $detail.empty().hide(); }
+                        } else {
+                            $('#hrJobOverlay').removeClass('show');
                         }
                     } else {
+                        /* Chỉ clear timer và ẩn overlay khi thực sự kết thúc (không còn chờ job). Khi waitingForJob=true (vừa ấn Update) phải giữ timer để tiếp tục poll đến khi thấy job Running rồi mới cho phép tắt khi count=0. */
+                        if (!waitingForJob) {
+                            if (hrJobOverlayPollTimer) { clearInterval(hrJobOverlayPollTimer); hrJobOverlayPollTimer = null; }
+                            $('#hrJobOverlay').removeClass('show');
+                            $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                            $('#hrJobOverlayDetail').empty().hide();
+                            window.__hrOverlayWaitingForJob = false;
+                        }
                         $('#btnMultiAnalyze').prop('disabled', false);
                         if ($('#multiDbResultsSection').is(':visible')) {
                             $('#btnMultiReset').prop('disabled', false);
                             $('#btnMultiSelectNotReset').prop('disabled', false);
                         }
-                        try { sessionStorage.removeItem('baHRHelperJobRunning'); } catch (e) {}
-                        if (wasShowing) showToast('Job đã hoàn thành.', 'success');
-                        $('#hrJobOverlay').removeClass('show');
-                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                        try { if (!waitingForJob) sessionStorage.removeItem('baHRHelperJobRunning'); } catch (e) {}
+                        if (wasShowing && !waitingForJob) showToast('Job đã hoàn thành.', 'success');
                         if (isMultiDbMode) {
                             if (multiDbAnalyzePollTimer) { clearInterval(multiDbAnalyzePollTimer); multiDbAnalyzePollTimer = null; }
                             setMultiDbAnalyzeUIState(false, '', 'Có kết quả phân tích gần nhất. Bấm link bên cạnh để tải.');
@@ -1986,6 +2086,7 @@
                     }
                 },
                 error: function() {
+                    if (hrJobOverlayPollTimer) { clearInterval(hrJobOverlayPollTimer); hrJobOverlayPollTimer = null; }
                     if (wasShowing) $('#hrJobOverlay').removeClass('show');
                 }
             });
@@ -3690,7 +3791,12 @@
                     var d = res.d || res;
                     if (d && d.success) {
                         try { sessionStorage.setItem('baHRHelperJobRunning', '1'); } catch (e) {}
+                        window.__hrOverlayWaitingForJob = true;
                         $('#hrJobOverlay').addClass('show');
+                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                        $('#hrJobOverlayDetail').empty().hide();
+                        startHrOverlayPoll();
+                        checkHRHelperJobsAndShowOverlay();
                         showToast('Đã đưa xóa employee vào hàng đợi. Job chạy nền.', 'success');
                     } else {
                         showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
@@ -4063,7 +4169,12 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success) {
+                        window.__hrOverlayWaitingForJob = true;
                         $('#hrJobOverlay').addClass('show');
+                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                        $('#hrJobOverlayDetail').empty().hide();
+                        startHrOverlayPoll();
+                        checkHRHelperJobsAndShowOverlay();
                         showToast('Đã đưa update user vào hàng đợi. Job chạy nền.', 'success');
                     } else {
                         showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
@@ -4158,7 +4269,12 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success) {
+                        window.__hrOverlayWaitingForJob = true;
                         $('#hrJobOverlay').addClass('show');
+                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                        $('#hrJobOverlayDetail').empty().hide();
+                        startHrOverlayPoll();
+                        checkHRHelperJobsAndShowOverlay();
                         showToast('Đã đưa update employee vào hàng đợi. Job chạy nền.', 'success');
                     } else {
                         showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
@@ -4446,7 +4562,12 @@
                     success: function(res) {
                         var d = res.d || res;
                         if (d && d.success) {
+                            window.__hrOverlayWaitingForJob = true;
                             $('#hrJobOverlay').addClass('show');
+                            $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                            $('#hrJobOverlayDetail').empty().hide();
+                            startHrOverlayPoll();
+                            checkHRHelperJobsAndShowOverlay();
                             showToast('Đã đưa update company/other info vào hàng đợi. Job chạy nền.', 'success');
                         } else {
                             showToast(d && d.message ? d.message : 'Lỗi tạo job.', 'error');
@@ -4509,6 +4630,7 @@
                         }
                     } catch (e) {}
                 }
+                var isRunningOrPending = (job.status === 'Running' || job.status === 'Pending');
                 if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
                     try {
                         var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
@@ -4518,12 +4640,50 @@
                             var empCell = empList.length + ' nhân viên';
                             empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
                             empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
-                            payloadRows += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
+                            payloadRows += '<tr><th>' + (isRunningOrPending ? 'Danh sách nhân viên sẽ xóa' : 'Danh sách nhân viên đã xóa') + '</th><td>' + empCell + '</td></tr>';
                         }
                     } catch (e) {}
                 }
                 var resetRow = ((job.type || '') === 'HRHelperMultiDbReset') ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : '';
                 var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>' + resetRow + '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
+                /* Khi job đang chạy: hiển thị "Dự kiến cập nhật" / "Giá trị dự kiến" từ payload để user kiểm tra và kịp hủy nếu nhầm */
+                if (isRunningOrPending && job.payload) {
+                    var jt = (job.type || '').trim();
+                    if (jt === 'HRHelperUpdateEmployee' || jt === 'HRHelperUpdateUser' || jt === 'HRHelperUpdateOther') {
+                        try {
+                            var pl = typeof job.payload === 'string' ? JSON.parse((job.payload || '').replace(/^[\s\uFEFF]+|[\s\uFEFF]+$/g, '')) : job.payload;
+                            if (pl) {
+                                var parts = [];
+                                if (pl.updPersonal || pl.updatePersonalInfo) parts.push('Thông tin cá nhân');
+                                if (pl.updBusiness || pl.updateBusinessEmail) parts.push('Email công việc');
+                                if (pl.updPayslip) parts.push('Payslip');
+                                if (pl.updM1) parts.push('M1');
+                                if (pl.updM2) parts.push('M2');
+                                if (pl.updBasic) parts.push('Basic Salary');
+                                if (parts.length) {
+                                    html += '<div class="ba-notif-full-msg" style="margin-top:10px;padding:10px;background:var(--surface-alt,var(--bg-darker));border-radius:8px;border:1px solid var(--border);">';
+                                    html += '<strong>Dự kiến cập nhật:</strong> ' + parts.join(', ');
+                                    var vals = [];
+                                    if (pl.personalEmail != null && pl.personalEmail !== '') vals.push('Email cá nhân: ' + (pl.personalEmail + '').replace(/</g, '&lt;'));
+                                    if (pl.businessEmail != null && pl.businessEmail !== '') vals.push('Email công việc: ' + (pl.businessEmail + '').replace(/</g, '&lt;'));
+                                    if (pl.m1 != null && pl.m1 !== '') vals.push('SĐT 1: ' + (pl.m1 + '').replace(/</g, '&lt;'));
+                                    if (pl.m2 != null && pl.m2 !== '') vals.push('SĐT 2: ' + (pl.m2 + '').replace(/</g, '&lt;'));
+                                    if (pl.basicSalary != null && pl.basicSalary !== '') vals.push('Lương: ' + (pl.basicSalary + '').replace(/</g, '&lt;'));
+                                    if (vals.length) html += '<br/><strong>Giá trị dự kiến:</strong> ' + vals.join(' | ');
+                                    html += '</div>';
+                                }
+                            }
+                        } catch (e) {}
+                    }
+                    if (jt === 'HRHelperMultiDbReset' && !payloadRows) {
+                        try {
+                            var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
+                            if (pl) {
+                                html += '<div class="ba-notif-full-msg" style="margin-top:10px;padding:10px;background:var(--surface-alt);border-radius:8px;"><strong>Dự kiến reset:</strong> Email: ' + (pl.email || '—').replace(/</g, '&lt;') + ', Phone: ' + (pl.phone || '—').replace(/</g, '&lt;') + '</div>';
+                            }
+                        } catch (e) {}
+                    }
+                }
                 if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
                 html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
                 $('#notificationDetailBody').html(html);
@@ -4590,13 +4750,14 @@
                 $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
                         var d = res.d || res;
-                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } return; }
+                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } if (restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; } return; }
                         var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
                         var newBugs = d.newBugs || [];
                         var totalCount = jobs.length + newBugs.length;
-                        if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } return; }
+                        if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } if (restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; } return; }
                         $badge.text(totalCount).addClass('visible');
                         var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
+                        var isSuperAdmin = !!(d.isSuperAdmin === true || d.isSuperAdmin === 'true');
                         var runningMultiDbAnalyze = jobs.filter(function(j) { return j.status === 'Running' && (j.type || '') === 'HRHelperMultiDbAnalyze'; });
                         var hasRunningJobs = jobs.some(function(j) { return j.status === 'Running'; });
                         window.__notifJobsList = jobs;
@@ -4615,7 +4776,8 @@
                             var typeLabel = (j.typeLabel || (jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : jobType === 'HRHelperMultiDbReset' ? 'Reset Multi-DB' : jobType === 'HRHelperDeleteEmployee' ? 'Xóa Employee' : jobType) || 'Restore').replace(/</g, '&lt;');
                             var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser' || jobType === 'HRHelperUpdateUserSignature') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
                             var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                            var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset' || jobType === 'HRHelperDeleteEmployee') && currentUserId && startedByUid === currentUserId;
+                            var cancellableTypes = ['Restore','Backup','HRHelperUpdateUser','HRHelperUpdateUserSignature','HRHelperUpdateEmployee','HRHelperUpdateOther','HRHelperMultiDbAnalyze','HRHelperMultiDbReset','HRHelperDeleteEmployee'];
+                            var canCancel = (st === 'Running') && (cancellableTypes.indexOf(jobType) >= 0) && currentUserId && (startedByUid === currentUserId || isSuperAdmin);
                             var serverPct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : 0;
                             var startTimeStr = formatNotifTime(j.startTime);
                             var endTimeStr = formatNotifTime(j.completedAt);
@@ -4637,13 +4799,27 @@
                         else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
                         $list.html(html);
                         $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function(e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                        $list.off('click.baNotif').on('click.baNotif', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); if (window.__notifJobsList && window.__notifJobsList[idx]) showNotificationDetail(window.__notifJobsList[idx]); });
+                        $list.off('click.baNotif').on('click.baNotif', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = window.__notifJobsList && window.__notifJobsList[idx]; if (!job) return; var jid = job.id || 0; if (jid) { $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobResult") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jid }), success: function(res) { var d = res.d || res; if (d && d.success) { if (d.message != null) job.message = d.message; if (d.payload != null) job.payload = d.payload; } showNotificationDetail(job); }, error: function() { showNotificationDetail(job); } }); } else { showNotificationDetail(job); } });
                         $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($item.data('job-id'), 10); var jobType = $item.data('job-type') || 'Restore'; if (jobId) { addDismissedJobId(jobId, jobType); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }) }); $item.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var left = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (left > 0) { $badgeEl.text(left).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
                         $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $btn = $(this), jobId = parseInt($btn.data('job-id'), 10); if (!jobId) return; var $item = $btn.closest('.ba-notif-item'), idx = parseInt($item.data('notif-index'), 10), job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(), dbName = (job.databaseName || '').trim(), jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) { if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel(); } else { $btn.prop('disabled', false); showToast((d && d.message) ? d.message : 'Không thể hủy.', 'error'); } }, error: function() { $btn.prop('disabled', false); showToast('Lỗi kết nối.', 'error'); } }); }, null, 'Đồng ý', 'Thoát'); });
                         if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
                         if (hasRunningJobs && !document.hidden && $('#restoreJobsPanel').is(':visible') && !restoreProgressTimer) {
+                            if (restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; }
                             restoreProgressTimer = setInterval(loadRestoreJobsPanel, 2000);
                         }
+                        else if (hasRunningJobs && !document.hidden && !$('#restoreJobsPanel').is(':visible') && !restoreJobsPanelTimer) {
+                            restoreJobsPanelTimer = setInterval(function() {
+                                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) {
+                                    var d = res.d || res; if (!d || !d.jobs) return;
+                                    var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); });
+                                    var hasRunning = jobs.some(function(j) { return j.status === 'Running'; });
+                                    var total = jobs.length + (d.newBugs || []).length;
+                                    if (total > 0) { $('#restoreJobsBadge').text(total).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
+                                    if (!hasRunning && restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; }
+                                } });
+                            }, 5000);
+                        }
+                        if (!hasRunningJobs && restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; }
                     }
                 });
             }
@@ -4657,14 +4833,15 @@
                         if ($p.is(':visible')) {
                             $p.hide();
                             if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
+                            loadRestoreJobsPanel();
                         } else {
                             loadRestoreJobsPanel();
                             $p.show();
                         }
                     });
-                    $(document).on('click', function() { $('#restoreJobsPanel').hide(); if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } });
+                    $(document).on('click', function() { $('#restoreJobsPanel').hide(); if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } loadRestoreJobsPanel(); });
                     $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
-                    if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { if ($('#restoreJobsPanel').is(':visible')) loadRestoreJobsPanel(); else { $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }); var newBugs = d.newBugs || []; var total = jobs.length + newBugs.length; if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible'); } } }); } }); }
+                    if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { loadRestoreJobsPanel(); }); }
                 }
             });
         })();

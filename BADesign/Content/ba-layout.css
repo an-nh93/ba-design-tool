@@ -44,6 +44,19 @@ body {
     min-height: 100vh;
     overflow: hidden;
 }
+/* Spinner xoay cho HR job overlay (định nghĩa global để animation không bị ghi đè) */
+@-webkit-keyframes ba-hr-spin {
+    from { -webkit-transform: rotate(0deg); transform: rotate(0deg); }
+    to { -webkit-transform: rotate(360deg); transform: rotate(360deg); }
+}
+@keyframes ba-hr-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.ba-hr-job-overlay .ba-hr-job-spinner {
+    -webkit-animation: ba-hr-spin 0.85s linear infinite;
+    animation: ba-hr-spin 0.85s linear infinite;
+}
 /* z-index 9999: luôn trên nội dung trang (tránh overlay/panel che nút thu nhỏ); modal 10000+ vẫn trên sidebar */
 .ba-sidebar {
     width: 240px;
@@ -106,6 +119,7 @@ a.ba-sidebar-title:hover { color: var(--primary-light); }
 /* Overlay progress / HR job: khi sidebar thu gọn thì chỉ che từ 64px trở đi (vẫn chừa menu) */
 .ba-container:has(.ba-sidebar.collapsed) .ba-hr-job-overlay,
 .ba-container:has(.ba-sidebar.collapsed) .ba-progress-overlay { left: 64px; }
+/* z-index 1100: cao hơn .ba-hr-job-overlay (1050) để panel chuông + chi tiết thông báo luôn nổi trên overlay */
 .ba-top-bar {
     padding: 1rem 2rem;
     background: var(--bg-card);
@@ -118,7 +132,7 @@ a.ba-sidebar-title:hover { color: var(--primary-light); }
     flex-shrink: 0;
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1100;
 }
 .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
 .ba-top-bar-actions { display: flex; align-items: center; gap: 0.75rem; }

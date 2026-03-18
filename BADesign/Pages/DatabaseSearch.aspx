@@ -3308,6 +3308,9 @@
                 BA_SignalR.onBackupJobsUpdated(function() {
                     if ($('#restoreJobsList').length) loadRestoreJobsPanel();
                 });
+                BA_SignalR.onJobsUpdated(function() {
+                    if ($('#restoreJobsList').length) loadRestoreJobsPanel();
+                });
                 BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');
             }
         });

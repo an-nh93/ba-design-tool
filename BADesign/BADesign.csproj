@@ -506,6 +506,7 @@
     </Compile>
     <Compile Include="Hubs\RestoreNotificationHub.cs" />
     <Compile Include="Helpers\BaJobHubHelper.cs" />
+    <Compile Include="Helpers\BaJobWorkerNotify.cs" />
     <Compile Include="Helpers\ServerAccessHelper.cs" />
     <Compile Include="Helpers\MyConvert.cs" />
     <Compile Include="Helpers\Security\AesHelper.cs" />
