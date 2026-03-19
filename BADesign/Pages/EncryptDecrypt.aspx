@@ -6,7 +6,7 @@
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Encrypt/Decrypt Data - UI Builder</title>
+    <title>Encrypt/Decrypt Data - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <link href="../Content/ba-layout.css" rel="stylesheet" />
     <link href="../Content/ba-notification-bell.css" rel="stylesheet" />

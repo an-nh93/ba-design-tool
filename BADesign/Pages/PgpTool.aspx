@@ -5,7 +5,7 @@
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>PGP Tool - UI Builder</title>
+    <title>PGP Tool - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>

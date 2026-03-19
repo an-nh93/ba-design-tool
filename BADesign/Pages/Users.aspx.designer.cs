@@ -24,13 +24,22 @@ namespace UiBuilderFull.Admin
 		protected global::System.Web.UI.HtmlControls.HtmlForm form1;
 
 		/// <summary>
-		/// lblMsg control.
+		/// ucBaSidebar control.
 		/// </summary>
 		/// <remarks>
 		/// Auto-generated field.
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
-		protected global::System.Web.UI.WebControls.Label lblMsg;
+		protected global::BADesign.BaSidebar ucBaSidebar;
+
+		/// <summary>
+		/// ucBaTopBar control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::BADesign.BaTopBar ucBaTopBar;
 
 		/// <summary>
 		/// rpUsers control.
@@ -42,63 +51,12 @@ namespace UiBuilderFull.Admin
 		protected global::System.Web.UI.WebControls.Repeater rpUsers;
 
 		/// <summary>
-		/// txtNewUser control.
+		/// lblMsg control.
 		/// </summary>
 		/// <remarks>
 		/// Auto-generated field.
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
-		protected global::System.Web.UI.WebControls.TextBox txtNewUser;
-
-		/// <summary>
-		/// txtNewPass control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.TextBox txtNewPass;
-
-		/// <summary>
-		/// txtNewFullName control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.TextBox txtNewFullName;
-
-		/// <summary>
-		/// txtNewEmail control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.TextBox txtNewEmail;
-
-		/// <summary>
-		/// chkNewSuper control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.CheckBox chkNewSuper;
-
-		/// <summary>
-		/// btnAddUser control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.Button btnAddUser;
-
-		/// <summary>BaSidebar control.</summary>
-		protected global::BADesign.BaSidebar ucBaSidebar;
-
-		/// <summary>BaTopBar control.</summary>
-		protected global::BADesign.BaTopBar ucBaTopBar;
+		protected global::System.Web.UI.WebControls.Label lblMsg;
 	}
 }

@@ -6,7 +6,7 @@
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Database Search - UI Builder</title>
+    <title>Database Search - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <link href="../Content/ba-layout.css" rel="stylesheet" />
     <link href="../Content/ba-notification-bell.css" rel="stylesheet" />

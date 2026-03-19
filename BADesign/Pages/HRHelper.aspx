@@ -6,7 +6,7 @@
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>HR Helper - UI Builder</title>
+    <title>HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <link href="../Content/ba-layout.css" rel="stylesheet" />
     <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
@@ -600,7 +600,7 @@
         <div class="ba-container">
             <aside class="ba-sidebar" id="baSidebar">
                 <div class="ba-sidebar-header">
-                    <div class="ba-sidebar-title">UI Builder</div>
+                    <div class="ba-sidebar-title">HR Helper</div>
                     <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
                 </div>
                 <nav class="ba-nav">

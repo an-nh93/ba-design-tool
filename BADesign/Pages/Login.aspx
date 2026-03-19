@@ -3,7 +3,7 @@
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>UI Builder - Login</title>
+    <title>HR Helper - Login</title>
     <%-- dùng ResolveUrl để chạy đúng cả khi host ảo --%>
     <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.1") %>" />
 </head>
@@ -16,9 +16,9 @@
                 <div class="login-content">
                     <!-- Panel đăng nhập thường -->
                     <asp:Panel runat="server" ID="phLoginPanel">
-                        <h1 class="login-title">Login to UI Builder</h1>
+                        <h1 class="login-title">Login to HR Helper</h1>
                         <p class="login-subtitle">
-                            Nhập thông tin tài khoản để tiếp tục sử dụng UI Builder.
+                            Nhập thông tin tài khoản để tiếp tục sử dụng HR Helper.
                         </p>
 
                         <asp:PlaceHolder runat="server" ID="phSuccess" Visible="false">

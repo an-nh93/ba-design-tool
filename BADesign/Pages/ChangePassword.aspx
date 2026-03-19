@@ -4,7 +4,7 @@
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>Change Password - UI Builder</title>
+    <title>Change Password - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <script src="../Scripts/bootstrap.min.js"></script>

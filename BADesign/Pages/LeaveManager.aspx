@@ -5,7 +5,7 @@
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Quản lý nghỉ phép - UI Builder</title>
+    <title>Quản lý nghỉ phép - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <link href="../Content/ba-layout.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>

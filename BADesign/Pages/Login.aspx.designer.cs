@@ -26,17 +26,20 @@ namespace UiBuilderFull
 		/// <summary>
 		/// sm1 control.
 		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.ScriptManager sm1;
 
 		/// <summary>
 		/// phLoginPanel control.
 		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
 		protected global::System.Web.UI.WebControls.Panel phLoginPanel;
-
-		/// <summary>
-		/// phOtpPanel control.
-		/// </summary>
-		protected global::System.Web.UI.WebControls.Panel phOtpPanel;
 
 		/// <summary>
 		/// phSuccess control.
@@ -91,5 +94,14 @@ namespace UiBuilderFull
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
 		protected global::System.Web.UI.WebControls.Button btnLogin;
+
+		/// <summary>
+		/// phOtpPanel control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Panel phOtpPanel;
 	}
 }

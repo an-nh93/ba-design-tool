@@ -3,7 +3,7 @@
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>Đăng ký - UI Builder</title>
+    <title>Đăng ký - HR Helper</title>
     <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.1") %>" />
     <style>
         .register-link { margin-top: 16px; text-align: center; font-size: 13px; color: #7a7c88; }

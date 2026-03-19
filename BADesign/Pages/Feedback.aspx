@@ -5,7 +5,7 @@
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Góp ý - UI Builder</title>
+    <title>Góp ý - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <link href="../Content/ba-layout.css" rel="stylesheet" />
     <link href="../Content/ba-notification-bell.css" rel="stylesheet" />

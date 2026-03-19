@@ -3,7 +3,7 @@
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>Quên mật khẩu - UI Builder</title>
+    <title>Quên mật khẩu - HR Helper</title>
     <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.1") %>" />
     <style>
         .btn-submit { background: rgba(10, 117, 186, 1) !important; color: #fff; width: 100%; padding: 11px 16px; border-radius: 3px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; }

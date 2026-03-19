@@ -6,7 +6,7 @@
 <head runat="server">
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Không có quyền truy cập - UI Builder</title>
+    <title>Không có quyền truy cập - HR Helper</title>
     <link rel="stylesheet" href="<%= ResolveUrl("~/Content/bootstrap.min.css") %>" />
     <style>
         :root {

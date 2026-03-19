@@ -127,7 +127,7 @@
                             <asp:HyperLink ID="lnkFeatureFeedback" runat="server" CssClass="ba-feature-card" NavigateUrl="~/Feedback">
                                 <div class="ba-feature-icon">💬</div>
                                 <div class="ba-feature-title">Feedback</div>
-                                <div class="ba-feature-desc">Gửi ý kiến, báo lỗi hoặc đề xuất cải tiến cho UI Builder và HR Helper.</div>
+                                <div class="ba-feature-desc">Gửi ý kiến, báo lỗi hoặc đề xuất cải tiến cho HR Helper.</div>
                             </asp:HyperLink>
                             <asp:HyperLink ID="lnkFeatureCommunityShare" runat="server" CssClass="ba-feature-card" NavigateUrl="~/DevShare">
                                 <div class="ba-feature-icon">📤</div>

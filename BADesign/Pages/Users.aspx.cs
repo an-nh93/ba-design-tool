@@ -48,39 +48,7 @@ ORDER BY u.UserId";
 			}
 		}
 
-		protected void btnAddUser_Click(object sender, EventArgs e)
-		{
-			var user = txtNewUser.Text.Trim();
-			var pass = txtNewPass.Text;
-			if (string.IsNullOrEmpty(user) || string.IsNullOrEmpty(pass))
-			{
-				lblMsg.Text = "User và password không được trống.";
-				return;
-			}
-
-			var hash = UiAuthHelper.HashPassword(pass);
-
-			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-			using (var cmd = conn.CreateCommand())
-			{
-				cmd.CommandText = @"
-INSERT INTO UiUser(UserName, PasswordHash, FullName, Email, IsSuperAdmin)
-VALUES (@u, @p, @f, @e, @sa);";
-				cmd.Parameters.AddWithValue("@u", user);
-				cmd.Parameters.AddWithValue("@p", hash);
-				cmd.Parameters.AddWithValue("@f", txtNewFullName.Text.Trim());
-				cmd.Parameters.AddWithValue("@e", txtNewEmail.Text.Trim());
-				cmd.Parameters.AddWithValue("@sa", chkNewSuper.Checked);
-
-				conn.Open();
-				cmd.ExecuteNonQuery();
-			}
-
-			txtNewUser.Text = txtNewPass.Text = txtNewFullName.Text = txtNewEmail.Text = "";
-			chkNewSuper.Checked = false;
-			lblMsg.Text = "Đã thêm user.";
-			BindUsers();
-		}
+		// Thêm user qua modal + WebMethod CreateUser (Users.aspx gọi saveUser() → CreateUser). Không còn form server-side txtNewUser/txtNewPass/...
 
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
