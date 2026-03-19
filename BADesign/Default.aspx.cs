@@ -11,10 +11,10 @@ namespace BADesign
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            // Trang chủ mặc định: chưa đăng nhập → Login; đã đăng nhập → trang chủ theo role.
+            // Trang chủ mặc định: chưa đăng nhập → hiển thị Login nhưng giữ URL (domain:port), đã đăng nhập → redirect trang chủ theo role.
             if (UiAuthHelper.IsAnonymous)
             {
-                Response.Redirect(ResolveUrl("~/Pages/Login.aspx"));
+                Server.Transfer("~/Pages/Login.aspx", false);
                 return;
             }
             var homeUrl = UiAuthHelper.GetHomeUrlByRole() ?? "~/Pages/Home.aspx";

@@ -22,11 +22,11 @@ namespace BADesign
 				"~/Pages/Home.aspx"
 			);
 
-			// 4. Route mặc định: / -> trang chủ
+			// 4. Route mặc định: / -> Default.aspx (khi chưa login thì Transfer sang Login, URL giữ là /)
 			routes.MapPageRoute(
 				"DefaultRoute",
 				"",
-				"~/Pages/Home.aspx"
+				"~/Default.aspx"
 			);
 
 			// /Builder => ~/Pages/Builder.aspx   (query string giữ nguyên)

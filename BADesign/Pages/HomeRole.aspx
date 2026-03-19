@@ -179,80 +179,7 @@
                 var d = m ? new Date(parseInt(m[1], 10)) : new Date(v);
                 return isNaN(d.getTime()) ? v : d.toLocaleString();
             }
-            function showNotificationDetail(job) {
-                var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
-                var dbName = (job.databaseName || job.DatabaseName || '').trim();
-                var isRestore = (job.type === 'Restore' || !job.type);
-                var hasReset = isRestore && (job.withAutoReset === true || (job.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                var resetBadge = '';
-                if (isRestore) {
-                    resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
-                    if (hasReset) {
-                        var srvId = job.serverId != null ? job.serverId : (job.ServerId != null ? job.ServerId : 0);
-                        resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
-                    }
-                }
-                var payloadRows = '';
-                if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
-                    try {
-                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                        var empList = Array.isArray(pl) ? pl : (pl && pl.employees) ? pl.employees : [];
-                        if (empList.length > 0) {
-                            var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-                            var empCell = empList.length + ' nhân viên';
-                            empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
-                            empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
-                            payloadRows += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
-                        }
-                    } catch (e) {}
-                }
-                var resetRow = ((job.type || '') === 'HRHelperMultiDbReset') ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : (isRestore ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : '');
-                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>' + resetRow + '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + fmtTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + fmtTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
-                if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
-                html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
-                $('#notificationDetailBody').html(html);
-                $('#notificationDetailBody').off('click.baEmpList').on('click.baEmpList', '.ba-emp-list-toggle', function() {
-                    var $btn = $(this), $pop = $btn.siblings('.ba-emp-list-popover').first();
-                    var raw = $btn.attr('data-emps');
-                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
-                    try {
-                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
-                        var esc = function(s){ return (s||'').replace(/</g, '&lt;').replace(/&/g, '&amp;'); };
-                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(o) { var lid = o.localId != null ? o.localId : o.LocalId || ''; var name = o.name != null ? o.name : o.Name || ''; return '<span>' + esc(lid) + (name ? ' – ' + esc(name) : '') + '</span>'; }).join('')) + '</div>';
-                        $pop.html(grid).addClass('show');
-                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
-                });
-                $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    var $btn = $(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
-                    var $popup = $('#baResetInfoPopup');
-                    if ($popup.length && serverId != null && dbName) {
-                        $popup.html('<span class="ba-reset-info-loading">Đang tải...</span>').show();
-                        $.ajax({ url: apiBase + '/GetRestoreResetInfo', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId, databaseName: dbName }) })
-                            .done(function(res) {
-                                var d = res.d || res;
-                                if (d && d.success && d.resetDetail) {
-                                    var raw = d.resetDetail.replace(/^Reset:\s*/i, '').trim();
-                                    var rows = [];
-                                    raw.split(/\s*,\s*/).forEach(function(pair) {
-                                        var idx = pair.indexOf('=');
-                                        if (idx > 0) {
-                                            var label = pair.substring(0, idx).trim();
-                                            var value = pair.substring(idx + 1).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                            var lbl = label === 'Email' ? 'Email' : label === 'Phone' ? 'Phone' : label === 'Password' ? 'Password' : label;
-                                            rows.push('<div class="ba-reset-info-row"><span class="ba-reset-info-label">' + lbl + '</span><span class="ba-reset-info-value">' + value + '</span></div>');
-                                        }
-                                    });
-                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">' + (rows.length ? rows.join('') : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>');
-                                } else
-                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không có thông tin reset.</div>');
-                            })
-                            .fail(function() { $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không tải được thông tin.</div>'); });
-                    }
-                });
-                $(document).off('click.baResetInfoClose').on('click.baResetInfoClose', function(ev) { if ($(ev.target).closest('#baResetInfoPopup').length === 0 && !$(ev.target).hasClass('ba-notif-reset-info-btn')) $('#baResetInfoPopup').hide(); });
-                $('#notificationDetailModal').addClass('show');
-            }
+            /* Chi tiết thông báo: dùng chung window.showNotificationDetail từ ba-notification-detail.js (có jobId + GetRestoreResetInfo). */
             function hideNotificationDetailModal() { $('#notificationDetailModal').removeClass('show').css('display', ''); }
             function loadPanel() {
                 var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
@@ -298,7 +225,7 @@
                         else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
                         $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
                         $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function(e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                        $list.off('click.nb').on('click.nb', '.ba-notif-detail-link', function(e) { if ($(this).attr('data-action') === 'bug') return; e.preventDefault(); var i = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); if (window.__notifJobsList && window.__notifJobsList[i]) showNotificationDetail(window.__notifJobsList[i]); });
+                        $list.off('click.nb').on('click.nb', '.ba-notif-detail-link', function(e) { if ($(this).attr('data-action') === 'bug') return; e.preventDefault(); var i = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); if (window.__notifJobsList && window.__notifJobsList[i] && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(window.__notifJobsList[i]); });
                         $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) {
                             e.preventDefault(); e.stopPropagation();
                             var $item = $(this).closest('.ba-notif-item'), id = parseInt($item.data('job-id'), 10);

@@ -32,7 +32,7 @@ namespace BADesign.Pages
 			// Tất cả tính năng đều yêu cầu đăng nhập: không còn màn hình guest (Database Search, PGP Tool). Chuyển thẳng sang Login.
 			if (UiAuthHelper.IsAnonymous)
 			{
-				Response.Redirect(ResolveUrl("~/Pages/Login.aspx"));
+				Response.Redirect(ResolveUrl("~/"));
 				return;
 			}
 

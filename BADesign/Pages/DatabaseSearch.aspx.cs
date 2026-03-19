@@ -2582,6 +2582,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
             {
                 if (UiAuthHelper.IsAnonymous)
                     return new { success = false, message = "Cần đăng nhập.", resetDetail = (string)null };
+                var currentUserId = UiAuthHelper.CurrentUserId ?? 0;
                 var accessibleIds = GetAccessibleServerIds();
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 {
@@ -2589,11 +2590,12 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                     string payloadJson = null;
                     int? jobServerId = null;
                     string jobDbName = null;
+                    int? jobStartedByUserId = null;
                     if (jobId > 0)
                     {
                         using (var cmd = conn.CreateCommand())
                         {
-                            cmd.CommandText = @"SELECT Payload, ServerId, DatabaseName FROM BaJob WHERE Id = @id AND JobType = N'Restore'";
+                            cmd.CommandText = @"SELECT Payload, ServerId, DatabaseName, StartedByUserId FROM BaJob WHERE Id = @id AND JobType = N'Restore'";
                             cmd.Parameters.AddWithValue("@id", jobId);
                             using (var r = cmd.ExecuteReader())
                             {
@@ -2602,22 +2604,27 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
                                     jobServerId = r.IsDBNull(r.GetOrdinal("ServerId")) ? (int?)null : r.GetInt32(r.GetOrdinal("ServerId"));
                                     jobDbName = r.IsDBNull(r.GetOrdinal("DatabaseName")) ? null : r.GetString(r.GetOrdinal("DatabaseName"));
+                                    jobStartedByUserId = r.IsDBNull(r.GetOrdinal("StartedByUserId")) ? (int?)null : r.GetInt32(r.GetOrdinal("StartedByUserId"));
                                 }
                             }
                         }
-                        if (jobServerId.HasValue && accessibleIds != null && accessibleIds.Contains(jobServerId.Value) && !string.IsNullOrWhiteSpace(jobDbName))
+                        bool canViewByJob = !string.IsNullOrWhiteSpace(jobDbName) && (jobServerId.HasValue && accessibleIds != null && accessibleIds.Contains(jobServerId.Value) || (jobStartedByUserId.HasValue && jobStartedByUserId.Value == currentUserId) || UiAuthHelper.IsSuperAdmin);
+                        if (canViewByJob)
                         {
-                            using (var cmd = conn.CreateCommand())
+                            if (jobServerId.HasValue)
                             {
-                                cmd.CommandText = @"SELECT TOP 1 Note FROM BaDatabaseRestoreLog WHERE ServerId = @sid AND DatabaseName = @db AND Note LIKE N'%Reset:%' ORDER BY RestoredAt DESC";
-                                cmd.Parameters.AddWithValue("@sid", jobServerId.Value);
-                                cmd.Parameters.AddWithValue("@db", jobDbName.Trim());
-                                var note = cmd.ExecuteScalar() as string;
-                                if (!string.IsNullOrEmpty(note) && note.IndexOf("Reset:", StringComparison.OrdinalIgnoreCase) >= 0)
+                                using (var cmd = conn.CreateCommand())
                                 {
-                                    var idx = note.IndexOf(" | Reset:", StringComparison.OrdinalIgnoreCase);
-                                    var resetPart = idx >= 0 ? note.Substring(idx + 3).Trim() : note;
-                                    return new { success = true, resetDetail = resetPart };
+                                    cmd.CommandText = @"SELECT TOP 1 Note FROM BaDatabaseRestoreLog WHERE ServerId = @sid AND DatabaseName = @db AND Note LIKE N'%Reset:%' ORDER BY RestoredAt DESC";
+                                    cmd.Parameters.AddWithValue("@sid", jobServerId.Value);
+                                    cmd.Parameters.AddWithValue("@db", jobDbName.Trim());
+                                    var note = cmd.ExecuteScalar() as string;
+                                    if (!string.IsNullOrEmpty(note) && note.IndexOf("Reset:", StringComparison.OrdinalIgnoreCase) >= 0)
+                                    {
+                                        var idx = note.IndexOf(" | Reset:", StringComparison.OrdinalIgnoreCase);
+                                        var resetPart = idx >= 0 ? note.Substring(idx + 3).Trim() : note;
+                                        return new { success = true, resetDetail = resetPart };
+                                    }
                                 }
                             }
                             if (!string.IsNullOrEmpty(payloadJson))
@@ -2708,12 +2715,9 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                     using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                     {
                         conn.Open();
-                        // Restore/Backup: chỉ user có quyền server đó mới thấy. HR Helper: chỉ user làm (StartedByUserId) mới thấy. Đã đọc: theo BaJobDismissedByUser từng user.
-                        var serverFilter = accessibleIds == null
-                            ? "((J.JobType IN (N'Restore', N'Backup')))"
-                            : (accessibleIds.Count == 0
-                                ? "((J.JobType IN (N'Restore', N'Backup') AND 1=0))"
-                                : "((J.JobType IN (N'Restore', N'Backup') AND J.ServerId IN (" + string.Join(",", accessibleIds) + ")))");
+                        // Chuông: Restore/Backup chỉ người tạo job (StartedByUserId) hoặc Super Admin mới thấy; HR Helper chỉ user làm mới thấy.
+                        var isSuperAdmin = UiAuthHelper.IsSuperAdmin;
+                        var jobFilter = "(J.JobType IN (N'Restore', N'Backup') AND (J.StartedByUserId = @uid OR @isSuperAdmin = 1)) OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND J.StartedByUserId = @uid)";
                         var sql = @"SELECT J.Id, J.JobType, J.ServerId, J.ServerName, J.DatabaseName, J.BackupFileName, J.FileName, J.SessionId, J.StartedByUserId,
   (CASE WHEN J.StartedByUserName IS NULL OR LTRIM(RTRIM(J.StartedByUserName)) = N'' OR J.StartedByUserName = N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))
     THEN ISNULL(U.UserName, N'User ' + CAST(ISNULL(J.StartedByUserId,0) AS NVARCHAR(20))) ELSE J.StartedByUserName END) AS StartedByUserName,
@@ -2723,12 +2727,13 @@ LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
 WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')
   AND (J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed') AND J.CompletedAt >= DATEADD(day, -1, SYSDATETIME())))
   AND NOT EXISTS (SELECT 1 FROM BaJobDismissedByUser d WHERE d.JobId = J.Id AND d.UserId = @uid)
-  AND (" + serverFilter + @" OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND J.StartedByUserId = @uid))
+  AND (" + jobFilter + @")
 ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                         using (var cmd = conn.CreateCommand())
                         {
                             cmd.CommandText = sql;
                             cmd.Parameters.AddWithValue("@uid", currentUserId);
+                            cmd.Parameters.AddWithValue("@isSuperAdmin", isSuperAdmin ? 1 : 0);
                             using (var r = cmd.ExecuteReader())
                             {
                                 while (r.Read())

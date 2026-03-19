@@ -296,7 +296,7 @@
                     html += '<td>' + fmtDate(j.completedAt) + '</td>';
                     html += '<td class="col-msg">' + msgCell + '</td>';
                     var actionHtml = '';
-                    if ((j.type || '') === 'Restore') actionHtml += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-restore-btn" data-server-id="' + (j.serverId || 0) + '" data-database-name="' + (j.databaseName || '').replace(/"/g, '&quot;') + '" data-with-reset="' + (j.withAutoReset === true ? '1' : '0') + '" data-with-replace="' + (j.withReplace === true ? '1' : '0') + '" data-with-shrink-log="' + (j.withShrinkLog === true ? '1' : '0') + '" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-backup-file="' + (j.backupFileName || '').replace(/"/g, '&quot;') + '">Xem chi tiết</button>';
+                    if ((j.type || '') === 'Restore') actionHtml += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-restore-btn" data-job-id="' + (j.id || 0) + '" data-server-id="' + (j.serverId || 0) + '" data-database-name="' + (j.databaseName || '').replace(/"/g, '&quot;') + '" data-with-reset="' + (j.withAutoReset === true ? '1' : '0') + '" data-with-replace="' + (j.withReplace === true ? '1' : '0') + '" data-with-shrink-log="' + (j.withShrinkLog === true ? '1' : '0') + '" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-backup-file="' + (j.backupFileName || '').replace(/"/g, '&quot;') + '">Xem chi tiết</button>';
                                     if ((j.type || '') === 'HRHelperMultiDbReset') {
                                         var payloadEsc = (j.payload || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                                         actionHtml += (actionHtml ? ' ' : '') + '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm queue-view-reset-multidb-btn" data-server-name="' + (j.serverName || '').replace(/"/g, '&quot;') + '" data-payload="' + payloadEsc + '">Xem chi tiết</button>';
@@ -413,7 +413,7 @@
                     if (msg) showDetailModal(msg, 'Chi tiết / Lỗi');
                 });
                 $(document).on('click', '.queue-view-restore-btn', function() {
-                    var $btn = $(this), serverId = $btn.data('server-id'), dbName = ($btn.data('database-name') || '').trim();
+                    var $btn = $(this), jobId = $btn.data('job-id') || 0, serverId = $btn.data('server-id'), dbName = ($btn.data('database-name') || '').trim();
                     var serverName = $btn.data('server-name') || '', backupFile = $btn.data('backup-file') || '';
                     var withReset = $btn.data('with-reset') === 1 || $btn.data('with-reset') === '1';
                     var withReplace = $btn.data('with-replace') === 1 || $btn.data('with-replace') === '1';
@@ -425,12 +425,12 @@
                     html += '<tr><th>WITH REPLACE</th><td>' + (withReplace ? 'Có' : 'Không') + '</td></tr>';
                     html += '<tr><th>Shrink log</th><td>' + (withShrinkLog ? 'Có' : 'Không') + '</td></tr>';
                     html += '<tr><th>Reset thông tin</th><td>' + (withReset ? 'Có' : 'Không') + '</td></tr></tbody></table>';
-                    if (withReset && serverId && dbName) {
+                    if (withReset && (serverId || jobId)) {
                         html += '<div id="baRestoreResetInfo" class="ba-restore-reset-info" style="margin-top:12px;"><span class="ba-reset-info-loading">Đang tải thông tin reset...</span></div></div>';
                         $('#queueDetailModal .modal-title').text('Chi tiết Restore');
                         document.getElementById('queueDetailBody').innerHTML = html;
                         document.getElementById('queueDetailModal').classList.add('show');
-                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId, databaseName: dbName }) })
+                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId || 0, databaseName: dbName, jobId: jobId }) })
                             .done(function(res) {
                                 var d = res.d || res;
                                 var $wrap = $('#baRestoreResetInfo');
@@ -502,7 +502,6 @@
                     function showDetail() {
                         if (typeof window.showNotificationDetail === 'function') {
                             window.showNotificationDetail(job);
-                            $('#notificationDetailModal').addClass('show');
                         }
                     }
                     var jobId = job.id || 0;
@@ -560,94 +559,7 @@
                     function addDismissedJobId(id, type) { var key = (type === 'Backup' ? 'b:' : 'r:') + id; var arr = getDismissedJobIds(); if (arr.indexOf(key) < 0) { arr.push(key); localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(arr)); } }
                     function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
                     function formatNotifTime(v) { var dt = parseDateSafe(v); return dt ? dt.toLocaleString() : '—'; }
-                    window.showNotificationDetail = function showNotificationDetail(job) {
-                        var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
-                        var dbName = (job.databaseName || job.DatabaseName || '').trim();
-                        var isRestore = (job.type === 'Restore' || !job.type);
-                        var hasReset = isRestore && (job.withAutoReset === true || (job.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                        var resetBadge = '';
-                        if (isRestore) {
-                            resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
-                            if (hasReset) {
-                                var srvId = job.serverId != null ? job.serverId : (job.ServerId != null ? job.ServerId : 0);
-                                resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
-                            }
-                        }
-                        var payloadRows = '';
-                        if ((job.type || '') === 'HRHelperMultiDbReset' && job.payload) {
-                            try {
-                                var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                                if (pl) {
-                                    payloadRows += '<tr><th>Email reset</th><td>' + (pl.email || '—').replace(/</g, '&lt;') + '</td></tr>';
-                                    payloadRows += '<tr><th>Phone reset</th><td>' + (pl.phone || '—').replace(/</g, '&lt;') + '</td></tr>';
-                                    var dbArr = pl.databaseNames || [];
-                                    var nDb = dbArr.length || pl.databaseCount || 0;
-                                    var dbCell = nDb + ' Database';
-                                    if (dbArr.length > 0) {
-                                        var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-                                        dbCell += ' <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
-                                        dbCell += '<div class="ba-db-list-popover"></div>';
-                                    }
-                                    payloadRows += '<tr><th>Danh sách database</th><td>' + dbCell + '</td></tr>';
-                                }
-                            } catch (e) {}
-                        }
-                        if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
-                            try {
-                                var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                                var empList = Array.isArray(pl) ? pl : (pl && pl.employees) ? pl.employees : [];
-                                if (empList.length > 0) {
-                                    var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-                                    var empCell = empList.length + ' nhân viên';
-                                    empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
-                                    empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
-                                    payloadRows += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
-                                }
-                            } catch (e) {}
-                        }
-                        var resetRow = ((job.type || '') === 'HRHelperMultiDbReset') ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : '';
-                        var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>' + resetRow + '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
-                        if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
-                        html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
-                        $('#notificationDetailBody').html(html);
-                        $('#notificationDetailBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
-                            var $btn = $(this), $pop = $btn.siblings('.ba-db-list-popover').first();
-                            var raw = $btn.attr('data-dbs');
-                            if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
-                            try {
-                                var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
-                                var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
-                                $pop.html(grid).addClass('show');
-                            } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
-                        });
-                        $('#notificationDetailBody').off('click.baEmpList').on('click.baEmpList', '.ba-emp-list-toggle', function() {
-                            var $btn = $(this), $pop = $btn.siblings('.ba-emp-list-popover').first();
-                            var raw = $btn.attr('data-emps');
-                            if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
-                            try {
-                                var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
-                                var esc = function(s){ return (s||'').replace(/</g, '&lt;').replace(/&/g, '&amp;'); };
-                                var grid = '<div class="ba-db-list-grid">' + (arr.map(function(o) { var lid = o.localId != null ? o.localId : o.LocalId || ''; var name = o.name != null ? o.name : o.Name || ''; return '<span>' + esc(lid) + (name ? ' – ' + esc(name) : '') + '</span>'; }).join('')) + '</div>';
-                                $pop.html(grid).addClass('show');
-                            } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
-                        });
-                        $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
-                            e.preventDefault(); e.stopPropagation();
-                            var $btn = $(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
-                            var $popup = $('#baResetInfoPopup');
-                            if ($popup.length && serverId != null && dbName) {
-                                $popup.html('<span class="ba-reset-info-loading">Đang tải...</span>').show();
-                                $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId, databaseName: dbName }) })
-                                    .done(function(res) { var d = res.d || res; if (d && d.success && d.resetDetail) { var raw = d.resetDetail.replace(/^Reset:\s*/i, '').trim(); var rows = []; raw.split(/\s*,\s*/).forEach(function(pair) { var idx = pair.indexOf('='); if (idx > 0) { var label = pair.substring(0, idx).trim(); var value = pair.substring(idx + 1).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); var lbl = label === 'Email' ? 'Email' : label === 'Phone' ? 'Phone' : label === 'Password' ? 'Password' : label; rows.push('<div class="ba-reset-info-row"><span class="ba-reset-info-label">' + lbl + '</span><span class="ba-reset-info-value">' + value + '</span></div>'); } }); $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">' + (rows.length ? rows.join('') : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>'); } else $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không có thông tin reset.</div>'); })
-                                    .fail(function() { $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không tải được thông tin.</div>'); });
-                            }
-                        });
-                        $(document).off('click.baResetInfoClose').on('click.baResetInfoClose', function(ev) { if ($(ev.target).closest('#baResetInfoPopup').length === 0 && !$(ev.target).hasClass('ba-notif-reset-info-btn')) $('#baResetInfoPopup').hide(); });
-                        $('#notificationDetailModal').addClass('show');
-                    };
-                    function hideNotificationDetailModal() { $('#notificationDetailModal').removeClass('show').css('display', ''); }
-                    $('#notificationDetailModal').on('click', function(e) { if (e.target === this) hideNotificationDetailModal(); });
-                    $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); e.stopPropagation(); hideNotificationDetailModal(); });
+                    /* Chi tiết thông báo: window.showNotificationDetail từ ~/Scripts/ba-notification-detail.js */
                     var NOTIF_MSG_MAX_LEN = 120;
                     function loadRestoreJobsPanel() {
                         var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
@@ -687,8 +599,10 @@
                                     var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
                                     var cancellableTypes = ['Restore','Backup','HRHelperUpdateUser','HRHelperUpdateUserSignature','HRHelperUpdateEmployee','HRHelperUpdateOther','HRHelperMultiDbAnalyze','HRHelperMultiDbReset','HRHelperDeleteEmployee'];
                                     var canCancel = (st === 'Running') && (cancellableTypes.indexOf(jobType) >= 0) && currentUserId && (startedByUid === currentUserId || isSuperAdmin);
+                                    var pct = (j.percentComplete != null) ? parseInt(j.percentComplete, 10) : 0;
+                                    var phaseMsg = (j.message || '').trim() || (jobType === 'Restore' ? 'Restore' : jobType === 'Backup' ? 'Backup' : '');
                                     var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + formatNotifTime(j.startTime) + '</div>';
-                                    if (st === 'Running') { row += '<div style="margin-top:4px;color:var(--primary);">Đang chạy</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Hủy job đang chạy">Hủy</button>'; }
+                                    if (st === 'Running') { row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + (pct + '%' + (phaseMsg ? ' - ' + phaseMsg : '')) + '</span></div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Hủy job đang chạy">Hủy</button>'; }
                                     else if (st === 'Failed') { row += '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
                                     else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
                                     if (st !== 'Running' && st !== 'Failed' && st !== 'Completed') row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
@@ -706,21 +620,21 @@
                                     if (!job) return;
                                     if ((job.type || '') === 'HRHelperMultiDbAnalyze' && (job.status || '') === 'Completed') {
                                         var jobId = job.id || 0;
-                                        if (!jobId) { showNotificationDetail(job); $('#notificationDetailModal').addClass('show'); return; }
+                                        if (!jobId) { window.showNotificationDetail(job); return; }
                                         $.ajax({ url: getMultiConnTokenUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) {
                                             var d = r.d || r;
                                             if (d && d.success && d.token) { window.location.href = hrHelperUrl + '?k=' + encodeURIComponent(d.token) + '&jobId=' + jobId; }
-                                            else { showNotificationDetail(job); $('#notificationDetailModal').addClass('show'); }
-                                        }, error: function() { showNotificationDetail(job); $('#notificationDetailModal').addClass('show'); } });
+                                            else { window.showNotificationDetail(job); }
+                                        }, error: function() { window.showNotificationDetail(job); } });
                                         return;
                                     }
                                     var jid = job.id || 0;
                                     if (jid) {
                                         $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobResult") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jid }),
-                                            success: function(res) { var d = res.d || res; if (d && d.success) { if (d.message != null) job.message = d.message; if (d.payload != null) job.payload = d.payload; } showNotificationDetail(job); $('#notificationDetailModal').addClass('show'); },
-                                            error: function() { showNotificationDetail(job); $('#notificationDetailModal').addClass('show'); }
+                                            success: function(res) { var d = res.d || res; if (d && d.success) { if (d.message != null) job.message = d.message; if (d.payload != null) job.payload = d.payload; if (d.backupFileName != null) job.backupFileName = d.backupFileName; } window.showNotificationDetail(job); },
+                                            error: function() { window.showNotificationDetail(job); }
                                         });
-                                    } else { showNotificationDetail(job); $('#notificationDetailModal').addClass('show'); }
+                                    } else { window.showNotificationDetail(job); }
                                 });
                                 $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($item.data('job-id'), 10); var jobType = $item.data('job-type') || 'Restore'; if (jobId) { addDismissedJobId(jobId, jobType); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }) }); $item.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var left = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (left > 0) { $badgeEl.text(left).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
                                 $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $btn = $(this), jobId = parseInt($btn.data('job-id'), 10); if (!jobId) return; var $item = $btn.closest('.ba-notif-item'), idx = parseInt($item.data('notif-index'), 10), job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(), dbName = (job.databaseName || '').trim(), jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) { if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel(); if (typeof load === 'function') load(); } else { $btn.prop('disabled', false); if (typeof baAlert === 'function') baAlert((d && d.message) ? d.message : 'Không thể hủy.'); } }, error: function() { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });

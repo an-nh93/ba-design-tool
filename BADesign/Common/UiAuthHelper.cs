@@ -74,15 +74,8 @@ namespace BADesign
 
 			if (ctx.Session == null || ctx.Session["UiUserId"] == null)
 			{
-				// URL sẽ quay lại sau khi login
-				// (giữ nguyên RawUrl cũng được, nó chỉ nằm trong query string)
-				var returnUrl = ctx.Request.RawUrl ?? "~/Home";
-
-				// Dùng route friendly: "Login" -> ~/Pages/Login.aspx
-				var url = "~/Login?returnUrl=" + HttpUtility.UrlEncode(returnUrl);
-
-				// Chuyển sang URL friendly (không .aspx)
-				ctx.Response.Redirect(VirtualPathUtility.ToAbsolute(url), true);
+				// Chuyển về root (/) để hiển thị login; URL chỉ còn domain:port
+				ctx.Response.Redirect(VirtualPathUtility.ToAbsolute("~/"), true);
 			}
 		}
 

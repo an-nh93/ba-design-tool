@@ -243,6 +243,13 @@
             display: none;
         }
         .ba-info-popover.show { display: block !important; }
+        /* Restore/Backup modal: giới hạn chiều cao trên laptop, cho phép scroll để thấy hết Email/Password/Phone */
+        #restoreModal .ba-modal-content { max-height: 92vh; display: flex; flex-direction: column; }
+        #restoreModal .ba-modal-body { max-height: 70vh; min-height: 280px; overflow-y: auto; display: flex; gap: 16px; flex-shrink: 1; }
+        #restoreModal #restoreModalPages { overflow-y: auto; flex: 1; min-height: 0; }
+        #backupModal .ba-modal-content { max-height: 92vh; display: flex; flex-direction: column; }
+        #backupModal .ba-modal-body { max-height: 70vh; min-height: 280px; overflow-y: auto; display: flex; gap: 16px; flex-shrink: 1; }
+        #backupModal #backupModalPages { overflow-y: auto; flex: 1; min-height: 0; }
     </style>
 </head>
 <body>
@@ -254,7 +261,7 @@
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="ba-content">
                     <h1 class="ba-page-title" style="font-size:1.5rem;font-weight:600;color:var(--text-primary);margin:0 0 0.35rem 0;">Database Search</h1>
-                    <p class="ba-page-desc" style="color:var(--text-muted);font-size:0.9rem;margin:0 0 1.25rem 0;">Quét server, xem danh sách database, kết nối HR Helper, Backup và Restore.</p>
+                    <p class="ba-page-desc" style="color:var(--text-muted);font-size:0.9rem;margin:0 0 1.25rem 0;">Connect server, xem danh sách database, kết nối HR Helper, Backup và Restore.</p>
                     <!-- Connection String (Guest + Logged-in) - thu gọn mặc định -->
                     <div class="ba-card ba-section-collapsed" id="cardConnStr">
                         <div class="ba-card-header">
@@ -294,11 +301,11 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Thêm server để quét. Có thể quét tất cả hoặc chọn 1 server rồi bấm &quot;Quét&quot; để load database.</p>
-                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Quét tất cả server: bấm nút bên dưới để quét và load danh sách database từ tất cả server đã cấu hình.</p>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Thêm server để connect. Có thể connect tất cả hoặc chọn 1 server rồi bấm &quot;Connect&quot; để load database.</p>
+                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Load Database tất cả server: bấm nút bên dưới để connect và load danh sách database từ tất cả server đã cấu hình.</p>
                             <div style="margin-bottom: 1rem;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnLoadDb" onclick="loadDatabases(); return false;">
-                                    <span class="btn-text">Quét & load danh sách Database</span>
+                                    <span class="btn-text">Load danh sách Database</span>
                                 </button>
                             </div>
                             <div class="ba-table-wrap">
@@ -332,7 +339,7 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p id="dbListDesc" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Kết quả sau khi quét. Bấm Connect để mở HR Helper (connection string không hiển thị/copy để bảo mật).</p>
+                            <p id="dbListDesc" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Danh sách các Database của Server. Bấm Connect Database để mở HR Helper.</p>
                             <div style="margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
                                 <button type="button" class="ba-btn ba-btn-primary ba-btn-sm <%= !CanBackup ? "ba-btn-disabled" : "" %>" id="btnBackupDb" onclick="if (typeof canBackup !== 'undefined' && !canBackup) return; showBackupModal(); return false;" title="<%= CanBackup ? "Backup database (chọn server + database)" : "Cần quyền Backup database" %>">Backup database</button>
                                 <button type="button" class="ba-btn ba-btn-primary ba-btn-sm <%= !CanRestore ? "ba-btn-disabled" : "" %>" id="btnRestoreDb" onclick="if (typeof canRestore !== 'undefined' && !canRestore) return; showRestoreModalStandalone(); return false;" title="<%= CanRestore ? "Restore từ file backup lên server" : "Cần quyền Restore database" %>">Restore database</button>
@@ -351,7 +358,7 @@
                                         </tr>
                                     </thead>
                                     <tbody id="tblResults">
-                                        <tr><td colspan="6" class="ba-empty"><div class="ba-empty-state" id="dbEmptyState"><span class="ba-empty-state-icon" aria-hidden="true">🔍</span><span>Chưa quét. Bấm <a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Quét &amp; load danh sách Database</a> ở trên.</span></div></td></tr>
+                                        <tr><td colspan="6" class="ba-empty"><div class="ba-empty-state" id="dbEmptyState"><span class="ba-empty-state-icon" aria-hidden="true">🔍</span><span>Chưa load. Bấm <a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Load danh sách Database</a> ở trên.</span></div></td></tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -469,11 +476,11 @@
         <div id="scanLogModal" class="ba-modal">
             <div class="ba-modal-content" style="max-width: 560px;">
                 <div class="ba-modal-header">
-                    <h3 class="ba-modal-title">Log quét database</h3>
+                    <h3 class="ba-modal-title">Log load database</h3>
                     <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" id="scanLogClose" style="display:none;">×</button>
                 </div>
                 <div class="ba-modal-body">
-                    <pre id="scanLogPre" class="ba-log-pre">Đang quét...</pre>
+                    <pre id="scanLogPre" class="ba-log-pre">Đang Load Database...</pre>
                 </div>
                 <div class="ba-modal-footer">
                     <button type="button" class="ba-btn ba-btn-primary" id="scanLogDone" style="display:none;" onclick="closeScanLog(); return false;">Đóng</button>
@@ -501,7 +508,7 @@
         <div id="multiDbOverlay" class="ba-multidb-overlay">
             <div class="ba-multidb-overlay-content">
                 <div class="ba-multidb-spinner"></div>
-                <div class="ba-multidb-overlay-title">Đang quét database trên server</div>
+                <div class="ba-multidb-overlay-title">Đang load database trên server</div>
                 <div class="ba-multidb-overlay-text">Đang lấy danh sách database có ST_ProjectInfo...<br />Vui lòng chờ, không click nhiều lần.</div>
             </div>
         </div>
@@ -575,7 +582,7 @@
                     <h3 class="ba-modal-title" id="backupModalTitle">Back Up Database</h3>
                     <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideBackupModal(); return false;">×</button>
                 </div>
-                <div class="ba-modal-body" style="display: flex; gap: 16px; min-height: 380px;">
+                <div class="ba-modal-body">
                     <div id="backupModalNav" style="flex-shrink: 0; width: 140px; border-right: 1px solid var(--border); padding-right: 12px;">
                         <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">Select a page</div>
                         <div id="backupNavGeneral" class="backup-nav-item active" data-page="general" style="padding: 6px 8px; cursor: pointer; border-radius: 4px;">General</div>
@@ -593,7 +600,7 @@
                                 <div id="backupModalDatabaseList" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; padding: 8px; background: var(--bg-darker);"></div>
                                 <div style="margin-top: 6px;"><a href="#" id="backupModalSelectAllDb" style="font-size: 0.8125rem;">Chọn tất cả</a> <span style="color: var(--text-muted);">|</span> <a href="#" id="backupModalDeselectAllDb" style="font-size: 0.8125rem;">Bỏ chọn</a></div>
                                 <p style="margin-top: 6px; font-size: 0.75rem; color: var(--text-muted);">Mỗi database backup ra 1 file riêng. Tên file: <code>{tên_db}_{ngày_giờ}.bak</code></p>
-                                <span id="backupModalNoDb" style="display:none; color: var(--text-muted); font-size: 0.8125rem;">Quét server trước để thấy danh sách database.</span>
+                                <span id="backupModalNoDb" style="display:none; color: var(--text-muted); font-size: 0.8125rem;">Load Database trước để thấy danh sách database.</span>
                             </div>
                             <div class="ba-form-group">
                                 <label class="ba-form-label">Recovery model</label>
@@ -690,13 +697,13 @@
                     <h3 class="ba-modal-title">Restore database</h3>
                     <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideRestoreModal(); return false;">×</button>
                 </div>
-                <div class="ba-modal-body" style="display: flex; gap: 16px; min-height: 420px;">
+                <div class="ba-modal-body">
                     <div id="restoreModalNav" style="flex-shrink: 0; width: 140px; border-right: 1px solid var(--border-color); padding-right: 12px;">
                         <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">Select a page</div>
                         <div id="restoreNavGeneral" class="restore-nav-item active" data-page="general" style="padding: 6px 8px; cursor: pointer; border-radius: 4px;">General</div>
                         <div id="restoreNavOptions" class="restore-nav-item" data-page="options" style="padding: 6px 8px; cursor: pointer; border-radius: 4px;">Options</div>
                     </div>
-                    <div id="restoreModalPages" style="flex: 1; overflow: hidden;">
+                    <div id="restoreModalPages">
                         <div id="restorePageGeneral" class="restore-page">
                             <div class="ba-form-group">
                                 <label class="ba-form-label">Server (restore lên server này)</label>
@@ -712,6 +719,7 @@
                                     <span id="restoreModalSelectedFile" style="flex:1;min-width:120px;font-size:0.875rem;color:var(--text-muted);">Chưa chọn file</span>
                                     <button type="button" class="ba-btn ba-btn-primary" id="restoreModalBrowseBtn" onclick="openRestoreFileExplorer(); return false;">Chọn file backup...</button>
                                 </div>
+                                <div id="restoreModalSelectedFilePathWrap" style="display:none;margin-top:4px;font-size:0.8125rem;color:var(--text-muted);word-break:break-all;">Đường dẫn: <span id="restoreModalSelectedFilePath"></span></div>
                                 <input type="hidden" id="restoreModalFileValue" value="" />
                                 <input type="hidden" id="restoreModalFileListJson" value="" />
                                 <span id="restoreModalNoFiles" style="display:none; color: var(--text-muted); font-size: 0.8125rem; margin-top: 4px;" class="ba-block">Chọn server trước.</span>
@@ -917,11 +925,11 @@
                 var st = serverStatuses[s.id];
                 var statusCell;
                 if (st === undefined) {
-                    statusCell = '<span class="ba-status-none" title="Chưa quét">—</span>';
+                    statusCell = '<span class="ba-status-none" title="Chưa load">—</span>';
                 } else if (st.ok) {
                     statusCell = '<span class="ba-status-ok" title="OK: ' + st.dbCount + ' database">✓</span>';
                 } else if (st.pending) {
-                    statusCell = '<span class="ba-status-none" title="Đang chờ quét">...</span>';
+                    statusCell = '<span class="ba-status-none" title="Đang chờ load">...</span>';
                 } else {
                     statusCell = '<span class="ba-status-fail" title="Lỗi">✕</span> ' +
                         '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-btn-log" data-id="' + s.id + '" title="Xem log lỗi">Log</button>';
@@ -929,7 +937,7 @@
                 var escT = function(x) { return String(x || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
                 var serverLabel = escT(s.serverName);
                 var menuHeader = '<div class="ba-actions-menu-header" title="' + serverLabel + '"><strong>' + serverLabel + '</strong></div>';
-                var menuBtns = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;"><span class="ba-action-icon">🔍</span> Quét</button>';
+                var menuBtns = '<button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="scanServer(' + s.id + '); return false;"><span class="ba-action-icon">🔍</span> Connect</button>';
                 if (canBulkReset) menuBtns += '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-multidb-btn" onclick="connectMultiDb(' + s.id + '); return false;" title="Connect Multi-DB Reset"><span class="ba-action-icon">🗃️</span> Multi-DB</button>';
                 if (canManageServers) {
                     menuBtns = '<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="editServer(' + s.id + '); return false;"><span class="ba-action-icon">✏️</span> Sửa</button>' + menuBtns +
@@ -1194,7 +1202,7 @@
         var scanLogPreEl = null;
 
         function showScanLog(initialText) {
-            var txt = initialText != null ? initialText : 'Đang quét...';
+            var txt = initialText != null ? initialText : 'Đang Load Database...';
             $('#scanLogPre').text(txt);
             $('#scanLogClose').hide();
             $('#scanLogDone').hide();
@@ -1259,13 +1267,13 @@
             if (!$t.length) return;
             if (mode === 'all') {
                 $t.text('Danh sách Database - All Server');
-                if ($d.length) $d.text('Kết quả quét tất cả server. Bấm Connect để mở HR Helper.');
+                if ($d.length) $d.text('Kết quả Load Database tất cả server. Bấm Connect để mở HR Helper.');
             } else if (mode === 'single' && serverName) {
                 $t.text('Danh sách database của ' + serverName);
-                if ($d.length) $d.text('Kết quả quét ' + serverName + '. Bấm Connect để mở HR Helper.');
+                if ($d.length) $d.text('Kết quả Load Database ' + serverName + '. Bấm Connect để mở HR Helper.');
             } else {
                 $t.text('Danh sách Database');
-                if ($d.length) $d.text('Kết quả sau khi quét. Bấm Connect để mở HR Helper.');
+                if ($d.length) $d.text('Kết quả sau khi Load Database. Bấm Connect để mở HR Helper.');
             }
         }
 
@@ -1277,11 +1285,11 @@
             if (serverId != null) {
                 var s = servers.filter(function(x) { return x.id === serverId; })[0];
                 var serverDisplay = (s && s.serverName) ? s.serverName + (s.port != null && String(s.port) !== '' ? ',' + s.port : '') : ('ID ' + serverId);
-                var initialMsg = 'Đang quét server: ' + serverDisplay + '\n\n' +
+                var initialMsg = 'Đang Load Database server: ' + serverDisplay + '\n\n' +
                     'Đang kết nối và liệt kê database, kiểm tra ST_ProjectInfo.\n' +
                     'Có thể mất 1–2 phút nếu server có nhiều database.';
                 showScanLog(initialMsg);
-                $text.html('<span class="spinner"></span> Đang quét...');
+                $text.html('<span class="spinner"></span> Đang Load Database...');
                 var heartbeatInterval = setInterval(function() {
                     if (!scanLogPreEl) scanLogPreEl = document.getElementById('scanLogPre');
                     if (scanLogPreEl) {
@@ -1301,7 +1309,7 @@
                         clearInterval(heartbeatInterval);
                         var d = res.d || res;
                         $btn.prop('disabled', false);
-                        $text.text('Quét & load danh sách Database');
+                        $text.text('Load danh sách Database');
                         if (d && d.success) {
                             results = d.list || [];
                             updateDbListLabel('single', serverDisplay);
@@ -1321,13 +1329,13 @@
                         } else {
                             $('#scanLogPre').text('Lỗi: ' + (d && d.message ? d.message : 'Không xác định'));
                             $('#scanLogClose, #scanLogDone').show();
-                            showToast(d && d.message ? d.message : 'Lỗi khi quét.', 'error');
+                            showToast(d && d.message ? d.message : 'Lỗi khi Load Database.', 'error');
                         }
                     },
                     error: function(xhr, status, err) {
                         clearInterval(heartbeatInterval);
                         $btn.prop('disabled', false);
-                        $text.text('Quét & load danh sách Database');
+                        $text.text('Load danh sách Database');
                         var msg = 'Lỗi kết nối hoặc timeout.';
                         if (xhr.responseText) {
                             try {
@@ -1354,13 +1362,13 @@
                 showScanLog('Chưa có server. Thêm server rồi thử lại.');
                 $btn.prop('disabled', false);
                 $('#scanLogClose, #scanLogDone').show();
-                showToast('Chưa có server để quét.', 'error');
+                showToast('Chưa có server để Load Database.', 'error');
                 return;
             }
 
-            $text.html('<span class="spinner"></span> Đang quét...');
+            $text.html('<span class="spinner"></span> Đang Load Database...');
             var poolSize = Math.min(SCAN_POOL_SIZE, list.length);
-            showScanLog('Đang quét ' + list.length + ' server.\n\nDanh sách server đang quét.\n');
+            showScanLog('Đang Load Database ' + list.length + ' server.\n\nDanh sách server đang Load Database.\n');
             scanLogPreEl = document.getElementById('scanLogPre');
             if (scanLogPreEl) scanLogPreEl.scrollTop = scanLogPreEl.scrollHeight;
 
@@ -1409,7 +1417,7 @@
                     (function(pid) {
                         var sv = list.filter(function(x) { return x.id === pid; })[0];
                         var disp = (sv && sv.serverName) ? sv.serverName + (sv.port != null ? ',' + sv.port : '') : ('ID ' + pid);
-                        appendScanLog(['  → Đang quét ' + disp + '...']);
+                        appendScanLog(['  → Đang Load Database ' + disp + '...']);
                         $.ajax({
                             url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/LoadDatabases") %>',
                             type: 'POST',
@@ -1444,7 +1452,7 @@
                     databasesScannedOnce = true;
                     appendScanLog(['Hoàn thành.']);
                     $btn.prop('disabled', false);
-                    $text.text('Quét & load danh sách Database');
+                    $text.text('Load danh sách Database');
                     updateDbListLabel('all');
                     saveScanState('all', null, null, results, serverStatuses);
                     $('#scanLogClose, #scanLogDone').show();
@@ -1563,9 +1571,11 @@
                     });
                     $list.on('click.restoreList', '.restore-file-item', function() {
                         var name = $(this).data('name');
-                        var fileValue = path ? path + '\\' + name : name;
+                        var fileValue = (path && (path === name || path.endsWith('\\' + name))) ? path : (path ? path + '\\' + name : name);
                         $val.val(fileValue);
-                        $sel.text('Đã chọn: ' + fileValue).css('color', 'var(--text-primary)');
+                        $sel.text('Đã chọn: ' + name).css('color', 'var(--text-primary)');
+                        $('#restoreModalSelectedFilePath').text(fileValue);
+                        $('#restoreModalSelectedFilePathWrap').show();
                         $list.find('.restore-file-item').css('background', '');
                         $(this).css('background', 'var(--border-color)');
                         loadRestoreModalBackupSets(parseInt($('#restoreModalServer').val(), 10), fileValue);
@@ -1672,7 +1682,10 @@
             if (!list || list.length === 0) return;
             $('#restoreModalFileValue').val(list[0]);
             $('#restoreModalFileListJson').val(list.length > 1 ? JSON.stringify(list) : '');
-            $('#restoreModalSelectedFile').text(list.length > 1 ? ('Đã chọn ' + list.length + ' file') : ('Đã chọn: ' + list[0])).css('color', 'var(--text-primary)');
+            var displayText = list.length > 1 ? ('Đã chọn ' + list.length + ' file') : ('Đã chọn: ' + (list[0].split('\\').pop() || list[0]));
+            $('#restoreModalSelectedFile').text(displayText).css('color', 'var(--text-primary)');
+            $('#restoreModalSelectedFilePath').text(list.length === 1 ? list[0] : (list.slice(0, 3).join('; ') + (list.length > 3 ? '; ...' : '')));
+            $('#restoreModalSelectedFilePathWrap').show();
             loadRestoreModalBackupSets(parseInt($('#restoreModalServer').val(), 10), list[0]);
             window.restoreExplorerSelectedFiles = [];
             $('#restoreExplorerApplyBtn').hide();
@@ -1883,7 +1896,7 @@
                 if (typ === 'file') {
                     var name = $(this).data('name');
                     var rel = $(this).data('relpath') || '';
-                    var fileValue = rel ? rel + '\\' + name : name;
+                    var fileValue = (rel && (rel === name || rel.endsWith('\\' + name))) ? rel : (rel ? rel + '\\' + name : name);
                     if (e.ctrlKey || e.metaKey) {
                         window.restoreExplorerSelectedFiles = window.restoreExplorerSelectedFiles || [];
                         var idx = window.restoreExplorerSelectedFiles.indexOf(fileValue);
@@ -1919,7 +1932,10 @@
                     }
                     $('#restoreModalFileListJson').val('');
                     $('#restoreModalFileValue').val(fileValue);
-                    $('#restoreModalSelectedFile').text('Đã chọn: ' + fileValue).css('color', 'var(--text-primary)');
+                    var fileName = fileValue.split('\\').pop() || fileValue;
+                    $('#restoreModalSelectedFile').text('Đã chọn: ' + fileName).css('color', 'var(--text-primary)');
+                    $('#restoreModalSelectedFilePath').text(fileValue);
+                    $('#restoreModalSelectedFilePathWrap').show();
                     loadRestoreModalBackupSets(parseInt($('#restoreModalServer').val(), 10), fileValue);
                     closeRestoreFileExplorer();
                 }
@@ -1948,6 +1964,8 @@
             $('#restoreModalToDatabase').val(databaseName || '');
             $('#restoreModalFileValue').val('');
             $('#restoreModalSelectedFile').text('Chưa chọn file').css('color', 'var(--text-muted)');
+            $('#restoreModalSelectedFilePathWrap').hide();
+            $('#restoreModalSelectedFilePath').text('');
             $('#restoreModalBackupSetsWrap').hide();
             resetRestoreModalOptions();
             $('#restoreModal').addClass('show');
@@ -1959,6 +1977,8 @@
             $('#restoreModalToDatabase').val('');
             $('#restoreModalFileValue').val('');
             $('#restoreModalSelectedFile').text('Chưa chọn file').css('color', 'var(--text-muted)');
+            $('#restoreModalSelectedFilePathWrap').hide();
+            $('#restoreModalSelectedFilePath').text('');
             $('#restoreModalNoFiles').hide();
             $('#restoreModalBackupSetsWrap').hide();
             resetRestoreModalOptions();
@@ -2604,9 +2624,9 @@
             if (!list.length) {
                 var emptyHtml;
                 if (!databasesScannedOnce) {
-                    emptyHtml = '<tr><td colspan="6" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon" aria-hidden="true">🔍</span><span>Chưa quét. Bấm <a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Quét &amp; load danh sách Database</a> ở trên.</span></div></td></tr>';
+                    emptyHtml = '<tr><td colspan="6" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon" aria-hidden="true">🔍</span><span>Chưa load. Bấm <a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Load danh sách Database</a> ở trên.</span></div></td></tr>';
                 } else {
-                    emptyHtml = '<tr><td colspan="6" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon" aria-hidden="true">📭</span><span>Không có database nào. Kiểm tra server đã thêm và thử lại. </span><a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Quét lại</a></div></td></tr>';
+                    emptyHtml = '<tr><td colspan="6" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon" aria-hidden="true">📭</span><span>Không có database nào. Kiểm tra server đã thêm và thử lại. </span><a href="#" class="ba-empty-state-link" id="dbEmptyStateLink">Load lại</a></div></td></tr>';
                 }
                 $tb.html(emptyHtml);
                 $pg.empty();
@@ -2866,6 +2886,8 @@
                 var sid = parseInt($(this).val(), 10);
                 $('#restoreModalFileValue').val('');
                 $('#restoreModalSelectedFile').text('Chưa chọn file').css('color', 'var(--text-muted)');
+            $('#restoreModalSelectedFilePathWrap').hide();
+            $('#restoreModalSelectedFilePath').text('');
                 $('#restoreModalBackupSetsWrap').hide();
                 loadRestoreModalFolder(sid || null, '');
             });
@@ -3000,125 +3022,7 @@
                 var dt = parseDateSafe(v);
                 return dt ? dt.toLocaleString() : '—';
             }
-            function showNotificationDetail(job) {
-                var typeLabel = (job.type === 'Backup') ? 'Backup database' : ((job.type === 'Restore' || !job.type) ? 'Restore database' : job.type);
-                var dbName = (job.databaseName || job.DatabaseName || '').trim();
-                var isRestore = (job.type === 'Restore' || !job.type);
-                var hasReset = isRestore && (job.withAutoReset === true || (job.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                var startStr = formatNotifTime(job.startTime);
-                var endStr = formatNotifTime(job.completedAt);
-                var statusLabel = job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status));
-                var html = '<table><tbody>';
-                html += '<tr><th>Loại</th><td>' + (typeLabel.replace(/</g, '&lt;')) + '</td></tr>';
-                html += '<tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr>';
-                html += '<tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>';
-                var resetBadge = '';
-                if (isRestore) {
-                    resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
-                    if (hasReset) {
-                        var srvId = job.serverId != null ? job.serverId : (job.ServerId != null ? job.ServerId : 0);
-                        var jobIdVal = job.id != null ? job.id : (job.Id != null ? job.Id : '');
-                        resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-job-id="' + jobIdVal + '" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
-                    }
-                }
-                html += '<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>';
-                html += '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr>';
-                var progressText = (job.percentComplete != null) ? (job.percentComplete + '%' + (job.message && (job.message === 'Restore' || job.message === 'Reset Information') ? ' - ' + job.message : '')) : '—';
-                html += '<tr><th>Tiến trình</th><td>' + progressText + '</td></tr>';
-                html += '<tr><th>Trạng thái</th><td>' + statusLabel + '</td></tr>';
-                html += '<tr><th>Bắt đầu</th><td>' + startStr + '</td></tr>';
-                html += '<tr><th>Kết thúc</th><td>' + endStr + '</td></tr>';
-                if (job.backupFileName) html += '<tr><th>File backup</th><td>' + (job.backupFileName || '').replace(/</g, '&lt;') + '</td></tr>';
-                if ((job.type || '') === 'HRHelperMultiDbReset' && job.payload) {
-                    try {
-                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                        if (pl) {
-                            html += '<tr><th>Email reset</th><td>' + (pl.email || '—').replace(/</g, '&lt;') + '</td></tr>';
-                            html += '<tr><th>Phone reset</th><td>' + (pl.phone || '—').replace(/</g, '&lt;') + '</td></tr>';
-                            var dbArr = pl.databaseNames || [];
-                            var nDb = dbArr.length || pl.databaseCount || 0;
-                            var dbCell = nDb + ' Database';
-                            if (dbArr.length > 0) {
-                                var esc = (function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); });
-                                dbCell += ' <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
-                                dbCell += '<div class="ba-db-list-popover"></div>';
-                            }
-                            html += '<tr><th>Danh sách database</th><td>' + dbCell + '</td></tr>';
-                        }
-                    } catch (e) {}
-                }
-                if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
-                    try {
-                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                        var empList = Array.isArray(pl) ? pl : (pl && pl.employees) ? pl.employees : [];
-                        if (empList.length > 0) {
-                            var esc = (function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); });
-                            var empCell = empList.length + ' nhân viên';
-                            empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
-                            empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
-                            html += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
-                        }
-                    } catch (e) {}
-                }
-                html += '</tbody></table>';
-                if (job.message && job.message !== 'Restore' && job.message !== 'Reset Information') html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
-                html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
-                $('#notificationDetailBody').html(html);
-                $('#notificationDetailBody').off('click.baEmpList').on('click.baEmpList', '.ba-emp-list-toggle', function() {
-                    var $btn = $(this), $pop = $btn.siblings('.ba-emp-list-popover').first();
-                    var raw = $btn.attr('data-emps');
-                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
-                    try {
-                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
-                        var esc = function(s){ return (s||'').replace(/</g, '&lt;').replace(/&/g, '&amp;'); };
-                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(o) { var lid = o.localId != null ? o.localId : o.LocalId || ''; var name = o.name != null ? o.name : o.Name || ''; return '<span>' + esc(lid) + (name ? ' – ' + esc(name) : '') + '</span>'; }).join('')) + '</div>';
-                        $pop.html(grid).addClass('show');
-                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
-                });
-                $('#notificationDetailBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
-                    var $btn = $(this), $pop = $btn.siblings('.ba-db-list-popover').first();
-                    var raw = $btn.attr('data-dbs');
-                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
-                    try {
-                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
-                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
-                        $pop.html(grid).addClass('show');
-                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
-                });
-                $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    var $btn = $(this), jobId = $btn.data('job-id'), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
-                    var $popup = $('#baResetInfoPopup');
-                    if ($popup.length && (serverId != null && dbName || jobId)) {
-                        $popup.html('<span class="ba-reset-info-loading">Đang tải...</span>').show();
-                        var payload = { serverId: serverId || 0, databaseName: dbName || '' };
-                        if (jobId) payload.jobId = jobId;
-                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify(payload) })
-                            .done(function(res) {
-                                var d = res.d || res;
-                                if (d && d.success && d.resetDetail) {
-                                    var raw = d.resetDetail.replace(/^Reset:\s*/i, '').trim();
-                                    var rows = [];
-                                    raw.split(/\s*,\s*/).forEach(function(pair) {
-                                        var idx = pair.indexOf('=');
-                                        if (idx > 0) {
-                                            var label = pair.substring(0, idx).trim();
-                                            var value = pair.substring(idx + 1).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                            var lbl = label === 'Email' ? 'Email' : label === 'Phone' ? 'Phone' : label === 'Password' ? 'Password' : label;
-                                            rows.push('<div class="ba-reset-info-row"><span class="ba-reset-info-label">' + lbl + '</span><span class="ba-reset-info-value">' + value + '</span></div>');
-                                        }
-                                    });
-                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">' + (rows.length ? rows.join('') : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>');
-                                } else
-                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không có thông tin reset.</div>');
-                            })
-                            .fail(function() { $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không tải được thông tin.</div>'); });
-                    }
-                });
-                $(document).off('click.baResetInfoClose').on('click.baResetInfoClose', function(e) { if ($(e.target).closest('#baResetInfoPopup').length === 0 && !$(e.target).hasClass('ba-notif-reset-info-btn')) $('#baResetInfoPopup').hide(); });
-                $('#notificationDetailModal').addClass('show');
-            }
-            function hideNotificationDetail() { $('#notificationDetailModal').removeClass('show'); }
+            /* Chi tiết thông báo: window.showNotificationDetail từ ~/Scripts/ba-notification-detail.js */
             function loadRestoreJobsPanel() {
                 var $list = $('#restoreJobsList');
                 var $badge = $('#restoreJobsBadge');
@@ -3260,7 +3164,7 @@
                             if (!job) return;
                             if ((job.type || '') === 'HRHelperMultiDbAnalyze' && (job.status || '') === 'Completed') {
                                 var jobId = job.id || 0;
-                                if (!jobId) { showNotificationDetail(job); return; }
+                                if (!jobId) { window.showNotificationDetail(job); return; }
                                 $.ajax({ url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiConnTokenForJob") %>', type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) {
                                     var d = r.d || r;
                                     if (d && d.success && d.token) {
@@ -3268,12 +3172,12 @@
                                         window.location.href = url;
                                     } else {
                                         showToast(d && d.message ? d.message : 'Phiên kết nối Multi-DB đã hết. Vào Database Search chọn lại Multi-DB, vào HR Helper và bấm "Tải kết quả phân tích gần nhất".', 'info');
-                                        showNotificationDetail(job);
+                                        window.showNotificationDetail(job);
                                     }
-                                }, error: function() { showNotificationDetail(job); } });
+                                }, error: function() { window.showNotificationDetail(job); } });
                                 return;
                             }
-                            showNotificationDetail(job);
+                            window.showNotificationDetail(job);
                         });
                         $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) {
                             e.preventDefault();

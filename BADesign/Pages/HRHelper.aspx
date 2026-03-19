@@ -4599,6 +4599,14 @@
             function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
             function formatNotifTime(v) { var dt = parseDateSafe(v); return dt ? dt.toLocaleString() : '—'; }
             function showNotificationDetail(job) {
+                if (!job) return;
+                var jtEarly = (job.type || '').trim();
+                if (jtEarly === 'Restore' || jtEarly === 'Backup' || (!jtEarly && (job.databaseName || job.DatabaseName))) {
+                    if (typeof window.showNotificationDetail === 'function') {
+                        window.showNotificationDetail(job);
+                        return;
+                    }
+                }
                 var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
                 var dbName = (job.databaseName || job.DatabaseName || '').trim();
                 var isRestore = (job.type === 'Restore' || !job.type);
@@ -4608,7 +4616,8 @@
                     resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
                     if (hasReset) {
                         var srvId = job.serverId != null ? job.serverId : (job.ServerId != null ? job.ServerId : 0);
-                        resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
+                        var jobIdVal = job.id != null ? job.id : (job.Id != null ? job.Id : 0);
+                        resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-job-id="' + jobIdVal + '" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
                     }
                 }
                 var payloadRows = '';
@@ -4710,11 +4719,13 @@
                 });
                 $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
                     e.preventDefault(); e.stopPropagation();
-                    var $btn = $(this), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
+                    var $btn = $(this), jobId = $btn.data('job-id'), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
                     var $popup = $('#baResetInfoPopup');
-                    if ($popup.length && serverId != null && dbName) {
+                    if ($popup.length && (serverId != null && dbName || jobId)) {
                         $popup.html('<span class="ba-reset-info-loading">Đang tải...</span>').show();
-                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ serverId: serverId, databaseName: dbName }) })
+                        var payload = { serverId: serverId || 0, databaseName: dbName || '' };
+                        if (jobId) payload.jobId = jobId;
+                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify(payload) })
                             .done(function(res) {
                                 var d = res.d || res;
                                 if (d && d.success && d.resetDetail) {
