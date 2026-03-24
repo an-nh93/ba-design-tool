@@ -19,16 +19,18 @@
     --warning: #f59e0b;
 }
 body.light-theme {
-    --bg-main: #ffffff;
-    --bg-dark: #f3f4f6;
-    --bg-darker: #f9fafb;
-    --bg-card: #ffffff;
-    --bg-hover: #f3f4f6;
-    --text-primary: #111827;
-    --text-secondary: #4b5563;
-    --text-muted: #6b7280;
-    --border: #e5e7eb;
-    --border-light: #d1d5db;
+    /* Light theme giảm trắng gắt, gần tông xám-xanh nội bộ */
+    --bg-main: #d7dde5;
+    --bg-dark: #c7d0db;
+    --bg-darker: #e1e7ef;
+    --bg-card: #edf1f6;
+    --bg-hover: #d3dce8;
+    --text-primary: #172538;
+    --text-secondary: #314761;
+    --text-muted: #526984;
+    --border: #b6c3d3;
+    --border-light: #a6b5c8;
+    --primary-soft: rgba(0, 120, 212, 0.14);
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -208,6 +210,29 @@ a.ba-sidebar-title:hover { color: var(--primary-light); }
 .user-menu-dropdown .menu-item:last-child { border-bottom: none; }
 .user-menu-dropdown .menu-item:hover { background: var(--bg-hover); color: var(--text-primary); }
 .ba-role-badge { font-size: 0.7rem; opacity: 0.9; }
+
+/* Light theme top bar theo style cong ty */
+body.light-theme .ba-top-bar {
+    background: #0F84D3;
+    border-bottom-color: #0b6daf;
+}
+body.light-theme .ba-top-bar-title {
+    color: #ffffff;
+}
+body.light-theme .theme-switcher,
+body.light-theme .user-menu-trigger {
+    color: #ffffff;
+    border-color: rgba(255, 255, 255, 0.45);
+}
+body.light-theme .theme-switcher:hover,
+body.light-theme .user-menu-trigger:hover {
+    background: rgba(255, 255, 255, 0.14);
+}
+body.light-theme .ba-top-bar #restoreJobsBellBtn {
+    background: rgba(255, 255, 255, 0.14) !important;
+    border-color: rgba(255, 255, 255, 0.45) !important;
+    color: #ffffff !important;
+}
 .ba-content {
     flex: 1;
     overflow-y: auto;

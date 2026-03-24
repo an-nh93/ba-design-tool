@@ -1,7 +1,7 @@
 <%@ Control Language="C#" AutoEventWireup="true" CodeBehind="BaSidebar.ascx.cs" Inherits="BADesign.BaSidebar" %>
 <aside class="ba-sidebar" id="baSidebar">
     <div class="ba-sidebar-header">
-        <asp:HyperLink ID="lnkSidebarTitle" runat="server" CssClass="ba-sidebar-title" NavigateUrl="~/HomeRole" title="Về trang chủ">UI Builder</asp:HyperLink>
+        <asp:HyperLink ID="lnkSidebarTitle" runat="server" CssClass="ba-sidebar-title" NavigateUrl="~/HomeRole" title="Về trang chủ">HR Helper</asp:HyperLink>
         <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
     </div>
     <nav class="ba-nav">

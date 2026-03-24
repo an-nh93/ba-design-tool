@@ -369,6 +369,8 @@
         .ba-column-row:hover .ba-copy-select-btn {
             opacity: 1;
         }
+        #generateEmployeeTestDataModal { z-index: 10020; }
+        #generateEmployeeTestDataConfirmModal { z-index: 10030; }
         /* Overlay chừa menu trái (sidebar) để user vẫn dùng được các chức năng khác */
         /* Overlay full viewport (kể cả khi sidebar thu hẹp) để không bị hở */
         .ba-progress-overlay {
@@ -507,7 +509,7 @@
             position: fixed;
             top: 20px;
             right: 20px;
-            z-index: 10002;
+            z-index: 10040;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
@@ -784,6 +786,7 @@
                             <h2 class="ba-card-title">Employee Management</h2>
                             <div class="ba-actions" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataEmployees" onclick="loadEmployees(); return false;">View Data</button>
+                                <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateEmployeeTestData" onclick="openGenerateEmployeeTestDataModal(); return false;">Generate Test Data</button>
                                 <button type="button" class="ba-btn ba-btn-danger" id="btnDeleteEmployees" style="display: none;" onclick="openDeleteEmployeeConfirm(); return false;" title="Xóa employee đã chọn">Delete</button>
                                 <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateDeleteScript" onclick="openGenerateDeleteScriptModal(); return false;">Generate Delete Script</button>
                             </div>
@@ -1441,6 +1444,112 @@
             </div>
         </div>
 
+        <!-- Generate Employee Test Data Modal -->
+        <div id="generateEmployeeTestDataModal" class="ba-modal" style="display: none;">
+            <div class="ba-modal-content" style="max-width: 640px; max-height: 90vh; display: flex; flex-direction: column;">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title">Generate Test Data (Employee)</h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideGenerateEmployeeTestDataModal(); return false;">×</button>
+                </div>
+                <div class="ba-modal-body" style="overflow-y: auto;">
+                    <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">
+                        Tick chọn các nhân viên cần tạo dữ liệu test rồi bấm <strong>Generate and Update</strong>. Không chọn employee = áp dụng cho toàn bộ danh sách đang lọc.
+                    </p>
+                    <div class="ba-form-group" style="margin-bottom: 1rem;">
+                        <label class="ba-form-label">Tổng Employee Generate Data:</label>
+                        <div id="generateEmployeeTestDataTargetCount" style="padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-darker); color: var(--text-primary);">0</div>
+                    </div>
+
+                    <div class="ba-form-group" style="margin-bottom: 1rem;">
+                        <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="chkGenTestEmail" />
+                            <label for="chkGenTestEmail">Generate Email</label>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;">
+                            <div>
+                                <label class="ba-form-label" for="selGenTestEmailDomain">Domain</label>
+                                <select id="selGenTestEmailDomain" class="ba-input" disabled>
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="ba-form-label" for="txtGenTestEmailPrefix">Prefix</label>
+                                <input type="text" id="txtGenTestEmailPrefix" class="ba-input" placeholder="test" disabled />
+                            </div>
+                        </div>
+                        <div style="margin-top: 0.5rem; max-width: 220px;">
+                            <label class="ba-form-label" for="txtGenTestEmailStart">Số bắt đầu</label>
+                            <input type="number" id="txtGenTestEmailStart" class="ba-input" min="1" step="1" value="1" disabled />
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin: 0.5rem 0 0;">
+                            Ví dụ prefix <strong>test</strong> + domain <strong>@yopmail.com</strong> => test1@yopmail.com, test2@yopmail.com...
+                        </p>
+                    </div>
+
+                    <div class="ba-form-group" style="margin-bottom: 1rem;">
+                        <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="chkGenTestPhone" />
+                            <label for="chkGenTestPhone">Generate Phone</label>
+                        </div>
+                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin: 0.5rem 0 0;">
+                            Sinh số điện thoại 10 chữ số ngẫu nhiên với đầu số <strong>011..019</strong>.
+                        </p>
+                    </div>
+
+                    <div class="ba-form-group" style="margin-bottom: 1rem;">
+                        <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="chkGenTestSalary" />
+                            <label for="chkGenTestSalary">Generate Basic Salary</label>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.5rem;">
+                            <div>
+                                <label class="ba-form-label" for="txtGenTestSalaryMin">Min</label>
+                                <input type="number" id="txtGenTestSalaryMin" class="ba-input" min="0" step="0.01" placeholder="1000" disabled />
+                            </div>
+                            <div>
+                                <label class="ba-form-label" for="txtGenTestSalaryMax">Max</label>
+                                <input type="number" id="txtGenTestSalaryMax" class="ba-input" min="0" step="0.01" placeholder="5000" disabled />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="ba-form-group" style="margin-bottom: 0;">
+                        <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="checkbox" id="chkGenTestUpdateUserEmail" checked />
+                            <label for="chkGenTestUpdateUserEmail">Update User.Email mapping theo email mới</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="ba-modal-footer">
+                    <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateEmployeeTestDataCancel" onclick="hideGenerateEmployeeTestDataModal(); return false;">Hủy</button>
+                    <button type="button" class="ba-btn ba-btn-primary" id="btnGenerateEmployeeTestDataRun" onclick="generateEmployeeTestData(); return false;">Generate and Update</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generate Test Data Confirm Modal (captcha) -->
+        <div id="generateEmployeeTestDataConfirmModal" class="ba-modal" style="display: none;">
+            <div class="ba-modal-content" style="max-width: 460px;">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title">Xác nhận</h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideGenerateEmployeeTestDataConfirmModal(); return false;">×</button>
+                </div>
+                <div class="ba-modal-body">
+                    <p id="generateEmployeeTestDataConfirmMessage" style="margin: 0 0 1rem 0; color: var(--text-primary); font-size: 0.9375rem;"></p>
+                    <label style="display: block; margin-bottom: 0.25rem; font-weight: 500;">Xác thực (Captcha)</label>
+                    <div class="captcha-box" style="display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: var(--bg-darker); border-radius: 4px; font-size: 14px;">
+                        <span id="generateEmployeeTestDataCaptchaQuestion"></span>
+                        <input type="number" id="generateEmployeeTestDataCaptchaInput" class="ba-input" placeholder="?" style="width: 80px; text-align: center;" />
+                        <button type="button" id="btnRefreshGenerateEmployeeTestDataCaptcha" class="ba-btn ba-btn-secondary" title="Làm mới">↻</button>
+                    </div>
+                </div>
+                <div class="ba-modal-footer">
+                    <button type="button" class="ba-btn ba-btn-secondary" id="generateEmployeeTestDataConfirmCancel">Hủy</button>
+                    <button type="button" class="ba-btn ba-btn-primary" id="generateEmployeeTestDataConfirmOk">Cập nhật</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Generate and Run Confirm Modal (captcha) -->
         <div id="generateRunConfirmModal" class="ba-modal" style="display: none;">
             <div class="ba-modal-content" style="max-width: 440px;">
@@ -1724,6 +1833,14 @@
             $('#deleteEmployeeConfirmOk').on('click', function() { submitDeleteEmployees(); });
             $('#deleteEmployeeConfirmCancel').on('click', function() { hideDeleteEmployeeConfirmModal(); });
             $('#btnRefreshDeleteCaptcha').on('click', function() { refreshDeleteEmployeeCaptcha(); });
+
+            $('#chkGenTestEmail').on('change', syncGenerateEmployeeTestDataControls);
+            $('#chkGenTestSalary').on('change', syncGenerateEmployeeTestDataControls);
+            $('#generateEmployeeTestDataModal').on('click', function(e) { if (e.target.id === 'generateEmployeeTestDataModal') hideGenerateEmployeeTestDataModal(); });
+            $('#generateEmployeeTestDataConfirmCancel').on('click', function() { hideGenerateEmployeeTestDataConfirmModal(); });
+            $('#generateEmployeeTestDataConfirmOk').on('click', function() { submitGenerateEmployeeTestDataWithCaptcha(); });
+            $('#btnRefreshGenerateEmployeeTestDataCaptcha').on('click', function() { refreshGenerateEmployeeTestDataCaptcha(); });
+            $('#generateEmployeeTestDataConfirmModal').on('click', function(e) { if (e.target.id === 'generateEmployeeTestDataConfirmModal') hideGenerateEmployeeTestDataConfirmModal(); });
 
             $('#generateRunConfirmOk').on('click', function() { doExecuteGenerateAndRunDeleteScript(); });
             $('#generateRunConfirmCancel').on('click', function() { hideGenerateRunConfirmModal(); });
@@ -3811,6 +3928,231 @@
                         } catch(e) {}
                     }
                     showToast(msg, 'error');
+                }
+            });
+        }
+
+        function syncGenerateEmployeeTestDataControls() {
+            var genEmail = $('#chkGenTestEmail').is(':checked');
+            $('#selGenTestEmailDomain, #txtGenTestEmailPrefix, #txtGenTestEmailStart').prop('disabled', !genEmail);
+            var genSalary = $('#chkGenTestSalary').is(':checked');
+            $('#txtGenTestSalaryMin, #txtGenTestSalaryMax').prop('disabled', !genSalary);
+        }
+
+        function loadGenerateEmployeeEmailDomains() {
+            return $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetHrTestDataEmailDomains") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: '{}',
+                timeout: 30000
+            }).then(function(res) {
+                var d = res.d || res;
+                var domains = (d && d.success && d.domains) ? d.domains : [];
+                var html = '<option value="">-- Chọn domain --</option>';
+                for (var i = 0; i < domains.length; i++) {
+                    var v = (domains[i] || '').toString().trim().toLowerCase();
+                    if (!v) continue;
+                    html += '<option value="' + v.replace(/"/g, '&quot;') + '">@' + v + '</option>';
+                }
+                $('#selGenTestEmailDomain').html(html);
+                if (domains.length > 0) $('#selGenTestEmailDomain').val((domains[0] || '').toString().trim().toLowerCase());
+                if (!(d && d.success)) showToast((d && d.message) ? d.message : 'Không tải được domain email.', 'error');
+            }, function(xhr) {
+                var msg = 'Không tải được domain email.';
+                if (xhr && xhr.responseText) {
+                    try {
+                        var j = JSON.parse(xhr.responseText);
+                        if (j.d && j.d.message) msg = j.d.message;
+                        else if (j.message) msg = j.message;
+                    } catch (e) {}
+                }
+                showToast(msg, 'error');
+                $('#selGenTestEmailDomain').html('<option value="">-- Chọn domain --</option>');
+            });
+        }
+
+        function openGenerateEmployeeTestDataModal() {
+            var targetIds = getUpdateTargetEmployeeIds();
+            if (!targetIds || targetIds.length === 0) {
+                showToast('Chưa có employee nào để generate. Bấm View Data trước.', 'error');
+                return;
+            }
+            $('#generateEmployeeTestDataTargetCount').text(targetIds.length + ' employee');
+            $('#chkGenTestEmail').prop('checked', true);
+            $('#chkGenTestPhone').prop('checked', false);
+            $('#chkGenTestSalary').prop('checked', false);
+            $('#txtGenTestEmailPrefix').val('test');
+            $('#txtGenTestEmailStart').val('1');
+            $('#txtGenTestSalaryMin').val('');
+            $('#txtGenTestSalaryMax').val('');
+            $('#chkGenTestUpdateUserEmail').prop('checked', true);
+            syncGenerateEmployeeTestDataControls();
+            loadGenerateEmployeeEmailDomains();
+            $('#generateEmployeeTestDataModal').addClass('show').css('display', 'flex');
+        }
+
+        function hideGenerateEmployeeTestDataModal() {
+            $('#generateEmployeeTestDataModal').removeClass('show').css('display', 'none');
+        }
+
+        var generateEmployeeTestDataCaptchaA = 0, generateEmployeeTestDataCaptchaB = 0;
+        var pendingGenerateEmployeeTestData = null;
+        function refreshGenerateEmployeeTestDataCaptcha() {
+            generateEmployeeTestDataCaptchaA = Math.floor(Math.random() * 9) + 1;
+            generateEmployeeTestDataCaptchaB = Math.floor(Math.random() * 9) + 1;
+            $('#generateEmployeeTestDataCaptchaQuestion').text(generateEmployeeTestDataCaptchaA + ' + ' + generateEmployeeTestDataCaptchaB + ' = ');
+            $('#generateEmployeeTestDataCaptchaInput').val('');
+        }
+        function openGenerateEmployeeTestDataConfirmModal(message, payload) {
+            pendingGenerateEmployeeTestData = payload || null;
+            $('#generateEmployeeTestDataConfirmMessage').text(message || 'Xác nhận thực hiện Generate Test Data?');
+            refreshGenerateEmployeeTestDataCaptcha();
+            $('#generateEmployeeTestDataConfirmModal').addClass('show').css('display', 'flex');
+        }
+        function hideGenerateEmployeeTestDataConfirmModal() {
+            $('#generateEmployeeTestDataConfirmModal').removeClass('show').css('display', 'none');
+        }
+        function submitGenerateEmployeeTestDataWithCaptcha() {
+            if (!pendingGenerateEmployeeTestData || !pendingGenerateEmployeeTestData.targetIds || pendingGenerateEmployeeTestData.targetIds.length === 0) {
+                hideGenerateEmployeeTestDataConfirmModal();
+                showToast('Không có dữ liệu để chạy.', 'error');
+                return;
+            }
+            var captchaVal = parseInt($('#generateEmployeeTestDataCaptchaInput').val(), 10);
+            if (captchaVal !== generateEmployeeTestDataCaptchaA + generateEmployeeTestDataCaptchaB) {
+                showToast('Captcha không đúng. Vui lòng nhập lại.', 'error');
+                refreshGenerateEmployeeTestDataCaptcha();
+                return;
+            }
+            var data = pendingGenerateEmployeeTestData;
+            pendingGenerateEmployeeTestData = null;
+            hideGenerateEmployeeTestDataConfirmModal();
+            doGenerateEmployeeTestData(data.targetIds, data.opts);
+        }
+
+        function generateEmployeeTestData() {
+            var targetIds = getUpdateTargetEmployeeIds();
+            if (!targetIds || targetIds.length === 0) {
+                showToast('Chưa có employee nào để generate.', 'error');
+                return;
+            }
+            var generateEmail = $('#chkGenTestEmail').is(':checked');
+            var generatePhone = $('#chkGenTestPhone').is(':checked');
+            var generateSalary = $('#chkGenTestSalary').is(':checked');
+            if (!generateEmail && !generatePhone && !generateSalary) {
+                showToast('Chọn ít nhất 1 mục (Email / Phone / Lương).', 'error');
+                return;
+            }
+            var emailDomain = ($('#selGenTestEmailDomain').val() || '').toString().trim().replace(/^@+/, '').toLowerCase();
+            var emailPrefix = ($('#txtGenTestEmailPrefix').val() || '').toString().trim().toLowerCase();
+            var emailStart = parseInt($('#txtGenTestEmailStart').val(), 10);
+            if (generateEmail) {
+                if (!emailPrefix) {
+                    showToast('Nhập Email Prefix.', 'error');
+                    return;
+                }
+                if (!emailDomain || emailDomain.indexOf('.') < 0) {
+                    showToast('Chọn Email Domain hợp lệ.', 'error');
+                    return;
+                }
+                if (!emailStart || emailStart < 1) emailStart = 1;
+            } else {
+                emailStart = 1;
+            }
+            var salaryMin = parseFloat($('#txtGenTestSalaryMin').val());
+            var salaryMax = parseFloat($('#txtGenTestSalaryMax').val());
+            if (generateSalary) {
+                if (!isFinite(salaryMin) || !isFinite(salaryMax)) {
+                    showToast('Nhập đầy đủ Min/Max cho lương.', 'error');
+                    return;
+                }
+                if (salaryMin < 0 || salaryMax < 0) {
+                    showToast('Lương Min/Max phải >= 0.', 'error');
+                    return;
+                }
+                if (salaryMax < salaryMin) {
+                    showToast('Lương Max phải >= Min.', 'error');
+                    return;
+                }
+            } else {
+                salaryMin = 0;
+                salaryMax = 0;
+            }
+            var updateUserEmailMapping = $('#chkGenTestUpdateUserEmail').is(':checked');
+            var selectedCount = $('#tabEmployees .chkEmployee:checked').length;
+            var isUpdateAll = selectedCount === 0;
+            var msg = isUpdateAll
+                ? 'Chắc chắn generate test data cho TẤT CẢ ' + targetIds.length + ' employee?'
+                : 'Chắc chắn generate test data cho ' + targetIds.length + ' employee đã chọn?';
+            openGenerateEmployeeTestDataConfirmModal(msg, {
+                targetIds: targetIds,
+                opts: {
+                    generateEmail: generateEmail,
+                    emailDomain: emailDomain,
+                    emailPrefix: emailPrefix,
+                    emailStartNumber: emailStart,
+                    generatePhone: generatePhone,
+                    generateSalary: generateSalary,
+                    salaryMin: salaryMin,
+                    salaryMax: salaryMax,
+                    updateUserEmailMapping: updateUserEmailMapping
+                }
+            });
+        }
+
+        function doGenerateEmployeeTestData(targetIds, opts) {
+            var payload = {
+                k: hrToken,
+                companyID: employeeCompanyFilter,
+                employeeIds: targetIds,
+                generateEmail: !!opts.generateEmail,
+                emailDomain: opts.emailDomain || '',
+                emailPrefix: opts.emailPrefix || '',
+                emailStartNumber: parseInt(opts.emailStartNumber, 10) || 1,
+                generatePhone: !!opts.generatePhone,
+                generateSalary: !!opts.generateSalary,
+                salaryMin: isFinite(opts.salaryMin) ? opts.salaryMin : 0,
+                salaryMax: isFinite(opts.salaryMax) ? opts.salaryMax : 0,
+                updateUserEmailMapping: !!opts.updateUserEmailMapping
+            };
+            $('#btnGenerateEmployeeTestDataRun').prop('disabled', true);
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/StartHRHelperGenerateEmployeeTestDataJob") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify(payload),
+                timeout: 30000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success) {
+                        hideGenerateEmployeeTestDataModal();
+                        window.__hrOverlayWaitingForJob = true;
+                        $('#hrJobOverlay').addClass('show');
+                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+                        $('#hrJobOverlayDetail').empty().hide();
+                        startHrOverlayPoll();
+                        checkHRHelperJobsAndShowOverlay();
+                        showToast(d.message || 'Đã đưa Generate Test Data vào hàng đợi. Job chạy nền.', 'success');
+                    } else {
+                        showToast(d && d.message ? d.message : 'Lỗi tạo job Generate Test Data.', 'error');
+                    }
+                },
+                error: function(xhr) {
+                    var msg = 'Lỗi kết nối hoặc timeout.';
+                    if (xhr && xhr.responseText) {
+                        try {
+                            var j = JSON.parse(xhr.responseText);
+                            if (j.d && j.d.message) msg = j.d.message;
+                            else if (j.message) msg = j.message;
+                        } catch (e) {}
+                    }
+                    showToast(msg, 'error');
+                },
+                complete: function() {
+                    $('#btnGenerateEmployeeTestDataRun').prop('disabled', false);
                 }
             });
         }

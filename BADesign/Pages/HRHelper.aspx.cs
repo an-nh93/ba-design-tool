@@ -4,6 +4,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Text;
 using System.Web;
 using System.Web.Services;
 using System.Web.Script.Services;
@@ -3049,6 +3050,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             bool updPersonal = false, updBusiness = false, updPayslip = false, payslipByEmp = false, updM1 = false, updM2 = false, updBasic = false;
             string personalEmail = "", businessEmail = "", payslipCommon = "", m1 = "", m2 = "";
             decimal basicSalary = 0;
+            EmployeeTestDataOptions testDataOptions = null;
             try
             {
                 var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
@@ -3073,6 +3075,22 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                 if (payload["m2"] != null) m2 = (string)payload["m2"] ?? "";
                 if (payload["updBasic"] != null) updBasic = (bool)payload["updBasic"];
                 if (payload["basicSalary"] != null) basicSalary = (decimal)payload["basicSalary"];
+                var isGenerateTestData = payload["isGenerateTestData"] != null && (bool)payload["isGenerateTestData"];
+                if (isGenerateTestData)
+                {
+                    testDataOptions = new EmployeeTestDataOptions
+                    {
+                        GenerateEmail = payload["generateEmail"] != null && (bool)payload["generateEmail"],
+                        EmailPrefix = payload["emailPrefix"] != null ? ((string)payload["emailPrefix"] ?? "") : "",
+                        EmailDomain = payload["emailDomain"] != null ? ((string)payload["emailDomain"] ?? "") : "",
+                        EmailStartNumber = payload["emailStartNumber"] != null ? Math.Max(1, (int)payload["emailStartNumber"]) : 1,
+                        GeneratePhone = payload["generatePhone"] != null && (bool)payload["generatePhone"],
+                        GenerateSalary = payload["generateSalary"] != null && (bool)payload["generateSalary"],
+                        SalaryMin = payload["salaryMin"] != null ? (decimal)payload["salaryMin"] : 0m,
+                        SalaryMax = payload["salaryMax"] != null ? (decimal)payload["salaryMax"] : 0m,
+                        UpdateUserEmailMapping = payload["updateUserEmailMapping"] == null || (bool)payload["updateUserEmailMapping"]
+                    };
+                }
             }
             catch { BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Payload không hợp lệ."); UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, "Payload không hợp lệ."); return; }
             if (string.IsNullOrEmpty(connStr) || employeeIds == null || employeeIds.Count == 0) { BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] Thiếu connectionString hoặc employeeIds."); UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, "Payload thiếu connectionString hoặc employeeIds."); return; }
@@ -3080,7 +3098,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             try
             {
                 System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
-                var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary,
+                var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary, testDataOptions,
                     onProgress: (pct, msg) =>
                     {
                         UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg);
@@ -3453,6 +3471,7 @@ CREATE TABLE #EmployeeTemp(
     EmployeeID BIGINT NOT NULL,
     PersonalEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
     BusinessEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    UserEmailAddress NVARCHAR(512) COLLATE DATABASE_DEFAULT NULL,
     PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
     MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
     MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
@@ -4122,7 +4141,8 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                     try { System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal; } catch { }
                     try
                     {
-                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary);
+                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary, null,
+                            onProgress: (pct, msg) => UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg));
                         UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, result.Item2);
                     }
                     catch (Exception ex)
@@ -4133,6 +4153,191 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                     BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
                 });
                 return new { success = true, jobId = jobId, message = "Đã đưa update employee vào hàng đợi." };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, jobId = 0 };
+            }
+        }
+
+        private static string ExtractEmailDomainFromPattern(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            var s = raw.Trim().ToLowerInvariant();
+            if (s.Contains("@")) s = s.Substring(s.LastIndexOf("@", StringComparison.Ordinal) + 1);
+            s = s.Trim().TrimStart('*').TrimStart('.').Trim();
+            if (s.Contains("/")) return null;
+            if (!s.Contains(".")) return null;
+            return s;
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetHrTestDataEmailDomains()
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", domains = new List<string>() };
+                var domains = LoadEmailIgnoreFromDb()
+                    .Select(ExtractEmailDomainFromPattern)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .OrderBy(x => x)
+                    .ToList();
+                return new { success = true, domains = domains };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message, domains = new List<string>() };
+            }
+        }
+
+        /// <summary>Đưa job generate test data (Email/Phone/Lương random) cho Employee Info vào hàng đợi.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object StartHRHelperGenerateEmployeeTestDataJob(string k, int? companyID, List<long> employeeIds,
+            bool generateEmail, string emailDomain, string emailPrefix, int emailStartNumber,
+            bool generatePhone,
+            bool generateSalary, decimal salaryMin, decimal salaryMax,
+            bool updateUserEmailMapping)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập.", jobId = 0 };
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database.", jobId = 0 };
+                if (employeeIds == null || employeeIds.Count == 0)
+                    return new { success = false, message = "Chọn ít nhất 1 employee (hoặc load all).", jobId = 0 };
+                if (!generateEmail && !generatePhone && !generateSalary)
+                    return new { success = false, message = "Chọn ít nhất 1 mục cần generate (Email/Phone/Lương).", jobId = 0 };
+
+                var normalizedDomain = (emailDomain ?? "").Trim().TrimStart('@').ToLowerInvariant();
+                var normalizedPrefix = (emailPrefix ?? "").Trim().ToLowerInvariant();
+                if (generateEmail)
+                {
+                    if (string.IsNullOrWhiteSpace(normalizedPrefix))
+                        return new { success = false, message = "Nhập Email Prefix.", jobId = 0 };
+                    if (string.IsNullOrWhiteSpace(normalizedDomain) || !normalizedDomain.Contains("."))
+                        return new { success = false, message = "Chọn Email Domain hợp lệ.", jobId = 0 };
+                }
+                if (generateSalary)
+                {
+                    if (salaryMin < 0 || salaryMax < 0)
+                        return new { success = false, message = "Lương Min/Max phải >= 0.", jobId = 0 };
+                    if (salaryMax < salaryMin)
+                        return new { success = false, message = "Lương Max phải >= Min.", jobId = 0 };
+                }
+                var options = new EmployeeTestDataOptions
+                {
+                    GenerateEmail = generateEmail,
+                    EmailPrefix = normalizedPrefix,
+                    EmailDomain = normalizedDomain,
+                    EmailStartNumber = Math.Max(1, emailStartNumber),
+                    GeneratePhone = generatePhone,
+                    GenerateSalary = generateSalary,
+                    SalaryMin = salaryMin,
+                    SalaryMax = salaryMax,
+                    UpdateUserEmailMapping = updateUserEmailMapping
+                };
+
+                var updPersonal = generateEmail;
+                var updBusiness = generateEmail;
+                var updM1 = generatePhone;
+                var updM2 = generatePhone;
+                var updBasic = generateSalary;
+
+                var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+                var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
+                var connStr = info.ConnectionString;
+                var serverName = info.Server ?? "";
+                var databaseName = info.Database ?? "";
+                var payload = JsonConvert.SerializeObject(new
+                {
+                    connectionString = connStr,
+                    companyID,
+                    employeeIds,
+                    updPersonal,
+                    personalEmail = "",
+                    updBusiness,
+                    businessEmail = "",
+                    updPayslip = false,
+                    payslipCommon = "",
+                    payslipByEmp = false,
+                    updM1,
+                    m1 = "",
+                    updM2,
+                    m2 = "",
+                    updBasic,
+                    basicSalary = 0m,
+                    isGenerateTestData = true,
+                    generateEmail,
+                    emailDomain = normalizedDomain,
+                    emailPrefix = normalizedPrefix,
+                    emailStartNumber = Math.Max(1, emailStartNumber),
+                    generatePhone,
+                    generateSalary,
+                    salaryMin,
+                    salaryMax,
+                    updateUserEmailMapping
+                });
+
+                if (UseBackgroundWorker())
+                {
+                    int pendingJobId;
+                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                    using (var cmd = appConn.CreateCommand())
+                    {
+                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                        cmd.Parameters.AddWithValue("@sname", serverName);
+                        cmd.Parameters.AddWithValue("@db", databaseName);
+                        cmd.Parameters.AddWithValue("@uid", userId);
+                        cmd.Parameters.AddWithValue("@uname", userName);
+                        cmd.Parameters.AddWithValue("@payload", payload);
+                        appConn.Open();
+                        pendingJobId = (int)cmd.ExecuteScalar();
+                    }
+                    UserActionLogHelper.Log("HRHelper.GenerateData", "Generate test data Pending Worker, jobId=" + pendingJobId + ", employeeIds=" + employeeIds.Count
+                        + ", email=" + (generateEmail ? "1" : "0") + ", phone=" + (generatePhone ? "1" : "0") + ", salary=" + (generateSalary ? "1" : "0"));
+                    return new { success = true, jobId = pendingJobId, message = "Đã đưa Generate test data vào hàng đợi. Worker sẽ xử lý." };
+                }
+
+                int jobId;
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
+VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.Parameters.AddWithValue("@sname", serverName);
+                    cmd.Parameters.AddWithValue("@db", databaseName);
+                    cmd.Parameters.AddWithValue("@uid", userId);
+                    cmd.Parameters.AddWithValue("@uname", userName);
+                    cmd.Parameters.AddWithValue("@payload", payload);
+                    appConn.Open();
+                    jobId = (int)cmd.ExecuteScalar();
+                }
+                UserActionLogHelper.Log("HRHelper.GenerateData", "Generate test data, jobId=" + jobId + ", employeeIds=" + employeeIds.Count);
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    var prevPriority = System.Threading.Thread.CurrentThread.Priority;
+                    try { System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal; } catch { }
+                    try
+                    {
+                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, "", updBusiness, "", false, "", false, updM1, "", updM2, "", false, null, false, null, updBasic, 0m, options,
+                            onProgress: (pct, msg) => UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg));
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, result.Item2);
+                    }
+                    catch (Exception ex)
+                    {
+                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, ex.Message);
+                    }
+                    finally { try { System.Threading.Thread.CurrentThread.Priority = prevPriority; } catch { } }
+                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
+                });
+                return new { success = true, jobId = jobId, message = "Đã đưa Generate test data vào hàng đợi." };
             }
             catch (Exception ex)
             {
@@ -4156,6 +4361,7 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
             bool updM1, string m1, bool updM2, string m2,
             bool updH1, string h1, bool updH2, string h2,
             bool updBasic, decimal basicSalary,
+            EmployeeTestDataOptions testDataOptions = null,
             Action<int, string> onProgress = null)
         {
             connectionString = EnsureMinConnectionTimeout(connectionString, 120);
@@ -4166,7 +4372,7 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                 if (employees == null || employees.Count == 0)
                     return Tuple.Create(false, "Không tìm thấy employee cần update.");
                 BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: LoadEmployees xong count=" + employees.Count + ", BuildEmployeeDataTable.");
-                var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updH1, h1, updH2, h2, updBasic, basicSalary);
+                var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updH1, h1, updH2, h2, updBasic, basicSalary, testDataOptions);
                 int totalRows = dt.Rows.Count;
                 int batchSize = GetEmployeeUpdateBatchSize(totalRows);
                 int totalBatches = (int)Math.Ceiling(totalRows / (double)batchSize);
@@ -4207,6 +4413,9 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                 if (updM1) parts.Add("M1");
                 if (updM2) parts.Add("M2");
                 if (updBasic) parts.Add("Basic Salary");
+                if (testDataOptions != null && testDataOptions.GenerateEmail) parts.Add("Email test data");
+                if (testDataOptions != null && testDataOptions.GeneratePhone) parts.Add("Phone test data");
+                if (testDataOptions != null && testDataOptions.GenerateSalary) parts.Add("Salary test data");
                 var summary = parts.Count > 0
                     ? ("Đã cập nhật: " + string.Join(", ", parts) + " cho " + employees.Count + " nhân viên.")
                     : ("Đã update " + employees.Count + " employee.");
@@ -4237,6 +4446,7 @@ CREATE TABLE #EmployeeTemp(
     EmployeeID BIGINT NOT NULL,
     PersonalEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
     BusinessEmailAddress NVARCHAR(MAX) COLLATE DATABASE_DEFAULT NULL,
+    UserEmailAddress NVARCHAR(512) COLLATE DATABASE_DEFAULT NULL,
     PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
     MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
     MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,
@@ -4255,6 +4465,7 @@ CREATE TABLE #EmployeeTemp(
                     bulk.ColumnMappings.Add("EmployeeID", "EmployeeID");
                     bulk.ColumnMappings.Add("PersonalEmailAddress", "PersonalEmailAddress");
                     bulk.ColumnMappings.Add("BusinessEmailAddress", "BusinessEmailAddress");
+                    bulk.ColumnMappings.Add("UserEmailAddress", "UserEmailAddress");
                     bulk.ColumnMappings.Add("PayslipPassword", "PayslipPassword");
                     bulk.ColumnMappings.Add("MobilePhone1", "MobilePhone1");
                     bulk.ColumnMappings.Add("MobilePhone2", "MobilePhone2");
@@ -4271,7 +4482,7 @@ CREATE TABLE #EmployeeTemp(
 SET LOCK_TIMEOUT 60000;
 BEGIN TRAN;
 IF OBJECT_ID('tempdb..#B') IS NOT NULL DROP TABLE #B;
-SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, HomePhone1, HomePhone2, BasicSalary
+SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, UserEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, HomePhone1, HomePhone2, BasicSalary
 INTO #B FROM #EmployeeTemp;
 CREATE NONCLUSTERED INDEX IX_B_EmployeeID ON #B(EmployeeID);
 UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),
@@ -4295,6 +4506,12 @@ UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.Persona
 FROM #B B
 JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = B.EmployeeID
 WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL) OR (B.HomePhone1 IS NOT NULL) OR (B.HomePhone2 IS NOT NULL);
+/* Khi generate email test data, cập nhật luôn email mapping trên Security_Users theo EmployeeID */
+IF OBJECT_ID('dbo.Security_Users','U') IS NOT NULL
+UPDATE U SET U.UserEmailAddress = B.UserEmailAddress
+FROM #B B
+JOIN dbo.Security_Users U WITH (ROWLOCK, UPDLOCK) ON U.EmployeeID = B.EmployeeID
+WHERE B.UserEmailAddress IS NOT NULL;
 IF EXISTS(SELECT 1 FROM #B WHERE BasicSalary IS NOT NULL)
 BEGIN
     IF OBJECT_ID('dbo.PAY_EmployeeSalaries','U') IS NOT NULL
@@ -4319,6 +4536,19 @@ COMMIT TRAN;";
         {
             public long EmployeeID { get; set; }
             public string LocalEmployeeID { get; set; }
+        }
+
+        private sealed class EmployeeTestDataOptions
+        {
+            public bool GenerateEmail { get; set; }
+            public string EmailPrefix { get; set; }
+            public string EmailDomain { get; set; }
+            public int EmailStartNumber { get; set; }
+            public bool GeneratePhone { get; set; }
+            public bool GenerateSalary { get; set; }
+            public decimal SalaryMin { get; set; }
+            public decimal SalaryMax { get; set; }
+            public bool UpdateUserEmailMapping { get; set; }
         }
 
         private static List<EmployeeForUpdate> LoadEmployeesForUpdate(string connectionString, List<long> employeeIds)
@@ -4350,31 +4580,74 @@ COMMIT TRAN;";
             bool updPayslip, string payslipCommon, bool payslipByEmp,
             bool updM1, string m1, bool updM2, string m2,
             bool updH1, string h1, bool updH2, string h2,
-            bool updBasic, decimal basicSalary)
+            bool updBasic, decimal basicSalary,
+            EmployeeTestDataOptions testDataOptions = null)
         {
             var dt = new DataTable();
             dt.Columns.Add("EmployeeID", typeof(long));
             dt.Columns.Add("PersonalEmailAddress", typeof(string));
             dt.Columns.Add("BusinessEmailAddress", typeof(string));
+            dt.Columns.Add("UserEmailAddress", typeof(string));
             dt.Columns.Add("PayslipPassword", typeof(string));
             dt.Columns.Add("MobilePhone1", typeof(string));
             dt.Columns.Add("MobilePhone2", typeof(string));
             dt.Columns.Add("HomePhone1", typeof(string));
             dt.Columns.Add("HomePhone2", typeof(string));
             dt.Columns.Add("BasicSalary", typeof(string));
+            var rng = new Random(unchecked(Environment.TickCount * 397) ^ employees.Count);
+            var emailCounter = testDataOptions != null ? Math.Max(1, testDataOptions.EmailStartNumber) : 1;
             foreach (var e in employees)
             {
                 var row = dt.NewRow();
+                string generatedEmail = null;
+                string generatedPhone = null;
+                decimal generatedSalary = 0m;
+                if (testDataOptions != null)
+                {
+                    if (testDataOptions.GenerateEmail)
+                    {
+                        var prefix = (testDataOptions.EmailPrefix ?? "test").Trim().ToLowerInvariant();
+                        var domain = (testDataOptions.EmailDomain ?? "").Trim().TrimStart('@').ToLowerInvariant();
+                        generatedEmail = prefix + emailCounter + "@" + domain;
+                        emailCounter++;
+                    }
+                    if (testDataOptions.GeneratePhone)
+                    {
+                        var sbPhone = new StringBuilder(10);
+                        sbPhone.Append('0');
+                        sbPhone.Append('1');
+                        sbPhone.Append((char)('0' + rng.Next(1, 10))); // 011..019
+                        for (int i = 0; i < 7; i++) sbPhone.Append((char)('0' + rng.Next(0, 10)));
+                        generatedPhone = sbPhone.ToString();
+                    }
+                    if (testDataOptions.GenerateSalary)
+                    {
+                        var min = testDataOptions.SalaryMin;
+                        var max = testDataOptions.SalaryMax;
+                        if (max < min) { var t = min; min = max; max = t; }
+                        var span = max - min;
+                        generatedSalary = span <= 0 ? min : (min + (decimal)rng.NextDouble() * span);
+                        generatedSalary = Math.Round(generatedSalary, 2);
+                    }
+                }
                 row["EmployeeID"] = e.EmployeeID;
-                row["PersonalEmailAddress"] = updPersonal && !string.IsNullOrWhiteSpace(personalEmail) ? (object)DataSecurityWrapper.EncryptData(personalEmail, e.EmployeeID) : DBNull.Value;
-                row["BusinessEmailAddress"] = updBusiness && !string.IsNullOrWhiteSpace(businessEmail) ? (object)DataSecurityWrapper.EncryptData(businessEmail, e.EmployeeID) : DBNull.Value;
+                var finalPersonalEmail = (testDataOptions != null && testDataOptions.GenerateEmail) ? generatedEmail : personalEmail;
+                var finalBusinessEmail = (testDataOptions != null && testDataOptions.GenerateEmail) ? generatedEmail : businessEmail;
+                row["PersonalEmailAddress"] = updPersonal && !string.IsNullOrWhiteSpace(finalPersonalEmail) ? (object)DataSecurityWrapper.EncryptData(finalPersonalEmail, e.EmployeeID) : DBNull.Value;
+                row["BusinessEmailAddress"] = updBusiness && !string.IsNullOrWhiteSpace(finalBusinessEmail) ? (object)DataSecurityWrapper.EncryptData(finalBusinessEmail, e.EmployeeID) : DBNull.Value;
+                row["UserEmailAddress"] = (testDataOptions != null && testDataOptions.GenerateEmail && testDataOptions.UpdateUserEmailMapping && !string.IsNullOrWhiteSpace(generatedEmail))
+                    ? (object)generatedEmail
+                    : DBNull.Value;
                 string payslipSrc = payslipByEmp ? (e.LocalEmployeeID ?? "") : (payslipCommon ?? "");
                 row["PayslipPassword"] = updPayslip && !string.IsNullOrWhiteSpace(payslipSrc) ? (object)DataSecurityWrapper.EncryptData(payslipSrc, e.EmployeeID) : DBNull.Value;
-                row["MobilePhone1"] = updM1 && !string.IsNullOrWhiteSpace(m1) ? (object)DataSecurityWrapper.EncryptData(m1, e.EmployeeID) : DBNull.Value;
-                row["MobilePhone2"] = updM2 && !string.IsNullOrWhiteSpace(m2) ? (object)DataSecurityWrapper.EncryptData(m2, e.EmployeeID) : DBNull.Value;
+                var finalM1 = (testDataOptions != null && testDataOptions.GeneratePhone) ? generatedPhone : m1;
+                var finalM2 = (testDataOptions != null && testDataOptions.GeneratePhone) ? generatedPhone : m2;
+                row["MobilePhone1"] = updM1 && !string.IsNullOrWhiteSpace(finalM1) ? (object)DataSecurityWrapper.EncryptData(finalM1, e.EmployeeID) : DBNull.Value;
+                row["MobilePhone2"] = updM2 && !string.IsNullOrWhiteSpace(finalM2) ? (object)DataSecurityWrapper.EncryptData(finalM2, e.EmployeeID) : DBNull.Value;
                 row["HomePhone1"] = updH1 && !string.IsNullOrWhiteSpace(h1) ? (object)DataSecurityWrapper.EncryptData(h1, e.EmployeeID) : DBNull.Value;
                 row["HomePhone2"] = updH2 && !string.IsNullOrWhiteSpace(h2) ? (object)DataSecurityWrapper.EncryptData(h2, e.EmployeeID) : DBNull.Value;
-                row["BasicSalary"] = updBasic ? (object)DataSecurityWrapper.EncryptData(basicSalary, e.EmployeeID) : DBNull.Value;
+                var finalBasic = (testDataOptions != null && testDataOptions.GenerateSalary) ? generatedSalary : basicSalary;
+                row["BasicSalary"] = updBasic ? (object)DataSecurityWrapper.EncryptData(finalBasic, e.EmployeeID) : DBNull.Value;
                 dt.Rows.Add(row);
             }
             return dt;

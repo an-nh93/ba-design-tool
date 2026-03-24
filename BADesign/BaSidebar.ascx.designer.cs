@@ -51,13 +51,22 @@ namespace BADesign
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavDatabaseSearch;
 
 		/// <summary>
-		/// lnkNavFunctionQueue control.
+		/// phNavPgpTool control.
 		/// </summary>
 		/// <remarks>
 		/// Auto-generated field.
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
-		protected global::System.Web.UI.WebControls.HyperLink lnkNavFunctionQueue;
+		protected global::System.Web.UI.WebControls.PlaceHolder phNavPgpTool;
+
+		/// <summary>
+		/// lnkNavPgpTool control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavPgpTool;
 
 		/// <summary>
 		/// phNavEncryptDecrypt control.
@@ -78,6 +87,24 @@ namespace BADesign
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavEncryptDecrypt;
 
 		/// <summary>
+		/// lnkNavFunctionQueue control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavFunctionQueue;
+
+		/// <summary>
+		/// lnkNavFeedback control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavFeedback;
+
+		/// <summary>
 		/// phNavAppSettings control.
 		/// </summary>
 		/// <remarks>
@@ -94,33 +121,6 @@ namespace BADesign
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavAppSettings;
-
-		/// <summary>
-		/// phNavPgpTool control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.PlaceHolder phNavPgpTool;
-
-		/// <summary>
-		/// lnkNavPgpTool control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.HyperLink lnkNavPgpTool;
-
-		/// <summary>
-		/// lnkNavFeedback control.
-		/// </summary>
-		/// <remarks>
-		/// Auto-generated field.
-		/// To modify move field declaration from designer file to code-behind file.
-		/// </remarks>
-		protected global::System.Web.UI.WebControls.HyperLink lnkNavFeedback;
 
 		/// <summary>
 		/// lnkNavDevShare control.

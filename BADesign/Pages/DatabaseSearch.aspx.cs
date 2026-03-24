@@ -2669,6 +2669,17 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             catch { }
         }
 
+        private static bool ParseIsGenerateTestDataFromPayload(string payloadJson)
+        {
+            if (string.IsNullOrWhiteSpace(payloadJson)) return false;
+            try
+            {
+                var obj = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                return obj["isGenerateTestData"] != null && obj["isGenerateTestData"].ToObject<bool>();
+            }
+            catch { return false; }
+        }
+
         /// <summary>Cập nhật trạng thái shrink cuối vào Payload của Restore job để UI chuông hiển thị chi tiết.</summary>
         private static void UpdateRestoreShrinkFinalStatus(int jobId, bool success, string message)
         {
@@ -2877,11 +2888,13 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                             while (r.Read())
                             {
                                 var jobType = r.IsDBNull(1) ? "" : r.GetString(1);
+                                var payloadStr = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null;
+                                var isGenerateTestData = string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) && ParseIsGenerateTestDataFromPayload(payloadStr);
                                 var typeLabel = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase) ? "Backup"
                                     : string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) ? "Restore"
                                     : string.Equals(jobType, "HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) ? "Update User"
                                     : string.Equals(jobType, "HRHelperUpdateUserSignature", StringComparison.OrdinalIgnoreCase) ? "Update User Signature"
-                                    : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? "Update Employee"
+                                    : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? (isGenerateTestData ? "Generate Data" : "Update Employee")
                                     : string.Equals(jobType, "HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) ? "Update Company/Other"
                                     : string.Equals(jobType, "HRHelperMultiDbAnalyze", StringComparison.OrdinalIgnoreCase) ? "Phân tích Multi-DB"
                                     : string.Equals(jobType, "HRHelperMultiDbReset", StringComparison.OrdinalIgnoreCase) ? "Reset Multi-DB"
@@ -2890,7 +2903,6 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                 var backupFileName = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase)
                                     ? (r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "")
                                     : (r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "");
-                                var payloadStr = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null;
                                 bool? withReplaceOpt, withShrinkLogOpt;
                                 bool? withAutoResetOpt;
                                 ParseRestorePayloadOptions(payloadStr, out withAutoResetOpt, out withReplaceOpt, out withShrinkLogOpt);
@@ -3099,11 +3111,13 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                 while (r.Read())
                                 {
                                     var jobType = r.IsDBNull(1) ? "" : r.GetString(1);
+                                    var payloadStr = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null;
+                                    var isGenerateTestData = string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) && ParseIsGenerateTestDataFromPayload(payloadStr);
                                     var typeLabel = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase) ? "Backup"
                                         : string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) ? "Restore"
                                         : string.Equals(jobType, "HRHelperUpdateUser", StringComparison.OrdinalIgnoreCase) ? "Update User"
                                         : string.Equals(jobType, "HRHelperUpdateUserSignature", StringComparison.OrdinalIgnoreCase) ? "Update User Signature"
-                                        : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? "Update Employee"
+                                        : string.Equals(jobType, "HRHelperUpdateEmployee", StringComparison.OrdinalIgnoreCase) ? (isGenerateTestData ? "Generate Data" : "Update Employee")
                                         : string.Equals(jobType, "HRHelperUpdateOther", StringComparison.OrdinalIgnoreCase) ? "Update Company/Other"
                                         : string.Equals(jobType, "HRHelperMultiDbAnalyze", StringComparison.OrdinalIgnoreCase) ? "Phân tích Multi-DB"
                                         : string.Equals(jobType, "HRHelperMultiDbReset", StringComparison.OrdinalIgnoreCase) ? "Reset Multi-DB"
@@ -3112,7 +3126,6 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     var backupFileName = string.Equals(jobType, "Backup", StringComparison.OrdinalIgnoreCase)
                                         ? (r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "")
                                         : (r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "");
-                                    var payloadStr = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null;
                                     var withAutoReset = ParseWithAutoResetFromPayload(payloadStr);
                                     jobs.Add(new
                                     {

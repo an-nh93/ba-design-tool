@@ -50,6 +50,7 @@ namespace BADesign.Pages
                     new { code = "HRHelper.UpdateUser", label = "HR: Update User" },
                     new { code = "HRHelper.UpdateUserSignature", label = "HR: Update User Signature" },
                     new { code = "HRHelper.UpdateEmployee", label = "HR: Update Employee" },
+                    new { code = "HRHelper.GenerateData", label = "HR: Generate Data" },
                     new { code = "HRHelper.UpdateOther", label = "HR: Update Company/Other" },
                     new { code = "HRHelper.MultiDbReset", label = "Reset Multi-DB" },
                     new { code = "HRHelper.DeleteEmployee", label = "HR: Delete Employee (Generate and Run / Xóa NV)" },
@@ -209,6 +210,7 @@ namespace BADesign.Pages
                 case "HRHelper.UpdateUser": return "HR: Update User";
                 case "HRHelper.UpdateUserSignature": return "HR: Update User Signature";
                 case "HRHelper.UpdateEmployee": return "HR: Update Employee";
+                case "HRHelper.GenerateData": return "HR: Generate Data";
                 case "HRHelper.UpdateOther": return "HR: Update Other";
                 case "HRHelper.MultiDbReset": return "Reset Multi-DB";
                 case "HRHelper.DeleteEmployee": return "HR: Delete Employee";
