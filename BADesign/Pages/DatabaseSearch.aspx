@@ -25,6 +25,129 @@
             margin-bottom: 1.5rem;
         }
         .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
+        .ba-connect-guide {
+            margin-bottom: 1rem;
+            padding: 0.85rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg-darker);
+        }
+        .ba-connect-guide-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.35rem;
+        }
+        .ba-connect-guide-text {
+            font-size: 0.84rem;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+        .ba-connect-or {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 42px;
+            height: 22px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin: 0 0.45rem;
+            padding: 0 0.5rem;
+            background: var(--warning);
+            color: #111827;
+        }
+        .ba-connect-note {
+            margin-top: 0.6rem;
+            padding: 0.55rem 0.75rem;
+            border-radius: 8px;
+            border: 1px dashed var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+        }
+        .ba-connect-methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+            gap: 0.6rem;
+            margin-top: 0.7rem;
+        }
+        .ba-connect-mode {
+            margin-top: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .ba-connect-mode-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-right: 0.15rem;
+        }
+        .ba-connect-mode-btn {
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border-radius: 999px;
+            padding: 0.35rem 0.7rem;
+            font-size: 0.78rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .ba-connect-mode-btn:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+        }
+        .ba-connect-mode-btn.active {
+            background: var(--primary-soft);
+            border-color: var(--primary);
+            color: var(--primary-light);
+        }
+        .ba-connect-method-btn {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            width: 100%;
+            text-align: left;
+            padding: 0.65rem 0.8rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 0.84rem;
+            cursor: pointer;
+        }
+        .ba-connect-method-btn:hover {
+            border-color: var(--primary);
+            background: var(--bg-hover);
+        }
+        .ba-connect-method-btn .method-title {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .ba-connect-method-btn .method-sub {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 0.15rem;
+            display: block;
+        }
+        .ba-connect-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 78px;
+            height: 22px;
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            margin-right: 0.45rem;
+            padding: 0 0.55rem;
+            background: var(--primary-soft);
+            color: var(--primary-light);
+            border: 1px solid rgba(13, 158, 255, 0.25);
+            vertical-align: middle;
+        }
         .ba-form-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -267,16 +390,52 @@
                 <div class="ba-content">
                     <h1 class="ba-page-title" style="font-size:1.5rem;font-weight:600;color:var(--text-primary);margin:0 0 0.35rem 0;">Database Tools</h1>
                     <p class="ba-page-desc" style="color:var(--text-muted);font-size:0.9rem;margin:0 0 1.25rem 0;">Connect server, xem danh sách database, kết nối HR Helper, Backup và Restore.</p>
+                    <div class="ba-connect-guide">
+                        <div class="ba-connect-guide-title">Có 2 cách kết nối độc lập</div>
+                        <p class="ba-connect-guide-text">
+                            <span class="ba-connect-badge">Cách 1</span> Dán <strong>Connection String</strong> rồi bấm Connect ngay.
+                            <span class="ba-connect-or">HOẶC</span>
+                            <span class="ba-connect-badge">Cách 2</span> Chọn từ <strong>Danh sách Server</strong> rồi bấm Load danh sách Database.
+                        </p>
+                        <div class="ba-connect-note" style="display:none">
+                            Bạn chỉ cần chọn <strong>1 trong 2 cách</strong>. Không cần làm tuần tự từ trên xuống.
+                        </div>
+                        <div class="ba-connect-note" style="margin-top:0.45rem; border-style: solid; border-color: rgba(13, 158, 255, 0.35); display:none" >
+                            <strong>Lưu ý:</strong> <u>Cách 1</u> và <u>Cách 2</u> là hai luồng riêng. Chọn một cách phù hợp rồi thao tác ngay, không cần mở/điền tất cả các phần.
+                        </div>
+                        <div class="ba-connect-methods">
+                            <button type="button" class="ba-connect-method-btn" id="btnUseConnStrMethod">
+                                <span>
+                                    <span class="method-title">Dùng Cách 1: Connection String</span>
+                                    <span class="method-sub">Phù hợp khi đã có sẵn connection string.</span>
+                                </span>
+                                <span aria-hidden="true">→</span>
+                            </button>
+                            <button type="button" class="ba-connect-method-btn" id="btnUseServerMethod">
+                                <span>
+                                    <span class="method-title">Dùng Cách 2: Danh sách Server</span>
+                                    <span class="method-sub">Phù hợp khi chọn server rồi load database.</span>
+                                </span>
+                                <span aria-hidden="true">→</span>
+                            </button>
+                        </div>
+                        <div class="ba-connect-mode" style="display:none">
+                            <span class="ba-connect-mode-label">Chế độ hiển thị:</span>
+                            <button type="button" class="ba-connect-mode-btn active" id="btnModeBoth" data-mode="both">Hiện cả 2 cách</button>
+                            <button type="button" class="ba-connect-mode-btn" id="btnModeConnStr" data-mode="connstr">Chỉ Cách 1</button>
+                            <button type="button" class="ba-connect-mode-btn" id="btnModeServers" data-mode="servers">Chỉ Cách 2</button>
+                        </div>
+                    </div>
                     <!-- Connection String (Guest + Logged-in) - thu gọn mặc định -->
-                    <div class="ba-card ba-section-collapsed" id="cardConnStr">
+                    <div class="ba-card" id="cardConnStr">
                         <div class="ba-card-header">
                             <div class="ba-card-title-wrap">
-                                <button type="button" class="ba-toggle-btn" id="toggleConnStr" title="Thu gọn / Mở rộng">▶</button>
-                                <h2 class="ba-card-title">Kết nối bằng Connection String</h2>
+                                <button type="button" class="ba-toggle-btn" id="toggleConnStr" title="Thu gọn / Mở rộng">▼</button>
+                                <h2 class="ba-card-title"><span class="ba-connect-badge">Cách 1</span> Kết nối bằng Connection String</h2>
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Dán connection string vào ô bên dưới rồi bấm Connect (HR Helper) hoặc PGP Tool.</p>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Dán connection string vào ô bên dưới rồi bấm Connect (HR Helper) hoặc PGP Tool. <strong>Không cần thao tác ở phần Danh sách Server.</strong></p>
                             <div class="ba-form-group" style="margin-bottom: 1rem;">
                                 <div class="ba-form-label-row">
                                     <label class="ba-form-label" for="txtConnStr">Connection String</label>
@@ -296,7 +455,7 @@
                         <div class="ba-card-header">
                             <div class="ba-card-title-wrap">
                                 <button type="button" class="ba-toggle-btn" id="toggleServers" title="Thu gọn / Mở rộng">▼</button>
-                                <h2 class="ba-card-title">Danh sách Server</h2>
+                                <h2 class="ba-card-title"><span class="ba-connect-badge">Cách 2</span> Danh sách Server</h2>
                             </div>
                             <div style="display: flex; gap: 0.5rem; align-items: center;">
                                 <div class="ba-search-wrap">
@@ -306,7 +465,7 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Danh sách các Server mà bạn có quyền truy cập. Có thể connect tất cả hoặc chọn 1 server rồi bấm &quot;Connect&quot; để load database.</p>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Danh sách các Server mà bạn có quyền truy cập. Có thể connect tất cả hoặc chọn 1 server rồi bấm &quot;Connect&quot; để load database. <strong>Không cần nhập Connection String.</strong></p>
                             <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Load danh sách Database: dùng để connect và load danh sách database từ <code>tất cả server</code> mà bạn có quyền.</p>
                             <div style="margin-bottom: 1rem;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnLoadDb" onclick="loadDatabases(); return false;">
@@ -344,7 +503,10 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p id="dbListDesc" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Danh sách các Database của Server. Bấm Connect Database để mở HR Helper.</p>
+                            <p id="dbListDesc" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.4rem;">Danh sách các Database của Server. Bấm Connect Database để mở HR Helper.</p>
+                            <p style="color: var(--text-secondary); font-size: 0.8125rem; margin-bottom: 1rem;">
+                                <span class="ba-connect-badge">Cách 2</span> Khu vực này dùng cho luồng <strong>Danh sách Server</strong>. Nếu bạn đã kết nối bằng <strong>Cách 1 - Connection String</strong> thì có thể bỏ qua phần này.
+                            </p>
                             <div style="margin-bottom: 0.75rem; display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
                                 <button type="button" class="ba-btn ba-btn-primary ba-btn-sm <%= !CanBackup ? "ba-btn-disabled" : "" %>" id="btnBackupDb" onclick="if (typeof canBackup !== 'undefined' && !canBackup) return; showBackupModal(); return false;" title="<%= CanBackup ? "Backup database (chọn server + database)" : "Cần quyền Backup database" %>">Backup database</button>
                                 <button type="button" class="ba-btn ba-btn-primary ba-btn-sm <%= !CanRestore ? "ba-btn-disabled" : "" %>" id="btnRestoreDb" onclick="if (typeof canRestore !== 'undefined' && !canRestore) return; showRestoreModalStandalone(); return false;" title="<%= CanRestore ? "Restore từ file backup lên server" : "Cần quyền Restore database" %>">Restore database</button>
@@ -2944,16 +3106,53 @@
         }
 
         $(function() {
+            function setSectionExpanded($card, $toggle, expanded) {
+                if (!$card.length || !$toggle.length) return;
+                $card.toggleClass('ba-section-collapsed', !expanded);
+                $toggle.text(expanded ? '▼' : '▶');
+            }
+            function applyConnectMode(mode) {
+                var hasServerFlow = !(isGuest || !canUseServers);
+                var m = mode || 'both';
+                if (!hasServerFlow && m === 'servers') m = 'connstr';
+                if (!hasServerFlow) {
+                    $('#btnModeServers').prop('disabled', true).addClass('ba-btn-disabled');
+                }
+                $('.ba-connect-mode-btn').removeClass('active');
+                if (m === 'connstr') $('#btnModeConnStr').addClass('active');
+                else if (m === 'servers') $('#btnModeServers').addClass('active');
+                else $('#btnModeBoth').addClass('active');
+                if (m === 'connstr') {
+                    $('#cardConnStr').show();
+                    $('#cardServers').hide();
+                    $('#cardDatabases').hide();
+                } else if (m === 'servers') {
+                    $('#cardConnStr').hide();
+                    if (hasServerFlow) {
+                        $('#cardServers').show();
+                        $('#cardDatabases').show();
+                    }
+                } else {
+                    $('#cardConnStr').show();
+                    if (hasServerFlow) {
+                        $('#cardServers').show();
+                        $('#cardDatabases').show();
+                    }
+                }
+            }
             if (isGuest) {
                 $('#cardServers').hide();
                 $('#cardDatabases').hide();
                 $('#btnLoadDb').hide();
+                $('#btnUseServerMethod').hide();
             } else if (!canUseServers) {
                 $('#cardServers').hide();
                 $('#cardDatabases').hide();
                 $('#btnLoadDb').hide();
+                $('#btnUseServerMethod').hide();
             }
             if (!canManageServers) $('#addServerWrap').hide();
+            applyConnectMode((isGuest || !canUseServers) ? 'connstr' : 'both');
             var msg = (function() {
                 var s = (window.location.search || '').replace(/^\?/, '');
                 if (!s) return null;
@@ -3006,6 +3205,25 @@
                 var $target = $('#btnLoadDb').length ? $('#btnLoadDb') : $('#cardServers');
                 if ($target.length) $target[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
             });
+            $('#btnUseConnStrMethod').on('click', function() {
+                applyConnectMode('connstr');
+                setSectionExpanded($('#cardConnStr'), $('#toggleConnStr'), true);
+                var $target = $('#txtConnStr');
+                if ($target.length) {
+                    $target[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    window.setTimeout(function() { try { $target.focus(); } catch (e) {} }, 250);
+                }
+            });
+            $('#btnUseServerMethod').on('click', function() {
+                if (isGuest || !canUseServers) return;
+                applyConnectMode('servers');
+                setSectionExpanded($('#cardServers'), $('#toggleServers'), true);
+                var $target = $('#btnLoadDb').length ? $('#btnLoadDb') : $('#cardServers');
+                if ($target.length) $target[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            });
+            $('#btnModeBoth').on('click', function() { applyConnectMode('both'); });
+            $('#btnModeConnStr').on('click', function() { applyConnectMode('connstr'); });
+            $('#btnModeServers').on('click', function() { applyConnectMode('servers'); });
             /* Modal: không đóng khi click ra ngoài (đồng bộ với Feedback/FeedbackManage) */
             $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); e.stopPropagation(); $('#notificationDetailModal').removeClass('show'); });
             $('#restoreExplorerUpBtn').on('click', function() {
