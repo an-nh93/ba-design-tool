@@ -787,7 +787,7 @@
                             <div class="ba-actions" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataEmployees" onclick="loadEmployees(); return false;">View Data</button>
                                 <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateEmployeeTestData" onclick="openGenerateEmployeeTestDataModal(); return false;">Generate Test Data</button>
-                                <button type="button" class="ba-btn ba-btn-danger" id="btnDeleteEmployees" style="display: none;" onclick="openDeleteEmployeeConfirm(); return false;" title="Xóa employee đã chọn">Delete</button>
+                                <button type="button" class="ba-btn ba-btn-danger" id="btnDeleteEmployees" style="display: none;" onclick="openDeleteEmployeeConfirm(); return false;" title="Xóa employee đã chọn">Delete Employee</button>
                                 <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateDeleteScript" onclick="openGenerateDeleteScriptModal(); return false;">Generate Delete Script</button>
                             </div>
                             <div class="ba-grid-toolbar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">

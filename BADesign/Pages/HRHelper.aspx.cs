@@ -4514,11 +4514,7 @@ JOIN dbo.Security_Users U WITH (ROWLOCK, UPDLOCK) ON U.EmployeeID = B.EmployeeID
 WHERE B.UserEmailAddress IS NOT NULL;
 IF EXISTS(SELECT 1 FROM #B WHERE BasicSalary IS NOT NULL)
 BEGIN
-    IF OBJECT_ID('dbo.PAY_EmployeeSalaries','U') IS NOT NULL
-    UPDATE ES SET ES.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (ROWLOCK, UPDLOCK) ON ES.EmployeeID=B.EmployeeID WHERE B.BasicSalary IS NOT NULL;
-    IF OBJECT_ID('dbo.PAY_EmployeeSalaryDetails','U') IS NOT NULL
-    UPDATE ESD SET ESD.[Value]=NULL FROM #B B JOIN dbo.PAY_EmployeeSalaries ES WITH (READCOMMITTED) ON ES.EmployeeID=B.EmployeeID JOIN dbo.PAY_EmployeeSalaryDetails ESD WITH (ROWLOCK, UPDLOCK) ON ESD.EmployeeSalaryID=ES.ID WHERE B.BasicSalary IS NOT NULL;
-    /* Cập nhật BasicSalary cho tất cả transaction của nhân viên (không chỉ IsActiveTransaction=1) */
+    
     UPDATE T SET T.BasicSalary=B.BasicSalary
     FROM #B B
     JOIN dbo.Staffing_Transactions T WITH (ROWLOCK, UPDLOCK) ON T.EmployeeID=B.EmployeeID

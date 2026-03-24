@@ -176,6 +176,23 @@
         }
         .ba-info-popover.show { display: block !important; }
         .ba-info-wrap { position: relative; }
+        .ba-key-password-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+        .ba-key-password-wrap .ba-input { flex: 1; }
+        .ba-eye-btn {
+            width: 38px;
+            height: 36px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-hover);
+            color: var(--text-primary);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .ba-eye-btn:hover { background: var(--bg-card); }
     </style>
 </head>
 <body>
@@ -191,6 +208,7 @@
                 <div class="ba-content">
                     <div class="ba-tabs">
                         <button type="button" class="ba-tab active" data-tab="encdec">Encrypt / Decrypt</button>
+                        <button type="button" class="ba-tab" data-tab="connstr">Connection String</button>
                         <button type="button" class="ba-tab" data-tab="demoreset">Generate Demo Reset Script</button>
                     </div>
 
@@ -352,6 +370,58 @@
                                         <table class="ba-table" id="tblDecryptResult" style="table-layout: fixed;"></table>
                                     </div>
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnDownloadDecryptCsv" style="margin-top: 0.5rem;">Download file CSV</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab Connection String -->
+                    <div id="tabConnstr" class="ba-tab-content">
+                        <div class="ba-grid-2 ba-encdec-cards">
+                            <div class="ba-card">
+                                <h2 class="ba-card-title">Mã hóa Connection String</h2>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtConnStrPlain">Connection String gốc</label>
+                                    <textarea id="txtConnStrPlain" class="ba-input" placeholder="Data Source=...;Initial Catalog=...;User ID=...;Password=...;" rows="5"></textarea>
+                                </div>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtConnStrKeyEnc">Key</label>
+                                    <div class="ba-key-password-wrap">
+                                        <input type="password" id="txtConnStrKeyEnc" class="ba-input" value="20261203" />
+                                        <button type="button" class="ba-eye-btn" data-eye-target="txtConnStrKeyEnc" title="Hiện/ẩn key">👁</button>
+                                    </div>
+                                </div>
+                                <button type="button" class="ba-btn ba-btn-primary" id="btnEncryptConnStr">Mã hóa</button>
+                                <div id="connEncErr" class="ba-err" style="display:none;"></div>
+                                <div class="ba-form-group" id="connEncResultWrap" style="display:none;">
+                                    <label class="ba-form-label">Kết quả mã hóa</label>
+                                    <div class="ba-result-wrap">
+                                        <textarea id="txtConnStrEncrypted" class="ba-input" readonly rows="4"></textarea>
+                                        <button type="button" class="ba-btn ba-btn-secondary" id="btnCopyConnEnc">Copy</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ba-card">
+                                <h2 class="ba-card-title">Giải mã Connection String</h2>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtConnStrEncryptedIn">Chuỗi đã mã hóa</label>
+                                    <textarea id="txtConnStrEncryptedIn" class="ba-input" placeholder="Dán chuỗi đã mã hóa (base64)." rows="5"></textarea>
+                                </div>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtConnStrKeyDec">Key</label>
+                                    <div class="ba-key-password-wrap">
+                                        <input type="password" id="txtConnStrKeyDec" class="ba-input" value="20261203" />
+                                        <button type="button" class="ba-eye-btn" data-eye-target="txtConnStrKeyDec" title="Hiện/ẩn key">👁</button>
+                                    </div>
+                                </div>
+                                <button type="button" class="ba-btn ba-btn-primary" id="btnDecryptConnStr">Giải mã</button>
+                                <div id="connDecErr" class="ba-err" style="display:none;"></div>
+                                <div class="ba-form-group" id="connDecResultWrap" style="display:none;">
+                                    <label class="ba-form-label">Kết quả giải mã</label>
+                                    <div class="ba-result-wrap">
+                                        <textarea id="txtConnStrDecrypted" class="ba-input" readonly rows="4"></textarea>
+                                        <button type="button" class="ba-btn ba-btn-secondary" id="btnCopyConnDec">Copy</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -712,11 +782,81 @@
                 showToast('Đã copy.', 'success');
             });
 
+            function getConnStrKey(selector) {
+                var k = ($(selector).val() || '').trim();
+                return k || '20261203';
+            }
+            $(document).on('click', '.ba-eye-btn[data-eye-target]', function () {
+                var id = $(this).attr('data-eye-target');
+                var $inp = $('#' + id);
+                if (!$inp.length) return;
+                var isPwd = ($inp.attr('type') || '').toLowerCase() === 'password';
+                $inp.attr('type', isPwd ? 'text' : 'password');
+                $(this).text(isPwd ? '🙈' : '👁');
+            });
+            $('#btnEncryptConnStr').on('click', function () {
+                var plain = $('#txtConnStrPlain').val() || '';
+                var keyVal = getConnStrKey('#txtConnStrKeyEnc');
+                $('#connEncErr').hide();
+                $('#connEncResultWrap').hide();
+                $.ajax({
+                    type: 'POST', url: encUrl,
+                    data: JSON.stringify({ plainText: plain, keyType: 'string', keyValue: keyVal }),
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: 'json',
+                    success: function (r) {
+                        var d = r.d || r;
+                        if (d && d.success) {
+                            $('#txtConnStrEncrypted').val(d.encrypted);
+                            $('#connEncResultWrap').show();
+                        } else {
+                            $('#connEncErr').text((d && d.message) || 'Lỗi').show();
+                        }
+                    },
+                    error: function (x, s, e) { $('#connEncErr').text(s || 'Lỗi kết nối').show(); }
+                });
+            });
+            $('#btnDecryptConnStr').on('click', function () {
+                var enc = $('#txtConnStrEncryptedIn').val() || '';
+                var keyVal = getConnStrKey('#txtConnStrKeyDec');
+                $('#connDecErr').hide();
+                $('#connDecResultWrap').hide();
+                $.ajax({
+                    type: 'POST', url: decUrl,
+                    data: JSON.stringify({ encryptedText: enc, keyType: 'string', keyValue: keyVal }),
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: 'json',
+                    success: function (r) {
+                        var d = r.d || r;
+                        if (d && d.success) {
+                            $('#txtConnStrDecrypted').val(d.decrypted);
+                            $('#connDecResultWrap').show();
+                        } else {
+                            $('#connDecErr').text((d && d.message) || 'Lỗi').show();
+                        }
+                    },
+                    error: function (x, s, e) { $('#connDecErr').text(s || 'Lỗi kết nối').show(); }
+                });
+            });
+            $('#btnCopyConnEnc').on('click', function () {
+                var t = $('#txtConnStrEncrypted');
+                t.select();
+                document.execCommand('copy');
+                showToast('Đã copy.', 'success');
+            });
+            $('#btnCopyConnDec').on('click', function () {
+                var t = $('#txtConnStrDecrypted');
+                t.select();
+                document.execCommand('copy');
+                showToast('Đã copy.', 'success');
+            });
+
             $('[data-tab]').on('click', function () {
                 var tab = $(this).data('tab');
                 $('.ba-tab').removeClass('active'); $('.ba-tab-content').removeClass('active');
                 $('.ba-tab[data-tab="' + tab + '"]').addClass('active');
-                $('#tab' + (tab === 'encdec' ? 'Encdec' : 'Demoreset')).addClass('active');
+                var map = { encdec: 'tabEncdec', connstr: 'tabConnstr', demoreset: 'tabDemoreset' };
+                $('#' + (map[tab] || 'tabEncdec')).addClass('active');
                 if (tab === 'encdec') { applyEncdecSubTab('single'); }
                 else if (tab === 'demoreset') { applySubTab('demoreset'); }
             });
