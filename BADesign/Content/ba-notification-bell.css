@@ -153,6 +153,32 @@
 .ba-notif-status-pending { background: rgba(245, 158, 11, 0.22); color: #f59e0b; }
 .ba-notif-status-completed { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .ba-notif-status-failed { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+
+/* Light theme: tăng độ tương phản cho panel chuông để dễ đọc */
+body.light-theme .ba-notif-panel,
+body.light-theme .ba-notif-panel .ba-notif-panel-title,
+body.light-theme .ba-notif-list,
+body.light-theme .ba-notif-item,
+body.light-theme .ba-notif-panel-footer {
+    background: #e5ecf4;
+}
+body.light-theme .ba-notif-queue-link,
+body.light-theme .ba-notif-item .ba-notif-detail-link,
+body.light-theme .ba-notif-reset-info-btn,
+body.light-theme .ba-emp-list-toggle {
+    color: #084a82;
+    font-weight: 700;
+}
+body.light-theme .ba-notif-type-restore { color: #1d4ed8; background: rgba(29, 78, 216, 0.16); }
+body.light-theme .ba-notif-status-running { color: #1d4ed8; background: rgba(29, 78, 216, 0.16); }
+body.light-theme .ba-notif-type-hr-user,
+body.light-theme .ba-notif-type-hr-employee,
+body.light-theme .ba-notif-type-hr-other,
+body.light-theme .ba-notif-type-hr-analyze { color: #0f766e; background: rgba(15, 118, 110, 0.16); }
+body.light-theme .ba-notif-item .ba-notif-msg {
+    color: #2f435b;
+    font-weight: 500;
+}
 /* Badge trạng thái góp ý (Feedback): Mới, Đã đọc, Đang xử lý, Đã xử lý, Đóng */
 .ba-feedback-status-badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
 .ba-feedback-status-badge:hover { opacity: 0.9; }

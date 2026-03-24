@@ -122,6 +122,18 @@
             border-color: var(--primary);
             background: var(--bg-hover);
         }
+        .ba-connect-method-btn.is-selected {
+            border-color: var(--primary);
+            background: var(--primary-soft);
+            box-shadow: 0 0 0 2px rgba(13, 158, 255, 0.2);
+        }
+        .ba-connect-method-btn.is-selected .method-title {
+            color: var(--primary-light);
+        }
+        .ba-connect-method-btn.is-selected [aria-hidden="true"] {
+            color: var(--primary-light);
+            font-weight: 700;
+        }
         .ba-connect-method-btn .method-title {
             font-weight: 600;
             color: var(--text-primary);
@@ -3206,6 +3218,8 @@
                 if ($target.length) $target[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
             });
             $('#btnUseConnStrMethod').on('click', function() {
+                $('#btnUseConnStrMethod').addClass('is-selected');
+                $('#btnUseServerMethod').removeClass('is-selected');
                 applyConnectMode('connstr');
                 setSectionExpanded($('#cardConnStr'), $('#toggleConnStr'), true);
                 var $target = $('#txtConnStr');
@@ -3216,6 +3230,8 @@
             });
             $('#btnUseServerMethod').on('click', function() {
                 if (isGuest || !canUseServers) return;
+                $('#btnUseServerMethod').addClass('is-selected');
+                $('#btnUseConnStrMethod').removeClass('is-selected');
                 applyConnectMode('servers');
                 setSectionExpanded($('#cardServers'), $('#toggleServers'), true);
                 var $target = $('#btnLoadDb').length ? $('#btnLoadDb') : $('#cardServers');

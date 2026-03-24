@@ -39,16 +39,17 @@
 
         /* Light theme */
         body.light-theme {
-            --bg-main: #ffffff;
-            --bg-dark: #f3f4f6;
-            --bg-darker: #f9fafb;
-            --bg-card: #ffffff;
-            --bg-hover: #f3f4f6;
-            --text-primary: #111827;
-            --text-secondary: #4b5563;
-            --text-muted: #6b7280;
-            --border: #e5e7eb;
-            --border-light: #d1d5db;
+            /* Đồng bộ với tông light theme chung của hệ thống */
+            --bg-main: #d7dde5;
+            --bg-dark: #c7d0db;
+            --bg-darker: #e1e7ef;
+            --bg-card: #edf1f6;
+            --bg-hover: #d3dce8;
+            --text-primary: #172538;
+            --text-secondary: #314761;
+            --text-muted: #526984;
+            --border: #b6c3d3;
+            --border-light: #a6b5c8;
         }
 
         * {
@@ -642,68 +643,70 @@
             <div class="admin-main ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="admin-content">
-                    <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem;">
-                        <button type="button" class="ba-btn ba-btn-primary" onclick="showUserModal(); return false;">+ Add New User</button>
-                    </div>
-                    <div class="admin-users-search">
-                        <div class="admin-users-search-wrap">
-                            <input type="text" id="userSearchInput" placeholder="Search by Username, Full Name, Email, Role..." />
+                    <div class="ba-card">
+                        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem;">
+                            <button type="button" class="ba-btn ba-btn-primary" onclick="showUserModal(); return false;">+ Add New User</button>
                         </div>
-                    </div>
-                    <!-- Users Table: dùng chung ba-table-wrap, ba-table từ ba-layout.css -->
-                    <div class="ba-table-wrap">
-                        <table class="ba-table">
-                            <thead>
-                                <tr>
-                                    <th class="admin-sortable" data-col="userId"><span>ID <span class="sort-icon"></span></span></th>
-                                    <th class="admin-sortable" data-col="userName"><span>Username <span class="sort-icon"></span></span></th>
-                                    <th class="admin-sortable" data-col="fullName"><span>Full Name <span class="sort-icon"></span></span></th>
-                                    <th class="admin-sortable" data-col="email"><span>Email <span class="sort-icon"></span></span></th>
-                                    <th class="admin-sortable" data-col="role"><span>Role <span class="sort-icon"></span></span></th>
-                                    <th class="admin-sortable" data-col="superAdmin"><span>Super Admin <span class="sort-icon"></span></span></th>
-                                    <th class="admin-sortable" data-col="active"><span>Active <span class="sort-icon"></span></span></th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="usersTableBody">
-                                <asp:Repeater ID="rpUsers" runat="server">
-                                    <ItemTemplate>
-                                        <tr data-user-id="<%# Eval("UserId") %>" data-user-name="<%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %>" data-full-name="<%# HttpUtility.HtmlEncode((Eval("FullName") as string) ?? "-") %>" data-email="<%# HttpUtility.HtmlEncode((Eval("Email") as string) ?? "-") %>" data-role="<%# HttpUtility.HtmlEncode((Eval("RoleCode") as string) ?? "-") %>" data-super-admin="<%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>" data-active="<%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>">
-                                            <td><%# Eval("UserId") %></td>
-                                            <td><strong><%# Eval("UserName") %></strong></td>
-                                            <td><%# Eval("FullName") ?? "-" %></td>
-                                            <td><%# Eval("Email") ?? "-" %></td>
-                                            <td><%# Eval("RoleCode") ?? "-" %></td>
-                                            <td>
-                                                <span class="ba-badge <%# (bool)Eval("IsSuperAdmin") ? "ba-badge-ok" : "" %>">
-                                                    <%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <span class="ba-badge <%# (bool)Eval("IsActive") ? "ba-badge-ok" : "ba-badge-fail" %>">
-                                                    <%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div class="ba-actions">
-                                                    <div class="ba-actions-dropdown-wrap">
-                                                        <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-actions-trigger" aria-haspopup="true" aria-expanded="false" title="Thao tác">Action</button>
-                                                        <div class="ba-actions-menu">
-                                                            <div class="ba-actions-menu-header" title="<%# HttpUtility.HtmlAttributeEncode((Eval("UserName") as string) ?? "") %>"><strong><%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %></strong></div>
-                                                            <div class="ba-actions-menu-body">
-                                                                <button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="editUser(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#9998;</span> Edit</button>
-                                                                <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="resetPassword(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#128274;</span> Reset</button>
-                                                                <button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="toggleActive(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#128260;</span> Toggle</button>
+                        <div class="admin-users-search">
+                            <div class="admin-users-search-wrap">
+                                <input type="text" id="userSearchInput" placeholder="Search by Username, Full Name, Email, Role..." />
+                            </div>
+                        </div>
+                        <!-- Users Table: dùng chung ba-table-wrap, ba-table từ ba-layout.css -->
+                        <div class="ba-table-wrap">
+                            <table class="ba-table">
+                                <thead>
+                                    <tr>
+                                        <th class="admin-sortable" data-col="userId"><span>ID <span class="sort-icon"></span></span></th>
+                                        <th class="admin-sortable" data-col="userName"><span>Username <span class="sort-icon"></span></span></th>
+                                        <th class="admin-sortable" data-col="fullName"><span>Full Name <span class="sort-icon"></span></span></th>
+                                        <th class="admin-sortable" data-col="email"><span>Email <span class="sort-icon"></span></span></th>
+                                        <th class="admin-sortable" data-col="role"><span>Role <span class="sort-icon"></span></span></th>
+                                        <th class="admin-sortable" data-col="superAdmin"><span>Super Admin <span class="sort-icon"></span></span></th>
+                                        <th class="admin-sortable" data-col="active"><span>Active <span class="sort-icon"></span></span></th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="usersTableBody">
+                                    <asp:Repeater ID="rpUsers" runat="server">
+                                        <ItemTemplate>
+                                            <tr data-user-id="<%# Eval("UserId") %>" data-user-name="<%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %>" data-full-name="<%# HttpUtility.HtmlEncode((Eval("FullName") as string) ?? "-") %>" data-email="<%# HttpUtility.HtmlEncode((Eval("Email") as string) ?? "-") %>" data-role="<%# HttpUtility.HtmlEncode((Eval("RoleCode") as string) ?? "-") %>" data-super-admin="<%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>" data-active="<%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>">
+                                                <td><%# Eval("UserId") %></td>
+                                                <td><strong><%# Eval("UserName") %></strong></td>
+                                                <td><%# Eval("FullName") ?? "-" %></td>
+                                                <td><%# Eval("Email") ?? "-" %></td>
+                                                <td><%# Eval("RoleCode") ?? "-" %></td>
+                                                <td>
+                                                    <span class="ba-badge <%# (bool)Eval("IsSuperAdmin") ? "ba-badge-ok" : "" %>">
+                                                        <%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="ba-badge <%# (bool)Eval("IsActive") ? "ba-badge-ok" : "ba-badge-fail" %>">
+                                                        <%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div class="ba-actions">
+                                                        <div class="ba-actions-dropdown-wrap">
+                                                            <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm ba-actions-trigger" aria-haspopup="true" aria-expanded="false" title="Thao tác">Action</button>
+                                                            <div class="ba-actions-menu">
+                                                                <div class="ba-actions-menu-header" title="<%# HttpUtility.HtmlAttributeEncode((Eval("UserName") as string) ?? "") %>"><strong><%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %></strong></div>
+                                                                <div class="ba-actions-menu-body">
+                                                                    <button type="button" class="ba-btn ba-btn-primary ba-btn-sm" onclick="editUser(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#9998;</span> Edit</button>
+                                                                    <button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" onclick="resetPassword(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#128274;</span> Reset</button>
+                                                                    <button type="button" class="ba-btn ba-btn-danger ba-btn-sm" onclick="toggleActive(<%# Eval("UserId") %>); return false;"><span class="ba-action-icon">&#128260;</span> Toggle</button>
+                                                                </div>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    </ItemTemplate>
-                                </asp:Repeater>
-                            </tbody>
-                        </table>
+                                                </td>
+                                            </tr>
+                                        </ItemTemplate>
+                                    </asp:Repeater>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                 </div>
