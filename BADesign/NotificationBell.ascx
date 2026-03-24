@@ -19,5 +19,18 @@
         <div id="notificationDetailBody" class="ba-notif-detail-body"></div>
     </div>
 </div>
-<script type="text/javascript">window.BA_API_BASE = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>';</script>
+<div id="baRestoreDiagLargeModal" class="ba-notif-detail-modal ba-restore-diag-large-modal" aria-hidden="true">
+    <div class="ba-notif-detail-modal-content ba-restore-diag-large-content">
+        <div class="ba-notif-detail-header ba-restore-diag-large-header">
+            <span class="ba-notif-detail-title">Giám sát SQL Server — cửa sổ lớn</span>
+            <div class="ba-restore-diag-large-actions">
+                <button type="button" class="ba-restore-diag-refresh-large" data-job-id="0" title="Tải lại từ SQL Server">Làm mới</button>
+                <button type="button" id="baRestoreDiagLargeClose" class="ba-modal-close" title="Đóng">×</button>
+            </div>
+        </div>
+        <div id="ba-restore-diag-large-body" class="ba-notif-detail-body ba-restore-diag-large-body"></div>
+    </div>
+</div>
+<script type="text/javascript">window.BA_API_BASE = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>'; window.BA_CAN_VIEW_RESTORE_DIAGNOSTICS = <%= CanViewRestoreDiagnostics ? "true" : "false" %>;</script>
 <script src="<%= ResolveUrl("~/Scripts/ba-notification-detail.js") %>"></script>
+<script src="<%= ResolveUrl("~/Scripts/ba-notification-jobs.js") %>"></script>

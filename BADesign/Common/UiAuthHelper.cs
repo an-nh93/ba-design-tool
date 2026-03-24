@@ -126,7 +126,7 @@ namespace BADesign
 			return false;
 		}
 
-		/// <summary>True khi chưa đăng nhập (dùng Database Search reset password).</summary>
+		/// <summary>True khi chưa đăng nhập (dùng Database Tools reset password).</summary>
 		public static bool IsAnonymous
 		{
 			get { return CurrentUserId == null; }

@@ -6,7 +6,7 @@
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Database Search - HR Helper</title>
+    <title>Database Tools - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <link href="../Content/ba-layout.css" rel="stylesheet" />
     <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
@@ -215,6 +215,11 @@
         #restoreModalBackupSets table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
         #restoreModalBackupSets th, #restoreModalBackupSets td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--border-color); }
         #restoreModalBackupSets th { color: var(--text-muted); font-weight: 500; }
+        /* Sort header cho bảng Database Tools */
+        .ba-db-sort-th { cursor: pointer; user-select: none; }
+        .ba-db-sort-th:hover { color: var(--primary-light, #0D9EFF); }
+        .ba-db-sort-th .ba-sort-icon { font-size: 0.75rem; opacity: 0.8; margin-left: 4px; }
+        .ba-db-sort-th.active { color: var(--primary-light, #0D9EFF); }
         /* Info icon (i) + popover: đảm bảo hiển thị, click, căn giữa và khoảng cách */
         .ba-form-label-row { flex-wrap: nowrap !important; display: flex !important; align-items: center; gap: 0.5rem !important; }
         .ba-form-label-row .ba-form-label { line-height: 1.25; }
@@ -260,7 +265,7 @@
             <main class="ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="ba-content">
-                    <h1 class="ba-page-title" style="font-size:1.5rem;font-weight:600;color:var(--text-primary);margin:0 0 0.35rem 0;">Database Search</h1>
+                    <h1 class="ba-page-title" style="font-size:1.5rem;font-weight:600;color:var(--text-primary);margin:0 0 0.35rem 0;">Database Tools</h1>
                     <p class="ba-page-desc" style="color:var(--text-muted);font-size:0.9rem;margin:0 0 1.25rem 0;">Connect server, xem danh sách database, kết nối HR Helper, Backup và Restore.</p>
                     <!-- Connection String (Guest + Logged-in) - thu gọn mặc định -->
                     <div class="ba-card ba-section-collapsed" id="cardConnStr">
@@ -291,7 +296,7 @@
                         <div class="ba-card-header">
                             <div class="ba-card-title-wrap">
                                 <button type="button" class="ba-toggle-btn" id="toggleServers" title="Thu gọn / Mở rộng">▼</button>
-                                <h2 class="ba-card-title">Cấu hình Server</h2>
+                                <h2 class="ba-card-title">Danh sách Server</h2>
                             </div>
                             <div style="display: flex; gap: 0.5rem; align-items: center;">
                                 <div class="ba-search-wrap">
@@ -301,8 +306,8 @@
                             </div>
                         </div>
                         <div class="ba-card-body">
-                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Thêm server để connect. Có thể connect tất cả hoặc chọn 1 server rồi bấm &quot;Connect&quot; để load database.</p>
-                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Load Database tất cả server: bấm nút bên dưới để connect và load danh sách database từ tất cả server đã cấu hình.</p>
+                            <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Danh sách các Server mà bạn có quyền truy cập. Có thể connect tất cả hoặc chọn 1 server rồi bấm &quot;Connect&quot; để load database.</p>
+                            <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Load danh sách Database: dùng để connect và load danh sách database từ <code>tất cả server</code> mà bạn có quyền.</p>
                             <div style="margin-bottom: 1rem;">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnLoadDb" onclick="loadDatabases(); return false;">
                                     <span class="btn-text">Load danh sách Database</span>
@@ -312,10 +317,10 @@
                                 <table class="ba-table">
                                     <thead>
                                         <tr>
-                                            <th>Server</th>
-                                            <th>Port</th>
-                                            <th>User</th>
-                                            <th>Status</th>
+                                            <th class="ba-db-sort-th" data-server-sort="serverName">Server <span class="ba-sort-icon">↕</span></th>
+                                            <th class="ba-db-sort-th" data-server-sort="port">Port <span class="ba-sort-icon">↕</span></th>
+                                            <th class="ba-db-sort-th" data-server-sort="username">User <span class="ba-sort-icon">↕</span></th>
+                                            <th class="ba-db-sort-th" data-server-sort="status">Status <span class="ba-sort-icon">↕</span></th>
                                             <th>Thao tác</th>
                                         </tr>
                                     </thead>
@@ -349,11 +354,11 @@
                                 <table class="ba-table">
                                     <thead>
                                         <tr>
-                                            <th>Server</th>
-                                            <th>Database</th>
-                                            <th>User</th>
-                                            <th>Dung lượng log</th>
-                                            <th>Restore / Reset</th>
+                                            <th class="ba-db-sort-th" data-db-sort="server">Server <span class="ba-sort-icon">↕</span></th>
+                                            <th class="ba-db-sort-th" data-db-sort="database">Database <span class="ba-sort-icon">↕</span></th>
+                                            <th class="ba-db-sort-th" data-db-sort="username">User <span class="ba-sort-icon">↕</span></th>
+                                            <th class="ba-db-sort-th" data-db-sort="logSize">Dung lượng log <span class="ba-sort-icon">↕</span></th>
+                                            <th class="ba-db-sort-th" data-db-sort="restoreReset">Restore / Reset <span class="ba-sort-icon">↕</span></th>
                                             <th>Thao tác</th>
                                         </tr>
                                     </thead>
@@ -871,6 +876,8 @@
         var dbPageSize = 100;
         var serverPage = 1;
         var dbPage = 1;
+        var dbSort = { key: 'server', dir: 1 }; // dir: 1 asc, -1 desc
+        var serverSort = { key: 'serverName', dir: 1 };
 
         function showToast(msg, type) {
             type = type || 'info';
@@ -895,6 +902,48 @@
             });
         }
 
+        function serverSortText(v) {
+            return String(v == null ? '' : v).toLowerCase();
+        }
+
+        function sortServers(list) {
+            var key = serverSort.key || 'serverName';
+            var dir = serverSort.dir === -1 ? -1 : 1;
+            return list.slice().sort(function(a, b) {
+                var av, bv;
+                if (key === 'port') {
+                    av = (a.port == null || a.port === '' ? -1 : Number(a.port));
+                    bv = (b.port == null || b.port === '' ? -1 : Number(b.port));
+                } else if (key === 'username') {
+                    av = serverSortText(a.username);
+                    bv = serverSortText(b.username);
+                } else if (key === 'status') {
+                    av = serverSortText(serverStatuses[a.id] === true ? 'connected' : 'disconnected');
+                    bv = serverSortText(serverStatuses[b.id] === true ? 'connected' : 'disconnected');
+                } else {
+                    av = serverSortText(a.serverName);
+                    bv = serverSortText(b.serverName);
+                }
+                if (av < bv) return -1 * dir;
+                if (av > bv) return 1 * dir;
+                var as = serverSortText(a.serverName), bs = serverSortText(b.serverName);
+                if (as < bs) return -1;
+                if (as > bs) return 1;
+                return 0;
+            });
+        }
+
+        function updateServerSortHeaders() {
+            var $ths = $('#cardServers thead th[data-server-sort]');
+            $ths.removeClass('active');
+            $ths.find('.ba-sort-icon').text('↕');
+            var $active = $ths.filter('[data-server-sort="' + serverSort.key + '"]');
+            if ($active.length) {
+                $active.addClass('active');
+                $active.find('.ba-sort-icon').text(serverSort.dir === 1 ? '↑' : '↓');
+            }
+        }
+
         function filteredResults() {
             var q = ($('#searchDatabases').val() || '').toLowerCase().trim();
             if (!q) return results;
@@ -906,10 +955,68 @@
             });
         }
 
+        function dbSortText(v) {
+            return String(v == null ? '' : v).toLowerCase();
+        }
+
+        function dbSortRestoreKey(r) {
+            var tRestore = parseDateSafe(r.lastRestoredAt);
+            var tReset = parseDateSafe(r.lastResetAt);
+            var tr = tRestore ? tRestore.getTime() : 0;
+            var ts = tReset ? tReset.getTime() : 0;
+            return Math.max(tr, ts);
+        }
+
+        function sortDbResults(list) {
+            var key = dbSort.key || 'server';
+            var dir = dbSort.dir === -1 ? -1 : 1;
+            return list.slice().sort(function(a, b) {
+                var av, bv;
+                if (key === 'logSize') {
+                    av = (a.logSizeMb == null ? -1 : Number(a.logSizeMb));
+                    bv = (b.logSizeMb == null ? -1 : Number(b.logSizeMb));
+                } else if (key === 'restoreReset') {
+                    av = dbSortRestoreKey(a);
+                    bv = dbSortRestoreKey(b);
+                } else if (key === 'database') {
+                    av = dbSortText(a.database);
+                    bv = dbSortText(b.database);
+                } else if (key === 'username') {
+                    av = dbSortText(a.username);
+                    bv = dbSortText(b.username);
+                } else {
+                    av = dbSortText(a.server);
+                    bv = dbSortText(b.server);
+                }
+                if (av < bv) return -1 * dir;
+                if (av > bv) return 1 * dir;
+                // Tie-break để thứ tự ổn định
+                var as = dbSortText(a.server), bs = dbSortText(b.server);
+                if (as < bs) return -1;
+                if (as > bs) return 1;
+                var ad = dbSortText(a.database), bd = dbSortText(b.database);
+                if (ad < bd) return -1;
+                if (ad > bd) return 1;
+                return 0;
+            });
+        }
+
+        function updateDbSortHeaders() {
+            var $ths = $('#cardDatabases thead th[data-db-sort]');
+            $ths.removeClass('active');
+            $ths.find('.ba-sort-icon').text('↕');
+            var $active = $ths.filter('[data-db-sort="' + dbSort.key + '"]');
+            if ($active.length) {
+                $active.addClass('active');
+                $active.find('.ba-sort-icon').text(dbSort.dir === 1 ? '↑' : '↓');
+            }
+        }
+
         function renderServers() {
             var $tb = $('#tblServers');
             var $pg = $('#pagerServers');
-            var list = filteredServers();
+            var list = sortServers(filteredServers());
+            updateServerSortHeaders();
             if (!list.length) {
                 $tb.html('<tr><td colspan="5" class="ba-empty">' + (canManageServers ? 'Chưa có server. Thêm server ở trên.' : 'Chưa có server.') + '</td></tr>');
                 $pg.empty();
@@ -953,17 +1060,13 @@
             });
             $tb.html(html);
             $tb.find('.ba-actions-trigger').on('click', function(e) {
+                e.preventDefault();
                 e.stopPropagation();
-                var $wrap = $(this).closest('.ba-actions-dropdown-wrap');
-                $('.ba-actions-dropdown-wrap').not($wrap).removeClass('ba-actions-open');
-                $wrap.toggleClass('ba-actions-open');
-                $(this).attr('aria-expanded', $wrap.hasClass('ba-actions-open'));
+                openActionsMenu($(this));
             });
-            $tb.find('.ba-actions-menu .ba-btn').on('click', function() {
-                $(this).closest('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
-            });
+            $tb.find('.ba-actions-menu .ba-btn').on('click', function() { closeActionsMenus(); });
             $(document).off('click.baActionsClose').on('click.baActionsClose', function(e) {
-                if (!$(e.target).closest('.ba-actions-dropdown-wrap').length) $('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+                if (!$(e.target).closest('.ba-actions-dropdown-wrap').length && !$(e.target).closest('.ba-actions-menu').length) closeActionsMenus();
             });
             $tb.find('.ba-btn-log').on('click', function() {
                 var id = parseInt($(this).data('id'), 10);
@@ -986,6 +1089,34 @@
         function setDbPage(p) {
             dbPage = p;
             renderResults();
+        }
+
+        function closeActionsMenus() {
+            $('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+            $('.ba-actions-trigger').attr('aria-expanded', 'false');
+            $('.ba-actions-menu').css({ position: '', top: '', left: '', right: '', zIndex: '' });
+        }
+
+        function openActionsMenu($trigger) {
+            if (!$trigger || !$trigger.length) return;
+            var $wrap = $trigger.closest('.ba-actions-dropdown-wrap');
+            if (!$wrap.length) return;
+            var alreadyOpen = $wrap.hasClass('ba-actions-open');
+            closeActionsMenus();
+            if (alreadyOpen) return;
+            $wrap.addClass('ba-actions-open');
+            $trigger.attr('aria-expanded', 'true');
+            var $menu = $wrap.find('.ba-actions-menu').first();
+            if (!$menu.length) return;
+            var rect = $trigger[0].getBoundingClientRect();
+            var menuWidth = Math.max($menu.outerWidth() || 220, 220);
+            var left = rect.right - menuWidth;
+            if (left < 8) left = 8;
+            var top = rect.bottom + 4;
+            var viewportH = window.innerHeight || document.documentElement.clientHeight || 800;
+            var menuHeight = $menu.outerHeight() || 260;
+            if (top + menuHeight > viewportH - 8) top = Math.max(8, rect.top - menuHeight - 4);
+            $menu.css({ position: 'fixed', top: top + 'px', left: left + 'px', right: 'auto', zIndex: 13050 });
         }
 
         function showAddServerModal() {
@@ -2620,7 +2751,8 @@
         function renderResults() {
             var $tb = $('#tblResults');
             var $pg = $('#pagerDatabases');
-            var list = filteredResults();
+            var list = sortDbResults(filteredResults());
+            updateDbSortHeaders();
             if (!list.length) {
                 var emptyHtml;
                 if (!databasesScannedOnce) {
@@ -2733,17 +2865,13 @@
                 showShrinkLogModal(r.serverId, r.database, (r.server || '') + ' / ' + (r.database || ''));
             });
             $tb.find('.ba-actions-trigger').on('click', function(e) {
+                e.preventDefault();
                 e.stopPropagation();
-                var $wrap = $(this).closest('.ba-actions-dropdown-wrap');
-                $('.ba-actions-dropdown-wrap').not($wrap).removeClass('ba-actions-open');
-                $wrap.toggleClass('ba-actions-open');
-                $(this).attr('aria-expanded', $wrap.hasClass('ba-actions-open'));
+                openActionsMenu($(this));
             });
-            $tb.find('.ba-actions-menu .ba-btn').on('click', function() {
-                $(this).closest('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
-            });
+            $tb.find('.ba-actions-menu .ba-btn').on('click', function() { closeActionsMenus(); });
             $(document).off('click.baActionsClose').on('click.baActionsClose', function(e) {
-                if (!$(e.target).closest('.ba-actions-dropdown-wrap').length) $('.ba-actions-dropdown-wrap').removeClass('ba-actions-open');
+                if (!$(e.target).closest('.ba-actions-dropdown-wrap').length && !$(e.target).closest('.ba-actions-menu').length) closeActionsMenus();
             });
             var selOpts = PAGE_SIZE_OPTS.map(function(n) { return '<option value="' + n + '"' + (n === dbPageSize ? ' selected' : '') + '>' + n + '</option>'; }).join('');
             var pagerHtml = '<span>Trang ' + dbPage + ' / ' + pages + ' (' + total + ' database)</span> ' +
@@ -2843,6 +2971,24 @@
             fetchServers();
             $('#searchServers').on('input', function() { serverPage = 1; renderServers(); });
             $('#searchDatabases').on('input', function() { dbPage = 1; renderResults(); });
+            $(window).on('scroll resize', function() { closeActionsMenus(); });
+            $('#cardServers .ba-table-wrap, #cardDatabases .ba-table-wrap').on('scroll', function() { closeActionsMenus(); });
+            $('#cardDatabases').on('click', 'th[data-db-sort]', function() {
+                var k = $(this).data('db-sort');
+                if (!k) return;
+                if (dbSort.key === k) dbSort.dir = -dbSort.dir;
+                else { dbSort.key = k; dbSort.dir = (k === 'logSize' || k === 'restoreReset') ? -1 : 1; }
+                dbPage = 1;
+                renderResults();
+            });
+            $('#cardServers').on('click', 'th[data-server-sort]', function() {
+                var k = $(this).data('server-sort');
+                if (!k) return;
+                if (serverSort.key === k) serverSort.dir = -serverSort.dir;
+                else serverSort.key = k;
+                serverPage = 1;
+                renderServers();
+            });
             $('#toggleConnStr').on('click', function() {
                 $('#cardConnStr').toggleClass('ba-section-collapsed');
                 $(this).text($('#cardConnStr').hasClass('ba-section-collapsed') ? '▶' : '▼');
@@ -2961,6 +3107,10 @@
                 var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || '');
                 return getDismissedJobIds().indexOf(key) >= 0;
             }
+            /** Debug tiến độ restore/reset: mở DevTools → Console, chạy: localStorage.setItem('ba_debug_restore','1') rồi F5 */
+            function baDebugRestoreProgress() {
+                try { return window.localStorage && localStorage.getItem('ba_debug_restore') === '1'; } catch (e) { return false; }
+            }
             if ($('#restoreJobsBellWrap').length) {
                 $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
                     success: function(res) {
@@ -3000,18 +3150,24 @@
                                     $row.find('.ba-notif-progress-wrap').replaceWith('<div style="margin-top:4px;color:var(--success);">Đã xong</div>');
                                     window.__runningRestoreSessions = (window.__runningRestoreSessions || []).filter(function(s) { var s2 = notifJobSessionId(s), srv = notifJobServerId(s); return !(String(srv) === srvIdStr && String(s2) === sidStr); });
                                 } else if (d.percentComplete != null) {
-                                    var phase = (d.phase && d.phase.trim()) ? d.phase.trim() : ($row.attr('data-phase') || 'Restore');
-                                    var isResetJob = $row.attr('data-has-reset') === '1';
-                                    if (phase === 'Restore' && d.percentComplete === 100 && isResetJob) { phase = 'Reset Information'; d.percentComplete = 0; }
+                                    var phaseFromApi = (d.phase != null && String(d.phase).trim() !== '') ? String(d.phase).trim() : '';
+                                    var phase = phaseFromApi || ($row.attr('data-phase') || 'Restore');
+                                    // DB lệch (Message=Pending, %100) — map sang Restore
+                                    if (d.percentComplete === 100 && (phase === 'Pending' || phase === 'Đang chờ xử lý...')) phase = 'Restore';
+                                    // Reset Information / Completing / …: không cho % tụt (race API 0 trong lúc DB vẫn 77%).
                                     var cur = parseInt($row.find('.ba-notif-progress-pct').text(), 10) || 0;
-                                    var pct = (phase === 'Reset Information') ? d.percentComplete : Math.max(cur, d.percentComplete);
-                                    // DEBUG: bỏ comment dòng dưới để bật console log Reset Information %
-                                    // if (phase === 'Reset Information' && typeof console !== 'undefined' && console.log) console.log('[BaRestore] Reset Information: ' + pct + '% (session ' + sidStr + ')');
-                                    if (phase === 'Reset Information') $row.attr('data-phase', 'Reset Information');
-                                    else if (d.phase) $row.attr('data-phase', d.phase);
-                                    lastKnownRestorePct[srvIdStr + '_' + sidStr] = pct;
+                                    var keyPoll = srvIdStr + '_' + sidStr;
+                                    var lastK = lastKnownRestorePct[keyPoll] || 0;
+                                    var pct = (typeof BaNotif !== 'undefined' && BaNotif.mergeJobProgressPct)
+                                        ? BaNotif.mergeJobProgressPct(phase, d.percentComplete, lastK, cur)
+                                        : ((phase === 'Reset Information') ? Math.max(lastK, d.percentComplete) : Math.max(cur, d.percentComplete));
+                                    if (baDebugRestoreProgress() && typeof console !== 'undefined' && console.log) {
+                                        console.log('[BaRestore poll]', { sessionId: sidStr, serverId: srvIdStr, phaseFromApi: phaseFromApi || '(none)', phase: phase, pctApi: d.percentComplete, pctUi: pct });
+                                    }
+                                    $row.attr('data-phase', phase);
+                                    lastKnownRestorePct[keyPoll] = pct;
                                     $row.find('.ba-notif-progress-bar').css('width', pct + '%');
-                                    var phaseDisplay = (phase === 'Restore' || phase === 'Đang Restore') ? 'Restore' : phase;
+                                    var phaseDisplay = BaNotif.restorePhaseDisplay(phase);
                                     $row.find('.ba-notif-progress-pct').text(pct + '% - ' + phaseDisplay);
                                 }
                             });
@@ -3103,19 +3259,19 @@
                             var typeLabel = j.typeLabel || (jobType === 'Backup' ? 'Backup' : jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : jobType === 'HRHelperDeleteEmployee' ? 'Delete Employee' : 'Restore');
                             var dbName = (j.databaseName || j.DatabaseName || '').trim();
                             var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                            // Restore có reset: khi 100% Restore thì chuyển ngay caption sang 0% Reset Information (phase reset thường cập nhật 0% rồi nhảy 100%)
-                            if (jobType === 'Restore' && hasReset && serverPct === 100 && (phaseLabel === 'Restore' || phaseLabel === 'Đang chờ xử lý...')) {
-                                phaseLabel = 'Reset Information';
-                                serverPct = 0;
-                                lastKnownRestorePct[key] = 0;
-                            }
+                            // Full reload GetJobs: với Reset/Completing/… không để serverPct=0 một nhịp làm tụt % (monotonic theo lastKnown).
                             var pct;
-                            if (phaseLabel === 'Reset Information') {
-                                pct = serverPct;
-                                lastKnownRestorePct[key] = serverPct;
+                            if (phaseLabel === 'Reset Information' || phaseLabel === 'Completing' || phaseLabel === 'PostRestore' || phaseLabel === 'ShrinkLog' || phaseLabel === 'shrinklog') {
+                                pct = (typeof BaNotif !== 'undefined' && BaNotif.mergeJobProgressPct)
+                                    ? BaNotif.mergeJobProgressPct(phaseLabel, serverPct, lastKnownRestorePct[key] || 0, 0)
+                                    : Math.max(serverPct, lastKnownRestorePct[key] || 0);
+                                lastKnownRestorePct[key] = pct;
                             } else {
                                 pct = Math.max(serverPct, lastKnownRestorePct[key] || 0);
                                 if (st === 'Running') lastKnownRestorePct[key] = pct;
+                            }
+                            if (baDebugRestoreProgress() && (st === 'Running' || st === 'Pending') && jobType === 'Restore' && typeof console !== 'undefined' && console.log) {
+                                console.log('[BaRestore GetJobs row]', { jobId: j.id, sessionId: sid, message: msg, phaseLabel: phaseLabel, serverPct: serverPct, pctUi: pct, withAutoReset: j.withAutoReset });
                             }
                             var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
                             var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee' || jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : '';
@@ -3124,21 +3280,22 @@
                             row += '<button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button>';
                             row += '<div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || j.ServerName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || j.DatabaseName || '').replace(/</g, '&lt;') + '</div>';
                             var endTimeStr = formatNotifTime(j.completedAt || j.CompletedAt);
-                            row += '<div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || j.StartedByUserName || '').replace(/</g, '&lt;') + ' · ' + startTimeStr + '</div>';
+                            row += BaNotif.wrapMetaWithBadge((j.startedByUserName || j.StartedByUserName || '').replace(/</g, '&lt;') + ' · ' + startTimeStr, st);
                             var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : (j.StartedByUserId != null ? parseInt(j.StartedByUserId, 10) : 0);
                             var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
                             if (st === 'Running' || st === 'Pending') {
-                                var restPhaseDisplay = (phaseLabel === 'Restore' || phaseLabel === 'Đang Restore') ? 'Restore' : phaseLabel;
+                                var restPhaseDisplay = BaNotif.restorePhaseDisplay(phaseLabel);
                                 var backupPhaseDisplay = (phaseLabel === 'Backup' || phaseLabel === 'Đang Backup') ? 'Backup' : phaseLabel;
                                 var progressLabel = (jobType === 'Restore' && phaseLabel) ? (pct + '% - ' + restPhaseDisplay) : (jobType === 'Backup' && phaseLabel) ? (pct + '% - ' + backupPhaseDisplay) : (jobType === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset' ? (pct + '% - Reset') : (pct + '%')));
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                                 if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
                             } else if (st === 'Failed') {
+                                row += BaNotif.failedBadgeRow();
                                 row += '<div class="ba-notif-msg ba-notif-msg-error">' + (msgShort.replace(/</g, '&lt;')) + '</div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                             } else if (st === 'Completed') {
-                                row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>';
+                                row += BaNotif.completedBadgeRow();
                                 if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + (msgShort.replace(/</g, '&lt;')) + '</div>';
                                 row += '<a class="ba-notif-detail-link" data-action="detail">Xem chi tiết</a>';
                             }
@@ -3171,7 +3328,7 @@
                                         var url = '<%= ResolveUrl("~/Pages/HRHelper.aspx") %>?k=' + encodeURIComponent(d.token) + '&jobId=' + jobId;
                                         window.location.href = url;
                                     } else {
-                                        showToast(d && d.message ? d.message : 'Phiên kết nối Multi-DB đã hết. Vào Database Search chọn lại Multi-DB, vào HR Helper và bấm "Tải kết quả phân tích gần nhất".', 'info');
+                                        showToast(d && d.message ? d.message : 'Phiên kết nối Multi-DB đã hết. Vào Database Tools chọn lại Multi-DB, vào HR Helper và bấm "Tải kết quả phân tích gần nhất".', 'info');
                                         window.showNotificationDetail(job);
                                     }
                                 }, error: function() { window.showNotificationDetail(job); } });

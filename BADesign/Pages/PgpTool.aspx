@@ -106,12 +106,12 @@
                     <h1 class="ba-top-bar-title">PGP Tool – Xuất key / Mã hóa / Giải mã file</h1>
                 </div>
                 <div class="ba-content">
-                    <!-- Key từ cấu hình DB (cần token k từ Database Search; không có k vẫn dùng được Xuất/Mã hóa/Giải mã với file hoặc dán Base64) -->
+                    <!-- Key từ cấu hình DB (cần token k từ Database Tools; không có k vẫn dùng được Xuất/Mã hóa/Giải mã với file hoặc dán Base64) -->
                     <div class="ba-card" id="cardKeyFromDb" style="margin-bottom: 1rem;">
                         <h2 class="ba-card-title">Key từ cấu hình (Database)</h2>
-                        <p class="ba-warn" id="keyFromDbHint">Chọn cấu hình Folder đã lưu key trong bảng Setting_FolderConfigurations (theo TenantID, Code). Cần chọn database trong Database Search rồi mở PGP Tool từ đó.</p>
+                        <p class="ba-warn" id="keyFromDbHint">Chọn cấu hình Folder đã lưu key trong bảng Setting_FolderConfigurations (theo TenantID, Code). Cần chọn database trong Database Tools rồi mở PGP Tool từ đó.</p>
                         <div id="keyFromDbNoConnWrap" style="display: none; padding: 0.75rem; background: var(--bg-darker); border-radius: 6px; margin-bottom: 1rem;">
-                            <span style="color: var(--text-muted); font-size: 0.9rem;">Để dùng key từ database: Vào <a href="<%= ResolveUrl("~/DatabaseSearch") %>" style="color: var(--primary-light);">Database Search</a> → Chọn Server &amp; Database → bấm <strong>PGP Tool</strong> (hoặc HR Helper rồi sang PGP Tool). <br />Ngoài ra có thể thao tác từ chuỗi Private và Public Key Base64 nếu có.</span>
+                            <span style="color: var(--text-muted); font-size: 0.9rem;">Để dùng key từ database: Vào <a href="<%= ResolveUrl("~/DatabaseSearch") %>" style="color: var(--primary-light);">Database Tools</a> → Chọn Server &amp; Database → bấm <strong>PGP Tool</strong> (hoặc HR Helper rồi sang PGP Tool). <br />Ngoài ra có thể thao tác từ chuỗi Private và Public Key Base64 nếu có.</span>
                         </div>
                         <div id="keyFromDbConnInfoWrap" style="display: none; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: var(--bg-darker); border-radius: 6px; border-left: 3px solid var(--primary);">
                             <span style="font-size: 0.9rem; color: var(--text-secondary);">Đang kết nối: </span><strong id="connServerName"></strong><span id="connServerSep" style="display: none;">, </span><strong id="connDbName"></strong>

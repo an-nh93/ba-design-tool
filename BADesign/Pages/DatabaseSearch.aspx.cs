@@ -46,7 +46,7 @@ namespace BADesign.Pages
             IsGuest = UiAuthHelper.IsAnonymous;
             CanManageServers = UiAuthHelper.HasFeature("DatabaseManageServers");
             CanBulkReset = UiAuthHelper.HasFeature("DatabaseBulkReset");
-            CanUseServers = !IsGuest && UiAuthHelper.HasFeature("DatabaseSearch");
+            CanUseServers = !IsGuest && UiAuthHelper.HasFeature("DatabaseTools");
             CanBackup = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseBackup");
             CanRestore = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseRestore");
             CanDelete = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseDelete");
@@ -54,7 +54,7 @@ namespace BADesign.Pages
             CurrentUserName = (string)(Session["UiUserName"] ?? "");
 
             ucBaSidebar.ActiveSection = "DatabaseSearch";
-            ucBaTopBar.PageTitle = "Database Search";
+            ucBaTopBar.PageTitle = "Database Tools";
         }
 
         private static bool CanBackupStatic() { return UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseBackup"); }
@@ -1431,25 +1431,52 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
             catch { return false; }
         }
 
+        private static void TryLogBaJobPhaseIssue(string message)
+        {
+            try
+            {
+                var dir = System.Web.Hosting.HostingEnvironment.MapPath("~/App_Data");
+                if (string.IsNullOrEmpty(dir)) return;
+                System.IO.Directory.CreateDirectory(dir);
+                var path = System.IO.Path.Combine(dir, "BaJobPhaseUpdate.log");
+                System.IO.File.AppendAllText(path, System.DateTime.UtcNow.ToString("o") + " " + (message ?? "") + "\r\n");
+            }
+            catch { }
+        }
+
         private static void UpdateJobPhaseAndPercent(int jobId, string phaseMessage, int percent)
         {
             try
             {
                 // DEBUG: bỏ comment dòng dưới để bật log file Reset Information %
                 // if (string.Equals(phaseMessage, "Reset Information", StringComparison.OrdinalIgnoreCase)) LogResetProgress(jobId, phaseMessage, percent);
+                int rows = 0;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
                 {
-                    cmd.CommandText = "UPDATE BaJob SET Message = @msg, PercentComplete = @pct WHERE Id = @id AND JobType = N'Restore'";
-                    cmd.Parameters.AddWithValue("@msg", (object)phaseMessage ?? DBNull.Value);
+                    // phaseMessage == null: chỉ cập nhật % — KHÔNG ghi Message = NULL (client coi msg rỗng = "Restore" và ép 0% Reset → chớp 0↔100 với poll/dm_exec).
+                    if (phaseMessage != null)
+                    {
+                        cmd.CommandText = "UPDATE BaJob SET Message = @msg, PercentComplete = @pct WHERE Id = @id AND JobType = N'Restore' AND Status = N'Running'";
+                        cmd.Parameters.AddWithValue("@msg", phaseMessage);
+                    }
+                    else
+                    {
+                        cmd.CommandText = "UPDATE BaJob SET PercentComplete = @pct WHERE Id = @id AND JobType = N'Restore' AND Status = N'Running'";
+                    }
                     cmd.Parameters.AddWithValue("@pct", percent);
                     cmd.Parameters.AddWithValue("@id", jobId);
                     appConn.Open();
-                    cmd.ExecuteNonQuery();
+                    rows = cmd.ExecuteNonQuery();
                 }
+                if (jobId > 0 && rows == 0)
+                    TryLogBaJobPhaseIssue("UPDATE 0 rows (job không Running / Cancelled / sai Id?) jobId=" + jobId + " phase=" + (phaseMessage ?? "(percent-only)") + " pct=" + percent);
                 Helpers.BaJobWorkerNotify.Notify(jobId);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                TryLogBaJobPhaseIssue("EXCEPTION jobId=" + jobId + " phase=" + (phaseMessage ?? "") + " — " + ex.Message);
+            }
         }
 
         /// <summary>Cập nhật Setting_FolderConfigurations trong database đích (Host, Port, UserNameSourceFolder, PasswordSourceFolder) từ cấu hình SFTP App Settings. Chạy khi có bất kỳ giá trị nào.</summary>
@@ -1603,9 +1630,14 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                     {
                         var jobType = j.Item4;
                         var message = (j.Item5 ?? "").Trim();
-                        // Phase "Reset Information": % do callback C# cập nhật, không lấy từ dm_exec_requests (RESTORE đã xong, session có thể trả 0/100 và ghi đè)
-                        if (string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase) && message == "Reset Information")
-                            continue;
+                        var msgTrim = (message ?? "").Trim();
+                        // Restore: chỉ sync % từ dm_exec khi đang phase RESTORE thật (SPID chạy RESTORE). PostRestore / Reset Information / … — không ghi đè BaJob
+                        if (string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (string.Equals(msgTrim, "Reset Information", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (string.Equals(msgTrim, "Pending", StringComparison.OrdinalIgnoreCase)) continue;
+                            if (!string.Equals(msgTrim, "Restore", StringComparison.OrdinalIgnoreCase)) continue;
+                        }
                         var s = GetServerInfo(j.Item2);
                         if (s == null) continue;
                         var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
@@ -1623,7 +1655,11 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     using (var appConn = new SqlConnection(connStr))
                                     using (var upd = appConn.CreateCommand())
                                     {
-                                        upd.CommandText = "UPDATE BaJob SET PercentComplete = @pct WHERE Id = @id";
+                                        // Restore: chỉ tăng % từ dm_exec — tránh RESTORE xong session còn mở báo 0% làm nhấp nháy 100% → 0%.
+                                        if (string.Equals(jobType, "Restore", StringComparison.OrdinalIgnoreCase))
+                                            upd.CommandText = "UPDATE BaJob SET PercentComplete = CASE WHEN @pct > ISNULL(PercentComplete, 0) THEN @pct ELSE ISNULL(PercentComplete, 0) END WHERE Id = @id AND JobType = N'Restore'";
+                                        else
+                                            upd.CommandText = "UPDATE BaJob SET PercentComplete = @pct WHERE Id = @id";
                                         upd.Parameters.AddWithValue("@pct", pct);
                                         upd.Parameters.AddWithValue("@id", j.Item1);
                                         appConn.Open();
@@ -1754,6 +1790,10 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                 if (positions.Count == 0) positions.Add(1);
                 var recovery = (recoveryState ?? "RECOVERY").ToUpperInvariant();
                 if (recovery != "RECOVERY" && recovery != "NORECOVERY" && recovery != "STANDBY") recovery = "RECOVERY";
+                // Pre-check dung lượng đĩa trước khi enqueue/chạy restore, tránh job chạy một lúc rồi fail "insufficient free space".
+                var diskSpaceError = ValidateRestoreDiskFreeSpace(s, databaseName, fullPaths, positions.Count > 0 ? positions[0] : 1);
+                if (!string.IsNullOrEmpty(diskSpaceError))
+                    return new { success = false, message = diskSpaceError, sessionId = 0, jobId = 0 };
 
                 var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
                 var startedByName = "";
@@ -1940,6 +1980,193 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             }
         }
 
+        /// <summary>Ngắt mọi session đang đặt context vào database đích (kết nối phải là master). Giảm lỗi RESTORE: Exclusive access could not be obtained.</summary>
+        private static void KillOtherSessionsOnDatabase(SqlConnection masterConn, string databaseName)
+        {
+            if (masterConn == null || string.IsNullOrWhiteSpace(databaseName)) return;
+            int dbId;
+            using (var cmd = masterConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT database_id FROM sys.databases WHERE name = @db";
+                cmd.Parameters.AddWithValue("@db", databaseName);
+                var o = cmd.ExecuteScalar();
+                if (o == null || o is DBNull) return;
+                dbId = Convert.ToInt32(o);
+            }
+            var toKill = new List<int>();
+            using (var cmd = masterConn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT session_id FROM sys.dm_exec_sessions WHERE database_id = @id AND session_id <> @@SPID";
+                cmd.Parameters.AddWithValue("@id", dbId);
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                        toKill.Add(Convert.ToInt32(r.GetValue(0)));
+                }
+            }
+            foreach (var sid in toKill)
+            {
+                try
+                {
+                    using (var k = masterConn.CreateCommand())
+                    {
+                        k.CommandTimeout = 30;
+                        k.CommandText = "KILL " + sid.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                        k.ExecuteNonQuery();
+                    }
+                }
+                catch { /* session đã đóng */ }
+            }
+        }
+
+        /// <summary>Đưa DB về SINGLE_USER để RESTORE; có kill session khác + retry. Không nuốt lỗi như trước (tránh RESTORE fail với message exclusive access mơ hồ).</summary>
+        private static void EnsureExclusiveAccessForRestore(SqlConnection masterConn, string databaseName)
+        {
+            var dbSafe = databaseName.Replace("]", "]]");
+            Exception lastEx = null;
+            for (var attempt = 0; attempt < 3; attempt++)
+            {
+                if (attempt > 0)
+                {
+                    KillOtherSessionsOnDatabase(masterConn, databaseName);
+                    System.Threading.Thread.Sleep(attempt == 1 ? 400 : 800);
+                }
+                try
+                {
+                    using (var cmd = masterConn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 120;
+                        cmd.CommandText = "ALTER DATABASE [" + dbSafe + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
+                        cmd.ExecuteNonQuery();
+                    }
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    lastEx = ex;
+                }
+            }
+            var hint = lastEx != null ? lastEx.Message : "";
+            throw new InvalidOperationException(
+                "Không thể chiếm quyền độc quyền lên database để RESTORE (database đang có session khác — SSMS/ứng dụng đang mở DB đích, hoặc thiếu quyền ALTER DATABASE). "
+                + "Hãy đóng mọi tab query đang chọn database đích, ngắt app kết nối tới DB đó, rồi thử lại. Chi tiết: " + hint, lastEx);
+        }
+
+        /// <summary>
+        /// Kiểm tra nhanh dung lượng ổ đĩa còn trống trước restore bằng RESTORE FILELISTONLY + xp_fixeddrives.
+        /// Trả message lỗi khi xác định chắc chắn thiếu dung lượng; trả null nếu đủ hoặc không thể xác minh.
+        /// </summary>
+        private static string ValidateRestoreDiskFreeSpace(ServerInfo s, string databaseName, List<string> fullPaths, int position)
+        {
+            if (s == null || fullPaths == null || fullPaths.Count == 0) return null;
+            try
+            {
+                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                using (var conn = new SqlConnection(masterConn))
+                {
+                    conn.Open();
+                    string defaultDataPath = null, defaultLogPath = null;
+                    try
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandText = "SELECT CONVERT(nvarchar(260), SERVERPROPERTY('InstanceDefaultDataPath')), CONVERT(nvarchar(260), SERVERPROPERTY('InstanceDefaultLogPath'))";
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                if (r.Read())
+                                {
+                                    defaultDataPath = r.IsDBNull(0) ? null : r.GetString(0);
+                                    defaultLogPath = r.IsDBNull(1) ? null : r.GetString(1);
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                    if (!string.IsNullOrWhiteSpace(defaultDataPath)) defaultDataPath = defaultDataPath.TrimEnd('\\') + "\\";
+                    if (!string.IsNullOrWhiteSpace(defaultLogPath)) defaultLogPath = defaultLogPath.TrimEnd('\\') + "\\";
+
+                    var fromDiskClause = fullPaths.Count == 1 ? "FROM DISK = @path" : "FROM " + string.Join(", ", fullPaths.Select((_, i) => "DISK = @path" + (i + 1)));
+                    var requiredByDrive = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandTimeout = 90;
+                        cmd.CommandText = "RESTORE FILELISTONLY " + fromDiskClause + " WITH FILE = @file";
+                        for (int i = 0; i < fullPaths.Count; i++)
+                            cmd.Parameters.AddWithValue(i == 0 ? "@path" : ("@path" + (i + 1)), fullPaths[i]);
+                        cmd.Parameters.AddWithValue("@file", position <= 0 ? 1 : position);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            while (r.Read())
+                            {
+                                var type = r["Type"] == DBNull.Value ? "" : Convert.ToString(r["Type"]);
+                                if (type != "D" && type != "L") continue;
+                                var sizeBytes = r["Size"] == DBNull.Value ? 0L : Convert.ToInt64(r["Size"]);
+                                if (sizeBytes <= 0) continue;
+                                var physicalName = r["PhysicalName"] == DBNull.Value ? "" : Convert.ToString(r["PhysicalName"]);
+                                string targetPath = physicalName;
+                                if (type == "D" && !string.IsNullOrWhiteSpace(defaultDataPath)) targetPath = defaultDataPath;
+                                if (type == "L" && !string.IsNullOrWhiteSpace(defaultLogPath)) targetPath = defaultLogPath;
+                                var root = Path.GetPathRoot(targetPath ?? "") ?? "";
+                                if (string.IsNullOrWhiteSpace(root) || root.Length < 1) continue;
+                                var drive = root.Substring(0, 1).ToUpperInvariant();
+                                if (!requiredByDrive.ContainsKey(drive)) requiredByDrive[drive] = 0;
+                                requiredByDrive[drive] += sizeBytes;
+                            }
+                        }
+                    }
+                    if (requiredByDrive.Count == 0) return null;
+
+                    var freeMbByDrive = new Dictionary<string, long>(StringComparer.OrdinalIgnoreCase);
+                    try
+                    {
+                        using (var cmd = conn.CreateCommand())
+                        {
+                            cmd.CommandTimeout = 20;
+                            cmd.CommandText = "CREATE TABLE #d (Drive char(1), FreeMB int); INSERT INTO #d EXEC master..xp_fixeddrives; SELECT Drive, FreeMB FROM #d;";
+                            using (var r = cmd.ExecuteReader())
+                            {
+                                while (r.Read())
+                                {
+                                    var drive = (r.IsDBNull(0) ? "" : r.GetString(0)).ToUpperInvariant();
+                                    var freeMb = r.IsDBNull(1) ? 0L : Convert.ToInt64(r.GetValue(1));
+                                    if (!string.IsNullOrWhiteSpace(drive))
+                                        freeMbByDrive[drive] = freeMb;
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        return null; // Không đọc được free disk từ SQL => bỏ qua pre-check để không chặn restore hợp lệ.
+                    }
+
+                    const long mb = 1024L * 1024L;
+                    var missing = new List<string>();
+                    foreach (var kv in requiredByDrive)
+                    {
+                        var drive = kv.Key;
+                        var requiredBytes = kv.Value;
+                        // Buffer 10% + 256MB để giảm false-pass khi file grow thêm trong lúc restore.
+                        var needMb = (long)Math.Ceiling((requiredBytes * 1.10) / (double)mb) + 256L;
+                        long freeMb;
+                        if (!freeMbByDrive.TryGetValue(drive, out freeMb)) continue;
+                        if (freeMb < needMb)
+                        {
+                            var lackMb = needMb - freeMb;
+                            missing.Add("Ổ " + drive + ": cần khoảng " + needMb.ToString("N0") + " MB, hiện còn " + freeMb.ToString("N0") + " MB (thiếu " + lackMb.ToString("N0") + " MB)");
+                        }
+                    }
+                    if (missing.Count > 0)
+                    {
+                        var dbName = string.IsNullOrWhiteSpace(databaseName) ? "(không rõ DB)" : databaseName.Trim();
+                        return "Không đủ dung lượng để restore database '" + dbName + "'. " + string.Join("; ", missing) + ". Vui lòng giải phóng dung lượng hoặc đổi đường dẫn data/log mặc định của SQL Server rồi thử lại.";
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
         /// <summary>Thực hiện công việc Restore (dùng trong process qua Task.Run hoặc từ Worker qua ExecuteRestoreJob). fullPaths: một hoặc nhiều file backup (cùng backup set).</summary>
         private static void DoRestoreWork(int jobId, int serverId, string databaseName, List<string> fullPaths, List<int> positions, string recovery, bool withReplace, bool shrinkLog, bool doAutoReset, string autoResetEmail, string autoResetPassword, string autoResetPhone, SqlConnection conn, int sessionId)
         {
@@ -1961,14 +2188,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     isNewDb = cmd.ExecuteScalar() == null;
                 }
                 if (!isNewDb)
-                {
-                    using (var cmd = conn.CreateCommand())
-                    {
-                        cmd.CommandTimeout = 60;
-                        cmd.CommandText = "ALTER DATABASE [" + dbSafe + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
-                        try { cmd.ExecuteNonQuery(); } catch { }
-                    }
-                }
+                    EnsureExclusiveAccessForRestore(conn, databaseName);
                 string defaultDataPath = null, defaultLogPath = null;
                 var moveClauses = new List<string>();
                 try
@@ -2048,7 +2268,19 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         return;
                     }
                 }
-                if (shrinkLog)
+                // Sau khi RESTORE SQL xong: luôn ghi PostRestore (kể cả không auto-reset) để BaJob/UI không treo "Restore 100%" trong shrink/MULTI_USER; timer dm_exec chỉ sync khi Message=Restore.
+                if (jobId > 0 && !IsJobCancelled(jobId))
+                {
+                    UpdateJobPhaseAndPercent(jobId, "PostRestore", 100);
+                    PushRestoreJobsUpdated(serverId);
+                }
+                // Giai đoạn shrink log (tùy chọn): ghi Message để UI/DB khớp, không còn treo ở "Restore" trong lúc DBCC.
+                if (shrinkLog && !doAutoReset && jobId > 0 && !IsJobCancelled(jobId))
+                {
+                    UpdateJobPhaseAndPercent(jobId, "ShrinkLog", 100);
+                    PushRestoreJobsUpdated(serverId);
+                }
+                if (shrinkLog && !doAutoReset)
                 {
                     try
                     {
@@ -2072,8 +2304,12 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                                 }
                             }
                         }
+                        if (jobId > 0) UpdateRestoreShrinkFinalStatus(jobId, true, "Shrink log hoàn tất.");
                     }
-                    catch { }
+                    catch (Exception exShrinkEarly)
+                    {
+                        if (jobId > 0) UpdateRestoreShrinkFinalStatus(jobId, false, exShrinkEarly.Message);
+                    }
                 }
                 if (!isNewDb)
                 {
@@ -2090,32 +2326,50 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         var restoredConnStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, databaseName);
                         string sftpHost, sftpPort, sftpUser, sftpPassword;
                         GetSftpConfigFromAppSettings(appConnStr, out sftpHost, out sftpPort, out sftpUser, out sftpPassword);
-                        UpdateSettingFolderConfigurationsIfExists(restoredConnStr, sftpHost ?? "", sftpPort ?? "", sftpUser ?? "", sftpPassword ?? "");
-                        UpdateJobPhaseAndPercent(jobId, "Reset Information", 0);
+                        // Báo Reset Information ngay — tránh treo PostRestore/ShrinkLog lâu trong lúc cập nhật folder config (có thể chậm).
+                        UpdateJobPhaseAndPercent(jobId, "Reset Information", 1);
                         PushRestoreJobsUpdated(serverId);
-                        var plainResult = HRHelper.ResetEmailAndPhoneInDatabase(restoredConnStr, autoResetEmail, autoResetPhone);
+                        UpdateSettingFolderConfigurationsIfExists(restoredConnStr, sftpHost ?? "", sftpPort ?? "", sftpUser ?? "", sftpPassword ?? "");
+                        var lastResetPct = 1;
+                        var plainResult = HRHelper.ResetEmailAndPhoneInDatabase(restoredConnStr, autoResetEmail, autoResetPhone, (step, totalSteps) =>
+                        {
+                            if (jobId <= 0 || IsJobCancelled(jobId)) return;
+                            // Reset plain (User/Other): ~2%–22% theo từng cột — tránh treo 0% lâu như trước
+                            var pct = totalSteps > 0 ? 2 + (20 * step) / totalSteps : 22;
+                            if (pct > 22) pct = 22;
+                            if (pct <= lastResetPct) return;
+                            lastResetPct = pct;
+                            UpdateJobPhaseAndPercent(jobId, "Reset Information", pct);
+                            PushRestoreJobsUpdated(serverId);
+                        });
                         if (plainResult.Item2 != null)
                             RestoreSessionStatus.TryAdd(sessionId, new { status = "failed", message = "Restore xong nhưng reset User/Other lỗi: " + plainResult.Item2 });
                         else if (!IsJobCancelled(jobId))
                         {
-                            UpdateJobPhaseAndPercent(jobId, "Reset Information", 10);
+                            UpdateJobPhaseAndPercent(jobId, "Reset Information", 23);
                             PushRestoreJobsUpdated(serverId);
                             string emailOutgoing, emailPort, emailAccountName, emailUsername, emailEmailAddress, emailPassword, emailSslPort;
                             bool emailEnableSSL;
                             GetEmailServerConfigFromAppSettings(appConnStr, out emailOutgoing, out emailPort, out emailAccountName, out emailUsername, out emailEmailAddress, out emailPassword, out emailEnableSSL, out emailSslPort);
                             UpdateSettingEmailServersIfExists(restoredConnStr, emailOutgoing, emailPort, emailAccountName, emailUsername, emailEmailAddress, emailPassword, emailEnableSSL, emailSslPort);
-                            UpdateJobPhaseAndPercent(jobId, "Reset Information", 20);
+                            UpdateJobPhaseAndPercent(jobId, "Reset Information", 25);
                             PushRestoreJobsUpdated(serverId);
+                            lastResetPct = 25;
                             var resetResult = HRHelper.ResetEmailAndPhoneEncryptedForRestore(restoredConnStr, autoResetEmail, autoResetPhone, (doneChunks, totalChunks) =>
                             {
-                                var pct = totalChunks > 0 ? 20 + (80 * doneChunks) / totalChunks : 100;
-                                UpdateJobPhaseAndPercent(jobId, "Reset Information", Math.Min(100, pct));
+                                if (jobId <= 0 || IsJobCancelled(jobId)) return;
+                                // 26%–100%: chunk 0 = bắt đầu khối mã hóa (gọi từ HRHelper trước vòng lặp + sau mỗi chunk)
+                                var pct = totalChunks > 0 ? 26 + (74 * doneChunks) / totalChunks : 100;
+                                if (pct > 100) pct = 100;
+                                if (pct <= lastResetPct) return;
+                                lastResetPct = pct;
+                                UpdateJobPhaseAndPercent(jobId, "Reset Information", pct);
                                 PushRestoreJobsUpdated(serverId);
                             }, () => IsJobCancelled(jobId));
                             if (resetResult.Item2 != null)
                                 RestoreSessionStatus.TryAdd(sessionId, new { status = "failed", message = resetResult.Item2 == "Đã hủy" ? "Đã hủy bởi người dùng" : ("Restore xong nhưng reset Employee (mã hóa) lỗi: " + resetResult.Item2) });
                             else if (!IsJobCancelled(jobId))
-                                UpdateJobPhaseAndPercent(jobId, null, 100);
+                                UpdateJobPhaseAndPercent(jobId, "Completing", 100);
                         }
                         if (IsJobCancelled(jobId) && !RestoreSessionStatus.ContainsKey(sessionId))
                             RestoreSessionStatus.TryAdd(sessionId, new { status = "cancelled", message = "Đã hủy bởi người dùng" });
@@ -2124,7 +2378,33 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     {
                         RestoreSessionStatus.TryAdd(sessionId, new { status = "failed", message = "Restore xong nhưng auto-reset lỗi: " + (exReset.Message ?? "Lỗi") });
                     }
-                    try { UpdateJobPhaseAndPercent(jobId, null, 100); } catch { }
+                    try { UpdateJobPhaseAndPercent(jobId, "Completing", 100); } catch { }
+                }
+                else if (jobId > 0 && !IsJobCancelled(jobId))
+                {
+                    // Không auto-reset: báo đang hoàn tất trước khi finally đánh dấu Completed (worker/UI thấy không còn "Restore").
+                    try
+                    {
+                        UpdateJobPhaseAndPercent(jobId, "Completing", 100);
+                        PushRestoreJobsUpdated(serverId);
+                    }
+                    catch { }
+                }
+                if (shrinkLog && doAutoReset && jobId > 0 && !IsJobCancelled(jobId))
+                {
+                    // Auto-reset có thể làm log nở lại lớn; chạy shrink lần cuối sau reset để log thực tế giảm.
+                    try
+                    {
+                        UpdateJobPhaseAndPercent(jobId, "ShrinkLog", 100);
+                        PushRestoreJobsUpdated(serverId);
+                        RunShrinkLogForDatabase(serverId, databaseName, 200);
+                        UpdateRestoreShrinkFinalStatus(jobId, true, "Shrink log cuối sau reset hoàn tất (target 200 MB).");
+                    }
+                    catch (Exception exShrinkFinal)
+                    {
+                        UpdateRestoreShrinkFinalStatus(jobId, false, exShrinkFinal.Message);
+                        /* Không fail toàn job nếu shrink cuối lỗi */
+                    }
                 }
             }
             catch (Exception ex)
@@ -2152,6 +2432,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         }
                         catch { }
                     }
+                    try { EnsureRestoreShrinkFinalStatusBySession(sessionId, status, msg); } catch { }
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
@@ -2262,7 +2543,8 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
                 {
-                    cmd.CommandText = "UPDATE BaJob SET Status = N'Running', SessionId = @sess WHERE Id = @id AND JobType = N'Restore'";
+                    // Đặt Message = Restore (job Pending từ Worker có Message = Pending; nếu không đổi thì timer/GetRestoreProgress vẫn đọc dm_exec và ghi đè % → nhấp nháy 100% ↔ 0% khi sang Reset).
+                    cmd.CommandText = "UPDATE BaJob SET Status = N'Running', SessionId = @sess, Message = N'Restore' WHERE Id = @id AND JobType = N'Restore'";
                     cmd.Parameters.AddWithValue("@sess", sessionId);
                     cmd.Parameters.AddWithValue("@id", jobId);
                     appConn.Open();
@@ -2387,6 +2669,80 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             catch { }
         }
 
+        /// <summary>Cập nhật trạng thái shrink cuối vào Payload của Restore job để UI chuông hiển thị chi tiết.</summary>
+        private static void UpdateRestoreShrinkFinalStatus(int jobId, bool success, string message)
+        {
+            if (jobId <= 0) return;
+            try
+            {
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmdSel = appConn.CreateCommand())
+                {
+                    cmdSel.CommandText = "SELECT ISNULL(Payload, N'') FROM BaJob WHERE Id = @id AND JobType = N'Restore'";
+                    cmdSel.Parameters.AddWithValue("@id", jobId);
+                    appConn.Open();
+                    var payloadStr = (cmdSel.ExecuteScalar() ?? "").ToString();
+                    Newtonsoft.Json.Linq.JObject obj;
+                    try { obj = string.IsNullOrWhiteSpace(payloadStr) ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.Parse(payloadStr); }
+                    catch { obj = new Newtonsoft.Json.Linq.JObject(); }
+                    obj["shrinkFinalStatus"] = success ? "success" : "failed";
+                    obj["shrinkFinalMessage"] = (message ?? "").Trim();
+                    obj["shrinkFinalAt"] = DateTime.Now.ToString("o");
+                    var payloadNew = obj.ToString(Newtonsoft.Json.Formatting.None);
+                    using (var cmdUpd = appConn.CreateCommand())
+                    {
+                        cmdUpd.CommandText = "UPDATE BaJob SET Payload = @p WHERE Id = @id";
+                        cmdUpd.Parameters.AddWithValue("@p", (object)payloadNew ?? DBNull.Value);
+                        cmdUpd.Parameters.AddWithValue("@id", jobId);
+                        cmdUpd.ExecuteNonQuery();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// Fallback: khi job đã kết thúc nhưng chưa có shrinkFinalStatus trong payload thì tự chốt trạng thái để UI không treo "Đang xử lý".
+        /// </summary>
+        private static void EnsureRestoreShrinkFinalStatusBySession(int sessionId, string finalJobStatus, string finalJobMessage)
+        {
+            if (sessionId <= 0) return;
+            try
+            {
+                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                using (var cmd = appConn.CreateCommand())
+                {
+                    cmd.CommandText = "SELECT TOP 1 Id, ISNULL(Payload, N'') FROM BaJob WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running' ORDER BY Id DESC";
+                    cmd.Parameters.AddWithValue("@sess", sessionId);
+                    appConn.Open();
+                    int jobId = 0;
+                    string payloadStr = "";
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        if (!r.Read()) return;
+                        jobId = r.IsDBNull(0) ? 0 : r.GetInt32(0);
+                        payloadStr = r.IsDBNull(1) ? "" : r.GetString(1);
+                    }
+                    if (jobId <= 0) return;
+
+                    Newtonsoft.Json.Linq.JObject obj;
+                    try { obj = string.IsNullOrWhiteSpace(payloadStr) ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.Parse(payloadStr); }
+                    catch { obj = new Newtonsoft.Json.Linq.JObject(); }
+                    var withShrink = obj["withShrinkLog"] != null && obj["withShrinkLog"].ToObject<bool>();
+                    if (!withShrink) return;
+                    var existing = (obj["shrinkFinalStatus"] ?? "").ToString().Trim();
+                    if (!string.IsNullOrEmpty(existing)) return;
+
+                    var ok = string.Equals(finalJobStatus ?? "", "Completed", StringComparison.OrdinalIgnoreCase);
+                    var fallbackMsg = ok
+                        ? "Job đã hoàn tất; không ghi nhận lỗi ở bước shrink cuối."
+                        : ("Job kết thúc với trạng thái " + (finalJobStatus ?? "Failed") + (string.IsNullOrWhiteSpace(finalJobMessage) ? "" : (": " + finalJobMessage)));
+                    UpdateRestoreShrinkFinalStatus(jobId, ok, fallbackMsg);
+                }
+            }
+            catch { }
+        }
+
         /// <summary>Hủy job Restore đang chạy. Chỉ người thực hiện restore (StartedByUserId) mới được hủy. Giữ để tương thích chuông; chuông có thể gọi CancelJob.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -2453,7 +2809,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
             }
         }
 
-        /// <summary>Danh sách job cho Function Queue: Restore, Backup, HR Helper (không lọc Dismissed, có lịch sử 7 ngày). Cùng quyền xem như GetJobs.</summary>
+        /// <summary>Danh sách job cho Function Queue: Restore, Backup, HR Helper (không lọc Dismissed, có lịch sử 7 ngày). Super Admin / quản lý server: thấy mọi Restore/Backup và mọi job HR; user thường: Restore/Backup theo server được phép + job HR do chính họ tạo.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetFunctionQueueJobs(string dateFrom, string dateTo, string jobTypeFilter)
@@ -2472,6 +2828,10 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         : (accessibleIds.Count == 0
                             ? "((J.JobType IN (N'Restore', N'Backup') AND 1=0))"
                             : "((J.JobType IN (N'Restore', N'Backup') AND J.ServerId IN (" + string.Join(",", accessibleIds) + ")))");
+                    var hrJobTypes = "N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee'";
+                    var hrVisibilityFilter = accessibleIds == null
+                        ? "((J.JobType IN (" + hrJobTypes + ")))"
+                        : "((J.JobType IN (" + hrJobTypes + ") AND J.StartedByUserId = @uid))";
                     var timeFilter = "(J.Status = N'Running' OR (J.Status IN (N'Completed', N'Failed', N'Cancelled') AND J.CompletedAt >= DATEADD(day, -7, SYSDATETIME())))";
                     DateTime? fromDt = null, toDt = null;
                     DateTime parsedFrom;
@@ -2502,7 +2862,7 @@ FROM BaJob J
 LEFT JOIN UiUser U ON U.UserId = J.StartedByUserId
 WHERE J.JobType IN (N'Restore', N'Backup', N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee')
   AND " + timeFilter + @"
-  AND (" + serverFilter + " OR (J.JobType IN (N'HRHelperUpdateUser', N'HRHelperUpdateUserSignature', N'HRHelperUpdateEmployee', N'HRHelperUpdateOther', N'HRHelperMultiDbAnalyze', N'HRHelperMultiDbReset', N'HRHelperDeleteEmployee') AND J.StartedByUserId = @uid))" + typeFilter + @"
+  AND (" + serverFilter + " OR " + hrVisibilityFilter + ")" + typeFilter + @"
 ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                     using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = conn.CreateCommand())
@@ -3040,12 +3400,13 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 // Nếu job đang ở phase "Reset Information" thì % do callback C# cập nhật; không lấy từ dm_exec_requests (session còn mở nhưng RESTORE đã xong, percent_complete không còn ý nghĩa)
                 string currentMessage = null;
                 int currentPctFromJob = 0;
+                string jobStartTimeIso = null;
                 try
                 {
                     using (var appConnCheck = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmdCheck = appConnCheck.CreateCommand())
                     {
-                        cmdCheck.CommandText = "SELECT Message, PercentComplete FROM BaJob WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
+                        cmdCheck.CommandText = "SELECT Message, PercentComplete, StartTime FROM BaJob WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
                         cmdCheck.Parameters.AddWithValue("@sess", sessionId);
                         appConnCheck.Open();
                         using (var rCheck = cmdCheck.ExecuteReader())
@@ -3054,14 +3415,18 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                             {
                                 if (!rCheck.IsDBNull(0)) currentMessage = rCheck.GetString(0);
                                 if (!rCheck.IsDBNull(1)) currentPctFromJob = rCheck.GetInt32(1);
+                                if (!rCheck.IsDBNull(2)) jobStartTimeIso = rCheck.GetDateTime(2).ToString("o");
                             }
                         }
                     }
                 }
                 catch { }
-                if (!string.IsNullOrEmpty(currentMessage) && currentMessage.Trim() == "Reset Information")
+                var curMsgTrim = (currentMessage ?? "").Trim();
+                const string hintRestore100 = "Server đang chạy bước sau RESTORE (shrink log / cấu hình / reset). % có thể giữ 100% vài phút — không phải lỗi nếu thời gian chạy vẫn tăng.";
+                string hintForRestore100 = (string.Equals(curMsgTrim, "Restore", StringComparison.OrdinalIgnoreCase) && currentPctFromJob >= 99) ? hintRestore100 : null;
+                if (curMsgTrim == "Reset Information" || curMsgTrim == "PostRestore" || string.Equals(curMsgTrim, "ShrinkLog", StringComparison.OrdinalIgnoreCase) || string.Equals(curMsgTrim, "Completing", StringComparison.OrdinalIgnoreCase))
                 {
-                    return new { success = true, percentComplete = currentPctFromJob, phase = currentMessage, completed = false };
+                    return new { success = true, percentComplete = currentPctFromJob, phase = curMsgTrim, completed = false, jobStartTime = jobStartTimeIso, phaseHint = hintForRestore100 };
                 }
                 var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
@@ -3083,7 +3448,8 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                                     using (var upd = appConn.CreateCommand())
                                     {
-                                        upd.CommandText = "UPDATE BaJob SET PercentComplete = @pct WHERE SessionId = @sess AND JobType = N'Restore'";
+                                        // Không giảm % Restore từ dm_exec (RESTORE xong SPID có thể còn với percent_complete = 0).
+                                        upd.CommandText = "UPDATE BaJob SET PercentComplete = CASE WHEN @pct > ISNULL(PercentComplete, 0) THEN @pct ELSE ISNULL(PercentComplete, 0) END WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
                                         upd.Parameters.AddWithValue("@pct", pctInt);
                                         upd.Parameters.AddWithValue("@sess", sessionId);
                                         appConn.Open();
@@ -3091,7 +3457,20 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                                     }
                                 }
                                 catch { }
-                                return new { success = true, percentComplete = pctInt, estimatedCompletionTime = eta, completed = false };
+                                try
+                                {
+                                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
+                                    using (var rd = appConn.CreateCommand())
+                                    {
+                                        rd.CommandText = "SELECT ISNULL(PercentComplete, 0) FROM BaJob WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
+                                        rd.Parameters.AddWithValue("@sess", sessionId);
+                                        appConn.Open();
+                                        var o2 = rd.ExecuteScalar();
+                                        if (o2 != null && o2 != DBNull.Value) pctInt = Convert.ToInt32(o2);
+                                    }
+                                }
+                                catch { }
+                                return new { success = true, percentComplete = pctInt, phase = "Restore", estimatedCompletionTime = eta, completed = false, jobStartTime = jobStartTimeIso, phaseHint = hintForRestore100 };
                             }
                         }
                     }
@@ -3112,12 +3491,13 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 // Task chưa xong (ví dụ đang reset): trả về PercentComplete và Message (phase) từ BaJob
                 var pctFromJob = 0;
                 var phaseMessage = (string)null;
+                var startIsoFallback = jobStartTimeIso;
                 try
                 {
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
-                        cmd.CommandText = "SELECT PercentComplete, Message FROM BaJob WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
+                        cmd.CommandText = "SELECT PercentComplete, Message, StartTime FROM BaJob WHERE SessionId = @sess AND JobType = N'Restore' AND Status = N'Running'";
                         cmd.Parameters.AddWithValue("@sess", sessionId);
                         appConn.Open();
                         using (var r = cmd.ExecuteReader())
@@ -3126,16 +3506,202 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                             {
                                 if (!r.IsDBNull(0)) pctFromJob = r.GetInt32(0);
                                 if (!r.IsDBNull(1)) phaseMessage = r.GetString(1);
+                                if (!r.IsDBNull(2)) startIsoFallback = r.GetDateTime(2).ToString("o");
                             }
                         }
                     }
                 }
                 catch { }
-                return new { success = true, percentComplete = pctFromJob, phase = phaseMessage, completed = false };
+                var pm = (phaseMessage ?? "").Trim();
+                var hintTail = (string.Equals(pm, "Restore", StringComparison.OrdinalIgnoreCase) && pctFromJob >= 99) ? hintRestore100 : null;
+                return new { success = true, percentComplete = pctFromJob, phase = phaseMessage, completed = false, jobStartTime = startIsoFallback, phaseHint = hintTail };
             }
             catch (Exception ex)
             {
                 return new { success = false, message = ex.Message, percentComplete = 0, completed = true };
+            }
+        }
+
+        /// <summary>Giám sát restore từ web: đọc BaJob + sys.dm_exec_requests (session restore) + sys.databases (RESTORING/ONLINE).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetRestoreJobDiagnostics(int jobId)
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập." };
+                if (jobId <= 0)
+                    return new { success = false, message = "Thiếu jobId." };
+                // Chỉ quản trị (Super Admin hoặc DatabaseManageServers) — không cho Developer/User thường xem dm_exec / trạng thái DB.
+                if (!UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("DatabaseManageServers"))
+                    return new { success = false, message = "Chỉ quản trị viên mới được xem giám sát SQL Server." };
+
+                int serverId = 0;
+                string serverName = null;
+                string databaseName = null;
+                int? sessionId = null;
+                string status = null;
+                string message = null;
+                int percentComplete = 0;
+                DateTime? startTime = null;
+                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+                {
+                    conn.Open();
+                    using (var cmd = conn.CreateCommand())
+                    {
+                        cmd.CommandText = @"SELECT ServerId, ServerName, DatabaseName, SessionId, Status, Message, PercentComplete, StartTime
+                            FROM BaJob WHERE Id = @id AND JobType = N'Restore'";
+                        cmd.Parameters.AddWithValue("@id", jobId);
+                        using (var r = cmd.ExecuteReader())
+                        {
+                            if (!r.Read())
+                                return new { success = false, message = "Không tìm thấy job restore." };
+                            serverId = r.IsDBNull(0) ? 0 : r.GetInt32(0);
+                            serverName = r.IsDBNull(1) ? null : r.GetString(1);
+                            databaseName = r.IsDBNull(2) ? null : r.GetString(2);
+                            sessionId = r.IsDBNull(3) ? (int?)null : r.GetInt32(3);
+                            status = r.IsDBNull(4) ? null : r.GetString(4);
+                            message = r.IsDBNull(5) ? null : r.GetString(5);
+                            percentComplete = r.IsDBNull(6) ? 0 : r.GetInt32(6);
+                            startTime = r.IsDBNull(7) ? (DateTime?)null : r.GetDateTime(7);
+                        }
+                    }
+                }
+
+                var s = GetServerInfo(serverId);
+                if (s == null)
+                    return new { success = false, message = "Không tìm thấy cấu hình server." };
+
+                var hints = new List<string>();
+                object sqlSession = null;
+                object databaseOnServer = null;
+
+                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                try
+                {
+                    using (var sqlConn = new SqlConnection(masterConn))
+                    {
+                        sqlConn.Open();
+
+                        if (sessionId.HasValue && sessionId.Value > 0)
+                        {
+                            using (var cmd = sqlConn.CreateCommand())
+                            {
+                                cmd.CommandTimeout = 20;
+                                cmd.CommandText = @"SELECT r.status, r.command, r.wait_type, r.wait_time, r.last_wait_type,
+                                    r.percent_complete, r.estimated_completion_time, r.cpu_time, r.total_elapsed_time, r.blocking_session_id
+                                    FROM sys.dm_exec_requests r WHERE r.session_id = @spid";
+                                cmd.Parameters.AddWithValue("@spid", sessionId.Value);
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    if (r.Read())
+                                    {
+                                        var blk = r.IsDBNull(9) ? (int?)null : Convert.ToInt32(r.GetValue(9));
+                                        sqlSession = new
+                                        {
+                                            found = true,
+                                            sessionId = sessionId.Value,
+                                            status = r.IsDBNull(0) ? null : r.GetString(0),
+                                            command = r.IsDBNull(1) ? null : r.GetString(1),
+                                            waitType = r.IsDBNull(2) ? null : r.GetString(2),
+                                            waitTimeMs = r.IsDBNull(3) ? 0 : r.GetInt32(3),
+                                            lastWaitType = r.IsDBNull(4) ? null : r.GetString(4),
+                                            percentCompleteSql = r.IsDBNull(5) ? (double?)null : Convert.ToDouble(r.GetValue(5)),
+                                            estimatedCompletionTimeMs = r.IsDBNull(6) ? (long?)null : Convert.ToInt64(r.GetValue(6)),
+                                            cpuTimeMs = r.IsDBNull(7) ? (int?)null : r.GetInt32(7),
+                                            totalElapsedTimeMs = r.IsDBNull(8) ? (int?)null : r.GetInt32(8),
+                                            blockingSessionId = blk
+                                        };
+                                        if (blk.HasValue && blk.Value > 0)
+                                            hints.Add("Session restore đang bị chặn bởi session_id " + blk.Value + " — có thể deadlock/blocking; cần DBA xử lý trên server.");
+                                    }
+                                    else
+                                    {
+                                        sqlSession = new { found = false, sessionId = sessionId.Value };
+                                        var phase = (message ?? "").Trim();
+                                        if (string.Equals(phase, "Restore", StringComparison.OrdinalIgnoreCase))
+                                            hints.Add("Không còn dòng trong sys.dm_exec_requests cho session này: RESTORE có thể vừa kết thúc hoặc session đã đóng; kiểm tra trạng thái database bên dưới.");
+                                        else
+                                            hints.Add("Không có request SQL đang chạy trên session_id này — bình thường khi job đang ở bước C# (Reset / Shrink log / Hoàn tất). % trên UI lúc đó phản ánh tiến độ app, không phải percent_complete của RESTORE.");
+                                    }
+                                }
+                            }
+                        }
+                        else
+                            hints.Add("Job chưa có SessionId (đang chờ worker / chưa bắt đầu trên SQL).");
+
+                        if (!string.IsNullOrWhiteSpace(databaseName))
+                        {
+                            var dbSafe = databaseName.Trim();
+                            using (var cmd = sqlConn.CreateCommand())
+                            {
+                                cmd.CommandTimeout = 15;
+                                cmd.CommandText = "SELECT name, state_desc, user_access_desc FROM sys.databases WHERE name = @db";
+                                cmd.Parameters.AddWithValue("@db", dbSafe);
+                                using (var r = cmd.ExecuteReader())
+                                {
+                                    if (r.Read())
+                                    {
+                                        var stateDesc = r.IsDBNull(1) ? null : r.GetString(1);
+                                        databaseOnServer = new
+                                        {
+                                            found = true,
+                                            name = r.IsDBNull(0) ? dbSafe : r.GetString(0),
+                                            stateDesc = stateDesc,
+                                            userAccessDesc = r.IsDBNull(2) ? null : r.GetString(2)
+                                        };
+                                        if (string.Equals(stateDesc, "RESTORING", StringComparison.OrdinalIgnoreCase))
+                                            hints.Add("Database trên SQL đang ở trạng thái RESTORING — server vẫn đang restore (hoặc chưa RECOVERY xong).");
+                                        else if (string.Equals(stateDesc, "ONLINE", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            var phase = (message ?? "").Trim();
+                                            if (string.Equals(phase, "Restore", StringComparison.OrdinalIgnoreCase) && percentComplete >= 99)
+                                                hints.Add("Database đã ONLINE nhưng job vẫn ghi phase Restore / % cao: thường là đồng bộ chậm hoặc đang chờ bước tiếp theo trong app.");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        databaseOnServer = new { found = false, name = dbSafe };
+                                        hints.Add("Chưa thấy database trên server (có thể restore tạo DB mới chưa xong hoặc tên khác).");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception exSql)
+                {
+                    hints.Add("Không truy vấn được SQL Server đích: " + exSql.Message);
+                }
+
+                if (string.Equals(status, "Running", StringComparison.OrdinalIgnoreCase) && percentComplete >= 99)
+                    hints.Add("UI 100% (hoặc gần 100%) trong lúc job vẫn Running là bình thường nếu đang shrink log / reset dữ liệu / hoàn tất — thời gian có thể vài phút tùy kích thước DB.");
+
+                return new
+                {
+                    success = true,
+                    job = new
+                    {
+                        id = jobId,
+                        serverId,
+                        serverName,
+                        databaseName,
+                        sessionId,
+                        status,
+                        message = (message ?? "").Trim(),
+                        percentComplete,
+                        startTime = startTime.HasValue ? startTime.Value.ToString("o") : (string)null
+                    },
+                    sqlSession,
+                    databaseOnServer,
+                    hints,
+                    queriedAt = DateTime.UtcNow.ToString("o")
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
             }
         }
 
@@ -3189,14 +3755,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 {
                     conn.Open();
                     if (!isNewDatabase)
-                    {
-                        using (var cmd = conn.CreateCommand())
-                        {
-                            cmd.CommandTimeout = 60;
-                            cmd.CommandText = "ALTER DATABASE [" + dbSafe + "] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;";
-                            try { cmd.ExecuteNonQuery(); } catch { }
-                        }
-                    }
+                        EnsureExclusiveAccessForRestore(conn, databaseName);
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandTimeout = 3600;
@@ -3588,7 +4147,9 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 var info = GetDatabaseLogInfo(s, databaseName.Trim());
                 if (info == null)
                     return new { success = false, message = "Không lấy được thông tin log." };
-                return new { success = true, logFileName = info.FileName, logSizeMb = info.SizeMb, recoveryModel = info.RecoveryModel };
+                if (!string.Equals(info.StateDesc ?? "", "ONLINE", StringComparison.OrdinalIgnoreCase))
+                    return new { success = false, message = "Database đang ở trạng thái " + (string.IsNullOrEmpty(info.StateDesc) ? "không xác định" : info.StateDesc) + " nên chưa lấy log theo cách thông thường được. Vui lòng đợi database ONLINE.", dbState = info.StateDesc };
+                return new { success = true, logFileName = info.FileName, logSizeMb = info.SizeMb, recoveryModel = info.RecoveryModel, dbState = info.StateDesc };
             }
             catch (Exception ex)
             {
@@ -3647,7 +4208,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                         using (var cmd = connDb.CreateCommand())
                         {
                             cmd.CommandTimeout = 1800;
-                            cmd.CommandText = "DBCC SHRINKFILE (N'" + logFileName.Replace("'", "''") + "', " + targetMb + ")";
+                            cmd.CommandText = "CHECKPOINT; DBCC SHRINKFILE (N'" + logFileName.Replace("'", "''") + "', " + targetMb + "); CHECKPOINT; DBCC SHRINKFILE (N'" + logFileName.Replace("'", "''") + "', " + targetMb + ")";
                             cmd.ExecuteNonQuery();
                         }
                     }
@@ -3733,7 +4294,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                             using (var cmd = connDb.CreateCommand())
                             {
                                 cmd.CommandTimeout = 1800; /* 30 phút cho log lớn (vài GB trở lên) */
-                                cmd.CommandText = "DBCC SHRINKFILE (N'" + logFileName.Replace("'", "''") + "', " + targetSizeMb + ")";
+                                cmd.CommandText = "CHECKPOINT; DBCC SHRINKFILE (N'" + logFileName.Replace("'", "''") + "', " + targetSizeMb + "); CHECKPOINT; DBCC SHRINKFILE (N'" + logFileName.Replace("'", "''") + "', " + targetSizeMb + ")";
                                 cmd.ExecuteNonQuery();
                             }
                         }
@@ -3915,27 +4476,37 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
             return BuildConnectionString(server, port, user, pwd, catalog);
         }
 
-        /// <summary>Lấy tên file log, dung lượng (MB) và recovery model của database.</summary>
+        /// <summary>
+        /// Lấy tên file log, dung lượng (MB), recovery model và state từ master (sys.databases + sys.master_files).
+        /// Không mở kết nối trực tiếp vào database đích để tránh lỗi "Cannot open database ... requested by login" khi DB vừa restore/chưa ONLINE.
+        /// </summary>
         private static LogInfo GetDatabaseLogInfo(ServerInfo s, string db)
         {
-            var connStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db);
+            var connStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
             using (var conn = new SqlConnection(connStr))
             using (var cmd = conn.CreateCommand())
             {
                 cmd.CommandTimeout = 10;
-                cmd.CommandText = @"SELECT (SELECT recovery_model_desc FROM sys.databases WHERE name = DB_NAME()) AS recovery_model,
-  (SELECT name FROM sys.database_files WHERE type = 1) AS log_name,
-  (SELECT size * 8 / 1024 FROM sys.database_files WHERE type = 1) AS size_mb";
+                cmd.CommandText = @"
+SELECT d.state_desc,
+       d.recovery_model_desc,
+       mf.name AS log_name,
+       CAST((mf.size * 8) / 1024 AS int) AS size_mb
+FROM sys.databases d
+LEFT JOIN sys.master_files mf ON d.database_id = mf.database_id AND mf.type = 1
+WHERE d.name = @db";
+                cmd.Parameters.AddWithValue("@db", db);
                 conn.Open();
                 using (var r = cmd.ExecuteReader())
                 {
-                    if (r.Read() && !r.IsDBNull(1) && !r.IsDBNull(2))
+                    if (r.Read())
                     {
                         return new LogInfo
                         {
-                            RecoveryModel = r.IsDBNull(0) ? "" : r.GetString(0),
-                            FileName = r.GetString(1),
-                            SizeMb = r.IsDBNull(2) ? 0 : r.GetInt32(2)
+                            StateDesc = r.IsDBNull(0) ? "" : r.GetString(0),
+                            RecoveryModel = r.IsDBNull(1) ? "" : r.GetString(1),
+                            FileName = r.IsDBNull(2) ? null : r.GetString(2),
+                            SizeMb = r.IsDBNull(3) ? 0 : r.GetInt32(3)
                         };
                     }
                 }
@@ -3960,6 +4531,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
             public int SizeMb { get; set; }
             public string FileName { get; set; }
             public string RecoveryModel { get; set; }
+            public string StateDesc { get; set; }
         }
 
         public class HRConnInfo

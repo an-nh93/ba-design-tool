@@ -368,7 +368,7 @@
                         <div class="ba-card">
                             <h2 class="ba-card-title">Cách dùng</h2>
                             <ol class="ba-warn" style="margin-left: 1.25rem; padding-left: 0.5rem;">
-                                <li><strong>Từ HR DB:</strong> Kết nối qua Database Search → Connect → HR Helper → bấm &quot;Generate Demo Reset Script&quot; (hoặc mở trang với <code>?k=...</code>). Chọn Company (hoặc Tất cả) → <strong>Load danh sách</strong> → chọn nhân viên cần reset.</li>
+                                <li><strong>Từ HR DB:</strong> Kết nối qua Database Tools → Connect → HR Helper → bấm &quot;Generate Demo Reset Script&quot; (hoặc mở trang với <code>?k=...</code>). Chọn Company (hoặc Tất cả) → <strong>Load danh sách</strong> → chọn nhân viên cần reset.</li>
                                 <li><strong>Từ CSV:</strong> Dán nội dung CSV có header <code>EmployeeID,LocalEmployeeID</code> (LocalEmployeeID bắt buộc nếu reset Payslip theo Local ID).</li>
                                 <li>Điền <strong>Cấu hình reset</strong> (demo phone, demo email, mask salary, payslip…) và chọn <strong>Fields to reset</strong>.</li>
                                 <li>Bấm <strong>Tạo script</strong> → tải file .sql, chạy tại DB khách hàng (nhớ backup trước).</li>
@@ -381,7 +381,7 @@
                                 <label><input type="radio" name="src" value="csv" id="radioCsv" checked /> Từ CSV</label>
                             </div>
                             <div id="srcHrdb" style="display: none;">
-                                <p class="ba-warn">Đã kết nối thì chọn Company (lọc) rồi bấm <strong>Load danh sách</strong>. Chưa kết nối: vào Database Search → Connect → HR Helper → bấm &quot;Generate Demo Reset Script&quot; hoặc mở trang với <code>?k=...</code>.</p>
+                                <p class="ba-warn">Đã kết nối thì chọn Company (lọc) rồi bấm <strong>Load danh sách</strong>. Chưa kết nối: vào Database Tools → Connect → HR Helper → bấm &quot;Generate Demo Reset Script&quot; hoặc mở trang với <code>?k=...</code>.</p>
                                 <div class="ba-form-group">
                                     <div class="ba-form-label-row">
                                         <label class="ba-form-label" for="selCompany">Company (lọc)</label>
@@ -1154,13 +1154,13 @@
                             var phase = (j.message || (type === 'Restore' ? 'Restore' : '')).toString().trim();
                             var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
                             var canCancel = (type === 'Restore' || type === 'Backup' || type === 'HRHelperMultiDbAnalyze' || type === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime) + '</div>';
-                            if (st === 'Running') {
-                                var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + phase) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime), st);
+                            if (st === 'Running' || st === 'Pending') {
+                                var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
                                 if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                            } else if (st === 'Completed') row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                            else if (st === 'Failed') row += '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
+                            } else if (st === 'Completed') row += BaNotif.completedBadgeRow() + '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
+                            else if (st === 'Failed') row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
                             row += '</div>';
                             html += row;
                         });

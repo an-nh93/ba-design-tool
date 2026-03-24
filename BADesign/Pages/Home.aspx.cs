@@ -29,7 +29,7 @@ namespace BADesign.Pages
 		protected void Page_Load(object sender, EventArgs e)
 		{
 			lnkBackHome.NavigateUrl = ResolveUrl(UiAuthHelper.GetHomeUrlByRole() ?? "~/");
-			// Tất cả tính năng đều yêu cầu đăng nhập: không còn màn hình guest (Database Search, PGP Tool). Chuyển thẳng sang Login.
+			// Tất cả tính năng đều yêu cầu đăng nhập: không còn màn hình guest (Database Tools, PGP Tool). Chuyển thẳng sang Login.
 			if (UiAuthHelper.IsAnonymous)
 			{
 				Response.Redirect(ResolveUrl("~/"));

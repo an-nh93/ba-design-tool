@@ -214,7 +214,7 @@ namespace BADesign.Pages
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Tools." };
                 var list = new List<object>();
                 using (var conn = new SqlConnection(info.ConnectionString))
                 using (var cmd = conn.CreateCommand())
@@ -398,7 +398,7 @@ COMMIT TRAN;";
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Tools." };
                 if (userIds == null || userIds.Count == 0)
                     return new { success = false, message = "Chọn ít nhất 1 user." };
                 if (!isUpdatePassword && !isUpdateEmail)
@@ -2122,7 +2122,7 @@ VALUES (N'HRHelperMultiDbAnalyze', @sname, N'Multi', @uid, @uname, SYSDATETIME()
                         multiGuid = jo["multiGuid"]?.ToString();
                     }
                     if (string.IsNullOrWhiteSpace(multiGuid))
-                        return new { success = false, message = "Job này không lưu thông tin kết nối Multi-DB. Vui lòng vào Database Search chọn lại Multi-DB, vào HR Helper và bấm \"Tải kết quả phân tích gần nhất\".", token = (string)null };
+                        return new { success = false, message = "Job này không lưu thông tin kết nối Multi-DB. Vui lòng vào Database Tools chọn lại Multi-DB, vào HR Helper và bấm \"Tải kết quả phân tích gần nhất\".", token = (string)null };
                     var token = DataSecurityWrapper.EncryptConnectId("multi_" + multiGuid);
                     return new { success = true, token = token };
                 }
@@ -3267,7 +3267,7 @@ WHERE {0}";
             return cols;
         }
 
-        private static int ResetPhoneColumnsInDb(SqlConnection conn, string phone)
+        private static int ResetPhoneColumnsInDb(SqlConnection conn, string phone, Action afterEachColumn = null)
         {
             var cols = GetPhoneColumns(conn);
             using (var cmd = conn.CreateCommand())
@@ -3280,12 +3280,13 @@ WHERE {0}";
                     var val = TruncateToColumnLength(phone, t.Item4);
                     try { total += ExecuteBatchUpdate(cmd, fullName, colName, "@phone", val, t.Item5); }
                     catch (Exception ex) { throw new Exception(string.Format("Phone tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex); }
+                    afterEachColumn?.Invoke();
                 }
                 return total;
             }
         }
 
-        private static int UpdateEmailValuesInDb(SqlConnection conn, string email)
+        private static int UpdateEmailValuesInDb(SqlConnection conn, string email, Action afterEachColumn = null)
         {
             var cols = GetEmailColumns(conn);
             using (var cmd = conn.CreateCommand())
@@ -3298,6 +3299,7 @@ WHERE {0}";
                     var val = TruncateToColumnLength(email, t.Item4);
                     try { total += ExecuteBatchUpdate(cmd, fullName, colName, "@email", val, t.Item5); }
                     catch (Exception ex) { throw new Exception(string.Format("Email tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex); }
+                    afterEachColumn?.Invoke();
                 }
                 return total;
             }
@@ -3305,6 +3307,12 @@ WHERE {0}";
 
         /// <summary>Reset Email và Phone trong database theo connection string (plain text, dùng cho Multi-DB reset). Trả về (tổng bản ghi cập nhật, lỗi nếu có).</summary>
         public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone)
+        {
+            return ResetEmailAndPhoneInDatabase(connectionString, email, phone, null);
+        }
+
+        /// <summary>Giống overload không callback; progressPlain: (bước hiện tại 1..N, tổng bước N) sau mỗi cột email/phone plain — map % trên UI (vd. 2→22).</summary>
+        public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone, Action<int, int> progressPlain)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 return Tuple.Create(0, "Connection string trống.");
@@ -3318,10 +3326,26 @@ WHERE {0}";
                 using (var conn = new SqlConnection(connectionString))
                 {
                     conn.Open();
+                    int emailCols = 0, phoneCols = 0;
                     if (!string.IsNullOrEmpty(emailTrim))
-                        total += UpdateEmailValuesInDb(conn, emailTrim);
+                        emailCols = GetEmailColumns(conn).Count;
                     if (!string.IsNullOrEmpty(phoneTrim))
-                        total += ResetPhoneColumnsInDb(conn, phoneTrim);
+                        phoneCols = GetPhoneColumns(conn).Count;
+                    var totalSteps = emailCols + phoneCols;
+                    var step = 0;
+                    Action bump = () =>
+                    {
+                        if (progressPlain == null || totalSteps <= 0) return;
+                        step++;
+                        if (step <= totalSteps)
+                            progressPlain(step, totalSteps);
+                    };
+                    if (!string.IsNullOrEmpty(emailTrim))
+                        total += UpdateEmailValuesInDb(conn, emailTrim, bump);
+                    if (!string.IsNullOrEmpty(phoneTrim))
+                        total += ResetPhoneColumnsInDb(conn, phoneTrim, bump);
+                    if (progressPlain != null && totalSteps <= 0)
+                        progressPlain(1, 1);
                 }
                 return Tuple.Create(total, (string)null);
             }
@@ -3359,7 +3383,7 @@ WHERE {0}";
                 // Chunk động: data nhỏ (300–1000) cần đủ chunk để progress 20%→100% mượt (tối thiểu 5 bước); 50k–100k dùng chunk lớn
                 int desiredChunks;
                 int minChunk;
-                const int MinChunksForProgress = 5; // Đảm bảo progress bar/chuông không treo 0% rồi nhảy 100%
+                const int MinChunksForProgress = 10; // Nhiều bước hơn khi ít employee → % mượt hơn (trước: 5)
                 if (totalCount >= 20000)
                 {
                     desiredChunks = Math.Min(40, Math.Max(15, totalCount / 2500));
@@ -3380,6 +3404,7 @@ WHERE {0}";
                     if (chunkSize < 1) chunkSize = 1;
                 }
                 var totalUpdated = 0;
+                progressCallback?.Invoke(0, totalChunks);
                 for (int c = 0; c < totalChunks; c++)
                 {
                     if (isCancelled != null && isCancelled())
@@ -3978,7 +4003,7 @@ VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runn
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Search." };
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Tools." };
                 var list = new List<object>();
                 using (var conn = new SqlConnection(info.ConnectionString))
                 using (var cmd = conn.CreateCommand())

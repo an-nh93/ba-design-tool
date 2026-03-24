@@ -1,5 +1,5 @@
 -- =============================================
--- BA Database Search: Bảng lưu thông tin server
+-- BA Database Tools: Bảng lưu thông tin server
 -- =============================================
 
 IF NOT EXISTS (SELECT * FROM sys.tables WHERE name = 'BaDatabaseServer')

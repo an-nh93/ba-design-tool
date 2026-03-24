@@ -150,6 +150,7 @@
 /* Badge trạng thái job (giống thẻ badge loại) */
 .ba-notif-status-badge { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-top: 4px; }
 .ba-notif-status-running { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
+.ba-notif-status-pending { background: rgba(245, 158, 11, 0.22); color: #f59e0b; }
 .ba-notif-status-completed { background: rgba(16, 185, 129, 0.2); color: #10b981; }
 .ba-notif-status-failed { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
 /* Badge trạng thái góp ý (Feedback): Mới, Đã đọc, Đang xử lý, Đã xử lý, Đóng */
@@ -245,6 +246,140 @@
     max-height: 200px;
     overflow-y: auto;
 }
+
+/* Popup lớn: giám sát SQL — trên modal chi tiết chuông, rộng và font to hơn */
+.ba-restore-diag-large-modal {
+    z-index: 12500;
+    padding: 12px;
+    box-sizing: border-box;
+    align-items: center !important;
+    justify-content: center !important;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-content {
+    width: min(1100px, calc(100vw - 24px));
+    max-width: min(1100px, calc(100vw - 24px));
+    min-width: 0;
+    max-height: min(92vh, 900px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    margin: 0;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-header {
+    flex-shrink: 0;
+    gap: 8px;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-refresh-large {
+    padding: 6px 14px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg-darker);
+    color: var(--text-primary);
+}
+.ba-restore-diag-large-modal .ba-restore-diag-refresh-large:hover {
+    background: var(--bg-hover, rgba(255,255,255,0.06));
+    border-color: var(--primary, #3b82f6);
+    color: var(--primary, #3b82f6);
+}
+.ba-restore-diag-large-modal #baRestoreDiagLargeClose {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    padding: 0;
+}
+.ba-restore-diag-large-modal #baRestoreDiagLargeClose:hover {
+    color: var(--text-primary) !important;
+    background: rgba(0,0,0,0.06) !important;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-body {
+    flex: 1;
+    min-height: 200px;
+    max-height: calc(92vh - 64px);
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 1rem 1.25rem 1.25rem;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-body .ba-restore-diag-table {
+    font-size: 0.875rem;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-body .ba-restore-diag-table td {
+    padding: 6px 10px 6px 0;
+    vertical-align: top;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-body .ba-restore-diag-table td code {
+    font-size: 0.8125rem;
+    word-break: break-word;
+    white-space: pre-wrap;
+    max-width: none;
+}
+.ba-restore-diag-large-modal .ba-restore-diag-large-body code {
+    font-size: 0.875rem;
+}
+.ba-restore-diag-wrap .ba-restore-diag-view-detail {
+    padding: 4px 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    border: 1px solid #10b981;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.ba-restore-diag-wrap .ba-restore-diag-view-detail:hover {
+    background: rgba(16, 185, 129, 0.25);
+}
+
+/* Bảng giám sát trong modal chi tiết (nhỏ) — cùng class với popup lớn */
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-table td {
+    padding: 3px 8px 3px 0;
+    vertical-align: top;
+}
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-table td:first-child {
+    opacity: 0.85;
+    white-space: nowrap;
+}
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-table code {
+    word-break: break-word;
+    font-size: 0.7rem;
+}
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-block { margin-bottom: 8px; }
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-hints ul { margin: 4px 0 0 16px; padding: 0; }
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-hints li { margin-bottom: 4px; }
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-state { font-weight: 700; }
+#notificationDetailModal .ba-restore-diag-body .ba-restore-diag-queried { margin-top: 8px; opacity: 0.65; font-size: 11px; }
+
+.ba-restore-diag-large-modal .ba-restore-diag-block { margin-bottom: 12px; }
+.ba-restore-diag-large-modal .ba-restore-diag-hints ul { margin: 6px 0 0 20px; padding: 0; }
+.ba-restore-diag-large-modal .ba-restore-diag-hints li { margin-bottom: 6px; }
+.ba-restore-diag-large-modal .ba-restore-diag-state { font-weight: 700; color: var(--primary-light, #a78bfa); }
+.ba-restore-diag-large-modal .ba-restore-diag-queried { margin-top: 12px; opacity: 0.7; font-size: 0.8125rem; }
+.ba-restore-diag-large-modal .ba-restore-diag-table { width: 100%; border-collapse: collapse; }
+.ba-restore-diag-large-modal .ba-restore-diag-table td:first-child { white-space: nowrap; opacity: 0.9; min-width: 200px; }
 
 /* Nút info và popup thông tin reset trong chi tiết thông báo */
 .ba-notif-reset-info-btn {

@@ -11,14 +11,14 @@ namespace BADesign
 
         protected void Page_Load(object sender, System.EventArgs e)
         {
-            if (Page.IsPostBack) return;
             UiAuthHelper.RequireLogin();
+            // Luôn áp dụng quyền theo DB mỗi request (không bỏ qua PostBack) để đồng bộ sau khi đổi Role/Permission.
             phNavEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
             phNavPgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
             phNavAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
             lnkNavUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
-            lnkNavDatabaseSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
-            lnkNavFunctionQueue.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
+            lnkNavDatabaseSearch.Visible = UiAuthHelper.HasFeature("DatabaseTools");
+            lnkNavFunctionQueue.Visible = UiAuthHelper.HasFeature("DatabaseTools");
             phNavSuperAdmin.Visible = UiAuthHelper.IsSuperAdmin;
         }
 
@@ -28,7 +28,7 @@ namespace BADesign
             var active = ActiveSection ?? "";
             lnkNavHome.CssClass = (active == "HomeRole") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavUIBuilder.CssClass = (active == "Home") ? "ba-nav-item active" : "ba-nav-item";
-            lnkNavDatabaseSearch.CssClass = (active == "DatabaseSearch") ? "ba-nav-item active" : "ba-nav-item";
+            lnkNavDatabaseSearch.CssClass = (active == "DatabaseTools") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavFunctionQueue.CssClass = (active == "FunctionQueue") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavFeedback.CssClass = (active == "Feedback") ? "ba-nav-item active" : "ba-nav-item";
             lnkNavDevShare.CssClass = (active == "DevShare") ? "ba-nav-item active" : "ba-nav-item";

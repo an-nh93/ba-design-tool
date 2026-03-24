@@ -186,7 +186,7 @@ namespace BADesign.Pages
 				throw new UnauthorizedAccessException("Bạn không có quyền sử dụng PGP Tool.");
 		}
 
-		/// <summary>Lấy connection string từ token k (Database Search / HR Helper). Khi không có k hoặc invalid, trả null.</summary>
+		/// <summary>Lấy connection string từ token k (Database Tools / HR Helper). Khi không có k hoặc invalid, trả null.</summary>
 		private static string GetConnectionStringFromToken(string tokenK)
 		{
 			if (string.IsNullOrWhiteSpace(tokenK)) return null;
@@ -220,7 +220,7 @@ namespace BADesign.Pages
 			}
 		}
 
-		/// <summary>Danh sách cấu hình Folder (key lưu trong Setting_FolderConfigurations). Cần token k (từ Database Search) để truy vấn DB Cadena.</summary>
+		/// <summary>Danh sách cấu hình Folder (key lưu trong Setting_FolderConfigurations). Cần token k (từ Database Tools) để truy vấn DB Cadena.</summary>
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
 		public static object GetFolderConfigList(string tokenK)
@@ -231,7 +231,7 @@ namespace BADesign.Pages
 				var list = new List<object>();
 				var connStr = GetConnectionStringFromToken(tokenK);
 				if (string.IsNullOrEmpty(connStr))
-					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Database Search → Chọn Server & Database → bấm PGP Tool (hoặc HR Helper rồi sang PGP Tool).", list = list };
+					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Database Tools → Chọn Server & Database → bấm PGP Tool (hoặc HR Helper rồi sang PGP Tool).", list = list };
 
 				using (var conn = new SqlConnection(connStr))
 				{
@@ -306,7 +306,7 @@ namespace BADesign.Pages
 			}
 		}
 
-		/// <summary>Lấy Public/Private key (Base64) của một cấu hình theo TenantID và Code. Cần token k từ Database Search.</summary>
+		/// <summary>Lấy Public/Private key (Base64) của một cấu hình theo TenantID và Code. Cần token k từ Database Tools.</summary>
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
 		public static object GetFolderConfigKeys(string tokenK, string tenantId, string code)
@@ -319,7 +319,7 @@ namespace BADesign.Pages
 
 				var connStr = GetConnectionStringFromToken(tokenK);
 				if (string.IsNullOrEmpty(connStr))
-					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Database Search → Chọn Server & Database → bấm PGP Tool." };
+					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Database Tools → Chọn Server & Database → bấm PGP Tool." };
 
 				string encryptionPublicKey = null;
 				string encryptionPrimaryKey = null;
@@ -419,7 +419,7 @@ namespace BADesign.Pages
 
 				var connStr = GetConnectionStringFromToken(tokenK);
 				if (string.IsNullOrEmpty(connStr))
-					return new { success = false, message = "Chưa chọn database. Mở PGP Tool từ Database Search với kết nối database." };
+					return new { success = false, message = "Chưa chọn database. Mở PGP Tool từ Database Tools với kết nối database." };
 
 				using (var conn = new SqlConnection(connStr))
 				{

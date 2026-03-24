@@ -142,14 +142,9 @@
                         <div class="rp-table-wrap" id="permissionsTableWrap" style="max-height: 360px; overflow-y: auto; margin-bottom: 0.5rem;">
                         <table class="rp-table" id="tblRolePermission">
                             <thead>
-                                <tr>
+                                <tr id="trRolePermissionHead">
                                     <th class="rp-sortable" data-col="name" id="thPermName"><span>Chức năng <span class="rp-sort-icon"></span></span></th>
-                                    <th id="thRoleBa">BA</th>
-                                    <th id="thRoleCons">CONS</th>
-                                    <th id="thRoleDev">DEV</th>
-                                    <th id="thRoleQC">QC</th>
-                                    <th id="thRoleCSS">CSS</th>
-                                    <th id="thRoleOther">Other</th>
+                                    <!-- Cột role: render động trong render() theo đúng thứ tự roles (RoleId) — tránh lệch cột so với checkbox -->
                                 </tr>
                             </thead>
                             <tbody id="tbodyRolePermission"></tbody>
@@ -208,16 +203,16 @@
         var permSortDir = 1;
         var permDescriptionFallback = {
             'UIBuilder': 'Thiết kế giao diện người dùng: tạo controls, forms và các component UI. Dùng cho BA/DEV để thiết kế màn hình.',
-            'DatabaseSearch': 'Quét server, xem danh sách database, copy connection string. Cho phép kết nối và thao tác với database (backup, restore, v.v. tùy quyền chi tiết).',
+            'DatabaseTools': 'Quét server, xem danh sách database, copy connection string. Cho phép kết nối và thao tác với database (backup, restore, v.v. tùy quyền chi tiết).',
             'EncryptDecrypt': 'Mã hóa và giải mã dữ liệu nhạy cảm (SĐT, email, lương). Tạo script Demo Reset theo nhân viên.',
             'HRHelper': 'Truy cập HR Helper: quản lý User, Employee, Company trong database HR. Dùng cho BA/CONS/DEV/QC khi cần thao tác dữ liệu HR.',
-            'DatabaseBackup': 'Được phép thực hiện backup database từ trang Database Search (tạo file .bak).',
-            'DatabaseRestore': 'Được phép thực hiện restore database từ trang Database Search (khôi phục từ file .bak).',
-            'DatabaseDelete': 'Được phép xóa database từ trang Database Search. Thao tác nguy hiểm, cần cẩn trọng.',
+            'DatabaseBackup': 'Được phép thực hiện backup database từ trang Database Tools (tạo file .bak).',
+            'DatabaseRestore': 'Được phép thực hiện restore database từ trang Database Tools (khôi phục từ file .bak).',
+            'DatabaseDelete': 'Được phép xóa database từ trang Database Tools. Thao tác nguy hiểm, cần cẩn trọng.',
             'DatabaseBulkReset': 'Được phép chạy Bulk Reset: reset dữ liệu hàng loạt database (theo kịch bản).',
-            'DatabaseManageServers': 'Quản lý cấu hình server: thêm, sửa, xóa server trong Database Search; thấy tất cả server (bỏ qua Server Access theo Role). Dùng cho manager.',
+            'DatabaseManageServers': 'Quản lý cấu hình server: thêm, sửa, xóa server trong Database Tools; thấy tất cả server (bỏ qua Server Access theo Role). Dùng cho manager.',
             'DatabaseConnectAny': 'Được Connect và dùng HR Helper trên mọi database (không chỉ database do mình restore). Dùng cho BA/QC/DEV cần truy cập nhiều DB.',
-            'DatabaseShrinkLog': 'Được phép Shrink log file của database từ trang Database Search.',
+            'DatabaseShrinkLog': 'Được phép Shrink log file của database từ trang Database Tools.',
             'Settings': 'Truy cập App Settings: cấu hình Email Server, SFTP, Telegram, Public URL và các thiết lập hệ thống khác.',
             'PGPTool': 'Sử dụng PGP Tool: xuất key .asc, mã hóa và giải mã file PGP.',
             'FeedbackManage': 'Quản lý góp ý: xem và cập nhật trạng thái, ghi chú, comment cho feedback/bug từ người dùng.',
@@ -308,6 +303,13 @@
         }
 
         function render() {
+            // Header cột Role phải khớp thứ tự với checkbox (roles từ DB). Header cố định BA|CONS|DEV... dễ gây nhầm khi RoleId không theo thứ tự đó.
+            var $trPermHead = $('#trRolePermissionHead');
+            $trPermHead.find('th:not(:first)').remove();
+            roles.forEach(function(r) {
+                var code = (r.code || r.name || String(r.id)).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                $trPermHead.append('<th class="rp-role-col-head" title="RoleId ' + r.id + '">' + code + '</th>');
+            });
             var $tb = $('#tbodyRolePermission');
             $tb.empty();
             var sortedPerms = permissions.slice().sort(function(a, b) {
@@ -351,7 +353,7 @@
             var $tbSrv = $('#tbodyRoleServerAccess');
             $tbSrv.empty();
             if (!servers.length) {
-                $tbSrv.append('<tr><td colspan="' + (roles.length + 1) + '" style="color: var(--text-muted);">Chưa có server. Thêm server trong Database Search.</td></tr>');
+                $tbSrv.append('<tr><td colspan="' + (roles.length + 1) + '" style="color: var(--text-muted);">Chưa có server. Thêm server trong Database Tools.</td></tr>');
             } else {
                 sorted.forEach(function(s) {
                     var disp = (s.serverName || '') + (s.port != null ? ':' + s.port : '') + ' (' + (s.username || '') + ')';
@@ -540,13 +542,13 @@
                         var phase = (j.message || (type === 'Restore' ? 'Restore' : '')).toString().trim();
                         var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
                         var canCancel = (type === 'Restore' || type === 'Backup' || type === 'HRHelperMultiDbAnalyze' || type === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                        var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime) + '</div>';
-                        if (st === 'Running') {
-                            var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + phase) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
+                        var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime), st);
+                        if (st === 'Running' || st === 'Pending') {
+                            var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
                             row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
                             if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                        } else if (st === 'Completed') row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                        else if (st === 'Failed') row += '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
+                        } else if (st === 'Completed') row += BaNotif.completedBadgeRow() + '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
+                        else if (st === 'Failed') row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
                         row += '</div>';
                         html += row;
                     });

@@ -16,7 +16,7 @@ BEGIN
 
     INSERT INTO dbo.UiPermission (Code, Name, [Description]) VALUES
         (N'UIBuilder',      N'UI Builder',        N'Thiết kế giao diện, tạo controls/forms'),
-        (N'DatabaseSearch', N'Database Search',   N'Quét server, xem danh sách database, copy connection string'),
+        (N'DatabaseSearch', N'Database Tools',   N'Quét server, xem danh sách database, copy connection string'),
         (N'EncryptDecrypt', N'Encrypt/Decrypt',   N'Mã hóa / giải mã dữ liệu'),
         (N'HRHelper',       N'HR Helper',         N'Quản lý User, Employee, Company trong DB HR');
 
@@ -27,7 +27,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM dbo.UiPermission WHERE Code = N'UIBuilder')
         INSERT INTO dbo.UiPermission (Code, Name, [Description]) VALUES (N'UIBuilder', N'UI Builder', N'Thiết kế giao diện, tạo controls/forms');
     IF NOT EXISTS (SELECT 1 FROM dbo.UiPermission WHERE Code = N'DatabaseSearch')
-        INSERT INTO dbo.UiPermission (Code, Name, [Description]) VALUES (N'DatabaseSearch', N'Database Search', N'Quét server, xem danh sách database, copy connection string');
+        INSERT INTO dbo.UiPermission (Code, Name, [Description]) VALUES (N'DatabaseSearch', N'Database Tools', N'Quét server, xem danh sách database, copy connection string');
     IF NOT EXISTS (SELECT 1 FROM dbo.UiPermission WHERE Code = N'EncryptDecrypt')
         INSERT INTO dbo.UiPermission (Code, Name, [Description]) VALUES (N'EncryptDecrypt', N'Encrypt/Decrypt', N'Mã hóa / giải mã dữ liệu');
     IF NOT EXISTS (SELECT 1 FROM dbo.UiPermission WHERE Code = N'HRHelper')

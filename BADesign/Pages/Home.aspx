@@ -1643,7 +1643,7 @@
                 <div class="anonymous-home-tools">
                     <a href="<%= ResolveUrl("~/DatabaseSearch") %>" class="anonymous-home-tool-card">
                         <span class="tool-icon">🔍</span>
-                        <span class="tool-title">Database Search</span>
+                        <span class="tool-title">Database Tools</span>
                         <span class="tool-desc">Reset password và tra cứu thông tin trong database.</span>
                     </a>
                     <a href="<%= ResolveUrl("~/PgpTool") %>" class="anonymous-home-tool-card">

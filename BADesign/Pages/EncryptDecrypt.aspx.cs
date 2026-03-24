@@ -181,7 +181,7 @@ WHERE T.IsActiveTransaction = 1";
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Connect từ Database Search rồi vào HR Helper, sau đó mở Generate Demo Reset Script." };
+                    return new { success = false, message = "Chưa kết nối database. Connect từ Database Tools rồi vào HR Helper, sau đó mở Generate Demo Reset Script." };
                 var seen = new HashSet<long>();
                 var list = new List<object>();
                 using (var conn = new SqlConnection(info.ConnectionString))

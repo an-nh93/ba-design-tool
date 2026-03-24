@@ -605,7 +605,7 @@
                 </div>
                 <nav class="ba-nav">
                     <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ"><span>🏠 Về trang chủ</span></a>
-                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item" data-icon="🔍" title="Database Search"><span>🔍 Database Search</span></a>
+                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item" data-icon="🔍" title="Database Tools"><span>🔍 Database Tools</span></a>
                     <a href="#" class="ba-nav-item active" data-icon="👥" title="HR Helper"><span>👥 HR Helper</span></a>
                     <% if (CanEditSettings) { %><a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item" data-icon="⚙" title="App Settings"><span>⚙ App Settings</span></a><% } %>
                 </nav>
@@ -617,7 +617,7 @@
                 <input type="hidden" id="hrCurrentDatabase" value="<%= Server.HtmlEncode(ConnectedDatabase ?? "") %>" />
                 <div class="ba-hr-conn-bar" style="padding: 0.5rem 2rem; background: var(--bg-darker, #161616); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
                     <span class="ba-conn-label" style="font-size: 0.875rem;"><span>Server: <strong><%= ConnectedServer %></strong></span><span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span></span>
-                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">← Về Database Search</a>
+                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">← Về Database Tools</a>
                     <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a>
                     <a href="<%= PgpToolUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">PGP Tool</a>
                 </div>
@@ -1647,7 +1647,7 @@
             var urlParams = new URLSearchParams(window.location.search);
             hrToken = urlParams.get('k') || '';
             if (!hrToken) {
-                showToast('Thiếu tham số kết nối. Vui lòng Connect từ Database Search.', 'error');
+                showToast('Thiếu tham số kết nối. Vui lòng Connect từ Database Tools.', 'error');
                 setTimeout(function() { window.location.href = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>'; }, 2000);
                 return;
             }
@@ -4792,17 +4792,18 @@
                             var serverPct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : 0;
                             var startTimeStr = formatNotifTime(j.startTime);
                             var endTimeStr = formatNotifTime(j.completedAt);
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : '') + '</div>';
-                            if (st === 'Running') {
+                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : ''), st);
+                            if (st === 'Running' || st === 'Pending') {
                                 var pct = Math.min(100, Math.max(0, serverPct));
-                                var progressLabel = (jobType === 'HRHelperMultiDbAnalyze') ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset') ? (pct + '% - Reset') : (jobType === 'HRHelperDeleteEmployee') ? (pct + '% - Xóa employee') : (pct + '%');
+                                var msgPhase = (j.message || '').toString().trim();
+                                var progressLabel = (jobType === 'Restore' && msgPhase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(msgPhase)) : (jobType === 'HRHelperMultiDbAnalyze') ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset') ? (pct + '% - Reset') : (jobType === 'HRHelperDeleteEmployee') ? (pct + '% - Xóa employee') : (pct + '%');
                                 row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
                                 row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
                                 if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Hủy job đang chạy">Hủy</button>';
                             }
-                            else if (st === 'Failed') { row += '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
-                            else if (st === 'Completed') { row += '<div style="margin-top:4px;color:var(--success);">Đã xong</div>'; if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
-                            if (st !== 'Running' && st !== 'Failed' && st !== 'Completed') row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
+                            else if (st === 'Failed') { row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
+                            else if (st === 'Completed') { row += BaNotif.completedBadgeRow(); if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
+                            if (st !== 'Running' && st !== 'Pending' && st !== 'Failed' && st !== 'Completed') row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
                             row += '</div>';
                             html += row;
                         });

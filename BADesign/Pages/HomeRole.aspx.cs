@@ -18,6 +18,16 @@ namespace BADesign.Pages
 			var roleUpper = roleCode.Length > 0 ? roleCode.ToUpperInvariant() : "";
 			var userName = (string)Session["UiUserName"] ?? "";
 
+			// Quyền tính năng: luôn đọc lại từ DB (HasFeature) mỗi lần request — không chỉ !IsPostBack,
+			// tránh ViewState giữ Visible=false sau khi Super Admin vừa cấp quyền hoặc đổi Role.
+			phFeatureEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
+			phFeaturePgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
+			lnkFeatureUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
+			lnkFeatureDbSearch.Visible = UiAuthHelper.HasFeature("DatabaseTools");
+			phSuperAdminCards.Visible = UiAuthHelper.IsSuperAdmin;
+			phFeatureAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
+			phNoFeatures.Visible = !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("UIBuilder") && !UiAuthHelper.HasFeature("DatabaseTools") && !UiAuthHelper.HasFeature("EncryptDecrypt") && !UiAuthHelper.HasFeature("PGPTool") && !UiAuthHelper.HasFeature("Settings");
+
 			if (!IsPostBack)
 			{
 				ucBaSidebar.ActiveSection = "HomeRole";
@@ -52,14 +62,6 @@ namespace BADesign.Pages
 					litWelcomeTitle.Text = "Chào mừng";
 					litWelcomeDesc.Text = "Bạn chưa được gán role (BA/CONS/DEV/QC/CSS/Other). Liên hệ Super Admin để được cấp quyền.";
 				}
-
-				phFeatureEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
-				phFeaturePgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
-				lnkFeatureUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
-				lnkFeatureDbSearch.Visible = UiAuthHelper.HasFeature("DatabaseSearch");
-				phSuperAdminCards.Visible = UiAuthHelper.IsSuperAdmin;
-				phFeatureAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
-				phNoFeatures.Visible = !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("UIBuilder") && !UiAuthHelper.HasFeature("DatabaseSearch") && !UiAuthHelper.HasFeature("EncryptDecrypt") && !UiAuthHelper.HasFeature("PGPTool") && !UiAuthHelper.HasFeature("Settings");
 			}
 		}
 
