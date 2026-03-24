@@ -377,6 +377,14 @@
 
                     <!-- Tab Connection String -->
                     <div id="tabConnstr" class="ba-tab-content">
+                        <div class="ba-card" style="margin-bottom: 1rem;">
+                            <h2 class="ba-card-title" style="font-size: 1rem; margin-bottom: 0.5rem;">Lưu ý:</h2>
+                            <p class="ba-warn" style="margin: 0 0 0.6rem 0;">
+                                Để chạy ở chế độ mã hóa Connection String, cần chỉnh trong <code>AppSettings.config</code>:
+                            </p>
+                            <pre class="script-preview" style="margin: 0;"><code>&lt;!--EncryptConnectStringMode: Default, <span style="color:#f59e0b;font-weight:700;">Encrypted</span>--&gt;
+&lt;add key="EncryptConnectStringMode" value="<span style="color:#f59e0b;font-weight:700;">Encrypted</span>" /&gt;</code></pre>
+                        </div>
                         <div class="ba-grid-2 ba-encdec-cards">
                             <div class="ba-card">
                                 <h2 class="ba-card-title">Mã hóa Connection String</h2>
