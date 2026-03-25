@@ -264,6 +264,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Handlers\ExportFeedback.ashx" />
+    <Content Include="Handlers\NotifyJobProgress.ashx" />
     <None Include="Scripts\jquery-1.10.2.intellisense.js" />
     <Content Include="Pages\AccessDenied.aspx" />
     <Content Include="Pages\FunctionQueue.aspx" />
@@ -507,6 +508,9 @@
     <Compile Include="Common\WindowsAuthHelper.cs" />
     <Compile Include="Handlers\ExportFeedback.ashx.cs">
       <DependentUpon>ExportFeedback.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="Handlers\NotifyJobProgress.ashx.cs">
+      <DependentUpon>NotifyJobProgress.ashx</DependentUpon>
     </Compile>
     <Compile Include="Hubs\RestoreNotificationHub.cs" />
     <Compile Include="Helpers\BaJobHubHelper.cs" />

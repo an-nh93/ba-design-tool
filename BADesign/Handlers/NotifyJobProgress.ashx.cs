@@ -1,6 +1,7 @@
 using System;
 using System.Web;
 using System.Data.SqlClient;
+using BADesign;
 using BADesign.Helpers;
 
 namespace BADesign.Handlers
@@ -13,8 +14,14 @@ namespace BADesign.Handlers
             context.Response.ContentType = "application/json";
             try
             {
-                var jobIdStr = context.Request["jobId"];
-                if (string.IsNullOrEmpty(jobIdStr) || !int.TryParse(jobIdStr, out int jobId) || jobId <= 0)
+                string jobIdStr = context.Request["jobId"];
+                if (string.IsNullOrEmpty(jobIdStr))
+                {
+                    context.Response.Write("{\"ok\":false,\"message\":\"Missing or invalid jobId\"}");
+                    return;
+                }
+                int jobId;
+                if (!int.TryParse(jobIdStr, out jobId) || jobId <= 0)
                 {
                     context.Response.Write("{\"ok\":false,\"message\":\"Missing or invalid jobId\"}");
                     return;
@@ -23,7 +30,7 @@ namespace BADesign.Handlers
                 string jobType = null;
                 int? serverId = null;
                 int? startedByUserId = null;
-                var connStr = Common.UiAuthHelper.ConnStr;
+                var connStr = UiAuthHelper.ConnStr;
                 if (!string.IsNullOrEmpty(connStr))
                 {
                     using (var conn = new SqlConnection(connStr))
