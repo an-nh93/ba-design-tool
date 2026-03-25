@@ -17,6 +17,9 @@ namespace BADesign.Pages
 {
     public partial class EncryptDecrypt : System.Web.UI.Page
     {
+        /// <summary>Key chuẩn (STD) cho tab Connection String — khớp mặc định khi để trống (cùng giá trị dùng trong script trang).</summary>
+        public const string StdConnectionStringEncryptKey = "20261203";
+
         public string TokenK { get; private set; } = "";
         public string ConnectedServer { get; private set; } = "";
         public string ConnectedDatabase { get; private set; } = "";

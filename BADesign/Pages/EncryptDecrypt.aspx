@@ -193,6 +193,10 @@
             flex-shrink: 0;
         }
         .ba-eye-btn:hover { background: var(--bg-card); }
+        #tabConnstr .ba-connstr-key-inp[readonly] {
+            cursor: default;
+            background: var(--bg-hover);
+        }
     </style>
 </head>
 <body>
@@ -393,9 +397,19 @@
                                     <textarea id="txtConnStrPlain" class="ba-input" placeholder="Data Source=...;Initial Catalog=...;User ID=...;Password=...;" rows="5"></textarea>
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label" for="txtConnStrKeyEnc">Key</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="txtConnStrKeyEnc">Key</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Mặc định dùng Key chuẩn (STD). Nếu cần điều chỉnh Key theo dự án thì bỏ Check STD Key và nhập giá trị Key vào.</div>
+                                        </span>
+                                    </div>
+                                    <div class="ba-checkbox" style="margin-bottom: 0.5rem;">
+                                        <input type="checkbox" id="chkConnStrUseStdEnc" checked="checked" />
+                                        <label for="chkConnStrUseStdEnc">Dùng STD Key</label>
+                                    </div>
                                     <div class="ba-key-password-wrap">
-                                        <input type="password" id="txtConnStrKeyEnc" class="ba-input" value="20261203" />
+                                        <input type="password" id="txtConnStrKeyEnc" class="ba-input ba-connstr-key-inp" autocomplete="off" />
                                         <button type="button" class="ba-eye-btn" data-eye-target="txtConnStrKeyEnc" title="Hiện/ẩn key">👁</button>
                                     </div>
                                 </div>
@@ -416,9 +430,19 @@
                                     <textarea id="txtConnStrEncryptedIn" class="ba-input" placeholder="Dán chuỗi đã mã hóa (base64)." rows="5"></textarea>
                                 </div>
                                 <div class="ba-form-group">
-                                    <label class="ba-form-label" for="txtConnStrKeyDec">Key</label>
+                                    <div class="ba-form-label-row">
+                                        <label class="ba-form-label" for="txtConnStrKeyDec">Key</label>
+                                        <span class="ba-info-wrap">
+                                            <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                            <div class="ba-info-popover" style="display: none;">Mặc định dùng Key chuẩn (STD). Nếu cần điều chỉnh Key theo dự án thì bỏ Check STD Key và nhập giá trị Key vào.</div>
+                                        </span>
+                                    </div>
+                                    <div class="ba-checkbox" style="margin-bottom: 0.5rem;">
+                                        <input type="checkbox" id="chkConnStrUseStdDec" checked="checked" />
+                                        <label for="chkConnStrUseStdDec">Dùng STD Key</label>
+                                    </div>
                                     <div class="ba-key-password-wrap">
-                                        <input type="password" id="txtConnStrKeyDec" class="ba-input" value="20261203" />
+                                        <input type="password" id="txtConnStrKeyDec" class="ba-input ba-connstr-key-inp" autocomplete="off" />
                                         <button type="button" class="ba-eye-btn" data-eye-target="txtConnStrKeyDec" title="Hiện/ẩn key">👁</button>
                                     </div>
                                 </div>
@@ -676,6 +700,25 @@
             var genUrl = '<%= ResolveUrl("~/Pages/EncryptDecrypt.aspx/GenerateDemoResetScript") %>';
             var csvUrl = '<%= ResolveUrl("~/Pages/EncryptDecrypt.aspx/GenerateDemoResetScriptFromCsv") %>';
             var companiesUrl = '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadCompanies") %>';
+            var connStrStdKey = '<%= HttpUtility.JavaScriptStringEncode(StdConnectionStringEncryptKey) %>';
+
+            function applyConnStrStdKeyRow(chkSel, inpSel) {
+                var useStd = $(chkSel).is(':checked');
+                var $inp = $(inpSel);
+                if (useStd) {
+                    $inp.val(connStrStdKey);
+                    $inp.prop('readonly', true);
+                } else {
+                    $inp.prop('readonly', false);
+                }
+            }
+
+            function getConnStrKey(isEncryptSide) {
+                var chk = isEncryptSide ? '#chkConnStrUseStdEnc' : '#chkConnStrUseStdDec';
+                var inp = isEncryptSide ? '#txtConnStrKeyEnc' : '#txtConnStrKeyDec';
+                if ($(chk).is(':checked')) return connStrStdKey;
+                return ($(inp).val() || '').trim();
+            }
 
             function showToast(msg, type) {
                 var t = $('#toast').removeClass('success error').addClass(type || 'info');
@@ -790,10 +833,11 @@
                 showToast('Đã copy.', 'success');
             });
 
-            function getConnStrKey(selector) {
-                var k = ($(selector).val() || '').trim();
-                return k || '20261203';
-            }
+            applyConnStrStdKeyRow('#chkConnStrUseStdEnc', '#txtConnStrKeyEnc');
+            applyConnStrStdKeyRow('#chkConnStrUseStdDec', '#txtConnStrKeyDec');
+            $('#chkConnStrUseStdEnc').on('change', function () { applyConnStrStdKeyRow('#chkConnStrUseStdEnc', '#txtConnStrKeyEnc'); });
+            $('#chkConnStrUseStdDec').on('change', function () { applyConnStrStdKeyRow('#chkConnStrUseStdDec', '#txtConnStrKeyDec'); });
+
             $(document).on('click', '.ba-eye-btn[data-eye-target]', function () {
                 var id = $(this).attr('data-eye-target');
                 var $inp = $('#' + id);
@@ -804,7 +848,7 @@
             });
             $('#btnEncryptConnStr').on('click', function () {
                 var plain = $('#txtConnStrPlain').val() || '';
-                var keyVal = getConnStrKey('#txtConnStrKeyEnc');
+                var keyVal = getConnStrKey(true);
                 $('#connEncErr').hide();
                 $('#connEncResultWrap').hide();
                 $.ajax({
@@ -826,7 +870,7 @@
             });
             $('#btnDecryptConnStr').on('click', function () {
                 var enc = $('#txtConnStrEncryptedIn').val() || '';
-                var keyVal = getConnStrKey('#txtConnStrKeyDec');
+                var keyVal = getConnStrKey(false);
                 $('#connDecErr').hide();
                 $('#connDecResultWrap').hide();
                 $.ajax({

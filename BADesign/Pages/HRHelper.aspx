@@ -728,15 +728,6 @@
                                 </div>
                                 </div>
                             </div>
-                            <div class="ba-card ba-update-section ba-collapse-section" id="sectionUpdateUserSignature" style="display: none;">
-                                <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
-                                    <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Update User Signature</h3>
-                                </div>
-                                <div class="ba-collapse-body">
-                                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0;">Một số trường hợp nếu User Signature trong DB không khớp với giá trị tính từ thông tin hiện tại thì user không đăng nhập được. Chọn user ở bảng trên rồi bấm nút <strong>Update User Signature</strong> ở toolbar (chạy nền, xem tiến độ tại chuông / Function Queue).</p>
-                                </div>
-                            </div>
                             <div class="ba-card ba-update-section ba-collapse-section" id="sectionGenerateScript">
                                 <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
                                     <span class="ba-collapse-icon">▼</span>

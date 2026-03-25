@@ -994,17 +994,29 @@ WHERE r.rn = 1";
                 BackupSessions.TryAdd(sessionId, backupConn);
 
                 int jobId = 0;
+                var backupPayloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(new System.Collections.Generic.Dictionary<string, object> {
+                    { "compression", compression },
+                    { "copyOnly", copyOnly },
+                    { "checksum", checksum },
+                    { "verifyBackup", verifyBackup },
+                    { "continueOnError", continueOnError },
+                    { "stripeCount", stripeCount < 1 ? 1 : (stripeCount > 64 ? 64 : stripeCount) },
+                    { "withShrinkLog", withShrinkLog },
+                    { "expireDays", Math.Max(0, expireDays) },
+                    { "expireDate", string.IsNullOrWhiteSpace(expireDate) ? "" : expireDate.Trim() }
+                });
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
                 {
-                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete)
-VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
+                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Payload)
+VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     cmd.Parameters.AddWithValue("@sid", serverId);
                     cmd.Parameters.AddWithValue("@sname", (s.ServerName ?? "") + (s.Port.HasValue ? "," + s.Port.Value : ""));
                     cmd.Parameters.AddWithValue("@db", databaseName.Trim());
                     cmd.Parameters.AddWithValue("@uid", userId);
                     cmd.Parameters.AddWithValue("@uname", startedByName);
                     cmd.Parameters.AddWithValue("@sess", sessionId);
+                    cmd.Parameters.AddWithValue("@payload", backupPayloadJson);
                     appConn.Open();
                     jobId = (int)cmd.ExecuteScalar();
                 }
@@ -1163,6 +1175,7 @@ VALUES (N'Backup', @sid, @sname, @db, @uid, @uname, SYSDATETIME(), @sess, N'Runn
                             cmd.ExecuteNonQuery();
                         }
                         Helpers.BaJobWorkerNotify.Notify(jobIdCopy);
+                        BaJobEmailHelper.NotifyBackupOrRestoreFinishedAsync(jobIdCopy);
                         PushBackupJobsUpdated(serverIdCopy);
                     }
                     catch { }
@@ -1905,11 +1918,19 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), 0, N'
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
                     {
-                        var payloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(new Dictionary<string, object> {
+                        var syncRestorePayload = new Dictionary<string, object> {
                             { "withAutoReset", withAutoReset },
                             { "withReplace", withReplace },
-                            { "withShrinkLog", withShrinkLog }
-                        });
+                            { "withShrinkLog", withShrinkLog },
+                            { "recovery", recovery },
+                            { "positions", positions },
+                            { "emailForReset", emailForReset ?? "" },
+                            { "passwordForReset", passwordForReset ?? "" },
+                            { "phoneForReset", phoneForReset ?? "" }
+                        };
+                        if (backupFileList.Count > 1)
+                            syncRestorePayload["backupFileNames"] = backupFileList;
+                        var payloadJson = Newtonsoft.Json.JsonConvert.SerializeObject(syncRestorePayload);
                         cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerId, ServerName, DatabaseName, BackupFileName, StartedByUserId, StartedByUserName, StartTime, SessionId, Status, PercentComplete, Message, Payload)
 VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess, N'Running', 0, N'Restore', @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
                         cmd.Parameters.AddWithValue("@sid", serverId);
@@ -2444,6 +2465,8 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                         cmd.ExecuteNonQuery();
                     }
                     Helpers.BaJobWorkerNotify.Notify(-sessionId);
+                    if (jobId > 0)
+                        BaJobEmailHelper.NotifyBackupOrRestoreFinishedAsync(jobId);
                     PushRestoreJobsUpdated(serverId);
                 }
                 catch { }
@@ -2586,6 +2609,7 @@ VALUES (N'Restore', @sid, @sname, @db, @file, @uid, @uname, SYSDATETIME(), @sess
                     cmd.ExecuteNonQuery();
                 }
                 Helpers.BaJobWorkerNotify.Notify(jobId);
+                BaJobEmailHelper.NotifyBackupOrRestoreFinishedAsync(jobId);
             }
             catch { }
         }

@@ -253,6 +253,7 @@ INNER JOIN Claimable c ON c.Id = BaJob.Id";
                     cmd.ExecuteNonQuery();
                 }
                 NotifyWeb(jobId);
+                BADesign.Helpers.BaJobEmailHelper.NotifyBackupOrRestoreFinishedAsync(jobId);
             }
             catch { }
         }
