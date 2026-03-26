@@ -198,7 +198,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GeneratePassword\CadenaHelper\CadenaHelper.csproj">
+    <ProjectReference Include="..\CadenaHelper\CadenaHelper.csproj">
       <Project>{20D7D6A1-3050-4EB6-AC0C-F706A6EEE5B7}</Project>
       <Name>CadenaHelper</Name>
     </ProjectReference>

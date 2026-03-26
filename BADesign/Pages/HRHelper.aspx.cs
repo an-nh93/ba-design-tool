@@ -2528,7 +2528,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
 
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object ResetMultiDbSelected(string k, List<string> databaseNames, string email, string phone)
+        public static object ResetMultiDbSelected(string k, List<string> databaseNames, string email, string phone, bool emailToNull = false, bool phoneToNull = false)
         {
             try
             {
@@ -2541,8 +2541,14 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
                     return new { success = false, message = "Chọn ít nhất 1 database." };
                 var emailTrim = (email ?? "").Trim();
                 var phoneTrim = (phone ?? "").Trim();
-                if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
-                    return new { success = false, message = "Nhập Email và/hoặc Phone để reset." };
+                if (emailToNull && !string.IsNullOrEmpty(emailTrim))
+                    return new { success = false, message = "Không kết hợp xóa email (NULL) với giá trị email." };
+                if (phoneToNull && !string.IsNullOrEmpty(phoneTrim))
+                    return new { success = false, message = "Không kết hợp xóa phone (NULL) với giá trị phone." };
+                var anyEmail = emailToNull || !string.IsNullOrEmpty(emailTrim);
+                var anyPhone = phoneToNull || !string.IsNullOrEmpty(phoneTrim);
+                if (!anyEmail && !anyPhone)
+                    return new { success = false, message = "Chọn reset email/phone (giá trị hoặc NULL)." };
 
                 var dbSet = new HashSet<string>(databaseNames.Select(x => (x ?? "").Trim()), StringComparer.OrdinalIgnoreCase);
                 var toProcess = multi.Databases.Where(d => dbSet.Contains(d.DatabaseName ?? "")).ToList();
@@ -2553,30 +2559,10 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
 
                 foreach (var db in toProcess)
                 {
-                    try
-                    {
-                        using (var conn = new SqlConnection(db.ConnectionString))
-                        {
-                            conn.Open();
-                            if (!string.IsNullOrEmpty(emailTrim))
-                                totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
-                            if (!string.IsNullOrEmpty(phoneTrim))
-                                totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
-                        }
-                        if (!string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim))
-                        {
-                            var encResult = ResetEmailAndPhoneEncryptedForRestore(db.ConnectionString, emailTrim, phoneTrim, null, null);
-                            if (encResult.Item2 != null)
-                                errors.Add(db.DatabaseName + " (mã hóa): " + encResult.Item2);
-                            else
-                                totalAffected += encResult.Item1;
-                        }
+                    var errCountBefore = errors.Count;
+                    RunMultiDbResetPlainAndEncrypted(db.ConnectionString, db.DatabaseName ?? "", emailTrim, phoneTrim, emailToNull, phoneToNull, ref totalAffected, errors);
+                    if (errors.Count == errCountBefore)
                         done++;
-                    }
-                    catch (Exception ex)
-                    {
-                        errors.Add(db.DatabaseName + ": " + (ex.Message ?? "Lỗi"));
-                    }
                 }
 
                 var msg = "Đã reset " + done + "/" + toProcess.Count + " database. Tổng bản ghi cập nhật: " + totalAffected;
@@ -2603,7 +2589,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
         /// <summary>Đưa reset Multi-DB xuống job nền. Trả về jobId; client disable nút và theo dõi qua chuông/Function Queue.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object StartMultiDbResetJob(string k, List<string> databaseNames, string email, string phone)
+        public static object StartMultiDbResetJob(string k, List<string> databaseNames, string email, string phone, bool emailToNull = false, bool phoneToNull = false)
         {
             try
             {
@@ -2616,8 +2602,14 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
                     return new { success = false, message = "Chọn ít nhất 1 database.", jobId = 0 };
                 var emailTrim = (email ?? "").Trim();
                 var phoneTrim = (phone ?? "").Trim();
-                if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
-                    return new { success = false, message = "Nhập Email và/hoặc Phone để reset.", jobId = 0 };
+                if (emailToNull && !string.IsNullOrEmpty(emailTrim))
+                    return new { success = false, message = "Không kết hợp xóa email (NULL) với giá trị email.", jobId = 0 };
+                if (phoneToNull && !string.IsNullOrEmpty(phoneTrim))
+                    return new { success = false, message = "Không kết hợp xóa phone (NULL) với giá trị phone.", jobId = 0 };
+                var anyEmail = emailToNull || !string.IsNullOrEmpty(emailTrim);
+                var anyPhone = phoneToNull || !string.IsNullOrEmpty(phoneTrim);
+                if (!anyEmail && !anyPhone)
+                    return new { success = false, message = "Chọn reset email/phone (giá trị hoặc NULL).", jobId = 0 };
 
                 var dbSet = new HashSet<string>(databaseNames.Select(x => (x ?? "").Trim()), StringComparer.OrdinalIgnoreCase);
                 var toProcess = multi.Databases.Where(d => dbSet.Contains(d.DatabaseName ?? "")).ToList();
@@ -2631,7 +2623,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
                 if (UseBackgroundWorker())
                 {
                     var connectionStringsPayload = toProcess.Select(d => new { DatabaseName = d.DatabaseName ?? "", ConnectionString = d.ConnectionString ?? "" }).ToList();
-                    var payloadPending = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, databaseNames = dbNamesList, connectionStrings = connectionStringsPayload });
+                    var payloadPending = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, emailToNull, phoneToNull, databaseNames = dbNamesList, connectionStrings = connectionStringsPayload });
                     int pendingJobId = 0;
                     using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                     using (var cmd = appConn.CreateCommand())
@@ -2649,7 +2641,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                     return new { success = true, jobId = pendingJobId, message = "Đã đưa reset Multi-DB vào hàng đợi. Worker sẽ xử lý. Theo dõi chuông và Function Queue." };
                 }
 
-                var payloadInitial = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, databaseNames = dbNamesList });
+                var payloadInitial = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, emailToNull, phoneToNull, databaseNames = dbNamesList });
                 int jobId = 0;
                 using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = appConn.CreateCommand())
@@ -2681,30 +2673,10 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                     {
                         foreach (var db in toProcess)
                         {
-                            try
-                            {
-                                using (var conn = new SqlConnection(db.ConnectionString))
-                                {
-                                    conn.Open();
-                                    if (!string.IsNullOrEmpty(emailTrim))
-                                        totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
-                                    if (!string.IsNullOrEmpty(phoneTrim))
-                                        totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
-                                }
-                                if (!string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim))
-                                {
-                                    var encResult = ResetEmailAndPhoneEncryptedForRestore(db.ConnectionString, emailTrim, phoneTrim, null, null);
-                                    if (encResult.Item2 != null)
-                                        errors.Add(db.DatabaseName + " (mã hóa): " + encResult.Item2);
-                                    else
-                                        totalAffected += encResult.Item1;
-                                }
+                            var errCountBefore = errors.Count;
+                            RunMultiDbResetPlainAndEncrypted(db.ConnectionString, db.DatabaseName ?? "", emailTrim, phoneTrim, emailToNull, phoneToNull, ref totalAffected, errors);
+                            if (errors.Count == errCountBefore)
                                 done++;
-                            }
-                            catch (Exception ex)
-                            {
-                                errors.Add(db.DatabaseName + ": " + (ex.Message ?? "Lỗi"));
-                            }
                             var pct = totalDbs > 0 ? (int)Math.Round(((done * 100.0) / totalDbs)) : 0;
                             pct = Math.Min(pct, 99);
                             try
@@ -2795,6 +2767,8 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
 
             var emailTrim = "";
             var phoneTrim = "";
+            var emailToNull = false;
+            var phoneToNull = false;
             var databases = new List<Tuple<string, string>>();
             if (!string.IsNullOrEmpty(payloadJson))
             {
@@ -2803,6 +2777,9 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                     var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
                     if (payload["email"] != null) emailTrim = (string)payload["email"] ?? "";
                     if (payload["phone"] != null) phoneTrim = (string)payload["phone"] ?? "";
+                    bool en, pn;
+                    if (payload["emailToNull"] != null && bool.TryParse(payload["emailToNull"].ToString(), out en)) emailToNull = en;
+                    if (payload["phoneToNull"] != null && bool.TryParse(payload["phoneToNull"].ToString(), out pn)) phoneToNull = pn;
                     var conns = payload["connectionStrings"] as Newtonsoft.Json.Linq.JArray;
                     if (conns != null)
                         foreach (var c in conns)
@@ -2831,30 +2808,10 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                 {
                     var dbName = db.Item1;
                     var connStr = db.Item2;
-                    try
-                    {
-                        using (var conn = new SqlConnection(connStr))
-                        {
-                            conn.Open();
-                            if (!string.IsNullOrEmpty(emailTrim))
-                                totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
-                            if (!string.IsNullOrEmpty(phoneTrim))
-                                totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
-                        }
-                        if (!string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim))
-                        {
-                            var encResult = ResetEmailAndPhoneEncryptedForRestore(connStr, emailTrim, phoneTrim, null, null);
-                            if (encResult.Item2 != null)
-                                errors.Add(dbName + " (mã hóa): " + encResult.Item2);
-                            else
-                                totalAffected += encResult.Item1;
-                        }
+                    var errCountBefore = errors.Count;
+                    RunMultiDbResetPlainAndEncrypted(connStr, dbName, emailTrim, phoneTrim, emailToNull, phoneToNull, ref totalAffected, errors);
+                    if (errors.Count == errCountBefore)
                         done++;
-                    }
-                    catch (Exception ex)
-                    {
-                        errors.Add(dbName + ": " + (ex.Message ?? "Lỗi"));
-                    }
                     var pct = totalDbs > 0 ? (int)Math.Round((done * 100.0) / totalDbs) : 0;
                     pct = Math.Min(pct, 99);
                     try
@@ -3218,6 +3175,22 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             return total;
         }
 
+        /// <summary>Gán NULL theo lô (tránh chuỗi rỗng — giải mã/đọc nhanh hơn). WHERE cột đang khác NULL.</summary>
+        private static int ExecuteBatchSetColumnToNull(SqlCommand cmd, string fullName, string colName)
+        {
+            cmd.Parameters.Clear();
+            cmd.CommandTimeout = UpdateCommandTimeout;
+            int total = 0;
+            int n;
+            do
+            {
+                cmd.CommandText = "UPDATE TOP (" + UpdateBatchSize + ") " + fullName + " SET " + colName + " = NULL WHERE " + colName + " IS NOT NULL";
+                n = cmd.ExecuteNonQuery();
+                total += n;
+            } while (n >= UpdateBatchSize);
+            return total;
+        }
+
         private static string TruncateToColumnLength(string value, int? maxLength)
         {
             if (string.IsNullOrEmpty(value)) return value;
@@ -3331,21 +3304,63 @@ WHERE {0}";
             }
         }
 
+        private static int UpdateEmailValuesToNullInDb(SqlConnection conn, Action afterEachColumn = null)
+        {
+            var cols = GetEmailColumns(conn);
+            using (var cmd = conn.CreateCommand())
+            {
+                var total = 0;
+                foreach (var t in cols)
+                {
+                    var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
+                    var colName = "[" + t.Item3.Replace("]", "]]") + "]";
+                    try { total += ExecuteBatchSetColumnToNull(cmd, fullName, colName); }
+                    catch (Exception ex) { throw new Exception(string.Format("Email NULL tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex); }
+                    afterEachColumn?.Invoke();
+                }
+                return total;
+            }
+        }
+
+        private static int ResetPhoneColumnsToNullInDb(SqlConnection conn, Action afterEachColumn = null)
+        {
+            var cols = GetPhoneColumns(conn);
+            using (var cmd = conn.CreateCommand())
+            {
+                var total = 0;
+                foreach (var t in cols)
+                {
+                    var fullName = "[" + t.Item1.Replace("]", "]]") + "].[" + t.Item2.Replace("]", "]]") + "]";
+                    var colName = "[" + t.Item3.Replace("]", "]]") + "]";
+                    try { total += ExecuteBatchSetColumnToNull(cmd, fullName, colName); }
+                    catch (Exception ex) { throw new Exception(string.Format("Phone NULL tại {0}.{1}.{2}: {3}", t.Item1, t.Item2, t.Item3, ex.Message), ex); }
+                    afterEachColumn?.Invoke();
+                }
+                return total;
+            }
+        }
+
         /// <summary>Reset Email và Phone trong database theo connection string (plain text, dùng cho Multi-DB reset). Trả về (tổng bản ghi cập nhật, lỗi nếu có).</summary>
         public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone)
         {
-            return ResetEmailAndPhoneInDatabase(connectionString, email, phone, null);
+            return ResetEmailAndPhoneInDatabase(connectionString, email, phone, null, false, false);
         }
 
         /// <summary>Giống overload không callback; progressPlain: (bước hiện tại 1..N, tổng bước N) sau mỗi cột email/phone plain — map % trên UI (vd. 2→22).</summary>
-        public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone, Action<int, int> progressPlain)
+        public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone, Action<int, int> progressPlain, bool clearEmailToNull = false, bool clearPhoneToNull = false)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 return Tuple.Create(0, "Connection string trống.");
             var emailTrim = (email ?? "").Trim();
             var phoneTrim = (phone ?? "").Trim();
-            if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
-                return Tuple.Create(0, "Cần nhập Email và/hoặc Phone.");
+            if (clearEmailToNull && !string.IsNullOrEmpty(emailTrim))
+                return Tuple.Create(0, "Không kết hợp xóa email (NULL) với giá trị email.");
+            if (clearPhoneToNull && !string.IsNullOrEmpty(phoneTrim))
+                return Tuple.Create(0, "Không kết hợp xóa phone (NULL) với giá trị phone.");
+            var anyEmail = clearEmailToNull || !string.IsNullOrEmpty(emailTrim);
+            var anyPhone = clearPhoneToNull || !string.IsNullOrEmpty(phoneTrim);
+            if (!anyEmail && !anyPhone)
+                return Tuple.Create(0, "Cần nhập Email và/hoặc Phone, hoặc chọn xóa NULL.");
             try
             {
                 var total = 0;
@@ -3353,9 +3368,9 @@ WHERE {0}";
                 {
                     conn.Open();
                     int emailCols = 0, phoneCols = 0;
-                    if (!string.IsNullOrEmpty(emailTrim))
+                    if (clearEmailToNull || !string.IsNullOrEmpty(emailTrim))
                         emailCols = GetEmailColumns(conn).Count;
-                    if (!string.IsNullOrEmpty(phoneTrim))
+                    if (clearPhoneToNull || !string.IsNullOrEmpty(phoneTrim))
                         phoneCols = GetPhoneColumns(conn).Count;
                     var totalSteps = emailCols + phoneCols;
                     var step = 0;
@@ -3366,9 +3381,13 @@ WHERE {0}";
                         if (step <= totalSteps)
                             progressPlain(step, totalSteps);
                     };
-                    if (!string.IsNullOrEmpty(emailTrim))
+                    if (clearEmailToNull)
+                        total += UpdateEmailValuesToNullInDb(conn, bump);
+                    else if (!string.IsNullOrEmpty(emailTrim))
                         total += UpdateEmailValuesInDb(conn, emailTrim, bump);
-                    if (!string.IsNullOrEmpty(phoneTrim))
+                    if (clearPhoneToNull)
+                        total += ResetPhoneColumnsToNullInDb(conn, bump);
+                    else if (!string.IsNullOrEmpty(phoneTrim))
                         total += ResetPhoneColumnsInDb(conn, phoneTrim, bump);
                     if (progressPlain != null && totalSteps <= 0)
                         progressPlain(1, 1);
@@ -3381,17 +3400,131 @@ WHERE {0}";
             }
         }
 
-        /// <summary>Reset Email và Phone trong Staffing_Employees (và Staffing_EmployeeInformations) với mã hóa theo từng employee (dùng sau restore + auto-reset). progressCallback(doneChunks, totalChunks). isCancelled: nếu trả về true thì dừng và trả về "Đã hủy".</summary>
-        public static Tuple<int, string> ResetEmailAndPhoneEncryptedForRestore(string connectionString, string email, string phone, Action<int, int> progressCallback, Func<bool> isCancelled = null)
+        private static int ClearStaffingEmployeesEmailEncryptedToNull(SqlConnection conn)
+        {
+            var total = 0;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = UpdateCommandTimeout;
+                int n;
+                do
+                {
+                    cmd.CommandText = @"
+UPDATE TOP (" + UpdateBatchSize + @") E
+SET E.PersonalEmailAddress = NULL, E.BusinessEmailAddress = NULL
+FROM dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK)
+WHERE E.PersonalEmailAddress IS NOT NULL OR E.BusinessEmailAddress IS NOT NULL";
+                    n = cmd.ExecuteNonQuery();
+                    total += n;
+                } while (n >= UpdateBatchSize);
+            }
+            return total;
+        }
+
+        private static int ClearStaffingEmployeeInformationsEmailEncryptedToNull(SqlConnection conn)
+        {
+            var total = 0;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = UpdateCommandTimeout;
+                int n;
+                do
+                {
+                    cmd.CommandText = @"
+IF OBJECT_ID(N'dbo.Staffing_EmployeeInformations', N'U') IS NOT NULL
+UPDATE TOP (" + UpdateBatchSize + @") EI
+SET EI.PersonalEmailAddress = NULL, EI.BusinessEmailAddress = NULL
+FROM dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK)
+WHERE EI.PersonalEmailAddress IS NOT NULL OR EI.BusinessEmailAddress IS NOT NULL";
+                    n = cmd.ExecuteNonQuery();
+                    total += n;
+                } while (n >= UpdateBatchSize);
+            }
+            return total;
+        }
+
+        private static int ClearStaffingEmployeesPhonesEncryptedToNull(SqlConnection conn)
+        {
+            var total = 0;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = UpdateCommandTimeout;
+                int n;
+                do
+                {
+                    cmd.CommandText = @"
+UPDATE TOP (" + UpdateBatchSize + @") E
+SET E.MobilePhone1 = NULL, E.MobilePhone2 = NULL, E.HomePhone1 = NULL, E.HomePhone2 = NULL
+FROM dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK)
+WHERE E.MobilePhone1 IS NOT NULL OR E.MobilePhone2 IS NOT NULL OR E.HomePhone1 IS NOT NULL OR E.HomePhone2 IS NOT NULL";
+                    n = cmd.ExecuteNonQuery();
+                    total += n;
+                } while (n >= UpdateBatchSize);
+            }
+            return total;
+        }
+
+        private static int ClearStaffingEmployeeInformationsPhonesEncryptedToNull(SqlConnection conn)
+        {
+            var total = 0;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = UpdateCommandTimeout;
+                int n;
+                do
+                {
+                    cmd.CommandText = @"
+IF OBJECT_ID(N'dbo.Staffing_EmployeeInformations', N'U') IS NOT NULL
+UPDATE TOP (" + UpdateBatchSize + @") EI
+SET EI.MobilePhone1 = NULL, EI.MobilePhone2 = NULL, EI.HomePhone1 = NULL, EI.HomePhone2 = NULL
+FROM dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK)
+WHERE EI.MobilePhone1 IS NOT NULL OR EI.MobilePhone2 IS NOT NULL OR EI.HomePhone1 IS NOT NULL OR EI.HomePhone2 IS NOT NULL";
+                    n = cmd.ExecuteNonQuery();
+                    total += n;
+                } while (n >= UpdateBatchSize);
+            }
+            return total;
+        }
+
+        /// <summary>Reset Email và Phone trong Staffing_Employees (và Staffing_EmployeeInformations) với mã hóa theo từng employee (dùng sau restore + auto-reset). progressCallback(doneChunks, totalChunks). isCancelled: nếu trả về true thì dừng và trả về "Đã hủy". clearStaffing*ToNull: gán NULL (không dùng chuỗi rỗng).</summary>
+        public static Tuple<int, string> ResetEmailAndPhoneEncryptedForRestore(string connectionString, string email, string phone, Action<int, int> progressCallback, Func<bool> isCancelled = null, bool clearStaffingEmailToNull = false, bool clearStaffingPhoneToNull = false)
         {
             if (string.IsNullOrWhiteSpace(connectionString))
                 return Tuple.Create(0, "Connection string trống.");
             var emailTrim = (email ?? "").Trim();
             var phoneTrim = (phone ?? "").Trim();
-            if (string.IsNullOrEmpty(emailTrim) && string.IsNullOrEmpty(phoneTrim))
-                return Tuple.Create(0, "Cần nhập Email và/hoặc Phone.");
+            if (clearStaffingEmailToNull && !string.IsNullOrEmpty(emailTrim))
+                return Tuple.Create(0, "Không kết hợp xóa email Staffing (NULL) với giá trị email.");
+            if (clearStaffingPhoneToNull && !string.IsNullOrEmpty(phoneTrim))
+                return Tuple.Create(0, "Không kết hợp xóa phone Staffing (NULL) với giá trị phone.");
+            var hasValuePass = !string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim);
+            var hasClearPass = clearStaffingEmailToNull || clearStaffingPhoneToNull;
+            if (!hasValuePass && !hasClearPass)
+                return Tuple.Create(0, "Cần nhập Email và/hoặc Phone, hoặc chọn xóa NULL trên Staffing.");
             try
             {
+                var clearedRows = 0;
+                if (hasClearPass)
+                {
+                    using (var conn = new SqlConnection(connectionString))
+                    {
+                        conn.Open();
+                        if (clearStaffingEmailToNull)
+                        {
+                            clearedRows += ClearStaffingEmployeesEmailEncryptedToNull(conn);
+                            clearedRows += ClearStaffingEmployeeInformationsEmailEncryptedToNull(conn);
+                        }
+                        if (clearStaffingPhoneToNull)
+                        {
+                            clearedRows += ClearStaffingEmployeesPhonesEncryptedToNull(conn);
+                            clearedRows += ClearStaffingEmployeeInformationsPhonesEncryptedToNull(conn);
+                        }
+                    }
+                }
+
+                if (!hasValuePass)
+                    return Tuple.Create(clearedRows, (string)null);
+
                 int totalCount = 0;
                 using (var conn = new SqlConnection(connectionString))
                 {
@@ -3405,7 +3538,7 @@ WHERE {0}";
                     }
                 }
                 if (totalCount == 0)
-                    return Tuple.Create(0, (string)null);
+                    return Tuple.Create(clearedRows, (string)null);
                 // Chunk động: data nhỏ (300–1000) cần đủ chunk để progress 20%→100% mượt (tối thiểu 5 bước); 50k–100k dùng chunk lớn
                 int desiredChunks;
                 int minChunk;
@@ -3541,11 +3674,42 @@ COMMIT TRAN;";
                     // Yield để request khác (web) không bị treo khi data lớn (50k+)
                     System.Threading.Thread.Sleep(0);
                 }
-                return Tuple.Create(totalUpdated, (string)null);
+                return Tuple.Create(totalUpdated + clearedRows, (string)null);
             }
             catch (Exception ex)
             {
                 return Tuple.Create(0, ex.Message ?? "Lỗi reset.");
+            }
+        }
+
+        private static void RunMultiDbResetPlainAndEncrypted(string targetConnectionString, string dbLabelForError, string emailTrim, string phoneTrim, bool emailToNull, bool phoneToNull, ref int totalAffected, List<string> errors)
+        {
+            try
+            {
+                using (var conn = new SqlConnection(targetConnectionString))
+                {
+                    conn.Open();
+                    if (emailToNull)
+                        totalAffected += UpdateEmailValuesToNullInDb(conn);
+                    else if (!string.IsNullOrEmpty(emailTrim))
+                        totalAffected += UpdateEmailValuesInDb(conn, emailTrim);
+                    if (phoneToNull)
+                        totalAffected += ResetPhoneColumnsToNullInDb(conn);
+                    else if (!string.IsNullOrEmpty(phoneTrim))
+                        totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
+                }
+                if (emailToNull || phoneToNull || !string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim))
+                {
+                    var encResult = ResetEmailAndPhoneEncryptedForRestore(targetConnectionString, emailTrim, phoneTrim, null, null, emailToNull, phoneToNull);
+                    if (encResult.Item2 != null)
+                        errors.Add(dbLabelForError + " (mã hóa): " + encResult.Item2);
+                    else
+                        totalAffected += encResult.Item1;
+                }
+            }
+            catch (Exception ex)
+            {
+                errors.Add(dbLabelForError + ": " + (ex.Message ?? "Lỗi"));
             }
         }
 

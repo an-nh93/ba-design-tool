@@ -1321,13 +1321,23 @@
 
                         <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
                             <h3 class="ba-card-title" style="font-size: 1.1rem;">Giá trị reset</h3>
-                            <div class="ba-form-group">
-                                <label class="ba-form-label">Email</label>
-                                <input type="text" id="txtMultiResetEmail" class="ba-input" placeholder="user@cadena.com.sg" style="max-width: 400px;" />
+                            <div class="ba-form-group" style="margin-bottom: 0.65rem;">
+                                <div id="wrapMultiEmailRow" class="ba-multi-reset-compact" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; width: 100%; max-width: 720px;">
+                                    <label for="chkMultiResetEmail" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; margin: 0; user-select: none; min-width: 5.5rem;">
+                                        <input type="checkbox" id="chkMultiResetEmail" />
+                                        <span class="ba-form-label" style="margin: 0;">Email</span>
+                                    </label>
+                                    <input type="text" id="txtMultiResetEmail" class="ba-input" placeholder="user@…" title="Có giá trị: đặt email demo. Trống: gán NULL." style="flex: 1; min-width: 200px; max-width: 100%;" disabled="disabled" />
+                                </div>
                             </div>
-                            <div class="ba-form-group">
-                                <label class="ba-form-label">Phone</label>
-                                <input type="text" id="txtMultiResetPhone" class="ba-input" placeholder="VD: 0123456789" style="max-width: 400px;" />
+                            <div class="ba-form-group" style="margin-bottom: 0;">
+                                <div id="wrapMultiPhoneRow" class="ba-multi-reset-compact" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; width: 100%; max-width: 720px;">
+                                    <label for="chkMultiResetPhone" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; margin: 0; user-select: none; min-width: 5.5rem;">
+                                        <input type="checkbox" id="chkMultiResetPhone" />
+                                        <span class="ba-form-label" style="margin: 0;">Phone</span>
+                                    </label>
+                                    <input type="text" id="txtMultiResetPhone" class="ba-input" placeholder="VD: 0123…" title="Có giá trị: đặt số demo. Trống: gán NULL." style="flex: 1; min-width: 200px; max-width: 100%;" disabled="disabled" />
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2099,7 +2109,7 @@
                             if (pct != null && !isNaN(pct)) pctStr = ' ' + pct + '%';
                         }
                         if (isMultiDbMode) {
-                            var msg = isAnalyzeJob ? ('Đang phân tích nền... (có thể dùng trang bình thường).' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
+                            var msg = isAnalyzeJob ? ('Đang phân tích nền...' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
                             setMultiDbAnalyzeUIState(true, msg, null);
                         } else if (jobMatchesCurrentDb || (jobs.length > 0 && (wasShowing || waitingForJob))) {
                             /* Cập nhật overlay: khi job khớp DB hiện tại HOẶC overlay đang hiện / đang chờ (vừa submit) để tránh lệch server/db format mà vẫn hiện % và tự đóng khi xong */
@@ -2510,7 +2520,19 @@
             });
         }
 
+        function syncMultiResetValueFields() {
+            if (!$('#chkMultiResetEmail').length) return;
+            var emailOn = $('#chkMultiResetEmail').prop('checked');
+            var phoneOn = $('#chkMultiResetPhone').prop('checked');
+            $('#txtMultiResetEmail').prop('disabled', !emailOn);
+            $('#txtMultiResetPhone').prop('disabled', !phoneOn);
+            $('#wrapMultiEmailRow').css('opacity', emailOn ? 1 : 0.45);
+            $('#wrapMultiPhoneRow').css('opacity', phoneOn ? 1 : 0.45);
+        }
+
         function initMultiDbMode() {
+            $('#chkMultiResetEmail, #chkMultiResetPhone').off('change.multiReset').on('change.multiReset', syncMultiResetValueFields);
+            syncMultiResetValueFields();
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmailIgnoreConfig") %>',
                 type: 'POST',
@@ -2584,7 +2606,7 @@
                             var pct = (j0.percentComplete != null && j0.percentComplete !== '') ? parseInt(j0.percentComplete, 10) : (j0.percentcomplete != null ? parseInt(j0.percentcomplete, 10) : null);
                             if (pct != null && !isNaN(pct)) pctStr = ' ' + pct + '%';
                         }
-                        var msg = isAnalyzeRunning ? ('Đang phân tích nền... (có thể dùng trang bình thường).' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
+                        var msg = isAnalyzeRunning ? ('Đang phân tích nền...' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
                         setMultiDbAnalyzeUIState(true, msg, null);
                         $('#btnMultiReset').prop('disabled', true);
                         $('#btnMultiSelectNotReset').prop('disabled', true);
@@ -2667,7 +2689,7 @@
                                     var j0 = jobs[0];
                                     var pct = (j0.percentComplete != null && j0.percentComplete !== '') ? parseInt(j0.percentComplete, 10) : (j0.percentcomplete != null ? parseInt(j0.percentcomplete, 10) : null);
                                     var pctStr = (pct != null && !isNaN(pct)) ? (' ' + pct + '%') : '';
-                                    var msg = isAnalyze ? ('Đang phân tích nền... (có thể dùng trang bình thường).' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
+                                    var msg = isAnalyze ? ('Đang phân tích nền...' + pctStr) : ('Đang chạy job...' + pctStr + ' Không thao tác vùng Multi-DB cho đến khi xong.');
                                     $('#multiAnalyzeStatus').html(msg).css('color', 'var(--text-secondary)');
                                 }
                             }
@@ -2751,10 +2773,22 @@
         }
 
         var _multiResetConfirmData = null;
-        function showMultiResetConfirmModal(selected, email, phone) {
-            _multiResetConfirmData = { selected: selected, email: (email || '').trim(), phone: (phone || '').trim() };
-            $('#multiResetConfirmEmail').text(_multiResetConfirmData.email || '—');
-            $('#multiResetConfirmPhone').text(_multiResetConfirmData.phone || '—');
+        function showMultiResetConfirmModal(selected, email, phone, emailToNull, phoneToNull) {
+            _multiResetConfirmData = {
+                selected: selected,
+                email: (email || '').trim(),
+                phone: (phone || '').trim(),
+                emailToNull: !!emailToNull,
+                phoneToNull: !!phoneToNull
+            };
+            var emailLine = '— (không reset)';
+            if (_multiResetConfirmData.emailToNull) emailLine = 'Gán NULL (SQL)';
+            else if (_multiResetConfirmData.email) emailLine = _multiResetConfirmData.email;
+            var phoneLine = '— (không reset)';
+            if (_multiResetConfirmData.phoneToNull) phoneLine = 'Gán NULL (SQL)';
+            else if (_multiResetConfirmData.phone) phoneLine = _multiResetConfirmData.phone;
+            $('#multiResetConfirmEmail').text(emailLine);
+            $('#multiResetConfirmPhone').text(phoneLine);
             var html = '<div class="ba-db-list-grid">' + selected.map(function(name){ return '<span>' + (name || '').replace(/</g,'&lt;') + '</span>'; }).join('') + '</div>';
             $('#multiResetConfirmDbs').html(html);
             $('#multiResetConfirmModal').addClass('show').css('display', 'flex');
@@ -2771,6 +2805,7 @@
         function doMultiResetJob() {
             if (!_multiResetConfirmData) return;
             var selected = _multiResetConfirmData.selected, email = _multiResetConfirmData.email, phone = _multiResetConfirmData.phone;
+            var emailToNull = _multiResetConfirmData.emailToNull, phoneToNull = _multiResetConfirmData.phoneToNull;
             hideMultiResetConfirmModal();
             $('#btnMultiAnalyze').prop('disabled', true);
             $('#btnMultiReset').prop('disabled', true);
@@ -2779,7 +2814,7 @@
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
-                data: JSON.stringify({ k: hrToken, databaseNames: selected, email: email, phone: phone }),
+                data: JSON.stringify({ k: hrToken, databaseNames: selected, email: email, phone: phone, emailToNull: emailToNull, phoneToNull: phoneToNull }),
                 timeout: 30000,
                 success: function(res) {
                     var d = res.d || res;
@@ -2813,13 +2848,23 @@
                 showToast('Chọn ít nhất 1 database.', 'error');
                 return;
             }
-            var email = $('#txtMultiResetEmail').val();
-            var phone = $('#txtMultiResetPhone').val();
-            if ((!email || !email.trim()) && (!phone || !phone.trim())) {
-                showToast('Nhập Email và/hoặc Phone để reset.', 'error');
+            var wantEmail = $('#chkMultiResetEmail').prop('checked');
+            var wantPhone = $('#chkMultiResetPhone').prop('checked');
+            if (!wantEmail && !wantPhone) {
+                showToast('Chọn ít nhất một mục: Email hoặc Phone để reset.', 'error');
                 return;
             }
-            showMultiResetConfirmModal(selected, email, phone);
+            var emailToNull = false, phoneToNull = false;
+            var email = '', phone = '';
+            if (wantEmail) {
+                email = ($('#txtMultiResetEmail').val() || '').trim();
+                if (!email) emailToNull = true;
+            }
+            if (wantPhone) {
+                phone = ($('#txtMultiResetPhone').val() || '').trim();
+                if (!phone) phoneToNull = true;
+            }
+            showMultiResetConfirmModal(selected, email, phone, emailToNull, phoneToNull);
         }
 
         var otherTabLoaded = false;
