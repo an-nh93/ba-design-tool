@@ -130,7 +130,7 @@
             <div class="ba-content">
                 <h1 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Giám sát tài nguyên máy chủ</h1>
                 <p class="ba-monitor-intro">
-                    Số liệu phản ánh <strong>máy đang chạy ứng dụng web</strong> (IIS / App Pool), không phải máy trình duyệt của bạn.
+                    Số liệu phản ánh <strong>máy đang chạy ứng dụng web</strong> (IIS / App Pool).
                     CPU/RAM process = tiến trình hiện tại (thường là w3wp/iisexpress) và <strong>BADesign.Worker</strong>.
                     Mạng: tốc độ ước lượng giữa hai lần làm mới.
                 </p>
@@ -141,15 +141,15 @@
                 </div>
                 <div id="loadErr" class="ba-err-box" style="display:none;"></div>
                 <div class="ba-metric-group">
-                    <div class="ba-metric-group-title">Cụm máy hosting</div>
+                    <div class="ba-metric-group-title">máy hosting</div>
                     <div class="ba-metrics-grid" id="metricHost"></div>
                 </div>
                 <div class="ba-metric-group">
-                    <div class="ba-metric-group-title">Cụm IIS / App Pool</div>
+                    <div class="ba-metric-group-title">IIS / App Pool</div>
                     <div class="ba-metrics-grid" id="metricIis"></div>
                 </div>
                 <div class="ba-metric-group">
-                    <div class="ba-metric-group-title">Cụm BADesign.Worker.exe</div>
+                    <div class="ba-metric-group-title">BADesign.Worker.exe</div>
                     <div class="ba-metrics-grid" id="metricWorker"></div>
                 </div>
                 <div class="ba-card-block">
