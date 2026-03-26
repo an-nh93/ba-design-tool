@@ -43,6 +43,7 @@ namespace BADesign
                 lnkNavUserManagement.CssClass = (active == "Users") ? "ba-nav-item active" : "ba-nav-item";
                 lnkNavRolePermission.CssClass = (active == "RolePermission") ? "ba-nav-item active" : "ba-nav-item";
                 lnkNavAuditLog.CssClass = (active == "AuditLog") ? "ba-nav-item active" : "ba-nav-item";
+                lnkNavServerMonitor.CssClass = (active == "ServerMonitor") ? "ba-nav-item active" : "ba-nav-item";
                 lnkNavFeedbackManage.CssClass = (active == "FeedbackManage") ? "ba-nav-item active" : "ba-nav-item";
                 lnkNavLeaveManager.CssClass = (active == "LeaveManager") ? "ba-nav-item active" : "ba-nav-item";
             }

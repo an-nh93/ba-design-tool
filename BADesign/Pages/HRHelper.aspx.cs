@@ -2563,6 +2563,14 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
                             if (!string.IsNullOrEmpty(phoneTrim))
                                 totalAffected += ResetPhoneColumnsInDb(conn, phoneTrim);
                         }
+                        if (!string.IsNullOrEmpty(emailTrim) || !string.IsNullOrEmpty(phoneTrim))
+                        {
+                            var encResult = ResetEmailAndPhoneEncryptedForRestore(db.ConnectionString, emailTrim, phoneTrim, null, null);
+                            if (encResult.Item2 != null)
+                                errors.Add(db.DatabaseName + " (mã hóa): " + encResult.Item2);
+                            else
+                                totalAffected += encResult.Item1;
+                        }
                         done++;
                     }
                     catch (Exception ex)
@@ -3098,7 +3106,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             try
             {
                 System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
-                var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary, testDataOptions,
+                var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updM1, m1, updM2, m2, updBasic, basicSalary, testDataOptions,
                     onProgress: (pct, msg) =>
                     {
                         UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg);
@@ -4059,7 +4067,7 @@ VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runn
                 if (updPayslip && !payslipByEmp && string.IsNullOrWhiteSpace(payslipCommon))
                     return new { success = false, message = "Nhập Payslip Password Common khi bật Update Payslip mà không chọn Encrypt by Employee." };
 
-                var result = ExecuteUpdateEmployeesCore(info.ConnectionString, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary);
+                var result = ExecuteUpdateEmployeesCore(info.ConnectionString, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updM1, m1, updM2, m2, updBasic, basicSalary);
                 return new { success = result.Item1, message = result.Item2 };
             }
             catch (Exception ex)
@@ -4141,7 +4149,7 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                     try { System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal; } catch { }
                     try
                     {
-                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, false, null, false, null, updBasic, basicSalary, null,
+                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updM1, m1, updM2, m2, updBasic, basicSalary, null,
                             onProgress: (pct, msg) => UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg));
                         UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, result.Item2);
                     }
@@ -4642,6 +4650,11 @@ COMMIT TRAN;";
                 row["MobilePhone2"] = updM2 && !string.IsNullOrWhiteSpace(finalM2) ? (object)DataSecurityWrapper.EncryptData(finalM2, e.EmployeeID) : DBNull.Value;
                 row["HomePhone1"] = updH1 && !string.IsNullOrWhiteSpace(h1) ? (object)DataSecurityWrapper.EncryptData(h1, e.EmployeeID) : DBNull.Value;
                 row["HomePhone2"] = updH2 && !string.IsNullOrWhiteSpace(h2) ? (object)DataSecurityWrapper.EncryptData(h2, e.EmployeeID) : DBNull.Value;
+                if (testDataOptions != null && testDataOptions.GeneratePhone && !string.IsNullOrWhiteSpace(generatedPhone))
+                {
+                    if (updM1) row["HomePhone1"] = (object)DataSecurityWrapper.EncryptData(generatedPhone, e.EmployeeID);
+                    if (updM2) row["HomePhone2"] = (object)DataSecurityWrapper.EncryptData(generatedPhone, e.EmployeeID);
+                }
                 var finalBasic = (testDataOptions != null && testDataOptions.GenerateSalary) ? generatedSalary : basicSalary;
                 row["BasicSalary"] = updBasic ? (object)DataSecurityWrapper.EncryptData(finalBasic, e.EmployeeID) : DBNull.Value;
                 dt.Rows.Add(row);

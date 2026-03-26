@@ -168,6 +168,15 @@ namespace BADesign
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavAuditLog;
 
 		/// <summary>
+		/// lnkNavServerMonitor control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavServerMonitor;
+
+		/// <summary>
 		/// lnkNavFeedbackManage control.
 		/// </summary>
 		/// <remarks>

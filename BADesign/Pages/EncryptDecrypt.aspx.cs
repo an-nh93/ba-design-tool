@@ -430,6 +430,8 @@ WHERE T.IsActiveTransaction = 1";
             sb.AppendLine("    PayslipPassword NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,");
             sb.AppendLine("    MobilePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,");
             sb.AppendLine("    MobilePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,");
+            sb.AppendLine("    HomePhone1 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,");
+            sb.AppendLine("    HomePhone2 NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL,");
             sb.AppendLine("    BasicSalary NVARCHAR(250) COLLATE DATABASE_DEFAULT NULL");
             sb.AppendLine(");");
 
@@ -437,7 +439,7 @@ WHERE T.IsActiveTransaction = 1";
             for (var i = 0; i < employees.Count; i += batchSize)
             {
                 var batch = employees.Skip(i).Take(batchSize).ToList();
-                var cols = "EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, BasicSalary";
+                var cols = "EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, HomePhone1, HomePhone2, BasicSalary";
                 sb.Append("INSERT INTO #EmployeeTemp (").Append(cols).Append(") VALUES ");
                 var vals = new List<string>();
                 foreach (var e in batch)
@@ -447,8 +449,10 @@ WHERE T.IsActiveTransaction = 1";
                     var pp = cfg.Payslip ? (cfg.ResetPayslipToLocalID ? DataSecurityWrapper.EncryptData(e.LocalEmployeeID ?? "", e.EmployeeID) : (!string.IsNullOrWhiteSpace(cfg.PayslipCustom) ? DataSecurityWrapper.EncryptData(cfg.PayslipCustom, e.EmployeeID) : null)) : null;
                     var m1 = cfg.Mobile1 && !string.IsNullOrWhiteSpace(cfg.DemoPhone) ? DataSecurityWrapper.EncryptData(cfg.DemoPhone, e.EmployeeID) : null;
                     var m2 = cfg.Mobile2 && !string.IsNullOrWhiteSpace(cfg.DemoPhone) ? DataSecurityWrapper.EncryptData(cfg.DemoPhone, e.EmployeeID) : null;
+                    var h1 = cfg.Mobile1 && !string.IsNullOrWhiteSpace(cfg.DemoPhone) ? DataSecurityWrapper.EncryptData(cfg.DemoPhone, e.EmployeeID) : null;
+                    var h2 = cfg.Mobile2 && !string.IsNullOrWhiteSpace(cfg.DemoPhone) ? DataSecurityWrapper.EncryptData(cfg.DemoPhone, e.EmployeeID) : null;
                     var sal = cfg.BasicSalary ? DataSecurityWrapper.EncryptData(cfg.MaskSalary, e.EmployeeID) : null;
-                    vals.Add("(" + e.EmployeeID + "," + SqlStr(pe) + "," + SqlStr(be) + "," + SqlStr(pp) + "," + SqlStr(m1) + "," + SqlStr(m2) + "," + SqlStr(sal) + ")");
+                    vals.Add("(" + e.EmployeeID + "," + SqlStr(pe) + "," + SqlStr(be) + "," + SqlStr(pp) + "," + SqlStr(m1) + "," + SqlStr(m2) + "," + SqlStr(h1) + "," + SqlStr(h2) + "," + SqlStr(sal) + ")");
                 }
                 sb.AppendLine(string.Join(",", vals) + ";");
             }
@@ -462,26 +466,30 @@ WHERE T.IsActiveTransaction = 1";
             sb.AppendLine("    SET @Start = @b * @batchSize + 1;");
             sb.AppendLine("    SET @End = CASE WHEN (@b + 1) * @batchSize > @maxRowId THEN @maxRowId ELSE (@b + 1) * @batchSize END;");
             sb.AppendLine("    IF OBJECT_ID('tempdb..#B') IS NOT NULL DROP TABLE #B;");
-            sb.AppendLine("    SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, BasicSalary");
+            sb.AppendLine("    SELECT RowId, EmployeeID, PersonalEmailAddress, BusinessEmailAddress, PayslipPassword, MobilePhone1, MobilePhone2, HomePhone1, HomePhone2, BasicSalary");
             sb.AppendLine("    INTO #B FROM #EmployeeTemp WHERE RowId BETWEEN @Start AND @End;");
             sb.AppendLine("    CREATE NONCLUSTERED INDEX IX_B_EmployeeID ON #B(EmployeeID);");
             sb.AppendLine("    UPDATE E SET E.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,E.PersonalEmailAddress),");
             sb.AppendLine("        E.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,E.BusinessEmailAddress),");
             sb.AppendLine("        E.PayslipPassword=COALESCE(B.PayslipPassword,E.PayslipPassword),");
             sb.AppendLine("        E.MobilePhone1=COALESCE(B.MobilePhone1,E.MobilePhone1),");
-            sb.AppendLine("        E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2)");
+            sb.AppendLine("        E.MobilePhone2=COALESCE(B.MobilePhone2,E.MobilePhone2),");
+            sb.AppendLine("        E.HomePhone1=COALESCE(B.HomePhone1,E.HomePhone1),");
+            sb.AppendLine("        E.HomePhone2=COALESCE(B.HomePhone2,E.HomePhone2)");
             sb.AppendLine("    FROM #B B");
             sb.AppendLine("    JOIN dbo.Staffing_Employees E WITH (ROWLOCK, UPDLOCK) ON E.ID = B.EmployeeID");
-            sb.AppendLine("    WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.PayslipPassword IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL);");
+            sb.AppendLine("    WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.PayslipPassword IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL) OR (B.HomePhone1 IS NOT NULL) OR (B.HomePhone2 IS NOT NULL);");
             sb.AppendLine("    IF OBJECT_ID('dbo.Staffing_EmployeeInformations','U') IS NOT NULL");
             sb.AppendLine("    UPDATE EI SET EI.PersonalEmailAddress=COALESCE(B.PersonalEmailAddress,EI.PersonalEmailAddress),");
             sb.AppendLine("        EI.BusinessEmailAddress=COALESCE(B.BusinessEmailAddress,EI.BusinessEmailAddress),");
             sb.AppendLine("        EI.MobilePhone1=COALESCE(B.MobilePhone1,EI.MobilePhone1),");
-            sb.AppendLine("        EI.MobilePhone2=COALESCE(B.MobilePhone2,EI.MobilePhone2)");
+            sb.AppendLine("        EI.MobilePhone2=COALESCE(B.MobilePhone2,EI.MobilePhone2),");
+            sb.AppendLine("        EI.HomePhone1=COALESCE(B.HomePhone1,EI.HomePhone1),");
+            sb.AppendLine("        EI.HomePhone2=COALESCE(B.HomePhone2,EI.HomePhone2)");
             sb.AppendLine("    FROM #B B");
             sb.AppendLine("    JOIN dbo.Staffing_Employees E WITH (READCOMMITTED) ON E.ID = B.EmployeeID");
             sb.AppendLine("    JOIN dbo.Staffing_EmployeeInformations EI WITH (ROWLOCK, UPDLOCK) ON EI.EmployeeID = E.ID");
-            sb.AppendLine("    WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL);");
+            sb.AppendLine("    WHERE (B.PersonalEmailAddress IS NOT NULL) OR (B.BusinessEmailAddress IS NOT NULL) OR (B.MobilePhone1 IS NOT NULL) OR (B.MobilePhone2 IS NOT NULL) OR (B.HomePhone1 IS NOT NULL) OR (B.HomePhone2 IS NOT NULL);");
             sb.AppendLine("    IF EXISTS(SELECT 1 FROM #B WHERE BasicSalary IS NOT NULL)");
             sb.AppendLine("    BEGIN");
             sb.AppendLine("        /* Chỉ cập nhật lương ở transaction theo yêu cầu nghiệp vụ */");

@@ -25,6 +25,7 @@
             <asp:HyperLink ID="lnkNavUserManagement" runat="server" CssClass="ba-nav-item" NavigateUrl="~/Users" data-icon="👥" title="User Management"><span>👥 User Management</span></asp:HyperLink>
             <asp:HyperLink ID="lnkNavRolePermission" runat="server" CssClass="ba-nav-item" NavigateUrl="~/RolePermission" data-icon="🛡" title="Role Permission"><span>🛡 Role Permission</span></asp:HyperLink>
             <asp:HyperLink ID="lnkNavAuditLog" runat="server" CssClass="ba-nav-item" NavigateUrl="~/AuditLog" data-icon="📋" title="Audit Log"><span>📋 Audit Log</span></asp:HyperLink>
+            <asp:HyperLink ID="lnkNavServerMonitor" runat="server" CssClass="ba-nav-item" NavigateUrl="~/ServerMonitor" data-icon="📊" title="Server monitor"><span>📊 Server monitor</span></asp:HyperLink>
             <asp:HyperLink ID="lnkNavFeedbackManage" runat="server" CssClass="ba-nav-item" NavigateUrl="~/FeedbackManage" data-icon="💬" title="Feedback Manage"><span>💬 Feedback Manage</span></asp:HyperLink>
             <asp:HyperLink ID="lnkNavLeaveManager" runat="server" CssClass="ba-nav-item" NavigateUrl="~/LeaveManager" data-icon="📅" title="Leave Manager"><span>📅 Leave Manager</span></asp:HyperLink>
         </asp:PlaceHolder>

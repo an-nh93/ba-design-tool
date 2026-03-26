@@ -95,6 +95,7 @@
     <Reference Include="System.Web.DynamicData" />
     <Reference Include="System.Web.Entity" />
     <Reference Include="System.Web.ApplicationServices" />
+    <Reference Include="System.Management" />
     <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <Private>True</Private>
       <HintPath>..\packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
@@ -287,6 +288,7 @@
     <Content Include="Pages\PgpTool.aspx" />
     <Content Include="Pages\AppSettings.aspx" />
     <Content Include="Pages\AuditLog.aspx" />
+    <Content Include="Pages\ServerMonitor.aspx" />
     <Content Include="Pages\Feedback.aspx" />
     <Content Include="Pages\FeedbackManage.aspx" />
     <Content Include="Pages\DevShareList.aspx" />
@@ -516,6 +518,7 @@
     <Compile Include="Helpers\BaJobHubHelper.cs" />
     <Compile Include="Helpers\BaJobWorkerNotify.cs" />
     <Compile Include="Helpers\BaJobEmailHelper.cs" />
+    <Compile Include="Helpers\ServerMetricsCollector.cs" />
     <Compile Include="Helpers\ServerAccessHelper.cs" />
     <Compile Include="Helpers\MyConvert.cs" />
     <Compile Include="Helpers\Security\AesHelper.cs" />
@@ -705,6 +708,13 @@
     </Compile>
     <Compile Include="Pages\AuditLog.aspx.designer.cs">
       <DependentUpon>AuditLog.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\ServerMonitor.aspx.cs">
+      <DependentUpon>ServerMonitor.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\ServerMonitor.aspx.designer.cs">
+      <DependentUpon>ServerMonitor.aspx</DependentUpon>
     </Compile>
     <Compile Include="Pages\Feedback.aspx.cs">
       <DependentUpon>Feedback.aspx</DependentUpon>

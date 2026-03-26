@@ -142,6 +142,12 @@ namespace BADesign
 			);
 
 			routes.MapPageRoute(
+				"ServerMonitorRoute",
+				"ServerMonitor",
+				"~/Pages/ServerMonitor.aspx"
+			);
+
+			routes.MapPageRoute(
 				"FunctionQueueRoute",
 				"FunctionQueue",
 				"~/Pages/FunctionQueue.aspx"
