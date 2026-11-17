@@ -40,7 +40,8 @@
     BaNotif.restorePhaseDisplay = function (phase) {
         var p = (phase == null ? '' : String(phase)).trim();
         if (p === 'Restore' || p === 'Đang Restore') return 'Restore';
-        if (p === 'PostRestore') return 'Hoàn tất restore — chuẩn bị Reset';
+        if (p === 'PostRestore') return 'Hoàn tất restore — chuẩn bị làm sạch dữ liệu';
+        if (p === 'Reset Information') return 'Làm sạch dữ liệu';
         if (p === 'ShrinkLog' || p === 'shrinklog') return 'Đang shrink file log…';
         if (p === 'Completing' || p === 'completing') return 'Đang hoàn tất job…';
         return p;

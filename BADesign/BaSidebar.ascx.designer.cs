@@ -87,6 +87,24 @@ namespace BADesign
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavEncryptDecrypt;
 
 		/// <summary>
+		/// phNavLicenseKey control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phNavLicenseKey;
+
+		/// <summary>
+		/// lnkNavLicenseKey control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavLicenseKey;
+
+		/// <summary>
 		/// lnkNavFunctionQueue control.
 		/// </summary>
 		/// <remarks>
@@ -193,5 +211,59 @@ namespace BADesign
 		/// To modify move field declaration from designer file to code-behind file.
 		/// </remarks>
 		protected global::System.Web.UI.WebControls.HyperLink lnkNavLeaveManager;
+
+		/// <summary>
+		/// lnkNavHRHelper control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavHRHelper;
+
+		/// <summary>
+		/// lnkNavTemplateRequests control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavTemplateRequests;
+
+		/// <summary>
+		/// litTemplateTodo control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.Literal litTemplateTodo;
+
+		/// <summary>
+		/// phNavTemplateAdmin control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phNavTemplateAdmin;
+
+		/// <summary>
+		/// lnkNavTemplateWorkflow control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavTemplateWorkflow;
+
+		/// <summary>
+		/// lnkNavHrModules control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkNavHrModules;
 	}
 }

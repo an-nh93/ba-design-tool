@@ -9,6 +9,9 @@ namespace BADesign.Handlers
     /// <summary>Worker gọi sau mỗi lần cập nhật BaJob (%, completed, failed). Đọc job từ DB rồi trigger SignalR push để mọi client nhận realtime.</summary>
     public class NotifyJobProgress : IHttpHandler
     {
+        private static readonly System.Collections.Concurrent.ConcurrentDictionary<int, long> LastPush = new System.Collections.Concurrent.ConcurrentDictionary<int, long>();
+        private static readonly long MinPushGapTicks = TimeSpan.FromMilliseconds(300).Ticks;
+
         public void ProcessRequest(HttpContext context)
         {
             context.Response.ContentType = "application/json";
@@ -27,33 +30,32 @@ namespace BADesign.Handlers
                     return;
                 }
 
-                string jobType = null;
-                int? serverId = null;
-                int? startedByUserId = null;
-                var connStr = UiAuthHelper.ConnStr;
-                if (!string.IsNullOrEmpty(connStr))
+                var info = BaJobProgress.Read(jobId);
+                if (info == null)
                 {
-                    using (var conn = new SqlConnection(connStr))
-                    using (var cmd = conn.CreateCommand())
+                    context.Response.Write("{\"ok\":false,\"message\":\"Missing or invalid jobId\"}");
+                    return;
+                }
+                var running = string.Equals(info.Status, "Running", StringComparison.OrdinalIgnoreCase);
+                var now = DateTime.UtcNow.Ticks;
+                long last;
+                var known = LastPush.TryGetValue(jobId, out last);
+                var tooSoon = running && known && now - last < MinPushGapTicks;
+                if (!tooSoon)
+                {
+                    LastPush[jobId] = now;
+                    if (running)
                     {
-                        cmd.CommandText = "SELECT JobType, ServerId, StartedByUserId FROM BaJob WHERE Id = @id";
-                        cmd.Parameters.AddWithValue("@id", jobId);
-                        conn.Open();
-                        using (var r = cmd.ExecuteReader())
-                        {
-                            if (r.Read())
-                            {
-                                jobType = r.IsDBNull(r.GetOrdinal("JobType")) ? null : r.GetString(r.GetOrdinal("JobType"));
-                                var serverIdOrd = r.GetOrdinal("ServerId");
-                                serverId = r.IsDBNull(serverIdOrd) ? (int?)null : r.GetInt32(serverIdOrd);
-                                var uidOrd = r.GetOrdinal("StartedByUserId");
-                                startedByUserId = r.IsDBNull(uidOrd) ? (int?)null : r.GetInt32(uidOrd);
-                            }
-                        }
+                        if (!known) BaJobHubHelper.PushJobsUpdated(info.JobType, info.ServerId, info.UserId);
+                        BaJobHubHelper.PushJobProgress(info);
+                    }
+                    else
+                    {
+                        long removed;
+                        LastPush.TryRemove(jobId, out removed);
+                        BaJobHubHelper.PushJobsUpdated(info.JobType, info.ServerId, info.UserId);
                     }
                 }
-
-                BaJobHubHelper.PushJobsUpdated(jobType, serverId, startedByUserId);
                 context.Response.Write("{\"ok\":true}");
             }
             catch (Exception ex)

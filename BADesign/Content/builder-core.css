@@ -76,6 +76,30 @@
 
 
 
+.page-field.core-field .page-field-editor .core-date {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.page-field.core-field .core-date-input {
+    display: block;
+    padding-right: 20px;
+}
+
+.page-field.core-field .core-date-button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #444;
+}
+
 /* ===== Caption wrap (core + ess) ===== */
 .page-field .page-field-caption {
     /* cho phép xuống dòng */
@@ -85,9 +109,8 @@
     line-height: 1.2;
 }
 
-/* (tuỳ chọn) Core: label + editor cùng top khi caption nhiều dòng */
-.page-field.core-field .page-field-caption,
-.page-field.core-field .page-field-editor {
+.page-field.core-field:has(> .page-field-editor > textarea) > .page-field-caption,
+.page-field.core-field:has(> .page-field-editor > textarea) > .page-field-editor {
     vertical-align: top;
 }
 

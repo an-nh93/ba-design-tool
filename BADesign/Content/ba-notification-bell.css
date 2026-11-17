@@ -96,6 +96,23 @@
     color: var(--text-muted);
 }
 .ba-notif-item:last-child { border-bottom: none; }
+.ba-notif-empty { padding: 12px; color: var(--text-muted); font-size: 0.8125rem; }
+.ba-notif-group-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    cursor: pointer;
+    user-select: none;
+}
+.ba-notif-item-title { font-weight: 500; }
+.ba-notif-item-meta { margin-top: 4px; color: var(--text-muted); font-size: 0.8125rem; }
+.ba-notif-progress-track { height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-alt, var(--bg-darker)); }
+.ba-notif-progress-bar { height: 100%; background: var(--primary); }
 .ba-notif-item .ba-notif-dismiss {
     position: absolute;
     top: 8px;
@@ -489,3 +506,42 @@ body.light-theme .ba-notif-item .ba-notif-msg {
     word-break: break-all;
     color: var(--text-primary);
 }
+.san-steps,
+#notificationDetailModal .ba-notif-detail-body .san-steps {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+    margin-top: 6px;
+}
+.san-steps th,
+.san-steps td,
+#notificationDetailModal .ba-notif-detail-body .san-steps th,
+#notificationDetailModal .ba-notif-detail-body .san-steps td {
+    width: auto;
+    min-width: 0;
+    padding: 4px 6px;
+    text-align: left;
+    white-space: normal;
+    word-break: break-word;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+    vertical-align: top;
+}
+.san-steps th:nth-child(2),
+#notificationDetailModal .ba-notif-detail-body .san-steps th:nth-child(2) {
+    width: 72px;
+}
+.san-steps td.num,
+.san-steps th.num,
+#notificationDetailModal .ba-notif-detail-body .san-steps td.num,
+#notificationDetailModal .ba-notif-detail-body .san-steps th.num {
+    width: 74px;
+    text-align: right;
+    white-space: nowrap;
+}
+.san-steps th.num:last-child,
+#notificationDetailModal .ba-notif-detail-body .san-steps th.num:last-child {
+    width: 48px;
+}
+.san-steps .san-detail { opacity: 0.75; }
+.san-steps .san-warn { color: var(--warning, #f59e0b); font-size: 0.74rem; }

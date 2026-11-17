@@ -1,0 +1,50 @@
+2026-06-17 13:13:44 [HR_EmpLoad] 2026-06-17 13:13:44.864 [page] SearchEmployeesPage ERROR ms=120186 Execution Timeout Expired.  The timeout period elapsed prior to completion of the operation or the server is not responding.
+2026-06-17 13:13:56 [HR_EmpLoad] 2026-06-17 13:13:56.291 [page] SearchEmployeesPage page=1 size=100 total=13000 rows=100 ms=4501
+2026-06-17 13:13:56 [HR_EmpLoad] 2026-06-17 13:13:56.822 [decrypt] START decrypt_load_db
+2026-06-17 13:13:56 [HR_EmpLoad] 2026-06-17 13:13:56.867 [decrypt] TIMING decrypt_load_db 43ms | ids=100
+2026-06-17 13:20:52 [HR_EmpLoad] 2026-06-17 13:20:52.893 [page] SearchEmployeesPage page=1 size=100 total=13000 rows=100 ms=4243 countMs=45 fetchMs=4196
+2026-06-17 13:20:52 [HR_EmpLoad] 2026-06-17 13:20:52.946 [decrypt] START decrypt_load_db
+2026-06-17 13:20:52 [HR_EmpLoad] 2026-06-17 13:20:52.998 [decrypt] TIMING decrypt_load_db 51ms | ids=100
+2026-06-17 13:20:58 [HR_EmpLoad] 2026-06-17 13:20:58.216 [page] SearchEmployeesPage page=2 size=100 total=-1 rows=100 ms=2358 countMs=0 fetchMs=2358
+2026-06-17 13:20:58 [HR_EmpLoad] 2026-06-17 13:20:58.264 [decrypt] START decrypt_load_db
+2026-06-17 13:20:58 [HR_EmpLoad] 2026-06-17 13:20:58.309 [decrypt] TIMING decrypt_load_db 43ms | ids=100
+2026-06-17 13:21:04 [HR_EmpLoad] 2026-06-17 13:21:04.590 [page] SearchEmployeesPage page=1 size=100 total=1 rows=1 ms=415 countMs=126 fetchMs=288 searchLen=10
+2026-06-17 13:21:04 [HR_EmpLoad] 2026-06-17 13:21:04.600 [decrypt] START decrypt_load_db
+2026-06-17 13:21:04 [HR_EmpLoad] 2026-06-17 13:21:04.648 [decrypt] TIMING decrypt_load_db 46ms | ids=1
+2026-06-17 13:21:09 [HR_EmpLoad] 2026-06-17 13:21:09.987 [page] SearchEmployeesPage page=1 size=100 total=13000 rows=100 ms=4143 countMs=44 fetchMs=4098
+2026-06-17 13:21:10 [HR_EmpLoad] 2026-06-17 13:21:10.003 [decrypt] START decrypt_load_db
+2026-06-17 13:21:10 [HR_EmpLoad] 2026-06-17 13:21:10.048 [decrypt] TIMING decrypt_load_db 44ms | ids=100
+2026-06-17 13:21:37 [HR_EmpLoad] 2026-06-17 13:21:37.682 [page] SearchEmployeesPage page=1 size=500 total=13000 rows=500 ms=20529 countMs=45 fetchMs=20482
+2026-06-17 13:21:37 [HR_EmpLoad] 2026-06-17 13:21:37.782 [decrypt] START decrypt_load_db
+2026-06-17 13:21:37 [HR_EmpLoad] 2026-06-17 13:21:37.956 [decrypt] TIMING decrypt_load_db 173ms | ids=500
+2026-06-17 13:22:00 [HR_EmpLoad] 2026-06-17 13:22:00.283 [page] SearchEmployeesPage page=1 size=100 total=13000 rows=100 ms=2344 countMs=44 fetchMs=2299
+2026-06-17 13:22:00 [HR_EmpLoad] 2026-06-17 13:22:00.316 [decrypt] START decrypt_load_db
+2026-06-17 13:22:00 [HR_EmpLoad] 2026-06-17 13:22:00.361 [decrypt] TIMING decrypt_load_db 43ms | ids=100
+2026-06-17 13:30:06 [HR_EmpLoad] 2026-06-17 13:30:06.810 [page] SearchEmployeesPage page=1 size=50 total=-1 rows=50 ms=1252 countMs=0 fetchMs=1250
+2026-06-17 13:30:07 [HR_EmpLoad] 2026-06-17 13:30:07.199 [page] LoadEmployeeGridExtras ids=50 ms=367
+2026-06-17 13:30:07 [HR_EmpLoad] 2026-06-17 13:30:07.344 [decrypt] START decrypt_load_db
+2026-06-17 13:30:07 [HR_EmpLoad] 2026-06-17 13:30:07.406 [decrypt] TIMING decrypt_load_db 60ms | ids=50
+2026-06-17 13:30:11 [HR_EmpLoad] 2026-06-17 13:30:11.204 [page] SearchEmployeesPage page=2 size=50 total=-1 rows=50 ms=2131 countMs=0 fetchMs=2131
+2026-06-17 13:30:11 [HR_EmpLoad] 2026-06-17 13:30:11.220 [decrypt] START decrypt_load_db
+2026-06-17 13:30:11 [HR_EmpLoad] 2026-06-17 13:30:11.269 [decrypt] TIMING decrypt_load_db 47ms | ids=50
+2026-06-17 13:30:12 [HR_EmpLoad] 2026-06-17 13:30:12.121 [page] LoadEmployeeGridExtras ids=50 ms=394
+2026-06-17 13:30:16 [HR_EmpLoad] 2026-06-17 13:30:16.781 [page] SearchEmployeesPage page=1 size=50 total=1 rows=1 ms=1782 countMs=105 fetchMs=1672 searchLen=10
+2026-06-17 13:30:16 [HR_EmpLoad] 2026-06-17 13:30:16.793 [decrypt] START decrypt_load_db
+2026-06-17 13:30:16 [HR_EmpLoad] 2026-06-17 13:30:16.843 [decrypt] TIMING decrypt_load_db 48ms | ids=1
+2026-06-17 13:30:17 [HR_EmpLoad] 2026-06-17 13:30:17.365 [page] LoadEmployeeGridExtras ids=1 ms=64
+2026-06-17 13:30:21 [HR_EmpLoad] 2026-06-17 13:30:21.973 [page] SearchEmployeesPage page=1 size=50 total=13000 rows=50 ms=2170 countMs=0 fetchMs=2170
+2026-06-17 13:30:22 [HR_EmpLoad] 2026-06-17 13:30:22.346 [page] LoadEmployeeGridExtras ids=50 ms=358
+2026-06-17 13:30:22 [HR_EmpLoad] 2026-06-17 13:30:22.492 [decrypt] START decrypt_load_db
+2026-06-17 13:30:22 [HR_EmpLoad] 2026-06-17 13:30:22.539 [decrypt] TIMING decrypt_load_db 45ms | ids=50
+2026-06-17 13:30:29 [HR_EmpLoad] 2026-06-17 13:30:29.486 [page] SearchEmployeesPage page=1 size=100 total=13000 rows=100 ms=2264 countMs=0 fetchMs=2263
+2026-06-17 13:30:29 [HR_EmpLoad] 2026-06-17 13:30:29.897 [page] LoadEmployeeGridExtras ids=100 ms=389
+2026-06-17 13:30:30 [HR_EmpLoad] 2026-06-17 13:30:30.012 [decrypt] START decrypt_load_db
+2026-06-17 13:30:30 [HR_EmpLoad] 2026-06-17 13:30:30.061 [decrypt] TIMING decrypt_load_db 44ms | ids=100
+2026-06-17 13:31:39 [HR_EmpLoad] 2026-06-17 13:31:39.644 [page] SearchEmployeesPage page=1 size=500 total=13000 rows=500 ms=20607 countMs=0 fetchMs=20605
+2026-06-17 13:31:39 [HR_EmpLoad] 2026-06-17 13:31:39.698 [decrypt] START decrypt_load_db
+2026-06-17 13:31:39 [HR_EmpLoad] 2026-06-17 13:31:39.855 [decrypt] TIMING decrypt_load_db 154ms | ids=500
+2026-06-17 13:31:42 [HR_EmpLoad] 2026-06-17 13:31:42.228 [page] LoadEmployeeGridExtras ids=500 ms=2008
+2026-06-17 13:32:33 [HR_EmpLoad] 2026-06-17 13:32:33.078 [page] SearchEmployeesPage page=1 size=1000 total=13000 rows=1000 ms=41589 countMs=0 fetchMs=41587
+2026-06-17 13:32:37 [HR_EmpLoad] 2026-06-17 13:32:37.936 [page] LoadEmployeeGridExtras ids=1000 ms=4657
+2026-06-17 13:32:38 [HR_EmpLoad] 2026-06-17 13:32:38.405 [decrypt] START decrypt_load_db
+2026-06-17 13:32:38 [HR_EmpLoad] 2026-06-17 13:32:38.707 [decrypt] TIMING decrypt_load_db 298ms | ids=1000

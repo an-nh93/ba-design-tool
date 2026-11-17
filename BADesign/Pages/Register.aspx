@@ -4,7 +4,7 @@
 <html>
 <head runat="server">
     <title>Đăng ký - HR Helper</title>
-    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.1") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.3") %>" />
     <style>
         .register-link { margin-top: 16px; text-align: center; font-size: 13px; color: #7a7c88; }
         .register-link a { color: rgba(10, 117, 186, 1); text-decoration: none; }
@@ -24,6 +24,7 @@
         .loading-overlay.active { display: flex; }
         .loading-overlay .spinner-full { width: 48px; height: 48px; border: 4px solid rgba(10, 117, 186, 0.2); border-top-color: rgba(10, 117, 186, 1); border-radius: 50%; animation: spin 0.8s linear infinite; }
     </style>
+    <script src="<%= ResolveUrl("~/Scripts/ba-i18n.js") %>?v=20261132"></script>
 </head>
 <body class="login-body">
     <form id="form1" runat="server">
@@ -32,6 +33,7 @@
         </div>
         <div class="login-wrapper">
             <div class="login-left">
+                <div class="login-lang"><span class="ba-lang-switch" data-ba-lang-switch></span></div>
                 <div class="login-content">
                     <h1 class="login-title">Đăng ký tài khoản</h1>
                     <p class="login-subtitle">

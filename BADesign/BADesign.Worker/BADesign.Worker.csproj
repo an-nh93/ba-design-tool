@@ -67,6 +67,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Content Include="..\Scripts\i18n\ba-i18n.en.js">
+      <Link>i18n\ba-i18n.en.js</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <BootstrapperPackage Include=".NETFramework,Version=v4.8">

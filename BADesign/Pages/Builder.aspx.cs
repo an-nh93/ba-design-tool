@@ -31,6 +31,7 @@ namespace BADesign
         public bool IsPublic { get; set; }
         public int? OriginalId { get; set; }
         public bool IsOwner { get; set; }
+        public int? ProjectId { get; set; }
     }
 
     public partial class Builder : System.Web.UI.Page
@@ -192,7 +193,7 @@ ORDER BY
 			{
 				cmd.CommandText = @"
 SELECT ControlId, Name, ControlType, JsonConfig,
-       IsPublic, OriginalControlId, OwnerUserId
+       IsPublic, OriginalControlId, OwnerUserId, ProjectId
 FROM dbo.UiBuilderControl
 WHERE ControlId = @id AND IsDeleted = 0;";
 				cmd.Parameters.AddWithValue("@id", controlId);
@@ -201,7 +202,7 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 				{
 					if (!rd.Read()) return null;
 
-					int ownerId = rd.GetInt32(6);
+					bool isOwner = rd.GetInt32(6) == CurrentUserId;
 					return new ControlDetailDto
 					{
 						ControlId = rd.GetInt32(0),
@@ -210,10 +211,48 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 						JsonConfig = rd.GetString(3),
 						IsPublic = rd.GetBoolean(4),
 						OriginalId = rd.IsDBNull(5) ? (int?)null : rd.GetInt32(5),
-						IsOwner = (ownerId == CurrentUserId)
+						IsOwner = isOwner,
+						ProjectId = isOwner && !rd.IsDBNull(7) ? rd.GetInt32(7) : (int?)null
 					};
 				}
 			}
+		}
+
+		private static string StandardScreenFolder
+			=> Helpers.StandardScreenLibrary.DefaultFolder;
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static List<Helpers.StandardScreenInfo> GetStandardScreens()
+		{
+			UiAuthHelper.GetCurrentUserIdOrThrow();
+			var screens = Helpers.StandardScreenLibrary.List(StandardScreenFolder);
+			Helpers.UiHrModules.Annotate(screens, null);
+			return screens;
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static List<Helpers.HrModuleInfo> GetHrModules()
+		{
+			UiAuthHelper.GetCurrentUserIdOrThrow();
+			try
+			{
+				return Helpers.UiHrModules.ListActive();
+			}
+			catch (SqlException ex)
+			{
+				if (Helpers.UiHrModules.IsMissingSchema(ex)) return new List<Helpers.HrModuleInfo>();
+				throw;
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static string LoadStandardScreen(string key)
+		{
+			UiAuthHelper.GetCurrentUserIdOrThrow();
+			return Helpers.StandardScreenLibrary.Read(StandardScreenFolder, key);
 		}
 
 		public static string SaveThumbnailFile(int? controlId, string dataUrl)
@@ -259,7 +298,7 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 					conn.Open();
 					var validProjectId = cmd.ExecuteScalar();
 					if (validProjectId == null)
-						throw new Exception("Project không tồn tại hoặc không thuộc về bạn.");
+						throw new Exception("Dự án không tồn tại hoặc không thuộc về bạn.");
 				}
 			}
 
@@ -268,6 +307,10 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 			{
 				thumbPath = SaveThumbnailFile(controlId, thumbnailData);
 			}
+
+			bool isPage = string.Equals(controlType, "page", StringComparison.OrdinalIgnoreCase);
+			if (isPage && controlId.HasValue)
+				Helpers.UiDesignVersions.CaptureBeforeUpdate(controlId.Value, uid);
 
 			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 			using (var cmd = conn.CreateCommand())
@@ -310,19 +353,114 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 				cmd.Parameters.AddWithValue("@projectId",
 					projectId.HasValue && projectId.Value > 0 ? (object)projectId.Value : DBNull.Value);
 
+				int savedId;
 				if (controlId.HasValue)
 				{
 					int rows = cmd.ExecuteNonQuery();
 					if (rows == 0)
 						throw new Exception("Không có quyền update control này.");
-					return controlId.Value;
+					savedId = controlId.Value;
 				}
 				else
 				{
-					var newId = (int)cmd.ExecuteScalar();
-					return newId;
+					savedId = (int)cmd.ExecuteScalar();
 				}
+				if (isPage)
+					Helpers.UiDesignVersions.RecordSave(savedId, name, jsonConfig, uid);
+				return savedId;
 			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static bool KeepAlive()
+		{
+			return UiAuthHelper.CurrentUserId.HasValue;
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static List<Helpers.DesignVersionInfo> GetDesignVersions(int controlId)
+		{
+			return Helpers.UiDesignVersions.List(controlId, UiAuthHelper.GetCurrentUserIdOrThrow());
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static string LoadDesignVersion(int versionId)
+		{
+			return Helpers.UiDesignVersions.Load(versionId, UiAuthHelper.GetCurrentUserIdOrThrow());
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static bool SaveDesignBaseline(int controlId, string baselineJson)
+		{
+			return Helpers.UiDesignVersions.SaveBaseline(controlId, baselineJson, UiAuthHelper.GetCurrentUserIdOrThrow());
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object GetTemplateSubmitInfo()
+		{
+			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+			try
+			{
+				var workflow = Helpers.UiTemplateLibrary.ResolveWorkflow(Helpers.UiTemplateLibrary.GetUserRoleId(uid));
+				var problem = Helpers.UiTemplateLibrary.WorkflowProblem(workflow);
+				if (problem != null)
+					return new { success = false, message = problem };
+				var steps = new List<object>();
+				foreach (var step in workflow.Steps)
+					steps.Add(new { stepNo = step.StepNo, stepName = step.StepName, approvers = step.ApproverNames });
+				return new { success = true, workflowName = workflow.Name, steps = steps };
+			}
+			catch (SqlException ex)
+			{
+				if (Helpers.UiTemplateLibrary.IsMissingSchema(ex))
+					return new { success = false, message = Helpers.UiTemplateLibrary.MissingSchemaMessage };
+				throw;
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static Helpers.TemplateActionResult SubmitTemplate(int controlId, string name, string category, string uiKind, string description, string note, int moduleId = 0)
+		{
+			var result = Helpers.UiTemplateLibrary.Submit(controlId, name, category, uiKind, description, note);
+			if (result != null && result.Success)
+				Helpers.UiHrModules.SetSubmittedTemplateModule(result.RequestId, moduleId, UiAuthHelper.GetCurrentUserIdOrThrow());
+			return result;
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static List<Helpers.TemplateRequestInfo> GetTeamTemplates()
+		{
+			return Helpers.UiTemplateLibrary.ListRequests("library");
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static string LoadTeamTemplate(int requestId)
+		{
+			if (!Helpers.UiTemplateLibrary.CanUseBuilder()) return null;
+			var info = Helpers.UiTemplateLibrary.GetRequest(requestId, true);
+			return info != null && info.IsInLibrary ? info.JsonConfig : null;
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static Helpers.TemplateRequestInfo LoadTemplateRequest(int requestId)
+		{
+			return Helpers.UiTemplateLibrary.GetRequest(requestId, true);
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static Helpers.TemplateActionResult ReviewTemplateRequest(int requestId, bool approve, string comment)
+		{
+			return Helpers.UiTemplateLibrary.Review(requestId, approve, comment);
 		}
 
 		// ========= Project Management =========
@@ -373,7 +511,7 @@ ORDER BY p.Name;";
 			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
 
 			if (string.IsNullOrWhiteSpace(name))
-				return new { success = false, message = "Project name is required." };
+				return new { success = false, message = "Chưa nhập tên dự án." };
 
 			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 			using (var cmd = conn.CreateCommand())
@@ -390,7 +528,7 @@ WHERE OwnerUserId = @uid AND LOWER(Name) = LOWER(@name) AND IsDeleted = 0;";
 				
 				if (duplicateCount > 0)
 				{
-					return new { success = false, message = "Project name already exists. Please choose a different name." };
+					return new { success = false, message = "Tên dự án đã có. Hãy chọn tên khác." };
 				}
 
 				// Insert new project
@@ -416,7 +554,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
 
 			if (string.IsNullOrWhiteSpace(name))
-				return new { success = false, message = "Project name is required." };
+				return new { success = false, message = "Chưa nhập tên dự án." };
 
 			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
 			using (var cmd = conn.CreateCommand())
@@ -432,7 +570,7 @@ WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
 				var currentName = cmd.ExecuteScalar() as string;
 				
 				if (currentName == null)
-					return new { success = false, message = "Project không tồn tại hoặc không thuộc về bạn." };
+					return new { success = false, message = "Dự án không tồn tại hoặc không thuộc về bạn." };
 				
 				// If name changed, check for duplicate (excluding current project)
 				if (!currentName.Equals(name.Trim(), StringComparison.OrdinalIgnoreCase))
@@ -448,7 +586,7 @@ WHERE OwnerUserId = @uid AND LOWER(Name) = LOWER(@name) AND ProjectId != @pid AN
 					
 					if (duplicateCount > 0)
 					{
-						return new { success = false, message = "Project name already exists. Please choose a different name." };
+						return new { success = false, message = "Tên dự án đã có. Hãy chọn tên khác." };
 					}
 				}
 
@@ -465,7 +603,7 @@ WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
 
 				int rows = cmd.ExecuteNonQuery();
 				if (rows == 0)
-					return new { success = false, message = "Project không tồn tại hoặc không thuộc về bạn." };
+					return new { success = false, message = "Dự án không tồn tại hoặc không thuộc về bạn." };
 
 				return new { success = true };
 			}
@@ -495,18 +633,14 @@ WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
 						if (exists == null)
 						{
 							tran.Rollback();
-							return new { success = false, message = "Project không tồn tại hoặc không thuộc về bạn." };
+							return new { success = false, message = "Dự án không tồn tại hoặc không thuộc về bạn." };
 						}
 
-						// Move designs to "Uncategorized" project
 						cmd.Parameters.Clear();
 						cmd.CommandText = @"
-DECLARE @uncatId INT;
-SELECT @uncatId = ProjectId FROM dbo.UiProject WHERE OwnerUserId = @uid AND Name = N'Uncategorized' AND IsDeleted = 0;
-
 UPDATE dbo.UiBuilderControl
-SET ProjectId = @uncatId
-WHERE ProjectId = @pid AND OwnerUserId = @uid AND IsDeleted = 0;";
+SET ProjectId = NULL
+WHERE ProjectId = @pid AND OwnerUserId = @uid;";
 						cmd.Parameters.AddWithValue("@pid", projectId);
 						cmd.Parameters.AddWithValue("@uid", uid);
 						cmd.ExecuteNonQuery();

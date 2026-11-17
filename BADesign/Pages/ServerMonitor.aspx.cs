@@ -21,7 +21,12 @@ namespace BADesign.Pages
                 return;
             }
             ucBaSidebar.ActiveSection = "ServerMonitor";
-            ucBaTopBar.PageTitle = "Server & Docker monitor";
+            ucBaTopBar.PageTitle = "Giám sát máy chủ và Docker";
+        }
+
+        protected bool UsesWorker
+        {
+            get { return BaJobQueue.UseBackgroundWorker; }
         }
 
         [WebMethod(EnableSession = true)]

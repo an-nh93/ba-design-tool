@@ -1,0 +1,16 @@
+﻿2026-11-13 23:53:47.421 [TMS-01_HRM_DevMigrateData_Final_20261020|All] LoadEmployeesToSessionBulk START db=TMS-01_HRM_DevMigrateData_Final_20261020 companyID=-1
+2026-11-13 23:53:47.424 [TMS-01_HRM_DevMigrateData_Final_20261020|All] START bulk_total
+2026-11-13 23:53:47.426 [TMS-01_HRM_DevMigrateData_Final_20261020|All] START count
+2026-11-13 23:53:47.428 [TMS-01_HRM_DevMigrateData_Final_20261020|All] TIMING count 1ms | total=1434
+2026-11-13 23:53:47.429 [TMS-01_HRM_DevMigrateData_Final_20261020|All] START open_connection
+2026-11-13 23:53:47.431 [TMS-01_HRM_DevMigrateData_Final_20261020|All] TIMING open_connection 0ms
+2026-11-13 23:53:47.433 [TMS-01_HRM_DevMigrateData_Final_20261020|All] START fetch_all_read
+2026-11-13 23:53:47.444 [TMS-01_HRM_DevMigrateData_Final_20261020|All] START fetch_all_open
+2026-11-13 23:53:47.477 [TMS-01_HRM_DevMigrateData_Final_20261020|All] TIMING fetch_all_open 25ms
+2026-11-13 23:54:47.586 [TMS-01_HRM_DevMigrateData_Final_20261020|All] TIMING fetch_all_read 60139ms | rows=1434
+2026-11-13 23:54:47.587 [TMS-01_HRM_DevMigrateData_Final_20261020|All] START session_save
+2026-11-13 23:54:47.590 [TMS-01_HRM_DevMigrateData_Final_20261020|All] TIMING session_save 0ms | rows=1434
+2026-11-13 23:54:47.595 [TMS-01_HRM_DevMigrateData_Final_20261020|All] TIMING bulk_total 60165ms | totalRows=1434
+2026-11-13 23:54:47.597 [TMS-01_HRM_DevMigrateData_Final_20261020|All] LoadEmployeesToSessionBulk DONE rows=1434
+2026-11-13 23:54:47.974 [decrypt] START decrypt_load_db
+2026-11-13 23:54:47.991 [decrypt] TIMING decrypt_load_db 15ms | ids=200

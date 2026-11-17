@@ -3,9 +3,10 @@
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>HR Helper - Login</title>
+    <title>Đăng nhập - HR Helper</title>
     <%-- dùng ResolveUrl để chạy đúng cả khi host ảo --%>
-    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.1") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.3") %>" />
+    <script src="<%= ResolveUrl("~/Scripts/ba-i18n.js") %>?v=20261132"></script>
 </head>
 <body class="login-body">
     <form id="form1" runat="server">
@@ -13,6 +14,7 @@
         <div class="login-wrapper">
             <!-- Cột trái: form -->
             <div class="login-left">
+                <div class="login-lang"><span class="ba-lang-switch" data-ba-lang-switch></span></div>
                 <div class="login-content">
                     <!-- Panel đăng nhập thường -->
                     <asp:Panel runat="server" ID="phLoginPanel">

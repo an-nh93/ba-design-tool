@@ -4,10 +4,12 @@
     <h1 class="ba-top-bar-title"><asp:Literal ID="litPageTitle" runat="server" /></h1>
     <div class="ba-top-bar-actions">
         <uc:NotificationBell ID="ucNotificationBell" runat="server" />
+        <span class="ba-lang-switch" data-ba-lang-switch></span>
         <button class="theme-switcher" id="themeSwitcher" onclick="toggleTheme(event); return false;">
             <span class="theme-switcher-icon" id="themeIcon">🌙</span>
-            <span id="themeText">Dark</span>
+            <span id="themeText">Tối</span>
         </button>
+        <asp:PlaceHolder ID="phUserMenu" runat="server">
         <div class="user-menu">
             <button class="user-menu-trigger" type="button" id="userMenuTrigger" onclick="toggleUserMenu(event); return false;">
                 <div class="user-avatar"><asp:Literal ID="litUserInitial" runat="server" /></div>
@@ -15,33 +17,36 @@
                 <span>▼</span>
             </button>
             <div class="user-menu-dropdown" id="userMenuDropdown">
-                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('security'); return false;">🔒 Change Password</a>
-                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('account'); return false;">⚙️ Account Settings</a>
+                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('security'); return false;">🔒 Đổi mật khẩu</a>
+                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('account'); return false;">⚙️ Cài đặt tài khoản</a>
                 <div class="menu-item" style="border-top: 1px solid var(--border); margin-top: 0.25rem; padding-top: 0.75rem;">
-                    <a href="~/Login?logout=1" runat="server" style="color: inherit; text-decoration: none;" onclick="closeUserMenu();">🚪 Logout</a>
+                    <a href="~/Login?logout=1" runat="server" style="color: inherit; text-decoration: none;" onclick="closeUserMenu();">🚪 Đăng xuất</a>
                 </div>
             </div>
         </div>
+        </asp:PlaceHolder>
+        <asp:HyperLink ID="lnkLogin" runat="server" NavigateUrl="~/Login" CssClass="ba-btn ba-btn-primary" Visible="false">Đăng nhập</asp:HyperLink>
     </div>
 </div>
+<asp:PlaceHolder ID="phAccount" runat="server">
 <!-- Account Settings Modal (dùng chung cho mọi trang có BaTopBar) -->
 <div class="account-modal" id="accountModal">
     <div class="account-modal-content">
         <div class="account-modal-header">
-            <h3 class="account-modal-title">Account Settings</h3>
+            <h3 class="account-modal-title">Cài đặt tài khoản</h3>
             <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideAccountModal(); return false;">×</button>
         </div>
         <div class="account-modal-tabs">
-            <button class="account-modal-tab active" data-tab="account" onclick="switchAccountTab(event, 'account'); return false;">Account</button>
-            <button class="account-modal-tab" data-tab="security" onclick="switchAccountTab(event, 'security'); return false;">Security</button>
+            <button class="account-modal-tab active" data-tab="account" onclick="switchAccountTab(event, 'account'); return false;">Tài khoản</button>
+            <button class="account-modal-tab" data-tab="security" onclick="switchAccountTab(event, 'security'); return false;">Bảo mật</button>
         </div>
         <div class="account-modal-body">
             <div id="accountTabContent" class="account-tab-content">
                 <div class="account-profile-header">
                     <div class="account-avatar-container" id="accountAvatarContainer">
                         <div class="account-avatar" id="accountAvatar"></div>
-                        <button type="button" class="account-avatar-remove-btn" id="avatarRemoveBaTop" title="Remove avatar">🗑</button>
-                        <label for="avatarUploadBaTop" class="account-avatar-upload-btn" title="Upload avatar">
+                        <button type="button" class="account-avatar-remove-btn" id="avatarRemoveBaTop" title="Xóa ảnh đại diện">🗑</button>
+                        <label for="avatarUploadBaTop" class="account-avatar-upload-btn" title="Tải ảnh đại diện lên">
                             <input type="file" id="avatarUploadBaTop" accept="image/*" style="display: none;" />
                             <span>📷</span>
                         </label>
@@ -52,32 +57,32 @@
                     </div>
                 </div>
                 <div class="account-section">
-                    <div class="account-section-title">Account Information</div>
-                    <div class="account-field"><span class="account-field-label">User ID</span><span class="account-field-value" id="accountUserId"></span></div>
-                    <div class="account-field"><span class="account-field-label">Username</span><span class="account-field-value" id="accountUserName"></span></div>
-                    <div class="account-field"><span class="account-field-label">Full Name</span><span class="account-field-value" id="accountFullName2"></span></div>
+                    <div class="account-section-title">Thông tin tài khoản</div>
+                    <div class="account-field"><span class="account-field-label">ID người dùng</span><span class="account-field-value" id="accountUserId"></span></div>
+                    <div class="account-field"><span class="account-field-label">Tên đăng nhập</span><span class="account-field-value" id="accountUserName"></span></div>
+                    <div class="account-field"><span class="account-field-label">Họ và tên</span><span class="account-field-value" id="accountFullName2"></span></div>
                     <div class="account-field"><span class="account-field-label">Email</span><span class="account-field-value" id="accountEmail2"></span></div>
-                    <div class="account-field"><span class="account-field-label">Role</span><span class="account-field-value" id="accountRole"></span></div>
-                    <div class="account-field"><span class="account-field-label">Status</span><span class="account-field-value" id="accountStatus"></span></div>
+                    <div class="account-field"><span class="account-field-label">Vai trò</span><span class="account-field-value" id="accountRole"></span></div>
+                    <div class="account-field"><span class="account-field-label">Trạng thái</span><span class="account-field-value" id="accountStatus"></span></div>
                 </div>
             </div>
             <div id="securityTabContent" class="account-tab-content" style="display: none;">
                 <div class="account-section">
-                    <div class="account-section-title">Change Password</div>
+                    <div class="account-section-title">Đổi mật khẩu</div>
                     <div class="account-form-group">
-                        <label class="account-form-label" for="txtModalCurrentPassword">Current Password</label>
+                        <label class="account-form-label" for="txtModalCurrentPassword">Mật khẩu hiện tại</label>
                         <input type="password" id="txtModalCurrentPassword" class="account-form-input" />
                     </div>
                     <div class="account-form-group">
-                        <label class="account-form-label" for="txtModalNewPassword">New Password</label>
+                        <label class="account-form-label" for="txtModalNewPassword">Mật khẩu mới</label>
                         <input type="password" id="txtModalNewPassword" class="account-form-input" />
                     </div>
                     <div class="account-form-group">
-                        <label class="account-form-label" for="txtModalConfirmPassword">Confirm New Password</label>
+                        <label class="account-form-label" for="txtModalConfirmPassword">Xác nhận mật khẩu mới</label>
                         <input type="password" id="txtModalConfirmPassword" class="account-form-input" />
                     </div>
                     <div class="account-form-group">
-                        <button type="button" class="ba-btn ba-btn-primary" onclick="baTopBarChangePassword(); return false;">Change Password</button>
+                        <button type="button" class="ba-btn ba-btn-primary" onclick="baTopBarChangePassword(); return false;">Đổi mật khẩu</button>
                     </div>
                     <div id="passwordMessageBaTop" style="margin-top: 1rem; display: none;"></div>
                 </div>
@@ -146,15 +151,15 @@
                 }
                 var set = function(id, html) { var el = getEl(id); if (el) el.innerHTML = html !== undefined ? html : (d[id] || ''); };
                 var esc = function(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
-                set('accountFullName', d.fullName || d.userName ? esc(d.fullName || d.userName) : '<em>Not set</em>');
-                set('accountEmail', d.email ? esc(d.email) : '<em>Not set</em>');
+                set('accountFullName', d.fullName || d.userName ? esc(d.fullName || d.userName) : '<em>Chưa đặt</em>');
+                set('accountEmail', d.email ? esc(d.email) : '<em>Chưa đặt</em>');
                 set('accountUserId', (d.userId || '').toString());
                 set('accountUserName', esc(d.userName));
-                set('accountFullName2', (d.fullName2 || d.fullName || d.userName) ? esc(d.fullName2 || d.fullName || d.userName) : '<em>Not set</em>');
-                set('accountEmail2', d.email ? esc(d.email) : '<em>Not set</em>');
-                var roleBadge = d.isSuperAdmin ? '<span class="account-badge account-badge-success">Super Admin</span>' : (d.roleCode ? '<span class="account-badge account-badge-default">' + (d.roleCode + '').replace(/</g, '&lt;') + '</span>' : '<span class="account-badge account-badge-default">User</span>');
+                set('accountFullName2', (d.fullName2 || d.fullName || d.userName) ? esc(d.fullName2 || d.fullName || d.userName) : '<em>Chưa đặt</em>');
+                set('accountEmail2', d.email ? esc(d.email) : '<em>Chưa đặt</em>');
+                var roleBadge = d.isSuperAdmin ? '<span class="account-badge account-badge-success">Super Admin</span>' : (d.roleCode ? '<span class="account-badge account-badge-default">' + esc(d.roleName || d.roleCode) + '</span>' : '<span class="account-badge account-badge-default">User</span>');
                 set('accountRole', roleBadge);
-                set('accountStatus', d.isActive ? '<span class="account-badge account-badge-success">Active</span>' : '<span class="account-badge account-badge-danger">Inactive</span>');
+                set('accountStatus', d.isActive ? '<span class="account-badge account-badge-success">Đang hoạt động</span>' : '<span class="account-badge account-badge-danger">Ngừng hoạt động</span>');
             }
         });
     }
@@ -164,15 +169,15 @@
         var conf = (getEl('txtModalConfirmPassword') || {}).value;
         var msgEl = getEl('passwordMessageBaTop');
         if (!cur || !newP || !conf) {
-            if (msgEl) { msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">Please fill in all fields.</div>'; msgEl.style.display = 'block'; }
+            if (msgEl) { msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">Vui lòng nhập đầy đủ các ô.</div>'; msgEl.style.display = 'block'; }
             return;
         }
         if (newP !== conf) {
-            if (msgEl) { msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">New password and confirmation do not match.</div>'; msgEl.style.display = 'block'; }
+            if (msgEl) { msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">Mật khẩu mới và xác nhận không khớp.</div>'; msgEl.style.display = 'block'; }
             return;
         }
         if (newP.length < 6) {
-            if (msgEl) { msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">Password must be at least 6 characters.</div>'; msgEl.style.display = 'block'; }
+            if (msgEl) { msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">Mật khẩu phải có ít nhất 6 ký tự.</div>'; msgEl.style.display = 'block'; }
             return;
         }
         if (typeof jQuery === 'undefined') return;
@@ -181,17 +186,17 @@
                 var d = r.d || r;
                 if (msgEl) {
                     if (d && d.success) {
-                        msgEl.innerHTML = '<div style="color:#10b981;font-size:0.875rem;">Password changed successfully!</div>';
+                        msgEl.innerHTML = '<div style="color:#10b981;font-size:0.875rem;">Đổi mật khẩu thành công!</div>';
                         var cp = getEl('txtModalCurrentPassword'); var np = getEl('txtModalNewPassword'); var cf = getEl('txtModalConfirmPassword');
                         if (cp) cp.value = ''; if (np) np.value = ''; if (cf) cf.value = '';
                     } else {
-                        msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">' + (d && d.message ? (d.message + '').replace(/</g, '&lt;') : 'Failed to change password.') + '</div>';
+                        msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">' + (d && d.message ? (d.message + '').replace(/</g, '&lt;') : 'Đổi mật khẩu thất bại.') + '</div>';
                     }
                     msgEl.style.display = 'block';
                 }
             },
             error: function(xhr) {
-                var errMsg = 'Failed to change password.';
+                var errMsg = 'Đổi mật khẩu thất bại.';
                 try { var resp = JSON.parse(xhr.responseText); if (resp.d && resp.d.message) errMsg = resp.d.message; else if (resp.message) errMsg = resp.message; } catch(e) {}
                 if (msgEl) { msgEl.innerHTML = '<div style="color:#ef4444;font-size:0.875rem;">' + errMsg.replace(/</g, '&lt;') + '</div>'; msgEl.style.display = 'block'; }
             }
@@ -203,8 +208,8 @@
         var avatarUpload = getEl('avatarUploadBaTop');
         if (avatarUpload) avatarUpload.addEventListener('change', function(e) {
             var file = (e.target || {}).files && (e.target.files[0]);
-            if (!file || !file.type.startsWith('image/')) { if (file && typeof baAlert === 'function') baAlert('Please select an image file.'); return; }
-            if (file.size > 5 * 1024 * 1024) { if (typeof baAlert === 'function') baAlert('Image size must be less than 5MB.'); return; }
+            if (!file || !file.type.startsWith('image/')) { if (file && typeof baAlert === 'function') baAlert('Vui lòng chọn một file ảnh.'); return; }
+            if (file.size > 5 * 1024 * 1024) { if (typeof baAlert === 'function') baAlert('Ảnh phải nhỏ hơn 5MB.'); return; }
             var fd = new FormData(); fd.append('file', file);
             jQuery.ajax({ url: uploadAvatarUrl, type: 'POST', data: fd, processData: false, contentType: false, dataType: 'json',
                 success: function(res) {
@@ -214,9 +219,9 @@
                         topBarAvatars.forEach(function(av) {
                             av.innerHTML = '<img src="' + (res.avatarPath + '?t=' + new Date().getTime()).replace(/"/g, '&quot;') + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" />';
                         });
-                    } else { if (typeof baAlert === 'function') baAlert((res && res.message) || 'Failed to upload avatar.'); }
+                    } else { if (typeof baAlert === 'function') baAlert((res && res.message) || 'Tải ảnh đại diện lên thất bại.'); }
                 },
-                error: function() { if (typeof baAlert === 'function') baAlert('Failed to upload avatar.'); }
+                error: function() { if (typeof baAlert === 'function') baAlert('Tải ảnh đại diện lên thất bại.'); }
             });
         });
         var avatarRemove = getEl('avatarRemoveBaTop');
@@ -230,9 +235,9 @@
                         topBarAvatars.forEach(function(av) {
                             av.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1rem;font-weight:600;color:white;">' + initial + '</span>';
                         });
-                    } else { if (typeof baAlert === 'function') baAlert((res && res.message) || 'Failed to remove avatar.'); }
+                    } else { if (typeof baAlert === 'function') baAlert((res && res.message) || 'Xóa ảnh đại diện thất bại.'); }
                 },
-                error: function() { if (typeof baAlert === 'function') baAlert('Failed to remove avatar.'); }
+                error: function() { if (typeof baAlert === 'function') baAlert('Xóa ảnh đại diện thất bại.'); }
             });
         }
         if (avatarRemove) avatarRemove.addEventListener('click', function() {
@@ -241,3 +246,4 @@
     });
 })();
 </script>
+</asp:PlaceHolder>

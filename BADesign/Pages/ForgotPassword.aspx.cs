@@ -124,14 +124,15 @@ INSERT INTO UiPasswordResetToken (Token, ShortCode, UserId, ExpiresAt) VALUES (@
                 else if (urlWithoutProtocol.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
                     urlWithoutProtocol = urlWithoutProtocol.Substring(7);
                 var resetLink = urlWithoutProtocol + "/ChangePassword?code=" + shortCode;
-                var body = string.Format(
-                    "Chào {0},\n\nBạn đã yêu cầu đặt lại mật khẩu tại Cadena Helper.\n\n" +
+                var mailLanguage = BADesign.BaI18n.CurrentLanguage;
+                var body = string.Format(BADesign.BaI18n.Translate(mailLanguage,
+                    (userName == null ? "Chào bạn" : "Chào {0}") + ",\n\nBạn đã yêu cầu đặt lại mật khẩu tại Cadena Helper.\n\n" +
                     "Sao chép link sau và dán vào trình duyệt (thêm http:// hoặc https:// ở đầu). Không click trực tiếp vì Outlook Safe Links có thể làm mất tham số. Link có hiệu lực 1 giờ:\n\n{1}\n\n" +
-                    "Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.\n\nTrân trọng,\nCadena Helper Team",
-                    userName ?? "bạn", resetLink);
+                    "Nếu bạn không yêu cầu đặt lại mật khẩu, vui lòng bỏ qua email này.\n\nTrân trọng,\nCadena Helper Team"),
+                    userName, resetLink);
 
                 var err = BADesign.EmailHelper.SendEmail(email,
-                    "[Cadena Helper] Đặt lại mật khẩu",
+                    BADesign.BaI18n.Translate(mailLanguage, "[Cadena Helper] Đặt lại mật khẩu"),
                     body);
                 if (!string.IsNullOrEmpty(err))
                 {

@@ -1,5 +1,5 @@
 var MENU_ICON_LIST = [
-    { text: "(No icon)", value: "" },
+    { text: "(Không có biểu tượng)", value: "" },
     { text: "Edit", value: "/Content/images/grid-edit.png" },
     { text: "View", value: "/Content/images/grid-view.png" },
     { text: "Remove", value: "/Content/images/grid-delete.png" },
@@ -8,7 +8,10 @@ var MENU_ICON_LIST = [
     { text: "Save", value: "/Content/images/icon-menu/menu-save.png" },
     { text: "Cancel", value: "/Content/images/icon-menu/menu-cancel.png" },
     { text: "Approve", value: "/Content/images/icon-menu/menu-approve.png" },
+    { text: "OK / Select", value: "/Content/images/icon-menu/menu-ok.png" },
     { text: "Export", value: "/Content/images/icon-menu/menu-export.png" },
+    { text: "Open Report", value: "/Content/images/icon-menu/menu-open-report.png" },
+    { text: "Download", value: "/Content/images/icon-menu/menu-download.png" },
     { text: "Browse", value: "/Content/images/icon-menu/menu-browse.png" },
     { text: "Auto Assign", value: "/Content/images/icon-menu/menu-auto-assign.png" },
     { text: "De-active", value: "/Content/images/icon-menu/menu-deactive.png" }

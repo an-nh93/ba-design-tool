@@ -18,7 +18,7 @@ namespace BADesign.Pages
         {
             UiAuthHelper.RequireLogin();
             ucBaSidebar.ActiveSection = "DevShare";
-            ucBaTopBar.PageTitle = "Community Share";
+            ucBaTopBar.PageTitle = "Chia sẻ cộng đồng";
         }
 
         [WebMethod(EnableSession = true)]

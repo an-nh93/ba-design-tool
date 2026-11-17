@@ -19,6 +19,7 @@ namespace BADesign.Pages
 	{
 		protected void Page_Load(object sender, EventArgs e)
 		{
+			ucBaTopBar.AllowAnonymous = true;
 			// Cho phép guest sử dụng PGP Tool. Nếu đã login nhưng không có quyền thì redirect.
 			if (!UiAuthHelper.IsAnonymous && !UiAuthHelper.HasFeature("PGPTool"))
 			{
@@ -49,9 +50,14 @@ namespace BADesign.Pages
 					return new { success = false, message = "Chuỗi không phải Base64 hợp lệ." };
 				}
 
+				var isPrivate = (keyType ?? "").Trim().Equals("private", StringComparison.OrdinalIgnoreCase);
+				var keyProblem = PgpKeyInspector.DescribeExportKeyProblem(keyBytes, isPrivate);
+				if (keyProblem != null)
+					return new { success = false, message = keyProblem };
+
 				var prefix = (code ?? "").Trim();
 				if (string.IsNullOrEmpty(prefix)) prefix = "export";
-				var label = (keyType ?? "").Trim().Equals("private", StringComparison.OrdinalIgnoreCase) ? "Private Key" : "Public Key";
+				var label = isPrivate ? "Private Key" : "Public Key";
 				var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
 				var fileName = $"{label}_{prefix}_{timestamp}.asc";
 
@@ -89,6 +95,10 @@ namespace BADesign.Pages
 				{
 					return new { success = false, message = "Dữ liệu file hoặc key không phải Base64 hợp lệ." };
 				}
+
+				var inputProblem = PgpKeyInspector.DescribeDecryptProblem(encBytes, keyBytes);
+				if (inputProblem != null)
+					return new { success = false, message = inputProblem };
 
 				// Chạy trên thread pool để tránh deadlock ASP.NET (PipeAllAsync trong PgpCore treo khi gọi từ WebMethod sync)
 				byte[] outBytes = Task.Run(async () =>
@@ -149,6 +159,10 @@ namespace BADesign.Pages
 					return new { success = false, message = "Dữ liệu file hoặc key không phải Base64 hợp lệ." };
 				}
 
+				var keyProblem = PgpKeyInspector.DescribeEncryptKeyProblem(keyBytes);
+				if (keyProblem != null)
+					return new { success = false, message = keyProblem };
+
 				var baseName = (inputFileName ?? "file").Trim();
 				if (string.IsNullOrEmpty(baseName)) baseName = "file";
 				var ext = armor ? ".asc" : ".pgp";
@@ -183,7 +197,7 @@ namespace BADesign.Pages
 		{
 			// Guest được phép dùng PGP Tool. User đã login phải có feature PGPTool.
 			if (!UiAuthHelper.IsAnonymous && !UiAuthHelper.HasFeature("PGPTool"))
-				throw new UnauthorizedAccessException("Bạn không có quyền sử dụng PGP Tool.");
+				throw new UnauthorizedAccessException("Bạn không có quyền sử dụng Công cụ PGP.");
 		}
 
 		/// <summary>Lấy connection string từ token k (Database Tools / HR Helper). Khi không có k hoặc invalid, trả null.</summary>
@@ -231,7 +245,7 @@ namespace BADesign.Pages
 				var list = new List<object>();
 				var connStr = GetConnectionStringFromToken(tokenK);
 				if (string.IsNullOrEmpty(connStr))
-					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Database Tools → Chọn Server & Database → bấm PGP Tool (hoặc HR Helper rồi sang PGP Tool).", list = list };
+					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Công cụ Database → Chọn Server & Database → bấm Công cụ PGP (hoặc Trợ lý HR rồi sang Công cụ PGP).", list = list };
 
 				using (var conn = new SqlConnection(connStr))
 				{
@@ -319,7 +333,7 @@ namespace BADesign.Pages
 
 				var connStr = GetConnectionStringFromToken(tokenK);
 				if (string.IsNullOrEmpty(connStr))
-					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Database Tools → Chọn Server & Database → bấm PGP Tool." };
+					return new { success = false, message = "Chưa chọn database. Để dùng key từ database, hãy vào Công cụ Database → Chọn Server & Database → bấm Công cụ PGP." };
 
 				string encryptionPublicKey = null;
 				string encryptionPrimaryKey = null;
@@ -419,7 +433,7 @@ namespace BADesign.Pages
 
 				var connStr = GetConnectionStringFromToken(tokenK);
 				if (string.IsNullOrEmpty(connStr))
-					return new { success = false, message = "Chưa chọn database. Mở PGP Tool từ Database Tools với kết nối database." };
+					return new { success = false, message = "Chưa chọn database. Mở Công cụ PGP từ Công cụ Database với kết nối database." };
 
 				using (var conn = new SqlConnection(connStr))
 				{

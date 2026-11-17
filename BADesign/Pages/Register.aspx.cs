@@ -294,9 +294,10 @@ ELSE INSERT INTO UiUserOtp(UserId, OtpCode, ExpiresAt) VALUES (@uid, @otp, @exp)
                     loginUrlShort = loginUrl.Substring(8);
                 else if (loginUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
                     loginUrlShort = loginUrl.Substring(7);
+                var mailLanguage = BADesign.BaI18n.CurrentLanguage;
                 var err = BADesign.EmailHelper.SendEmail(email,
-                    "[Cadena Helper] Thông tin tài khoản đăng ký – xác thực email",
-                    string.Format("Chào bạn,\n\nBạn đã đăng ký tài khoản Cadena Helper thành công.\n\nUsername: {0}\nPassword: {1}\n\nMã OTP xác thực email (6 số): {2}\nMã có hiệu lực 60 phút. Khi đăng nhập lần đầu, bạn sẽ được yêu cầu nhập mã OTP này.\n\nĐăng nhập tại - sao chép và dán vào trình duyệt:\n{3}\n\nTrân trọng,\nCadena Helper Team",
+                    BADesign.BaI18n.Translate(mailLanguage, "[Cadena Helper] Thông tin tài khoản đăng ký – xác thực email"),
+                    string.Format(BADesign.BaI18n.Translate(mailLanguage, "Chào bạn,\n\nBạn đã đăng ký tài khoản Cadena Helper thành công.\n\nUsername: {0}\nPassword: {1}\n\nMã OTP xác thực email (6 số): {2}\nMã có hiệu lực 60 phút. Khi đăng nhập lần đầu, bạn sẽ được yêu cầu nhập mã OTP này.\n\nĐăng nhập tại - sao chép và dán vào trình duyệt:\n{3}\n\nTrân trọng,\nCadena Helper Team"),
                         userName, password, otpCode, loginUrlShort));
                 if (!string.IsNullOrEmpty(err))
                 {

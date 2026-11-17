@@ -32,5 +32,35 @@ namespace BADesign.Helpers
             }
             catch { /* SignalR chưa map hoặc lỗi */ }
         }
+
+        public static void PushJobProgress(JobProgressInfo info)
+        {
+            if (info == null || info.Id <= 0) return;
+            try
+            {
+                var ctx = GlobalHost.ConnectionManager.GetHubContext<RestoreNotificationHub>();
+                if (ctx == null) return;
+                var payload = new
+                {
+                    id = info.Id,
+                    jobType = info.JobType,
+                    status = info.Status,
+                    percent = info.Percent,
+                    message = info.Message,
+                    detail = info.Detail,
+                    elapsed = info.ElapsedSeconds
+                };
+                var serverJob = info.ServerId.HasValue
+                    && (string.Equals(info.JobType, "Restore", StringComparison.OrdinalIgnoreCase) || string.Equals(info.JobType, "Backup", StringComparison.OrdinalIgnoreCase));
+                if (serverJob)
+                {
+                    ctx.Clients.Group("server_" + info.ServerId.Value).jobProgress(payload);
+                    ctx.Clients.Group("server_all").jobProgress(payload);
+                }
+                else
+                    ctx.Clients.All.jobProgress(payload);
+            }
+            catch { }
+        }
     }
 }

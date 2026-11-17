@@ -10,7 +10,7 @@ namespace BADesign.Pages
         {
             UiAuthHelper.RequireLogin();
             ucBaSidebar.ActiveSection = "FunctionQueue";
-            ucBaTopBar.PageTitle = "Function Queue";
+            ucBaTopBar.PageTitle = "Hàng đợi xử lý";
         }
     }
 }

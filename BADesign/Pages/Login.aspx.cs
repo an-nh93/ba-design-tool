@@ -27,8 +27,7 @@ namespace UiBuilderFull
 				}
 				if (Request.QueryString["logout"] == "1")
 				{
-					UiAuthHelper.ClearRememberMeCookie();
-					Session.Clear();
+					UiAuthHelper.SignOut();
 					// Không redirect, hiển thị form login
 				}
 				else if (Session["UiUserId"] != null)

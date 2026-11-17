@@ -110,6 +110,31 @@
         return parts.join('');
     }
 
+    function buildSanitizeReportHtml(report) {
+        var steps = report.steps || [];
+        var statusText = report.cancelled ? 'Đã hủy' : (report.clean ? 'Đã sạch' : 'Chưa sạch hoàn toàn');
+        var color = report.clean ? '#10b981' : (report.cancelled ? '#f59e0b' : '#ef4444');
+        var parts = ['<span style="font-weight:600;color:' + color + ';">' + statusText + '</span>'];
+        if (report.totalMs != null) parts.push(Math.round(report.totalMs / 1000) + ' giây');
+        if (report.hashType) parts.push('hash ' + esc(report.hashType));
+        if (report.keepRealSalary) parts.push('giữ lương thật');
+        var html = parts.join(' · ');
+        if (report.error) html += '<div style="color:#ef4444;">' + esc(report.error) + '</div>';
+        if (!steps.length) return html;
+        html += '<table class="san-steps"><thead><tr><th>Bước</th><th>Kết quả</th><th class="num">Dòng</th><th class="num">Giây</th></tr></thead><tbody>';
+        steps.forEach(function(s) {
+            var stepStatus = s.status === 'done' ? 'Xong' : (s.status === 'skipped' ? 'Bỏ qua' : (s.status === 'warning' ? 'Cảnh báo' : 'Lỗi'));
+            var warnings = s.warnings || [];
+            html += '<tr><td>' + esc(s.label);
+            if (s.detail) html += '<div class="san-detail">' + esc(s.detail) + '</div>';
+            warnings.slice(0, 5).forEach(function(w) { html += '<div class="san-warn">' + esc(w) + '</div>'; });
+            if ((s.warningCount || warnings.length) > 5) html += '<div class="san-warn">… và ' + ((s.warningCount || warnings.length) - 5) + ' cảnh báo khác</div>';
+            html += '</td><td>' + stepStatus + '</td><td class="num">' + Number(s.rows || 0).toLocaleString() + '</td><td class="num">' + (Math.round((s.ms || 0) / 100) / 10) + '</td></tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
     function renderRestoreDiagnosticsInto($el, d) {
         if (!$el || !$el.length) return;
         $el.html(buildRestoreDiagnosticsHtml(d));
@@ -145,6 +170,28 @@
             });
     }
 
+    function buildPlannedUpdateHtml(payload) {
+        var parts = [];
+        if (payload.updPersonal || payload.updatePersonalInfo) parts.push('Thông tin cá nhân');
+        if (payload.updBusiness || payload.updateBusinessEmail) parts.push('Email công việc');
+        if (payload.updPayslip) parts.push('Payslip');
+        if (payload.updM1) parts.push('M1');
+        if (payload.updM2) parts.push('M2');
+        if (payload.updBasic) parts.push('Basic Salary');
+        if (!parts.length) return '';
+        var values = [];
+        function filled(value) {
+            return value != null && value !== '';
+        }
+        if (filled(payload.personalEmail)) values.push('Email cá nhân: ' + esc(payload.personalEmail));
+        if (filled(payload.businessEmail)) values.push('Email công việc: ' + esc(payload.businessEmail));
+        if (filled(payload.m1)) values.push('SĐT 1: ' + esc(payload.m1));
+        if (filled(payload.m2)) values.push('SĐT 2: ' + esc(payload.m2));
+        if (filled(payload.basicSalary)) values.push('Lương: ' + esc(payload.basicSalary));
+        return '<div class="ba-notif-full-msg"><strong>Dự kiến cập nhật:</strong> ' + parts.join(', ') +
+            (values.length ? '<br/><strong>Giá trị dự kiến:</strong> ' + values.join(' | ') : '') + '</div>';
+    }
+
     window.showNotificationDetail = function(job) {
         if (!job) return;
         var typeLabel;
@@ -159,8 +206,9 @@
         var statusLabel = job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : esc(job.status || '—')));
         var payloadObj = null;
         if (job.payload) {
-            try { payloadObj = (typeof job.payload === 'string') ? JSON.parse(job.payload) : job.payload; } catch (e) { payloadObj = null; }
+            try { payloadObj = (typeof job.payload === 'string') ? JSON.parse(job.payload.replace(/^[\s﻿]+|[\s﻿]+$/g, '')) : job.payload; } catch (e) { payloadObj = null; }
         }
+        var isActive = job.status === 'Running' || job.status === 'Pending';
         var html = '<table><tbody>';
         html += '<tr><th>Loại</th><td>' + typeLabel + '</td></tr>';
         html += '<tr><th>Server</th><td>' + esc(job.serverName || '—') + '</td></tr>';
@@ -178,7 +226,8 @@
         html += '<tr><th>Thực hiện bởi</th><td>' + esc(job.startedByUserName || '—') + '</td></tr>';
         var msgTrim = (job.message || '').trim();
         var msgProgressLabel = msgTrim;
-        if (msgTrim === 'PostRestore') msgProgressLabel = 'Hoàn tất restore — chuẩn bị Reset';
+        if (msgTrim === 'PostRestore') msgProgressLabel = 'Hoàn tất restore — chuẩn bị làm sạch dữ liệu';
+        else if (msgTrim === 'Reset Information') msgProgressLabel = 'Làm sạch dữ liệu';
         else if (msgTrim === 'ShrinkLog') msgProgressLabel = 'Đang shrink file log…';
         else if (msgTrim === 'Completing') msgProgressLabel = 'Đang hoàn tất job…';
         var progressText = (job.percentComplete != null)
@@ -195,6 +244,11 @@
             var sfColor = (sfs === 'success') ? '#10b981' : (sfs === 'failed' ? '#ef4444' : '#f59e0b');
             var sfMsg = sfm ? ('<div style="margin-top:4px;color:var(--text-muted);font-size:0.78rem;word-break:break-word;">' + esc(sfm) + '</div>') : '';
             html += '<tr><th>Shrink cuối</th><td><span style="font-weight:600;color:' + sfColor + ';">' + sfText + '</span>' + sfMsg + '</td></tr>';
+        }
+        if (payloadObj && payloadObj.sanitizeReport) {
+            html += '<tr><th>Làm sạch dữ liệu</th><td>' + buildSanitizeReportHtml(payloadObj.sanitizeReport) + '</td></tr>';
+        } else if (payloadObj && payloadObj.sanitizeStep && job.status === 'Running') {
+            html += '<tr><th>Làm sạch dữ liệu</th><td>Đang chạy: ' + esc(payloadObj.sanitizeStep) + '</td></tr>';
         }
         html += '<tr><th>Bắt đầu</th><td>' + startStr + '</td></tr>';
         html += '<tr><th>Kết thúc</th><td>' + endStr + '</td></tr>';
@@ -226,11 +280,14 @@
                     var empCell = empList.length + ' nhân viên';
                     empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + escAttr2(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
                     empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
-                    html += '<tr><th>Danh sách nhân viên đã xóa</th><td>' + empCell + '</td></tr>';
+                    html += '<tr><th>' + (isActive ? 'Danh sách nhân viên sẽ xóa' : 'Danh sách nhân viên đã xóa') + '</th><td>' + empCell + '</td></tr>';
                 }
             } catch (e) {}
         }
         html += '</tbody></table>';
+        if (isActive && payloadObj && (job.type === 'HRHelperUpdateEmployee' || job.type === 'HRHelperUpdateUser' || job.type === 'HRHelperUpdateOther')) {
+            html += buildPlannedUpdateHtml(payloadObj);
+        }
         if (msgTrim && msgTrim !== 'Restore' && msgTrim !== 'Reset Information' && msgTrim !== 'PostRestore' && msgTrim !== 'ShrinkLog' && msgTrim !== 'Completing') {
             html += '<div class="ba-notif-full-msg">' + esc(job.message).replace(/\n/g, '<br/>') + '</div>';
         }

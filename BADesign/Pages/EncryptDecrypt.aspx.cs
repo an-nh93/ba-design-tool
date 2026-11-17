@@ -34,7 +34,7 @@ namespace BADesign.Pages
             if (!IsPostBack)
             {
                 ucBaSidebar.ActiveSection = "EncryptDecrypt";
-                ucBaTopBar.PageTitle = "Encrypt/Decrypt Data";
+                ucBaTopBar.PageTitle = "Mã hóa / Giải mã";
             }
             var k = Request.QueryString["k"];
             if (!string.IsNullOrWhiteSpace(k))
@@ -167,6 +167,185 @@ namespace BADesign.Pages
             return t;
         }
 
+        // ---- Phase 1b: SHA256 Hash (giống Password) ----
+
+        /// <summary>Số dòng tối đa mỗi lần hash (tránh vượt maxJsonLength của ScriptMethod).</summary>
+        private const int MaxHashLines = 10000;
+
+        /// <summary>
+        /// Hash SHA256 nhiều dòng: mỗi dòng 1 giá trị, kết quả trả về đúng thứ tự (dòng trống → kết quả trống) để dán lại Excel.
+        /// mode: "password" = giống Security_Users.Password Cadena (SimpleHash SHA256 + salt ngẫu nhiên, Base64(hash+salt));
+        ///       "nosalt"   = SHA256 không salt, Base64 (giống script Update Password của HR Helper);
+        ///       "hex"      = SHA256 không salt, hex thường (giống password login HR Helper).
+        /// withUserName: mỗi dòng dạng UserName[TAB hoặc ,]Password → hash lower(UserName) + Password như Cadena.
+        /// </summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object HashSha256Lines(string text, string mode, bool withUserName, bool trimLines)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = "Không có quyền dùng chức năng Mã hóa / Giải mã." };
+                if (string.IsNullOrWhiteSpace(text))
+                    return new { success = false, message = "Chưa nhập chuỗi cần mã hóa." };
+                var m = NormalizeHashMode(mode);
+                if (m == null)
+                    return new { success = false, message = "Kiểu hash không hợp lệ (password / nosalt / hex)." };
+
+                var lines = SplitHashInputLines(text);
+                if (lines.Count > MaxHashLines)
+                    return new { success = false, message = "Tối đa " + MaxHashLines + " dòng mỗi lần. Hiện có " + lines.Count + " dòng." };
+
+                var results = new List<string>(lines.Count);
+                var errors = new List<string>();
+                var hashed = 0;
+                for (var i = 0; i < lines.Count; i++)
+                {
+                    var line = trimLines ? lines[i].Trim() : lines[i];
+                    if (line.Length == 0) { results.Add(""); continue; }
+
+                    string plain;
+                    if (withUserName)
+                    {
+                        string user, pwd;
+                        if (!TrySplitUserPassword(line, trimLines, out user, out pwd))
+                        {
+                            results.Add("");
+                            errors.Add("Dòng " + (i + 1) + ": cần dạng UserName<TAB>Password hoặc UserName,Password.");
+                            continue;
+                        }
+                        plain = BuildCadenaPasswordPlain(user, pwd);
+                    }
+                    else
+                    {
+                        plain = line;
+                    }
+
+                    results.Add(ComputeSha256(plain, m));
+                    hashed++;
+                }
+                return new { success = true, results = results, hashed = hashed, errors = errors };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>
+        /// Kiểm tra chuỗi gốc có khớp hash SHA256 không. Tự nhận dạng: Hex 64 ký tự, Base64 không salt, Base64 + salt (password Cadena).
+        /// Nếu nhập UserName thì so với lower(UserName) + Password như Security_Users.Password.
+        /// </summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object VerifySha256Hash(string plainText, string userName, string hashValue)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = "Không có quyền dùng chức năng Mã hóa / Giải mã." };
+                if (string.IsNullOrEmpty(plainText))
+                    return new { success = false, message = "Nhập chuỗi gốc / password cần kiểm tra." };
+                if (string.IsNullOrWhiteSpace(hashValue))
+                    return new { success = false, message = "Nhập chuỗi hash cần so sánh." };
+
+                var plain = string.IsNullOrWhiteSpace(userName) ? plainText : BuildCadenaPasswordPlain(userName, plainText);
+                string format;
+                var match = VerifySha256(plain, hashValue, out format);
+                if (format == null)
+                    return new { success = false, message = "Chuỗi hash không phải SHA256 hợp lệ (cần Hex 64 ký tự hoặc Base64 ≥ 32 byte)." };
+                return new { success = true, match = match, format = format };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private static string NormalizeHashMode(string mode)
+        {
+            var m = (mode ?? "").Trim().ToLowerInvariant();
+            if (m == "" || m == "password") return "password";
+            if (m == "nosalt" || m == "base64") return "nosalt";
+            if (m == "hex") return "hex";
+            return null;
+        }
+
+        /// <summary>Tách dòng (CRLF/LF/CR), bỏ các dòng trống ở cuối (Excel copy hay dư 1 dòng).</summary>
+        private static List<string> SplitHashInputLines(string text)
+        {
+            var t = (text ?? "").Replace("\r\n", "\n").Replace('\r', '\n').TrimEnd('\n');
+            return t.Split('\n').ToList();
+        }
+
+        /// <summary>Tách UserName / Password theo TAB đầu tiên (copy từ Excel), nếu không có TAB thì theo dấu phẩy đầu tiên.</summary>
+        private static bool TrySplitUserPassword(string line, bool trimPassword, out string userName, out string password)
+        {
+            userName = null; password = null;
+            var idx = line.IndexOf('\t');
+            if (idx < 0) idx = line.IndexOf(',');
+            if (idx <= 0) return false;
+            userName = line.Substring(0, idx).Trim();
+            password = line.Substring(idx + 1);
+            if (trimPassword) password = password.Trim();
+            return userName.Length > 0 && password.Length > 0;
+        }
+
+        /// <summary>Plain text của password Cadena: lower(UserName) + Password (giống HRHelper UpdateUsers / GeneratePasswordUpdateScript).</summary>
+        private static string BuildCadenaPasswordPlain(string userName, string password)
+        {
+            return (userName ?? "").Trim().ToLowerInvariant() + (password ?? "");
+        }
+
+        private static string ComputeSha256(string plain, string mode)
+        {
+            switch (mode)
+            {
+                case "password":
+                    return SimpleHash.ComputeHash(plain, SimpleHash.HashType.SHA256);
+                case "nosalt":
+                    return SimpleHash.ComputeHashNoSalt(plain, SimpleHash.HashType.SHA256);
+                default:
+                    return UiAuthHelper.HashPassword(plain);
+            }
+        }
+
+        /// <summary>format = null khi chuỗi hash không đúng định dạng SHA256.</summary>
+        private static bool VerifySha256(string plain, string hashValue, out string format)
+        {
+            format = null;
+            var h = NormalizeBase64(hashValue);
+            if (h.Length == 64 && IsHexString(h))
+            {
+                format = "Hex (không salt)";
+                return string.Equals(UiAuthHelper.HashPassword(plain), h, StringComparison.OrdinalIgnoreCase);
+            }
+
+            byte[] stored;
+            try { stored = Convert.FromBase64String(h); }
+            catch (FormatException) { return false; }
+
+            const int sha256Size = 32;
+            if (stored.Length < sha256Size) return false;
+            var salt = new byte[stored.Length - sha256Size];
+            System.Buffer.BlockCopy(stored, sha256Size, salt, 0, salt.Length);
+            format = salt.Length == 0 ? "Base64 không salt" : "Base64 + salt " + salt.Length + " byte (password Cadena)";
+
+            var expected = Convert.FromBase64String(SimpleHash.ComputeHash(plain, SimpleHash.HashType.SHA256, salt));
+            if (expected.Length != stored.Length) return false;
+            var diff = 0;
+            for (var i = 0; i < stored.Length; i++) diff |= expected[i] ^ stored[i];
+            return diff == 0;
+        }
+
+        private static bool IsHexString(string s)
+        {
+            foreach (var c in s)
+                if (!Uri.IsHexDigit(c)) return false;
+            return true;
+        }
+
         // ---- Phase 2: Demo Reset Script ----
 
         private const string EmployeesScriptQueryBase = @"
@@ -184,7 +363,7 @@ WHERE T.IsActiveTransaction = 1";
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Connect từ Database Tools rồi vào HR Helper, sau đó mở Generate Demo Reset Script." };
+                    return new { success = false, message = "Chưa kết nối database. Connect từ Công cụ Database rồi vào Trợ lý HR, sau đó mở Generate Demo Reset Script." };
                 var seen = new HashSet<long>();
                 var list = new List<object>();
                 using (var conn = new SqlConnection(info.ConnectionString))

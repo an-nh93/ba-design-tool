@@ -1,0 +1,66 @@
+{
+  "sharedSection": "common",
+  "ignoreCalls": [
+    "AppLogger\\.",
+    "(^|\\.)(Log|LogInfo|LogError|LogWarning|WriteLog|WriteLine|Trace|Debug)$",
+    "^console\\.",
+    "^Debug\\.",
+    "^Trace\\."
+  ],
+  "plainWords": ["vd", "Trang", "trang", "Xong", "xong", "Sai", "Sau", "sau", "Xem", "xem", "Quay", "Theo", "theo", "Trong", "trong", "Khi", "khi", "Ghi", "ghi", "Thay", "thay", "Tin", "Chia", "Cho", "cho", "Hay", "hay", "Nam", "Thu", "Hai", "Ba", "Mau", "Loai", "Chon", "Luu", "Xoa", "Huy", "Tim", "Them", "Sua", "Dong", "Tat ca", "Khong", "Dang", "Da "],
+  "ignoreTexts": ["^BA_SignalR", "^UPDATE ", "^àáả", "^Cập nhật Staffing_EmployeeInformations", "^today(Nghỉ|Trực)"],
+  "englishWords": ["Save", "Cancel", "Close", "Delete", "Edit", "Add", "Search", "Loading", "Error", "Success", "Warning", "OK", "Yes", "No", "Copy", "Copied", "Done", "Apply", "Reset", "Refresh", "Select", "Clear", "Back", "Next", "Previous", "Submit", "Update", "Download", "Upload", "Export", "Import", "View", "Details", "Light", "Dark", "Logout", "Login", "Home", "Name", "Status", "Type", "Description", "Action", "Actions", "Date", "Time", "Size", "Total", "Remark", "Note", "Message", "Active", "Inactive", "Enabled", "Disabled", "Required", "Optional", "All", "None", "Unknown", "Failed", "Completed", "Running", "Pending", "Cancelled", "Connected", "Disconnected", "Saved", "Deleted", "Updated", "Created", "Processing", "Sending", "Sent"],
+  "keepEnglish": [],
+  "sections": {
+    "common": [
+      "BaSidebar.ascx", "BaSidebar.ascx.cs", "BaTopBar.ascx", "BaTopBar.ascx.cs",
+      "NotificationBell.ascx", "NotificationBell.ascx.cs",
+      "Scripts/ba-layout.js", "Scripts/ba-signalr.js", "Scripts/ba-notification-jobs.js", "Scripts/ba-notification-detail.js",
+      "Scripts/ba-notification-bell.js",
+      "Common/UiAuthHelper.cs", "Helpers/BaJobHubHelper.cs", "Helpers/BaJobWorkerNotify.cs", "Helpers/BaJobQueue.cs", "Helpers/BaJobRunner.cs", "Helpers/BaJobSqlStore.cs", "Helpers/BaJobWebHost.cs","Hubs/RestoreNotificationHub.cs",
+      "Handlers/NotifyJobProgress.ashx.cs", "Handlers/UploadAvatar.ashx.cs", "Handlers/RemoveAvatar.ashx.cs"
+    ],
+    "account": [
+      "Pages/Login.aspx", "Pages/Login.aspx.cs", "Pages/Register.aspx", "Pages/Register.aspx.cs",
+      "Pages/ForgotPassword.aspx", "Pages/ForgotPassword.aspx.cs", "Pages/AccessDenied.aspx", "Pages/AccessDenied.aspx.cs",
+      "Pages/ChangePassword.aspx", "Pages/ChangePassword.aspx.cs", "Common/WindowsAuthHelper.cs"
+    ],
+    "email": ["Helpers/BaJobEmailHelper.cs"],
+    "home": ["Pages/HomeRole.aspx", "Pages/HomeRole.aspx.cs"],
+    "database-tools": [
+      "Pages/DatabaseSearch.aspx", "Pages/DatabaseSearch.aspx.cs", "Scripts/ba-db-restore.js", "Scripts/ba-db-servers.js",
+      "Helpers/Database/DbSanitizer.cs", "Helpers/Database/DbSanitizeReport.cs", "Helpers/Database/DbSanitizeOptions.cs",
+      "Helpers/ServerAccessHelper.cs"
+    ],
+    "function-queue": ["Pages/FunctionQueue.aspx", "Pages/FunctionQueue.aspx.cs"],
+    "hr-helper": [
+      "Pages/HRHelper.aspx", "Pages/HRHelper.aspx.cs", "Common/HrEmployeeLoadProgress.cs", "Common/HrEmployeeCountCache.cs",
+      "Handlers/EmployeeLoadProgress.ashx.cs"
+    ],
+    "encrypt-decrypt": ["Pages/EncryptDecrypt.aspx", "Pages/EncryptDecrypt.aspx.cs"],
+    "pgp-tool": ["Pages/PgpTool.aspx", "Pages/PgpTool.aspx.cs", "Helpers/Security/PgpKeyInspector.cs"],
+    "license-key": ["Pages/LicenseKey.aspx", "Pages/LicenseKey.aspx.cs", "Helpers/CadenaLicenseKeyHelper.cs", "Common/LicenseKeyAccess.cs"],
+    "community": [
+      "Pages/DevShareList.aspx", "Pages/DevShareList.aspx.cs", "Pages/DevShareEdit.aspx", "Pages/DevShareEdit.aspx.cs",
+      "Pages/DevShareView.aspx", "Pages/DevShareView.aspx.cs", "Common/DevShareHelper.cs",
+      "Handlers/UploadDevShareAttachment.ashx.cs", "Handlers/DownloadDevShareAttachment.ashx.cs"
+    ],
+    "feedback": [
+      "Pages/Feedback.aspx", "Pages/Feedback.aspx.cs", "Pages/FeedbackManage.aspx", "Pages/FeedbackManage.aspx.cs",
+      "Handlers/UploadFeedbackImage.ashx.cs"
+    ],
+    "admin": [
+      "Pages/AppSettings.aspx", "Pages/AppSettings.aspx.cs", "Pages/Users.aspx", "Pages/Users.aspx.cs",
+      "Pages/RolePermission.aspx", "Pages/RolePermission.aspx.cs", "Pages/AuditLog.aspx", "Pages/AuditLog.aspx.cs",
+      "Pages/ServerMonitor.aspx", "Pages/ServerMonitor.aspx.cs", "Pages/LeaveManager.aspx", "Pages/LeaveManager.aspx.cs",
+      "Helpers/ServerMetricsCollector.cs",
+      "Helpers/UiRoleManagers.cs"
+    ],
+    "ui-template": [
+      "Pages/TemplateRequests.aspx", "Pages/TemplateRequests.aspx.cs", "Pages/TemplateWorkflow.aspx", "Pages/TemplateWorkflow.aspx.cs",
+      "Helpers/UiTemplateLibrary.cs"
+    ],
+    "ui-builder-home": ["Pages/Home.aspx", "Pages/Home.aspx.cs"],
+    "hr-modules": ["Pages/HrModules.aspx", "Pages/HrModules.aspx.cs", "Helpers/UiHrModules.cs"]
+  }
+}

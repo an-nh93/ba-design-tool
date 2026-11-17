@@ -27,6 +27,17 @@ body {
     padding: 40px 40px 40px 60px;
 }
 
+.login-left { position: relative; }
+.login-lang { position: absolute; top: 16px; right: 20px; }
+.ba-lang-switch { display: inline-flex; border: 1px solid #c9d0dc; border-radius: 6px; overflow: hidden; background: #ffffff; }
+.ba-lang-switch:empty { display: none; }
+.ba-lang-btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: none; background: transparent; color: #5b6475; font-size: 12px; font-weight: 600; line-height: 18px; cursor: pointer; }
+.ba-lang-flag { display: inline-flex; width: 18px; height: 12px; border-radius: 2px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2); }
+.ba-lang-flag svg { display: block; width: 100%; height: 100%; }
+.ba-lang-btn + .ba-lang-btn { border-left: 1px solid #c9d0dc; }
+.ba-lang-btn:hover { background: #eef1f6; }
+.ba-lang-btn.is-active { background: #0078d4; color: #ffffff; cursor: default; }
+
 .login-content {
     max-width: 420px;
     width: 100%;

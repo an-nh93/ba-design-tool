@@ -49,13 +49,13 @@ function applyTheme(theme) {
         var icon = document.getElementById('themeIcon');
         var text = document.getElementById('themeText');
         if (icon) icon.textContent = '🌙';
-        if (text) text.textContent = 'Light';
+        if (text) text.textContent = 'Sáng';
     } else {
         document.body.classList.add('light-theme');
         var icon = document.getElementById('themeIcon');
         var text = document.getElementById('themeText');
         if (icon) icon.textContent = '☀️';
-        if (text) text.textContent = 'Dark';
+        if (text) text.textContent = 'Tối';
     }
     localStorage.setItem('theme', theme);
 }

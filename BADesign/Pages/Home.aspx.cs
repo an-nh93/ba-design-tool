@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Web.UI;
 using BADesign;
+using BADesign.Helpers;
 using System.Web;
 using System.Web.Services;
 using System.Web.Script.Services;
@@ -11,24 +12,10 @@ namespace BADesign.Pages
 {
 	public partial class Home : Page
 	{
-	class DesignRow
-	{
-		public int ControlId { get; set; }
-		public string Name { get; set; }
-		public string ControlType { get; set; }
-		public bool IsPublic { get; set; }
-		public DateTime UpdatedAt { get; set; }
-		public string ThumbnailUrl { get; set; }
-		public string EditUrl { get; set; }
-		public string CloneUrl { get; set; }
-		public string OwnerName { get; set; }   // only for public
-		public int? ProjectId { get; set; }
-		public string ProjectName { get; set; }
-	}
+		private const string BuilderFeature = "Builder";
 
 		protected void Page_Load(object sender, EventArgs e)
 		{
-			lnkBackHome.NavigateUrl = ResolveUrl(UiAuthHelper.GetHomeUrlByRole() ?? "~/");
 			// Tất cả tính năng đều yêu cầu đăng nhập: không còn màn hình guest (Database Tools, PGP Tool). Chuyển thẳng sang Login.
 			if (UiAuthHelper.IsAnonymous)
 			{
@@ -37,211 +24,86 @@ namespace BADesign.Pages
 			}
 
 			UiAuthHelper.RequireLogin();
-			
+
 			// Home cho BA, CONS, DEV, Super Admin (có Builder). Không có quyền → HomeRole.
-			if (!UiAuthHelper.HasFeature("Builder"))
+			if (!UiAuthHelper.HasFeature(BuilderFeature))
 			{
 				Response.Redirect(UiAuthHelper.GetHomeUrlByRole());
 				return;
 			}
 
-			pnlAnonymous.Visible = false;
-			pnlLoggedIn.Visible = true;
-
 			if (!IsPostBack)
 			{
-				var userName = (string)Session["UiUserName"] ?? "";
-				litUserName.Text = userName;
-
-				var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
-				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-				using (var cmd = conn.CreateCommand())
-				{
-					cmd.CommandText = "SELECT AvatarPath FROM UiUser WHERE UserId = @id";
-					cmd.Parameters.AddWithValue("@id", userId);
-					conn.Open();
-					var avatarPath = cmd.ExecuteScalar() as string;
-					if (!string.IsNullOrEmpty(avatarPath))
-					{
-						litUserInitial.Text = $"<img src=\"{VirtualPathUtility.ToAbsolute(avatarPath)}\" style=\"width: 100%; height: 100%; object-fit: cover; border-radius: 50%;\" />";
-					}
-					else
-					{
-						if (!string.IsNullOrEmpty(userName))
-							litUserInitial.Text = userName.Substring(0, 1).ToUpper();
-					}
-				}
-
-				lnkBuilder.Visible = UiAuthHelper.HasFeature("Builder");
-
-				BindMyDesigns();
-				BindPublicDesigns();
+				ucBaSidebar.ActiveSection = "Home";
+				ucBaTopBar.PageTitle = "Thiết kế giao diện";
 			}
 		}
 
-		private void BindMyDesigns()
+		private static bool CanUseBuilder()
 		{
-			var list = new List<DesignRow>();
-			var uid = UiAuthHelper.GetCurrentUserIdOrThrow();
-
-			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-			using (var cmd = conn.CreateCommand())
-			{
-				cmd.CommandText = @"
-SELECT c.ControlId, c.Name, c.ControlType, c.IsPublic,
-       ISNULL(c.UpdatedAt, c.CreatedAt) AS UpdatedAt,
-       c.ThumbnailPath, c.ProjectId,
-       ISNULL(p.Name, N'Uncategorized') AS ProjectName
-FROM dbo.UiBuilderControl c
-LEFT JOIN dbo.UiProject p ON c.ProjectId = p.ProjectId AND p.IsDeleted = 0
-WHERE c.IsDeleted = 0 AND c.OwnerUserId = @uid
-ORDER BY ISNULL(c.UpdatedAt, c.CreatedAt) DESC, c.ControlId DESC;";
-
-				cmd.Parameters.AddWithValue("@uid", uid);
-				conn.Open();
-				using (var rd = cmd.ExecuteReader())
-				{
-					while (rd.Read())
-					{
-						var id = (int)rd["ControlId"];
-						var thumb = rd["ThumbnailPath"] as string;
-						if (string.IsNullOrEmpty(thumb))
-							thumb = ResolveUrl("~/Content/images/no-thumb.png");
-
-					list.Add(new DesignRow
-					{
-						ControlId = id,
-						Name = (string)rd["Name"],
-						ControlType = (string)rd["ControlType"],
-						IsPublic = (bool)rd["IsPublic"],
-						UpdatedAt = (DateTime)rd["UpdatedAt"],
-						ThumbnailUrl = thumb,
-						EditUrl = ResolveUrl("~/Builder?controlId=" + id),
-						ProjectId = rd["ProjectId"] != DBNull.Value ? (int?)rd["ProjectId"] : null,
-						ProjectName = rd["ProjectName"] as string ?? "Uncategorized"
-					});
-					}
-				}
-			}
-
-			rpMyDesigns.DataSource = list;
-			rpMyDesigns.DataBind();
+			return !UiAuthHelper.IsAnonymous && UiAuthHelper.HasFeature(BuilderFeature);
 		}
 
-		private void BindPublicDesigns()
+		private static object Denied()
 		{
-			var list = new List<DesignRow>();
-			var uid = UiAuthHelper.GetCurrentUserIdOrThrow();
-
-			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-			using (var cmd = conn.CreateCommand())
-			{
-				cmd.CommandText = @"
-SELECT c.ControlId, c.Name, c.ControlType, c.IsPublic,
-       ISNULL(c.UpdatedAt, c.CreatedAt) AS UpdatedAt,
-       c.ThumbnailPath, c.ProjectId,
-       u.UserName,
-       ISNULL(p.Name, N'Uncategorized') AS ProjectName
-FROM dbo.UiBuilderControl c
-JOIN dbo.UiUser u ON c.OwnerUserId = u.UserId
-LEFT JOIN dbo.UiProject p ON c.ProjectId = p.ProjectId AND p.IsDeleted = 0
-WHERE c.IsDeleted = 0
-  AND c.IsPublic   = 1          -- CHỈ CÒN ĐIỀU KIỆN NÀY
-ORDER BY ISNULL(c.UpdatedAt, c.CreatedAt) DESC, c.ControlId DESC;";
-
-				// nếu không dùng uid nữa thì bỏ dòng này:
-				// cmd.Parameters.AddWithValue("@uid", uid);
-
-				conn.Open();
-				using (var rd = cmd.ExecuteReader())
-				{
-					while (rd.Read())
-					{
-						var id = (int)rd["ControlId"];
-						var thumb = rd["ThumbnailPath"] as string;
-						if (string.IsNullOrEmpty(thumb))
-							thumb = ResolveUrl("~/Content/images/no-thumb.png");
-
-						list.Add(new DesignRow
-						{
-							ControlId = id,
-							Name = (string)rd["Name"],
-							ControlType = (string)rd["ControlType"],
-							IsPublic = (bool)rd["IsPublic"],
-							UpdatedAt = (DateTime)rd["UpdatedAt"],
-							ThumbnailUrl = thumb,
-							OwnerName = (string)rd["UserName"],
-							ProjectId = rd["ProjectId"] != DBNull.Value ? (int?)rd["ProjectId"] : null,
-							ProjectName = rd["ProjectName"] as string ?? "Uncategorized",
-							CloneUrl = "Builder.aspx?cloneId=" + id
-						});
-					}
-				}
-			}
-
-			rpPublicDesigns.DataSource = list;
-			rpPublicDesigns.DataBind();
+			return new { success = false, message = "Phiên đăng nhập đã hết hoặc bạn không có quyền dùng UI Builder. Hãy tải lại trang." };
 		}
 
-
-		protected void rpMyDesigns_ItemCommand(object source,
-				System.Web.UI.WebControls.RepeaterCommandEventArgs e)
+		private static object Failure(Exception ex)
 		{
-			if (e.CommandName == "Delete")
-			{
-				// Lấy Id
-				int id = Convert.ToInt32(e.CommandArgument);
-
-				// Chỉ cho xóa design của chính user hiện tại
-				int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
-
-				using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-				using (var cmd = conn.CreateCommand())
-				{
-					cmd.CommandText = @"
-						UPDATE dbo.UiBuilderControl
-						   SET IsDeleted = 1,
-							   UpdatedAt = SYSDATETIME()
-						 WHERE ControlId  = @id
-						   AND OwnerUserId = @uid;";
-					cmd.Parameters.AddWithValue("@id", id);
-					cmd.Parameters.AddWithValue("@uid", uid);
-
-					conn.Open();
-					cmd.ExecuteNonQuery();
-				}
-
-				// Rebind lại 2 lưới
-				BindMyDesigns();
-				BindPublicDesigns();
-			}
+			AppLogger.Log("Home failed", ex);
+			return new { success = false, message = "Không thực hiện được. Hãy thử lại hoặc xem log của ứng dụng." };
 		}
 
+		private static object Changed(bool done, string doneMessage)
+		{
+			return new { success = done, message = done ? doneMessage : "Không tìm thấy thiết kế, hoặc thiết kế không phải của bạn." };
+		}
 
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static void SetDesignPublic(int controlId, bool isPublic)
+		public static object ListDesigns()
 		{
-			// đảm bảo user đã login
-			UiAuthHelper.RequireLogin();
-			int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
-
-			using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-			using (var cmd = conn.CreateCommand())
+			try
 			{
-				cmd.CommandText = @"
-UPDATE dbo.UiBuilderControl
-   SET IsPublic = @pub,
-       UpdatedAt = SYSDATETIME()
- WHERE ControlId = @id
-   AND OwnerUserId = @uid
-   AND IsDeleted = 0;";
-				cmd.Parameters.AddWithValue("@pub", isPublic);
-				cmd.Parameters.AddWithValue("@id", controlId);
-				cmd.Parameters.AddWithValue("@uid", uid);
+				if (!CanUseBuilder()) return Denied();
+				int uid = UiAuthHelper.GetCurrentUserIdOrThrow();
+				return new { success = true, mine = UiDesignCatalog.ListMine(uid), shared = UiDesignCatalog.ListPublic(uid) };
+			}
+			catch (Exception ex)
+			{
+				return Failure(ex);
+			}
+		}
 
-			conn.Open();
-			cmd.ExecuteNonQuery();
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object DeleteDesign(int controlId)
+		{
+			try
+			{
+				if (!CanUseBuilder()) return Denied();
+				return Changed(UiDesignCatalog.Delete(UiAuthHelper.GetCurrentUserIdOrThrow(), controlId), "Đã xóa thiết kế.");
+			}
+			catch (Exception ex)
+			{
+				return Failure(ex);
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object SetDesignPublic(int controlId, bool isPublic)
+		{
+			try
+			{
+				if (!CanUseBuilder()) return Denied();
+				return Changed(UiDesignCatalog.SetPublic(UiAuthHelper.GetCurrentUserIdOrThrow(), controlId, isPublic),
+					isPublic ? "Đã chuyển thiết kế thành công khai." : "Đã chuyển thiết kế thành riêng tư.");
+			}
+			catch (Exception ex)
+			{
+				return Failure(ex);
 			}
 		}
 

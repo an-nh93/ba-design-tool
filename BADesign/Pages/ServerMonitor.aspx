@@ -2,57 +2,51 @@
     Inherits="BADesign.Pages.ServerMonitor" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Server monitor - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/jquery.signalR.min.js"></script>
-    <script src="../Scripts/ba-signalr.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
-    <script src="../Scripts/ba-layout.js"></script>
+    <title>Giám sát máy chủ - HR Helper</title>
+    <uc:BaHead runat="server" />
     <style>
-        .ba-content { padding: 0.75rem 1rem 2rem; max-width: 1200px; }
+        .ba-content { max-width: 1200px; }
         .ba-monitor-intro {
-            font-size: 0.9rem;
+            font-size: 0.75rem;
             color: var(--text-secondary);
-            margin-bottom: 1rem;
+            margin-bottom: 0.75rem;
             line-height: 1.5;
         }
         .ba-metrics-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1.25rem;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
         }
         .ba-metric-group {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 0.85rem 0.95rem 0.25rem;
-            margin-bottom: 1rem;
+            border-radius: 8px;
+            padding: 0.625rem 0.75rem 0;
+            margin-bottom: 0.75rem;
         }
         .ba-metric-group-title {
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.04em;
             color: var(--text-secondary);
-            margin-bottom: 0.8rem;
+            margin-bottom: 0.5rem;
         }
         .ba-metric-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            padding: 1rem 1.1rem;
+            border-radius: 8px;
+            padding: 0.625rem 0.75rem;
             position: relative;
         }
         .ba-metric-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 0.35rem; }
-        .ba-metric-value { font-size: 1.5rem; font-weight: 700; color: var(--text-primary); word-break: break-word; }
+        .ba-metric-value { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); word-break: break-word; }
         .ba-metric-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem; }
         .ba-metric-info-btn {
             position: absolute;
@@ -101,22 +95,12 @@
             padding: 1rem 1.25rem;
             margin-bottom: 1rem;
         }
-        .ba-card-block h2 { font-size: 1rem; font-weight: 600; margin: 0 0 0.75rem; color: var(--text-primary); }
-        .ba-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
-        .ba-btn {
-            padding: 0.45rem 1rem;
-            border-radius: 6px;
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            border: none;
-        }
-        .ba-btn-primary { background: var(--primary); color: #fff; }
-        .ba-btn-primary:hover { filter: brightness(1.05); }
-        .ba-checkbox { display: inline-flex; align-items: center; gap: 0.35rem; font-size: 0.875rem; color: var(--text-secondary); }
-        .ba-table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 8px; }
-        .ba-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
-        .ba-table th, .ba-table td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+        .ba-card-block h2 { font-size: 0.9375rem; font-weight: 600; margin: 0 0 0.5rem; color: var(--text-primary); }
+        .ba-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }.ba-btn-primary:hover { filter: brightness(1.05); }
+        .ba-checkbox { display: inline-flex; font-size: 0.875rem; color: var(--text-secondary); }
+        .ba-table-wrap { overflow-x: auto; }
+        .ba-table { font-size: 0.8125rem; }
+        .ba-table th, .ba-table td { text-align: left; border-bottom: 1px solid var(--border); }
         .ba-table thead th { background: var(--bg-darker); color: var(--text-secondary); font-weight: 600; }
         .ba-err-box { color: #b91c1c; font-size: 0.875rem; }
         .ba-muted { color: var(--text-muted); font-size: 0.8rem; }
@@ -128,12 +112,20 @@
         <main class="ba-main">
             <uc:BaTopBar ID="ucBaTopBar" runat="server" />
             <div class="ba-content">
-                <h1 style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Giám sát tài nguyên máy chủ</h1>
+                <h1 class="ba-card-title">Giám sát tài nguyên máy chủ</h1>
+                <% if (UsesWorker) { %>
                 <p class="ba-monitor-intro">
                     Số liệu phản ánh <strong>máy đang chạy ứng dụng web</strong> (IIS / App Pool).
                     CPU/RAM process = tiến trình hiện tại (thường là w3wp/iisexpress) và <strong>BADesign.Worker</strong>.
                     Mạng: tốc độ ước lượng giữa hai lần làm mới.
                 </p>
+                <% } else { %>
+                <p class="ba-monitor-intro">
+                    Số liệu phản ánh <strong>máy đang chạy ứng dụng web</strong> (IIS / App Pool).
+                    CPU/RAM process = tiến trình hiện tại (thường là w3wp/iisexpress), gồm cả job nền chạy trong site.
+                    Mạng: tốc độ ước lượng giữa hai lần làm mới.
+                </p>
+                <% } %>
                 <div class="ba-toolbar">
                     <button type="button" class="ba-btn ba-btn-primary" id="btnRefresh">Làm mới ngay</button>
                     <label class="ba-checkbox"><input type="checkbox" id="chkAuto" checked="checked" /> Tự làm mới mỗi 5 giây</label>
@@ -149,9 +141,15 @@
                     <div class="ba-metrics-grid" id="metricIis"></div>
                 </div>
                 <div class="ba-metric-group">
+                    <div class="ba-metric-group-title">Bộ chạy job</div>
+                    <div class="ba-metrics-grid" id="metricRunner"></div>
+                </div>
+                <% if (UsesWorker) { %>
+                <div class="ba-metric-group">
                     <div class="ba-metric-group-title">BADesign.Worker.exe</div>
                     <div class="ba-metrics-grid" id="metricWorker"></div>
                 </div>
+                <% } %>
                 <div class="ba-card-block">
                     <h2>Network interfaces (tích lũy từ khi boot)</h2>
                     <div class="ba-table-wrap">
@@ -227,6 +225,30 @@
                     }
                 ];
 
+                var runner = d.jobRunner || {};
+                var runnerKnown = typeof runner.claimsHere === 'boolean';
+                var runnerCards = [
+                    {
+                        label: 'Nơi chạy job',
+                        value: !runnerKnown ? '—' : (runner.claimsHere ? 'Trong site web' : 'BADesign.Worker'),
+                        sub: !runnerKnown ? '' : (!runner.claimsHere ? 'Site web tạo job, BADesign.Worker lấy job và chạy'
+                            : (runner.started ? ('Hàng đợi: ' + (runner.queueName || '—')) : 'Bộ chạy job chưa khởi động')),
+                        help: 'Theo khóa UseBackgroundWorker trong Web.config: false = job chạy ngay trong site web (IIS), true = job chờ BADesign.Worker.'
+                    },
+                    {
+                        label: 'Job đang chạy (hàng đợi)',
+                        value: runner.claimsHere ? (fmtNum(runner.running, 0) + ' / ' + fmtNum(runner.maxConcurrentJobs, 0)) : '—',
+                        sub: runner.startedAt ? ('Chạy từ ' + runner.startedAt) : '',
+                        help: 'Số job site web đang chạy trên số job tối đa cùng lúc (MaxConcurrentJobs). Job cùng loại và cùng database chạy lần lượt.'
+                    },
+                    {
+                        label: 'Lỗi gần nhất của bộ chạy',
+                        value: runner.lastError ? runner.lastError : 'Không có',
+                        sub: runner.lastErrorAt || '',
+                        help: 'Lỗi gần nhất khi lấy job, giữ nhịp sống hoặc ghi job bị gián đoạn. Chi tiết trong log ứng dụng (App_Data/Logs).'
+                    }
+                ];
+
                 var workerCards = [
                     {
                         label: 'CPU (BADesign.Worker)',
@@ -272,6 +294,7 @@
 
                 $('#metricHost').html(renderCards(hostCards));
                 $('#metricIis').html(renderCards(iisCards));
+                $('#metricRunner').html(renderCards(runnerCards));
                 $('#metricWorker').html(renderCards(workerCards));
 
                 var tbody = $('#tblNet tbody').empty();
@@ -294,7 +317,10 @@
                 $('#lastUpdate').text('Cập nhật: ' + (d.collectTimeUtc || '') + ' UTC · ' + (d.machineName || '') + ' · ' + (d.processorCount || '') + ' CPU');
             }
 
+            var metricsLoading = false;
             function loadMetrics() {
+                if (metricsLoading) return;
+                metricsLoading = true;
                 $.ajax({
                     type: 'POST',
                     url: metricsUrl,
@@ -307,6 +333,9 @@
                     },
                     error: function (x, st) {
                         $('#loadErr').text(st || 'Lỗi kết nối').show();
+                    },
+                    complete: function () {
+                        metricsLoading = false;
                     }
                 });
             }
@@ -331,8 +360,10 @@
                 if ($(this).is(':checked')) pollTimer = setInterval(loadMetrics, 5000);
             });
 
-            loadMetrics();
-            pollTimer = setInterval(loadMetrics, 5000);
+            $(function () {
+                loadMetrics();
+                pollTimer = setInterval(loadMetrics, 5000);
+            });
         })();
     </script>
 </body>

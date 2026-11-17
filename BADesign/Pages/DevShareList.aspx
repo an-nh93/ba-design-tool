@@ -1,20 +1,14 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DevShareList.aspx.cs" Inherits="BADesign.Pages.DevShareList" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Community Share - Chia sẻ kỹ năng code</title>
-    <link href="<%= ResolveUrl("~/Content/bootstrap.min.css") %>" rel="stylesheet" />
-    <link href="<%= ResolveUrl("~/Content/ba-layout.css") %>" rel="stylesheet" />
-    <link href="<%= ResolveUrl("~/Content/ba-notification-bell.css") %>" rel="stylesheet" />
-    <link href="<%= ResolveUrl("~/Content/devshare.css") %>" rel="stylesheet" />
-    <script src="<%= ResolveUrl("~/Scripts/jquery-1.10.2.min.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/jquery.signalR.min.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/ba-signalr.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/bootstrap.min.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/ba-layout.js") %>"></script>
+    <title>Chia sẻ cộng đồng - Chia sẻ kỹ năng code</title>
+    <uc:BaHead runat="server" />
+    <link href="<%= ResolveUrl("~/Content/devshare.css") %>?v=20261123" rel="stylesheet" />
 </head>
 <body>
     <form id="form1" runat="server">
@@ -24,7 +18,7 @@
             <uc:BaTopBar ID="ucBaTopBar" runat="server" />
             <div class="ba-content">
                 <div class="devshare-hero">
-                    <h1 class="devshare-page-title">Community Share</h1>
+                    <h1 class="devshare-page-title">Chia sẻ cộng đồng</h1>
                     <p class="devshare-page-desc">Chia sẻ bài hướng dẫn code, ví dụ C#, SQL, ASP.NET, Go(Golang)…</p>
                 </div>
 
@@ -115,7 +109,7 @@
                             var titleEsc = (p.title || '(Chưa có tiêu đề)').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                             var summaryEsc = (p.summary || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                             html += '<div class="devshare-card devshare-draft-card"><div class="devshare-card-header"><span class="devshare-card-title" style="cursor:default;">' + titleEsc + '</span> <span class="devshare-draft-badge" style="font-size:0.7rem;background:var(--text-muted);color:var(--bg-card);padding:2px 6px;border-radius:4px;">Nháp</span> <div class="devshare-card-btns"><a href="' + editUrl + '" class="ba-btn ba-btn-sm ba-btn-primary">Sửa</a> <button type="button" class="ba-btn ba-btn-sm ba-btn-danger devshare-delete-post" data-id="' + p.id + '" data-title="' + titleEsc + '">Xóa</button></div></div>';
-                            if (summaryEsc) html += '<p class="devshare-card-summary">' + summaryEsc + '</p>';
+                            if (summaryEsc) html += '<p class="devshare-card-summary" translate="no">' + summaryEsc + '</p>';
                             html += '<div class="devshare-card-meta">' + tagHtml + ' <span class="devshare-meta-sep">|</span> <span>Cập nhật: ' + dateStr + '</span></div></div>';
                         });
                         $('#devshareDraftsList').html(html);
@@ -179,8 +173,8 @@
                             headerBtns += '</div>';
                             var metaStats = '<span class="devshare-meta-stat" data-icon="👁">' + (p.viewCount || 0) + ' lượt xem</span><span class="devshare-meta-stat" data-icon="👍">' + (p.usefulCount || 0) + ' hữu ích</span><span class="devshare-meta-stat" data-icon="💬">' + (p.commentCount || 0) + ' bình luận</span>';
                             var card = $('<div class="devshare-card"></div>');
-                            card.append($('<div class="devshare-card-header"><a class="devshare-card-title" href="' + url + '">' + escapeHtml(p.title) + '</a>' + headerBtns + '</div>'));
-                            if (p.summary) card.append($('<p class="devshare-card-summary">' + escapeHtml(p.summary) + '</p>'));
+                            card.append($('<div class="devshare-card-header"><a class="devshare-card-title" translate="no" href="' + url + '">' + escapeHtml(p.title) + '</a>' + headerBtns + '</div>'));
+                            if (p.summary) card.append($('<p class="devshare-card-summary" translate="no">' + escapeHtml(p.summary) + '</p>'));
                             card.append($('<div class="devshare-card-meta">' + tagHtml + ' <span class="devshare-meta-sep">|</span> <span>' + escapeHtml(p.authorName || '') + '</span> <span class="devshare-meta-sep">|</span> <span>' + dateStr + '</span> <span class="devshare-meta-extra">' + metaStats + '</span></div>'));
                             $('#devshareListBody').append(card);
                         });
@@ -229,49 +223,6 @@
                 $('#devshareTag, #devshareSort').on('change', function () { loadList(false); });
                 $('#devshareSearch').on('input', function () { clearTimeout(window._devshareSearchT); window._devshareSearchT = setTimeout(function () { loadList(false); }, 400); });
                 $('#devshareLoadMoreBtn').on('click', function () { loadList(true); });
-            });
-        })();
-    </script>
-    <script>
-        (function() {
-            var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-            var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-            var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-            var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
-            var DISMISSED_KEY = 'baDismissedJobIds';
-            function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? JSON.parse(r) : []; } catch (e) { return []; } }
-            function addDismissed(id, type) { var k = (type === 'Backup' ? 'b:' : 'r:') + id; var a = getDismissed(); if (a.indexOf(k) < 0) { a.push(k); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
-            function isDismissed(j) { return getDismissed().indexOf((j.type === 'Backup' ? 'b:' : 'r:') + (j.id || '')) >= 0; }
-            function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); return isNaN(Date.parse(s)) ? null : new Date(s); }
-            function fmtTime(v) { var d = parseDateSafe(v); return d ? d.toLocaleString() : '—'; }
-            function loadBellPanel() {
-                var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-                if (!$list.length) return;
-                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                    success: function(res) {
-                        var d = res.d || res;
-                        if (!d) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                        var newBugs = d.newBugs || [], total = jobs.length + newBugs.length;
-                        if (!total) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        $badge.text(total).addClass('visible');
-                        window.__notifJobsList = jobs;
-                        var html = '';
-                        if (newBugs.length > 0) { html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs">'; newBugs.forEach(function(b) { html += '<div class="ba-notif-item ba-notif-bug"><div><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '">Xem</a></div>'; }); html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">Job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs">'; }
-                        jobs.forEach(function(j, idx) { var st = j.status || '', type = j.type || 'Restore', typeLabel = j.typeLabel || (type === 'Backup' ? 'Backup' : type === 'HRHelperMultiDbAnalyze' ? 'Phân tích' : 'Restore'); var badge = type === 'Backup' ? 'ba-notif-type-backup' : 'ba-notif-type-restore'; var dbName = (j.databaseName || j.DatabaseName || '').trim(); var hasReset = type === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0)); var resetTag = (type === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag">Có Reset' : 'ba-notif-no-reset-tag">Không Reset') + '</span> ') : ''; var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0; var phase = (j.message || '').toString().trim(); var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đã đọc">×</button><div><span class="ba-notif-type-badge ' + badge + '">' + typeLabel.replace(/</g, '&lt;') + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);font-size:0.8125rem;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime) + '</div>'; if (st === 'Running') row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span>' + (pct + '%' + (phase ? ' - ' + phase : '')) + '</span></div>'; else if (st === 'Completed') row += '<div style="color:var(--success);">Đã xong</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a></div>'; html += row; });
-                        if (newBugs.length > 0) html += '</div></div>'; else html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">Job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs">' + html + '</div></div>';
-                        $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                        $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                        $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $i = $(this).closest('.ba-notif-item'); var id = parseInt($i.data('job-id'), 10); var typ = $i.data('job-type') || 'Restore'; if (id) { addDismissed(id, typ); $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) }); $i.slideUp(200); var n = $list.find('.ba-notif-item').length; if (n > 0) $badge.text(n).addClass('visible'); else { $badge.removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } } });
-                    }
-                });
-            }
-            $(function() {
-                if (!$('#restoreJobsBellWrap').length) return;
-                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); }); var total = jobs.length + (d.newBugs || []).length; if (total) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-                $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) $p.hide(); else { loadBellPanel(); $p.show(); } });
-                $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
-                $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
             });
         })();
     </script>

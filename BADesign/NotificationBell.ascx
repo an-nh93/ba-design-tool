@@ -31,6 +31,14 @@
         <div id="ba-restore-diag-large-body" class="ba-notif-detail-body ba-restore-diag-large-body"></div>
     </div>
 </div>
-<script type="text/javascript">window.BA_API_BASE = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>'; window.BA_CAN_VIEW_RESTORE_DIAGNOSTICS = <%= CanViewRestoreDiagnostics ? "true" : "false" %>;</script>
-<script src="<%= ResolveUrl("~/Scripts/ba-notification-detail.js") %>"></script>
-<script src="<%= ResolveUrl("~/Scripts/ba-notification-jobs.js") %>"></script>
+<script type="text/javascript">
+    window.BA_API_BASE = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>';
+    window.BA_CAN_VIEW_RESTORE_DIAGNOSTICS = <%= CanViewRestoreDiagnostics ? "true" : "false" %>;
+    window.BA_HUB_TOKEN = '<%= HubToken %>';
+    window.BA_BELL = {
+        hrHelperUrl: '<%= ResolveUrl("~/Pages/HRHelper.aspx") %>',
+        feedbackManageUrl: '<%= ResolveUrl("~/FeedbackManage") %>',
+        signalrUrl: '<%= ResolveUrl("~/signalr") %>',
+        hubsUrl: '<%= ResolveUrl("~/signalr/hubs") %>'
+    };
+</script>

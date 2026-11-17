@@ -22,7 +22,7 @@ namespace BADesign.Pages
                 return;
             }
             ucBaSidebar.ActiveSection = "AuditLog";
-            ucBaTopBar.PageTitle = "Audit Log";
+            ucBaTopBar.PageTitle = "Nhật ký thao tác";
         }
 
         /// <summary>Danh sách ActionCode có nhãn hiển thị (dropdown filter).</summary>
@@ -55,7 +55,18 @@ namespace BADesign.Pages
                     new { code = "HRHelper.MultiDbReset", label = "Reset Multi-DB" },
                     new { code = "HRHelper.DeleteEmployee", label = "HR: Delete Employee (Generate and Run / Xóa NV)" },
                     new { code = "HRHelper.MultiDbAnalyze", label = "HR: Phân tích Multi-DB" },
-                    new { code = "HRHelper.DeleteEmployeeScript", label = "HR: Generate and Run (script - cũ)" }
+                    new { code = "HRHelper.DeleteEmployeeScript", label = "HR: Generate and Run (script - cũ)" },
+                    new { code = "UiTemplate.Submit", label = "Mẫu UI: Gửi duyệt" },
+                    new { code = "UiTemplate.Approve", label = "Mẫu UI: Duyệt" },
+                    new { code = "UiTemplate.Reject", label = "Mẫu UI: Từ chối" },
+                    new { code = "UiTemplate.Cancel", label = "Mẫu UI: Hủy yêu cầu" },
+                    new { code = "UiTemplate.RemoveFromLibrary", label = "Mẫu UI: Gỡ khỏi thư viện" },
+                    new { code = "UiTemplate.SaveWorkflow", label = "Mẫu UI: Lưu quy trình duyệt" },
+                    new { code = "UiTemplate.DeleteWorkflow", label = "Mẫu UI: Xóa quy trình duyệt" },
+                    new { code = "UiTemplate.SaveRoleManagers", label = "Mẫu UI: Lưu sếp của role" },
+                    new { code = "UiHrModule.Save", label = "Phân hệ HR: Lưu phân hệ" },
+                    new { code = "UiHrModule.Delete", label = "Phân hệ HR: Xóa phân hệ" },
+                    new { code = "UiHrModule.Assign", label = "Phân hệ HR: Gán phân hệ cho màn hình" }
                 };
                 return new { success = true, codes = codes };
             }
@@ -216,6 +227,17 @@ namespace BADesign.Pages
                 case "HRHelper.DeleteEmployee": return "HR: Delete Employee";
                 case "HRHelper.MultiDbAnalyze": return "HR: Phân tích Multi-DB";
                 case "HRHelper.DeleteEmployeeScript": return "HR: Generate and Run (script - cũ)";
+                case "UiTemplate.Submit": return "Mẫu UI: Gửi duyệt";
+                case "UiTemplate.Approve": return "Mẫu UI: Duyệt";
+                case "UiTemplate.Reject": return "Mẫu UI: Từ chối";
+                case "UiTemplate.Cancel": return "Mẫu UI: Hủy yêu cầu";
+                case "UiTemplate.RemoveFromLibrary": return "Mẫu UI: Gỡ khỏi thư viện";
+                case "UiTemplate.SaveWorkflow": return "Mẫu UI: Lưu quy trình duyệt";
+                case "UiTemplate.DeleteWorkflow": return "Mẫu UI: Xóa quy trình duyệt";
+                case "UiTemplate.SaveRoleManagers": return "Mẫu UI: Lưu sếp của role";
+                case "UiHrModule.Save": return "Phân hệ HR: Lưu phân hệ";
+                case "UiHrModule.Delete": return "Phân hệ HR: Xóa phân hệ";
+                case "UiHrModule.Assign": return "Phân hệ HR: Gán phân hệ cho màn hình";
                 default: return code;
             }
         }

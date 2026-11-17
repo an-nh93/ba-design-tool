@@ -104,6 +104,7 @@
             color: var(--text-primary) !important;
         }
     </style>
+    <script src="<%= ResolveUrl("~/Scripts/ba-i18n.js") %>?v=20261132"></script>
 </head>
 <body>
     <form id="form1" runat="server">

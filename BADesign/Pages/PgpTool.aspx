@@ -1,60 +1,19 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="PgpTool.aspx.cs"
     Inherits="BADesign.Pages.PgpTool" %>
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>PGP Tool - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
+    <title>Công cụ PGP - HR Helper</title>
+    <uc:BaHead runat="server" />
     <style>
-        :root { --primary: #0078d4; --primary-hover: #006bb3; --primary-light: #0D9EFF; --bg-main: #1e1e1e; --bg-darker: #161616; --bg-card: #2d2d30; --bg-hover: #3e3e42; --text-primary: #ffffff; --text-secondary: #cccccc; --text-muted: #969696; --border: #3e3e42; --success: #10b981; --danger: #ef4444; }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
-        .ba-container { display: flex; min-height: 100vh; overflow: hidden; }
-        .ba-sidebar { width: 240px; background: var(--bg-darker); border-right: 1px solid var(--border); padding: 1.5rem 0; flex-shrink: 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 1000; overflow-y: auto; transition: width 0.25s ease; }
-        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
-        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
-        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
-        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .ba-sidebar-toggle:hover { color: var(--text-primary); }
-        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
-        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-        .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-nav-item { display: block; padding: 0.75rem 1.5rem; color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
-        .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main { flex: 1; margin-left: 240px; display: flex; flex-direction: column; overflow: hidden; transition: margin-left 0.25s ease; }
-        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
-        .ba-top-bar { padding: 1rem 2rem; background: var(--bg-card); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
-        .ba-content { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; }
-        .ba-tabs { display: flex; gap: 0.5rem; border-bottom: 2px solid var(--border); margin-bottom: 1.5rem; }
-        .ba-tab { padding: 0.75rem 1.5rem; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.9375rem; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
-        .ba-tab:hover { color: var(--text-primary); }
-        .ba-tab.active { color: var(--primary-light); border-bottom-color: var(--primary); }
-        .ba-tab-content { display: none; }
-        .ba-tab-content.active { display: block; }
-        .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
-        .ba-form-group { margin-bottom: 1rem; }
-        .ba-form-label { display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-size: 0.875rem; font-weight: 500; }
-        .ba-input { width: 100%; padding: 0.5rem 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; }
-        .ba-input:focus { outline: none; border-color: var(--primary); }
-        textarea.ba-input { min-height: 120px; resize: vertical; font-family: Consolas, monospace; font-size: 0.8rem; }
-        .ba-btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-primary:hover { background: var(--primary-hover); }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .ba-btn-secondary:hover { background: var(--bg-card); }
-        .ba-err { color: var(--danger); font-size: 0.875rem; margin-top: 0.5rem; }
-        .ba-warn { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
-        .ba-source-radio { display: flex; gap: 1.5rem; margin-bottom: 0.75rem; }
-        .ba-source-radio label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.ba-tab-content { display: none; }
+        .ba-tab-content.active { display: block; }        .ba-form-group { margin-bottom: 1rem; }
+        .ba-form-label { display: block; margin-bottom: 0.5rem; }textarea.ba-input { min-height: 120px; resize: vertical; font-family: Consolas, monospace; font-size: 0.8rem; }.ba-source-radio label { display: flex; }
         .ba-progress-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 10001; display: none; align-items: center; justify-content: center; flex-direction: column; }
         .ba-progress-overlay.show { display: flex; }
         .ba-progress-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 2rem; min-width: 360px; text-align: center; }
@@ -62,24 +21,11 @@
         .ba-progress-bar-wrap { width: 100%; height: 8px; background: var(--bg-darker); border-radius: 4px; overflow: hidden; margin: 1rem 0; }
         .ba-progress-bar-indeterminate { height: 100%; background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 50%, var(--primary) 100%); background-size: 200% 100%; animation: pgpProgressAnim 1.5s ease-in-out infinite; }
         @keyframes pgpProgressAnim { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
-        .ba-progress-text { color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem; }
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 99999; pointer-events: none; }
-        .toast-container .toast { pointer-events: auto; }
-        .toast { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; min-width: 280px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; }
-        .toast { position: relative; padding-right: 2rem; padding-top: 0.25rem; }
-        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; }
-        .toast .toast-close:hover { color: var(--text-primary); }
-        .toast.show { display: block; opacity: 1; }
-        .toast-container .toast.show { opacity: 1 !important; }
-        .toast.error { border-left: 4px solid var(--danger); }
-        .toast.success { border-left: 4px solid var(--success); }
-        .pgp-file-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
+        .ba-progress-text { color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.5rem; }        .pgp-file-row { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
         .pgp-file-row input[type="text"] { flex: 1; }
         .pgp-file-row input[type="file"] { display: none; }
-        .ba-info-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--text-muted); color: var(--text-muted); font-size: 0.75rem; font-weight: 600; font-style: italic; cursor: pointer; margin-left: 4px; vertical-align: middle; }
-        .ba-info-icon:hover { border-color: var(--primary-light); color: var(--primary-light); }
-        .ba-info-wrap { position: relative; display: inline-block; }
-        .ba-info-popover { display: none; position: absolute; z-index: 10003; bottom: 100%; left: 0; margin-bottom: 6px; min-width: 280px; width: 360px; max-width: min(380px, calc(100vw - 2rem)); padding: 0.75rem 1rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 8px; font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary); box-shadow: 0 4px 12px rgba(0,0,0,0.4); white-space: normal; overflow-wrap: break-word; word-break: break-word; box-sizing: border-box; }
+        .ba-info-icon { margin-left: 4px; vertical-align: middle; }        .ba-info-wrap { display: inline-block; }
+        .ba-info-popover { z-index: 10003; min-width: 280px; }
         .ba-info-popover.show { display: block; }
         .ba-password-wrap { position: relative; display: inline-block; }
         .ba-password-wrap .ba-input { padding-right: 36px; }
@@ -91,27 +37,16 @@
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <aside class="ba-sidebar" id="baSidebar">
-                <div class="ba-sidebar-header">
-                    <div class="ba-sidebar-title">🧰 PGP Tool</div>
-                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
-                </div>
-                <nav class="ba-nav">
-                    <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">← Về trang chủ</a>
-                    <a href="#" class="ba-nav-item active" data-icon="🧰" title="PGP Tool">PGP Tool</a>
-                </nav>
-            </aside>
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" ActiveSection="PGPTool" AllowAnonymous="true" />
             <main class="ba-main">
-                <div class="ba-top-bar">
-                    <h1 class="ba-top-bar-title">PGP Tool – Xuất key / Mã hóa / Giải mã file</h1>
-                </div>
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" PageTitle="Công cụ PGP" />
                 <div class="ba-content">
                     <!-- Key từ cấu hình DB (cần token k từ Database Tools; không có k vẫn dùng được Xuất/Mã hóa/Giải mã với file hoặc dán Base64) -->
                     <div class="ba-card" id="cardKeyFromDb" style="margin-bottom: 1rem;">
                         <h2 class="ba-card-title">Key từ cấu hình (Database)</h2>
-                        <p class="ba-warn" id="keyFromDbHint">Chọn cấu hình Folder đã lưu key trong bảng Setting_FolderConfigurations (theo TenantID, Code). Cần chọn database trong Database Tools rồi mở PGP Tool từ đó.</p>
+                        <p class="ba-warn" id="keyFromDbHint">Chọn cấu hình Folder đã lưu key trong bảng Setting_FolderConfigurations (theo TenantID, Code). Cần chọn database trong Công cụ Database rồi mở Công cụ PGP từ đó.</p>
                         <div id="keyFromDbNoConnWrap" style="display: none; padding: 0.75rem; background: var(--bg-darker); border-radius: 6px; margin-bottom: 1rem;">
-                            <span style="color: var(--text-muted); font-size: 0.9rem;">Để dùng key từ database: Vào <a href="<%= ResolveUrl("~/DatabaseSearch") %>" style="color: var(--primary-light);">Database Tools</a> → Chọn Server &amp; Database → bấm <strong>PGP Tool</strong> (hoặc HR Helper rồi sang PGP Tool). <br />Ngoài ra có thể thao tác từ chuỗi Private và Public Key Base64 nếu có.</span>
+                            <span style="color: var(--text-muted); font-size: 0.9rem;">Để dùng key từ database: Vào <a href="<%= ResolveUrl("~/DatabaseSearch") %>" style="color: var(--primary-light);">Công cụ Database</a> → Chọn Server &amp; Database → bấm <strong>Công cụ PGP</strong> (hoặc Trợ lý HR rồi sang Công cụ PGP). <br />Ngoài ra có thể thao tác từ chuỗi Private và Public Key Base64 nếu có.</span>
                         </div>
                         <div id="keyFromDbConnInfoWrap" style="display: none; margin-bottom: 0.75rem; padding: 0.5rem 0.75rem; background: var(--bg-darker); border-radius: 6px; border-left: 3px solid var(--primary);">
                             <span style="font-size: 0.9rem; color: var(--text-secondary);">Đang kết nối: </span><strong id="connServerName"></strong><span id="connServerSep" style="display: none;">, </span><strong id="connDbName"></strong>
@@ -151,7 +86,7 @@
                                     <label><input type="radio" name="keyType" value="private" /> Private Key</label>
                                 </div>
                             </div>
-                            <div class="ba-form-group">
+                            <div class="ba-form-group" id="exportCodeWrap">
                                 <label class="ba-form-label">Mã tên file (prefix)</label>
                                 <input type="text" id="exportCode" class="ba-input" value="export" style="max-width: 200px;" />
                             </div>
@@ -342,18 +277,14 @@
             </div>
         </div>
         <style>
-            .ba-modal { position: fixed; inset: 0; z-index: 10003; display: flex; align-items: center; justify-content: center; padding: 1rem; }
+            .ba-modal { z-index: 10003; display: flex; }
             .ba-modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.7); }
-            .ba-modal-content { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-height: 90vh; overflow: auto; }
+            .ba-modal-content { position: relative; overflow: auto; }
             .ba-modal-result-keys { min-width: 520px; max-width: min(90vw, 720px); }
             .ba-modal-result-keys .ba-modal-body { padding: 1.25rem; min-width: 0; }
-            .ba-key-preview { min-height: 100px; font-size: 0.8rem; font-family: Consolas, monospace; resize: vertical; }
-            .ba-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
-            .ba-modal-header h3 { margin: 0; font-size: 1.125rem; }
-            .ba-modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 0 4px; }
-            .ba-modal-close:hover { color: var(--text-primary); }
-            .ba-modal-body { padding: 1.25rem; }
-        </style>
+            .ba-key-preview { min-height: 100px; font-size: 0.8rem; font-family: Consolas, monospace; resize: vertical; }            .ba-modal-header h3 { margin: 0; font-size: 1rem; line-height: 1.3; }
+            .ba-modal-close { background: none; border: none; color: var(--text-muted); cursor: pointer; }
+            .ba-modal-close:hover { color: var(--text-primary); }        </style>
         <div class="ba-progress-overlay" id="progressOverlay">
             <div class="ba-progress-content">
                 <div class="ba-progress-title" id="progressTitle">Đang xử lý...</div>
@@ -363,7 +294,6 @@
                 <div class="ba-progress-text" id="progressText">Vui lòng đợi trong giây lát</div>
             </div>
         </div>
-        <div class="toast-container"><div id="toast" class="toast" style="display:none;"><button type="button" class="toast-close" title="Đóng">&times;</button><span class="toast-msg"></span></div></div>
     </form>
     <script>
         (function() {
@@ -404,13 +334,7 @@
                 if (container.length && container.closest('form').length) container.appendTo(document.body);
             })();
 
-            function showToast(msg, type) {
-                var t = $('#toast').removeClass('success error').addClass(type || 'info').addClass('show');
-                t.find('.toast-msg').text(msg);
-                t.css('display', 'block').css('opacity', '1');
-                var tmr = setTimeout(function () { t.removeClass('show').hide().css('display', 'none'); }, 4000);
-                t.off('click.toastclose').on('click.toastclose', '.toast-close', function () { clearTimeout(tmr); t.removeClass('show').hide().css('display', 'none'); });
-            }
+            function showToast(msg, type) { BaToast.show(msg, type); }
             function showProgress(title, text) {
                 $('#progressTitle').text(title || 'Đang xử lý...');
                 $('#progressText').text(text || 'Vui lòng đợi trong giây lát');
@@ -518,19 +442,9 @@
             });
 
             $('input[name="exportSrc"]').on('change', function () {
-                var v = $(this).val();
-                $('#exportPasteWrap').toggle(v === 'paste');
-                if (v === 'config' && currentConfigKeys) {
-                    var keyType = $('input[name="keyType"]:checked').val();
-                    $('#exportKeyBase64').val(keyType === 'private' ? currentConfigKeys.encryptionPrimaryKey : currentConfigKeys.encryptionPublicKey);
-                    $('#exportCode').val(currentConfigKeys.code || 'export');
-                }
-            });
-            $('input[name="keyType"]').on('change', function () {
-                if ($('input[name="exportSrc"]:checked').val() === 'config' && currentConfigKeys) {
-                    var keyType = $(this).val();
-                    $('#exportKeyBase64').val(keyType === 'private' ? currentConfigKeys.encryptionPrimaryKey : currentConfigKeys.encryptionPublicKey);
-                }
+                var fromPaste = $(this).val() === 'paste';
+                $('#exportPasteWrap').toggle(fromPaste);
+                $('#exportCodeWrap').toggle(fromPaste);
             });
 
             $('input[name="decKeySrc"]').on('change', function () {

@@ -196,13 +196,13 @@ WHERE up.UserId = @uid";
 
 		// === Remember Me (cookie 30 ngày) ===
 		private const string RememberCookieName = "UiRemember";
+		private const string RememberOffSessionKey = "UiRememberOff";
 		private const int RememberDays = 30;
 
 		private static byte[] GetRememberMeSecret()
 		{
 			var key = ConfigurationManager.AppSettings["RememberMeSecret"];
-			if (string.IsNullOrEmpty(key)) key = "BADesign-UiRemember-DefaultKey-ChangeInProduction";
-			return Encoding.UTF8.GetBytes(key);
+			return string.IsNullOrWhiteSpace(key) ? null : Encoding.UTF8.GetBytes(key);
 		}
 
 		/// <summary>Tạo cookie Remember Me khi đăng nhập thành công (chọn Remember me).</summary>
@@ -210,6 +210,11 @@ WHERE up.UserId = @uid";
 		{
 			var ctx = HttpContext.Current;
 			if (ctx?.Response == null) return;
+			if (GetRememberMeSecret() == null)
+			{
+				AppLogger.Log("Remember me skipped: RememberMeSecret is not configured in Web.config.");
+				return;
+			}
 
 			var expiry = DateTime.UtcNow.AddDays(RememberDays);
 			var expiryUnix = ((DateTimeOffset)expiry).ToUnixTimeSeconds().ToString();
@@ -237,15 +242,27 @@ WHERE up.UserId = @uid";
 			}
 		}
 
+		public static void SignOut()
+		{
+			var ctx = HttpContext.Current;
+			if (ctx == null) return;
+			ClearRememberMeCookie();
+			if (ctx.Session == null) return;
+			ctx.Session.Clear();
+			ctx.Session[RememberOffSessionKey] = true;
+		}
+
 		/// <summary>Đọc cookie Remember Me, verify chữ ký và hạn dùng. Trả về userId nếu hợp lệ.</summary>
 		public static int? TryRestoreFromRememberCookie()
 		{
 			var ctx = HttpContext.Current;
 			if (ctx == null || ctx.Session == null) return null;
 			if (ctx.Session["UiUserId"] != null) return null; // Đã login rồi
+			if (ctx.Session[RememberOffSessionKey] != null) return null;
 
 			var cookie = ctx.Request.Cookies[RememberCookieName];
 			if (cookie == null || string.IsNullOrEmpty(cookie.Value)) return null;
+			if (GetRememberMeSecret() == null) return null;
 
 			var parts = cookie.Value.Split('.');
 			if (parts.Length != 3) return null;

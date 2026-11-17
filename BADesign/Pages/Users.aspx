@@ -3,70 +3,16 @@
 <%@ Import Namespace="System.Web" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>User Management - HR Helper</title>
+    <title>Quản lý người dùng - HR Helper</title>
     
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
-    <script src="../Scripts/ba-layout.js"></script>
+    <uc:BaHead runat="server" />
 
     <style>
-        :root {
-            /* Dark theme (default) */
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --primary-light: #0D9EFF;
-            --primary-soft: rgba(0, 120, 212, 0.1);
-            --bg-main: #1e1e1e;
-            --bg-dark: #1e1e1e;
-            --bg-darker: #161616;
-            --bg-card: #2d2d30;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --border-light: #464647;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
-
-        /* Light theme */
-        body.light-theme {
-            /* Đồng bộ với tông light theme chung của hệ thống */
-            --bg-main: #d7dde5;
-            --bg-dark: #c7d0db;
-            --bg-darker: #e1e7ef;
-            --bg-card: #edf1f6;
-            --bg-hover: #d3dce8;
-            --text-primary: #172538;
-            --text-secondary: #314761;
-            --text-muted: #526984;
-            --border: #b6c3d3;
-            --border-light: #a6b5c8;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        /* ===== Layout ===== */
+/* ===== Layout ===== */
         .admin-container {
             display: flex;
             min-height: 100vh;
@@ -167,11 +113,6 @@
             color: var(--text-primary);
         }
 
-        .admin-content {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem;
-        }
 
         /* ===== Table ===== */
         /* Bảng dùng chung từ ba-layout.css (.ba-table-wrap, .ba-table); chỉ override sortable cho Users */
@@ -179,18 +120,27 @@
         .ba-table-wrap .ba-table th.admin-sortable:hover { background: var(--bg-hover); }
         .ba-table-wrap .ba-table th .sort-icon { margin-left: 4px; opacity: 0.6; }
 
+        .users-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
         .admin-users-search {
-            margin-bottom: 1rem;
-            max-width: 400px;
+            margin-bottom: 0;
+            max-width: 420px;
+            flex: 1;
         }
         .admin-users-search input {
             width: 100%;
-            padding: 0.5rem 0.75rem 0.5rem 2.25rem;
+            padding: 0.25rem 0.5rem 0.25rem 2rem;
             background: var(--bg-dark);
             border: 1px solid var(--border);
             border-radius: 6px;
             color: var(--text-primary);
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
+            height: 30px;
         }
         .admin-users-search input:focus {
             outline: none;
@@ -202,10 +152,10 @@
         .admin-users-search-wrap::before {
             content: "🔍";
             position: absolute;
-            left: 0.75rem;
+            left: 0.5rem;
             top: 50%;
             transform: translateY(-50%);
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             opacity: 0.7;
         }
 
@@ -214,9 +164,9 @@
             background: var(--bg-dark);
             border: 1px solid var(--border);
             border-radius: 6px;
-            padding: 0.5rem 0.75rem;
+            padding: 0.25rem 0.5rem;
             color: var(--text-primary);
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             width: 100%;
             transition: all 0.2s ease;
         }
@@ -277,130 +227,6 @@
         }
 
         /* ===== Toast Message ===== */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10002;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            pointer-events: none;
-        }
-
-        .toast {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.75rem 1rem 0.25rem 1rem;
-            min-width: 280px;
-            max-width: 360px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            pointer-events: auto;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .toast.hide {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-
-        .toast-header {
-            display: flex !important;
-            align-items: center;
-            gap: 0.625rem;
-            margin-bottom: 0.375rem;
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-        }
-
-        .toast-icon {
-            font-size: 1rem;
-            flex-shrink: 0;
-            line-height: 1;
-        }
-
-        .toast.success .toast-icon {
-            color: var(--success);
-        }
-
-        .toast.error .toast-icon {
-            color: var(--danger);
-        }
-
-        .toast.info .toast-icon {
-            color: var(--primary);
-        }
-
-        .toast-content {
-            flex: 1;
-        }
-
-        .toast-title {
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: var(--text-primary);
-            margin-bottom: 0.125rem;
-            line-height: 1.3;
-        }
-
-        .toast-message {
-            font-size: 0.8125rem;
-            color: var(--text-secondary);
-            line-height: 1.4;
-        }
-
-        .toast-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 1rem;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            transition: color 0.2s ease;
-            line-height: 1;
-        }
-
-        .toast-close:hover {
-            color: var(--text-primary);
-        }
-
-        .toast-progress {
-            height: 2px;
-            margin-top: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-            border-radius: 0 0 6px 6px;
-            margin-left: -1rem;
-            margin-right: -1rem;
-            margin-bottom: -0.25rem;
-        }
-
-        .toast-progress-bar {
-            height: 100%;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.25);
-            transform-origin: left center;
-            transform: scaleX(1);
-            transition: transform linear;
-        }
-
         .admin-password-input {
             min-width: 140px;
         }
@@ -431,7 +257,7 @@
 
         .user-modal-content {
             background: var(--bg-card);
-            border-radius: 12px;
+            border-radius: 8px;
             width: 90%;
             max-width: 500px;
             max-height: 90vh;
@@ -454,7 +280,7 @@
         }
 
         .user-modal-header {
-            padding: 1.5rem 2rem;
+            padding: 0.5rem 0.75rem 0.5rem 1rem;
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
@@ -463,7 +289,9 @@
         }
 
         .user-modal-title {
-            font-size: 1.25rem;
+            margin: 0;
+            font-size: 1rem;
+            line-height: 1.3;
             font-weight: 600;
             color: var(--text-primary);
         }
@@ -472,11 +300,11 @@
         .user-modal-body {
             flex: 1;
             overflow-y: auto;
-            padding: 2rem;
+            padding: 0.75rem 1rem;
         }
 
         .user-modal-footer {
-            padding: 1.5rem 2rem;
+            padding: 0.5rem 1rem;
             border-top: 1px solid var(--border);
             display: flex;
             justify-content: center;
@@ -488,12 +316,12 @@
         .user-form-group {
             display: flex;
             flex-direction: column;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
+            gap: 0.25rem;
+            margin-bottom: 0.5rem;
         }
 
         .user-form-label {
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             font-weight: 500;
             color: var(--text-secondary);
         }
@@ -502,11 +330,12 @@
             background: var(--bg-dark);
             border: 1px solid var(--border);
             border-radius: 6px;
-            padding: 0.5rem 0.75rem;
+            padding: 0.25rem 0.5rem;
             color: var(--text-primary);
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             width: 100%;
             transition: all 0.2s ease;
+            min-height: 30px;
         }
 
         .user-form-input:focus {
@@ -527,8 +356,8 @@
         }
 
         .user-form-checkbox {
-            width: 18px;
-            height: 18px;
+            width: 15px;
+            height: 15px;
             cursor: pointer;
             accent-color: var(--primary);
         }
@@ -602,8 +431,8 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            padding: 0.35rem 0;
-            font-size: 0.875rem;
+            padding: 0.2rem 0;
+            font-size: 0.8125rem;
         }
         .perm-item input:disabled + span { color: var(--text-muted); }
         .server-from-role-label {
@@ -613,8 +442,8 @@
         }
         .user-form-row {
             display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
         }
         .user-form-row .user-form-group { flex: 1; margin-bottom: 0; }
         .password-wrap {
@@ -629,8 +458,8 @@
             border-radius: 6px;
             color: var(--text-secondary);
             cursor: pointer;
-            padding: 0.5rem 0.6rem;
-            font-size: 1rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
             flex-shrink: 0;
         }
         .pw-toggle:hover { color: var(--text-primary); background: var(--bg-card); }
@@ -642,15 +471,15 @@
             <uc:BaSidebar ID="ucBaSidebar" runat="server" />
             <div class="admin-main ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
-                <div class="admin-content">
+                <div class="ba-content ba-fill">
                     <div class="ba-card">
-                        <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem;">
-                            <button type="button" class="ba-btn ba-btn-primary" onclick="showUserModal(); return false;">+ Add New User</button>
-                        </div>
-                        <div class="admin-users-search">
-                            <div class="admin-users-search-wrap">
-                                <input type="text" id="userSearchInput" placeholder="Search by Username, Full Name, Email, Role..." />
+                        <div class="users-toolbar">
+                            <div class="admin-users-search">
+                                <div class="admin-users-search-wrap">
+                                    <input type="text" id="userSearchInput" placeholder="Search by Username, Full Name, Email, Role..." />
+                                </div>
                             </div>
+                            <button type="button" class="ba-btn ba-btn-primary" onclick="showUserModal(); return false;">+ Add New User</button>
                         </div>
                         <!-- Users Table: dùng chung ba-table-wrap, ba-table từ ba-layout.css -->
                         <div class="ba-table-wrap">
@@ -670,12 +499,12 @@
                                 <tbody id="usersTableBody">
                                     <asp:Repeater ID="rpUsers" runat="server">
                                         <ItemTemplate>
-                                            <tr data-user-id="<%# Eval("UserId") %>" data-user-name="<%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %>" data-full-name="<%# HttpUtility.HtmlEncode((Eval("FullName") as string) ?? "-") %>" data-email="<%# HttpUtility.HtmlEncode((Eval("Email") as string) ?? "-") %>" data-role="<%# HttpUtility.HtmlEncode((Eval("RoleCode") as string) ?? "-") %>" data-super-admin="<%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>" data-active="<%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>">
+                                            <tr data-user-id="<%# Eval("UserId") %>" data-user-name="<%# HttpUtility.HtmlEncode((Eval("UserName") as string) ?? "") %>" data-full-name="<%# HttpUtility.HtmlEncode((Eval("FullName") as string) ?? "-") %>" data-email="<%# HttpUtility.HtmlEncode((Eval("Email") as string) ?? "-") %>" data-role="<%# HttpUtility.HtmlEncode(((Eval("RoleName") as string) ?? "") + " " + ((Eval("RoleCode") as string) ?? "-")) %>" data-super-admin="<%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>" data-active="<%# (bool)Eval("IsActive") ? "Active" : "Inactive" %>">
                                                 <td><%# Eval("UserId") %></td>
                                                 <td><strong><%# Eval("UserName") %></strong></td>
                                                 <td><%# Eval("FullName") ?? "-" %></td>
                                                 <td><%# Eval("Email") ?? "-" %></td>
-                                                <td><%# Eval("RoleCode") ?? "-" %></td>
+                                                <td translate="no"><%# HttpUtility.HtmlEncode((Eval("RoleName") as string) ?? (Eval("RoleCode") as string) ?? "-") %></td>
                                                 <td>
                                                     <span class="ba-badge <%# (bool)Eval("IsSuperAdmin") ? "ba-badge-ok" : "" %>">
                                                         <%# (bool)Eval("IsSuperAdmin") ? "Yes" : "No" %>
@@ -714,7 +543,6 @@
         </div>
 
         <!-- Toast Container -->
-        <div id="toastContainer" class="toast-container"></div>
         
         <!-- User Modal (Add/Edit) -->
         <div id="userModal" class="user-modal">
@@ -757,7 +585,7 @@
                             <span class="permissions-toggle" id="permissionsToggle">▼</span>
                         </div>
                         <div class="user-permissions-body" id="permissionsBody">
-                            <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.5rem;">Quyền từ Role không thể bỏ. Chỉ có thể thêm quyền cho user đặc biệt (UI Builder, Database Tools, Encrypt/Decrypt, HR Helper…).</p>
+                            <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 0.5rem;">Quyền từ Role không thể bỏ. Chỉ có thể thêm quyền cho user đặc biệt (Thiết kế giao diện, Công cụ Database, Mã hóa / Giải mã, Trợ lý HR…).</p>
                             <div id="modalPermissionsList"></div>
                             <div id="modalPermissionsLoading" style="display: none; font-size: 0.875rem; color: var(--text-muted);">Đang tải danh sách quyền…</div>
                         </div>
@@ -807,81 +635,7 @@
 
     <script>
         // ===== Toast Message Functions =====
-        function showToast(message, type) {
-            type = type || 'info';
-            var icons = {
-                success: '✓',
-                error: '✕',
-                info: 'ℹ'
-            };
-            var titles = {
-                success: 'Success',
-                error: 'Error',
-                info: 'Info'
-            };
-            
-            var timeout = 5000; // 5 seconds
-            
-            var $toast = $('<div class="toast ' + type + '">' +
-                '<div class="toast-header">' +
-                '<span class="toast-icon">' + (icons[type] || icons.info) + '</span>' +
-                '<div class="toast-content">' +
-                '<div class="toast-title">' + (titles[type] || titles.info) + '</div>' +
-                '<div class="toast-message">' + message + '</div>' +
-                '</div>' +
-                '<button type="button" class="toast-close">&times;</button>' +
-                '</div>' +
-                '<div class="toast-progress"><div class="toast-progress-bar"></div></div>' +
-                '</div>');
-            
-            var $bar = $toast.find('.toast-progress-bar');
-            var $close = $toast.find('.toast-close');
-            
-            $('#toastContainer').append($toast);
-            
-            // Trigger reflow to ensure initial state
-            $toast[0].offsetHeight;
-            
-            // Show toast with animation
-            setTimeout(function() {
-                $toast.addClass('show');
-            }, 10);
-            
-            // Start progress bar animation
-            setTimeout(function() {
-                $bar.css('transition', 'transform ' + timeout + 'ms linear');
-                $bar.css('transform', 'scaleX(0)');
-            }, 100);
-            
-            // Remove toast function
-            function removeToast() {
-                $toast.removeClass('show').addClass('hide');
-                setTimeout(function() {
-                    $toast.remove();
-                }, 300);
-            }
-            
-            // Close button click
-            $close.on('click', removeToast);
-            
-            // Auto remove after timeout
-            var autoHide = setTimeout(removeToast, timeout);
-            
-            // Pause on hover
-            $toast.on('mouseenter', function() {
-                clearTimeout(autoHide);
-                var remaining = $bar[0].getBoundingClientRect().width / $bar.parent().width() * timeout;
-                $bar.css('transition', 'none');
-                $bar.css('transform', 'scaleX(' + ($bar[0].getBoundingClientRect().width / $bar.parent().width()) + ')');
-            });
-            
-            $toast.on('mouseleave', function() {
-                var remaining = $bar[0].getBoundingClientRect().width / $bar.parent().width() * timeout;
-                $bar.css('transition', 'transform ' + remaining + 'ms linear');
-                $bar.css('transform', 'scaleX(0)');
-                autoHide = setTimeout(removeToast, remaining);
-            });
-        }
+        function showToast(message, type) { BaToast.show(message, type); }
 
         // ===== User Actions =====
         function changePassword(userId) {
@@ -986,7 +740,7 @@
                         var $sel = $('#modalRoleId');
                         $sel.find('option:not([value="0"])').remove();
                         d.list.forEach(function(r) {
-                            $sel.append('<option value="' + r.id + '">' + (r.code || r.name || r.id) + '</option>');
+                            $sel.append($('<option></option>').val(r.id).text(r.name || r.code || r.id));
                         });
                     }
                 }
@@ -1048,7 +802,7 @@
             var $list = $('#modalServerAccessList');
             $list.empty();
             if (!serversList.length) {
-                $list.html('<p style="font-size: 0.875rem; color: var(--text-muted);">Chưa có server. Thêm server trong Database Tools.</p>');
+                $list.html('<p style="font-size: 0.875rem; color: var(--text-muted);">Chưa có server. Thêm server trong Công cụ Database.</p>');
                 updateServerAccessBadge(0, 0);
                 return;
             }
@@ -1152,7 +906,7 @@
             $list.empty();
             $loading.hide();
             if (!permissionsList.length) {
-                $loading.text('Chưa có quyền. Kiểm tra Role Permission đã cấu hình chưa.').show();
+                $loading.text('Chưa có quyền. Kiểm tra Phân quyền đã cấu hình chưa.').show();
                 return;
             }
             permissionsList.forEach(function(p) {
@@ -1489,77 +1243,6 @@
             }
         });
         <% } %>
-    </script>
-    <script>
-    (function() {
-        var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-        var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-        var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
-        var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-        var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
-        function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = (typeof v === 'string') ? v : String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); return isNaN(Date.parse(s)) ? null : new Date(s); }
-        var DISMISSED_KEY = 'baDismissedJobIds';
-        function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? (JSON.parse(r) || []) : []; } catch (e) { return []; } }
-        function addDismissed(id, type) { var k = (type === 'Backup' ? 'b:' : 'r:') + id; var a = getDismissed(); if (a.indexOf(k) < 0) { a.push(k); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
-        function isDismissed(j) { return getDismissed().indexOf((j.type === 'Backup' ? 'b:' : 'r:') + (j.id || '')) >= 0; }
-        function fmtTime(v) { var d = parseDateSafe(v); return d ? d.toLocaleString() : '—'; }
-        function loadPanel() {
-            var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-            if (!$list.length) return;
-            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                success: function(res) {
-                    var d = res.d || res;
-                    if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                    var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                    var newBugs = d.newBugs || [];
-                    var total = jobs.length + newBugs.length;
-                    if (!total) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                    var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                    $badge.text(total).addClass('visible');
-                    window.__notifJobsList = jobs;
-                    var bugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
-                    var jobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
-                    var html = '';
-                    if (newBugs.length > 0) {
-                        html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (bugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (bugsCollapsed ? 'display:none;' : '') + '">';
-                        newBugs.forEach(function(b) { var bugUrl = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + fmtTime(b.createdAt) + '</div><a class="ba-notif-detail-link" href="' + bugUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
-                        html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">';
-                    }
-                    jobs.forEach(function(j, idx) {
-                        var st = j.status || '', type = j.type || 'Restore', typeLabel = j.typeLabel || (type === 'Backup' ? 'Backup' : type === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore');
-                        var badge = (type === 'Backup') ? 'ba-notif-type-backup' : (type === 'Restore') ? 'ba-notif-type-restore' : (type === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : 'ba-notif-type-restore';
-                        var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0;
-                        var phase = (j.message || (type === 'Restore' ? 'Restore' : '')).toString().trim();
-                        var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                        var canCancel = (type === 'Restore' || type === 'Backup' || type === 'HRHelperMultiDbAnalyze' || type === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                        var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime), st);
-                        if (st === 'Running' || st === 'Pending') {
-                            var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
-                            row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                            if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                        } else if (st === 'Completed') row += BaNotif.completedBadgeRow() + '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                        else if (st === 'Failed') row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                        row += '</div>';
-                        html += row;
-                    });
-                    if (newBugs.length > 0) html += '</div></div>';
-                    else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
-                    $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                    $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function() { var g = $(this).data('group'); var $b = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $ar = $(this).find('.ba-notif-group-arrow'); if ($b.is(':visible')) { $b.slideUp(200); $ar.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $b.slideDown(200); $ar.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                    $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                    $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $i = $(this).closest('.ba-notif-item'); var id = parseInt($i.data('job-id'), 10); var typ = $i.data('job-type') || 'Restore'; if (id) { addDismissed(id, typ); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) }); $i.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var n = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (n > 0) { $badgeEl.text(n).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
-                    $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(); var dbName = (job.databaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) loadPanel(); else $btn.prop('disabled', false); }, error: function() { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
-                }
-            });
-        }
-        $(function() {
-            if (!$('#restoreJobsBellWrap').length) return;
-            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); }); var total = jobs.length + (d.newBugs || []).length; if (total) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-            $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) $p.hide(); else { loadPanel(); $p.show(); } });
-            $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
-            $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
-        });
-    })();
     </script>
 </body>
 </html>

@@ -2,120 +2,19 @@
     Inherits="BADesign.Pages.EncryptDecrypt" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Encrypt/Decrypt Data - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
+    <title>Mã hóa / Giải mã - HR Helper</title>
+    <uc:BaHead runat="server" />
     <style>
-        :root {
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --primary-light: #0D9EFF;
-            --bg-main: #1e1e1e;
-            --bg-darker: #161616;
-            --bg-card: #2d2d30;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --success: #10b981;
-            --danger: #ef4444;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; }
-        .ba-container { display: flex; min-height: 100vh; overflow: hidden; }
-        .ba-sidebar {
-            width: 240px; background: var(--bg-darker); border-right: 1px solid var(--border);
-            padding: 1.5rem 0; flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto;
-            position: fixed; left: 0; top: 0; bottom: 0; z-index: 9999;
-            transition: width 0.25s ease;
-        }
-        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
-        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
-        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
-        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .ba-sidebar-toggle:hover { color: var(--text-primary); }
-        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
-        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-        .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-nav { padding: 1rem 0; }
-        .ba-nav-item { display: block; padding: 0.75rem 1.5rem; color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
-        .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        .ba-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; margin-left: 240px; transition: margin-left 0.25s ease; }
-        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
-        .ba-top-bar {
-            padding: 1rem 2rem; background: var(--bg-card); border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; flex-shrink: 0; position: sticky; top: 0; z-index: 100;
-        }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
-        .ba-conn-label { font-size: 0.875rem; color: var(--text-secondary); }
-        .ba-conn-label strong { color: var(--primary-light); }
-        .ba-content { flex: 1; padding: 1rem 1.5rem; overflow-y: auto; overflow-x: hidden; }
-        .ba-tabs { display: flex; gap: 0.5rem; border-bottom: 2px solid var(--border); margin-bottom: 1.5rem; flex-shrink: 0; }
-        .ba-tab { padding: 0.75rem 1.5rem; background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.9375rem; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.2s; }
-        .ba-tab:hover { color: var(--text-primary); }
-        .ba-tab.active { color: var(--primary-light); border-bottom-color: var(--primary); }
-        .ba-tab-content { display: none; }
-        .ba-tab-content.active { display: block; }
-        .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
-        .ba-form-group { margin-bottom: 1rem; }
-        .ba-form-label { display: block; margin-bottom: 0.5rem; color: var(--text-primary); font-size: 0.875rem; font-weight: 500; }
-        .ba-form-label-row { display: flex; align-items: center; gap: 0.35rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
-        .ba-form-label-row .ba-form-label { margin-bottom: 0; flex: 0 0 auto; }
-        .ba-input { width: 100%; padding: 0.5rem 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem; }
-        .ba-input:focus { outline: none; border-color: var(--primary); }
-        .ba-input:disabled { opacity: 0.5; cursor: not-allowed; }
-        textarea.ba-input { min-height: 80px; resize: vertical; }
-        .ba-checkbox { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
-        .ba-checkbox input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
-        .ba-btn { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; font-size: 0.875rem; display: inline-flex; align-items: center; gap: 0.5rem; }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-primary:hover { background: var(--primary-hover); }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .ba-btn-secondary:hover { background: var(--bg-card); }
-        .ba-btn:disabled, .ba-btn[disabled] { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
-        .ba-result-wrap { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.5rem; }
-        .ba-result-wrap textarea { flex: 1; min-height: 100px; }
-        .ba-err { color: var(--danger); font-size: 0.875rem; margin-top: 0.5rem; }
-        .ba-table-wrap { overflow: auto; margin: 1rem 0; max-height: 320px; border: 1px solid var(--border); border-radius: 6px; }
-        .ba-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-        .ba-table th { padding: 0.75rem 1rem; text-align: left; font-weight: 600; color: var(--text-primary); background: var(--bg-darker); border-bottom: 1px solid var(--border); }
-        .ba-table td { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); color: var(--text-primary); }
-        .ba-table tbody tr:hover { background: var(--bg-hover); }
-        .ba-empty { text-align: center; padding: 2rem; color: var(--text-muted); font-size: 0.9rem; }
-        .ba-progress-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10001; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; color: var(--text-primary); }
-        .ba-progress-overlay.show { display: flex; }
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10002; display: flex; flex-direction: column; gap: 0.5rem; }
-        .toast { position: relative; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 2.5rem 1rem 1.25rem; min-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: none; align-items: flex-start; gap: 0.75rem; }
-        .toast .toast-msg { flex: 1; }
-        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; flex-shrink: 0; }
-        .toast .toast-close:hover { color: var(--text-primary); }
-        .toast.show { display: flex; }
-        .toast.error { border-left: 4px solid var(--danger); }
-        .toast.success { border-left: 4px solid var(--success); }
-        .script-preview { font-family: Consolas, monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }
-        .ba-warn { font-size: 0.8rem; color: var(--text-muted); margin-top: 0.5rem; }
-        .ba-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-        @media (max-width: 900px) { .ba-grid-2 { grid-template-columns: 1fr; } }
-        .ba-encdec-cards { align-items: start; }
-        .ba-encdec-cards .ba-card .ba-form-group { margin-bottom: 1.25rem; }
-        .ba-encdec-cards .ba-card .ba-form-group:last-of-type { margin-bottom: 1rem; }
-        .ba-tabs-inner { border-bottom: 1px solid var(--border); padding-bottom: 0; }
-        .ba-tab-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
-        .ba-source-radio { display: flex; gap: 1.5rem; margin-bottom: 1rem; }
-        .ba-source-radio label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.ba-conn-label { font-size: 0.875rem; color: var(--text-secondary); }
+        .ba-conn-label strong { color: var(--primary-light); }.ba-tab-content { display: none; }
+        .ba-tab-content.active { display: block; }.ba-result-wrap { display: flex; gap: 0.5rem; align-items: flex-start; margin-top: 0.5rem; }
+        .ba-result-wrap textarea { flex: 1; min-height: 100px; }.ba-progress-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10001; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 1rem; color: var(--text-primary); }
+        .ba-progress-overlay.show { display: flex; }        .script-preview { font-family: Consolas, monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto; }.ba-encdec-cards { align-items: start; }.ba-tabs-inner { border-bottom: 1px solid var(--border); padding-bottom: 0; }        .ba-source-radio label { display: flex; }
         /* Collapsible card */
         .ba-card-collapsible .ba-card-header-wrap { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; padding: 0; margin-bottom: 1rem; }
         .ba-card-collapsible .ba-card-header-wrap .ba-card-title { margin-bottom: 0; }
@@ -148,35 +47,7 @@
         .ba-sharedkey-row .ba-info-wrap {
             flex: 0 0 auto; min-width: 0;
             display: inline-flex !important; align-items: center;
-        }
-        /* Info icon (chữ i trong vòng tròn) + popover */
-        .ba-info-icon {
-            display: inline-flex; align-items: center; justify-content: center;
-            width: 18px; height: 18px; border-radius: 50%;
-            border: 1px solid var(--text-muted); color: var(--text-muted);
-            font-size: 0.75rem; font-weight: 600; font-style: italic;
-            cursor: pointer; flex-shrink: 0;
-            transition: border-color 0.2s, color 0.2s;
-        }
-        .ba-info-icon:hover { border-color: var(--primary-light); color: var(--primary-light); }
-        .ba-form-group .ba-info-icon { vertical-align: middle; margin-left: 2px; }
-        .ba-info-popover {
-            position: absolute; z-index: 1000;
-            bottom: 100%; left: 0;
-            margin-bottom: 6px; margin-top: 0;
-            width: 360px; max-width: min(380px, calc(100vw - 2rem));
-            padding: 0.75rem 1rem;
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 8px; font-size: 0.8125rem; line-height: 1.5;
-            color: var(--text-secondary); box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-            box-sizing: border-box;
-            white-space: normal;
-            overflow-wrap: break-word;
-            word-break: break-word;
-        }
-        .ba-info-popover.show { display: block !important; }
-        .ba-info-wrap { position: relative; }
-        .ba-key-password-wrap {
+        }.ba-form-group .ba-info-icon { vertical-align: middle; margin-left: 2px; }.ba-key-password-wrap {
             display: flex;
             align-items: center;
             gap: 0.4rem;
@@ -211,7 +82,8 @@
                 </div>
                 <div class="ba-content">
                     <div class="ba-tabs">
-                        <button type="button" class="ba-tab active" data-tab="encdec">Encrypt / Decrypt</button>
+                        <button type="button" class="ba-tab active" data-tab="encdec">Mã hóa / Giải mã</button>
+                        <button type="button" class="ba-tab" data-tab="sha256">SHA256 Hash</button>
                         <button type="button" class="ba-tab" data-tab="connstr">Connection String</button>
                         <button type="button" class="ba-tab" data-tab="demoreset">Generate Demo Reset Script</button>
                     </div>
@@ -379,6 +251,93 @@
                         </div>
                     </div>
 
+                    <!-- Tab SHA256 Hash (giống Password) -->
+                    <div id="tabSha256" class="ba-tab-content">
+                        <div class="ba-card">
+                            <h2 class="ba-card-title">Mã hóa SHA256 (giống Password)</h2>
+                            <div class="ba-form-group">
+                                <div class="ba-form-label-row">
+                                    <label class="ba-form-label" for="selHashMode">Kiểu hash</label>
+                                    <span class="ba-info-wrap">
+                                        <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                        <div class="ba-info-popover" style="display: none;">
+                                            <b>Password Cadena</b>: giống cột Security_Users.Password khi Trợ lý HR update password — SHA256 + salt ngẫu nhiên, lưu Base64(hash + salt). Mỗi lần mã hóa ra chuỗi khác nhau nhưng đều login được.<br />
+                                            <b>Không salt (Base64)</b>: giống script Update Password của Trợ lý HR — cùng input luôn ra cùng kết quả.<br />
+                                            <b>Hex</b>: SHA256 dạng hex thường, giống password login HR Helper (= HASHBYTES('SHA2_256') với chuỗi VARCHAR ASCII).
+                                        </div>
+                                    </span>
+                                </div>
+                                <select id="selHashMode" class="ba-input" style="max-width: 560px;">
+                                    <option value="password">Password Cadena – SHA256 + salt ngẫu nhiên (Base64)</option>
+                                    <option value="nosalt">SHA256 không salt (Base64) – giống script Update Password</option>
+                                    <option value="hex">SHA256 Hex – giống password login HR Helper</option>
+                                </select>
+                            </div>
+                            <div class="ba-form-group ba-sharedkey-row" style="margin-bottom: 0.5rem;">
+                                <div class="ba-checkbox" style="margin-bottom: 0;">
+                                    <input type="checkbox" id="chkHashWithUser" />
+                                    <label for="chkHashWithUser">Mỗi dòng dạng UserName + Password (hash = lower(UserName) + Password)</label>
+                                </div>
+                                <span class="ba-info-wrap">
+                                    <span class="ba-info-icon" title="Bấm để xem giải thích">i</span>
+                                    <div class="ba-info-popover" style="display: none;">Cadena hash password theo lower(UserName) + Password. Bật tùy chọn này khi cần ra đúng giá trị cột Security_Users.Password. Mỗi dòng: UserName và Password cách nhau bằng TAB (copy 2 cột từ Excel/SQL) hoặc dấu phẩy, vd. <code>admin,123456</code>.</div>
+                                </span>
+                            </div>
+                            <div class="ba-checkbox" style="margin-bottom: 0;">
+                                <input type="checkbox" id="chkHashTrim" checked="checked" />
+                                <label for="chkHashTrim">Bỏ khoảng trắng đầu/cuối mỗi dòng</label>
+                            </div>
+                        </div>
+                        <div class="ba-grid-2 ba-encdec-cards">
+                            <div class="ba-card">
+                                <h2 class="ba-card-title">Chuỗi gốc</h2>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtHashInput">Mỗi dòng 1 giá trị <span id="hashInputCount" style="color: var(--text-muted); font-weight: 400;"></span></label>
+                                    <textarea id="txtHashInput" class="ba-input" rows="14" spellcheck="false" style="font-family: Consolas, monospace; white-space: pre; overflow-x: auto;" placeholder="123456&#10;Abc@123&#10;P@ssw0rd"></textarea>
+                                </div>
+                                <div class="ba-actions">
+                                    <button type="button" class="ba-btn ba-btn-primary" id="btnHashSha256">Mã hóa SHA256</button>
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnHashClear">Xóa</button>
+                                </div>
+                                <div id="hashErr" class="ba-err" style="display: none; white-space: pre-line;"></div>
+                            </div>
+                            <div class="ba-card">
+                                <h2 class="ba-card-title">Kết quả</h2>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtHashResult">Mỗi dòng tương ứng 1 dòng gốc <span id="hashResultCount" style="color: var(--text-muted); font-weight: 400;"></span></label>
+                                    <textarea id="txtHashResult" class="ba-input" rows="14" readonly="readonly" spellcheck="false" style="font-family: Consolas, monospace; white-space: pre; overflow-x: auto;"></textarea>
+                                </div>
+                                <div class="ba-actions">
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnCopyHash" disabled="disabled">Copy</button>
+                                    <button type="button" class="ba-btn ba-btn-secondary" id="btnDownloadHashCsv" disabled="disabled">Download CSV</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="ba-card">
+                            <h2 class="ba-card-title">Kiểm tra chuỗi với hash</h2>
+                            <p class="ba-warn" style="margin: 0 0 1rem 0;">Tự nhận dạng hash Hex, Base64 không salt hoặc Base64 + salt (password Cadena). Nhập UserName nếu hash được tạo theo lower(UserName) + Password.</p>
+                            <div class="ba-grid-2" style="gap: 1rem;">
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtVerifyUser">UserName (tùy chọn)</label>
+                                    <input type="text" id="txtVerifyUser" class="ba-input" autocomplete="off" placeholder="vd. admin" />
+                                </div>
+                                <div class="ba-form-group">
+                                    <label class="ba-form-label" for="txtVerifyPlain">Chuỗi gốc / Password</label>
+                                    <div class="ba-key-password-wrap">
+                                        <input type="password" id="txtVerifyPlain" class="ba-input" autocomplete="off" />
+                                        <button type="button" class="ba-eye-btn" data-eye-target="txtVerifyPlain" title="Hiện/ẩn">👁</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ba-form-group">
+                                <label class="ba-form-label" for="txtVerifyHash">Hash (vd. giá trị cột Security_Users.Password)</label>
+                                <input type="text" id="txtVerifyHash" class="ba-input" autocomplete="off" spellcheck="false" style="font-family: Consolas, monospace;" />
+                            </div>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnVerifyHash">Kiểm tra</button>
+                            <div id="verifyHashResult" style="display: none; margin-top: 0.75rem; font-size: 0.9rem;"></div>
+                        </div>
+                    </div>
+
                     <!-- Tab Connection String -->
                     <div id="tabConnstr" class="ba-tab-content">
                         <div class="ba-card" style="margin-bottom: 1rem;">
@@ -470,7 +429,7 @@
                         <div class="ba-card">
                             <h2 class="ba-card-title">Cách dùng</h2>
                             <ol class="ba-warn" style="margin-left: 1.25rem; padding-left: 0.5rem;">
-                                <li><strong>Từ HR DB:</strong> Kết nối qua Database Tools → Connect → HR Helper → bấm &quot;Generate Demo Reset Script&quot; (hoặc mở trang với <code>?k=...</code>). Chọn Company (hoặc Tất cả) → <strong>Load danh sách</strong> → chọn nhân viên cần reset.</li>
+                                <li><strong>Từ HR DB:</strong> Kết nối qua Công cụ Database → Connect → Trợ lý HR → bấm &quot;Generate Demo Reset Script&quot; (hoặc mở trang với <code>?k=...</code>). Chọn Company (hoặc Tất cả) → <strong>Load danh sách</strong> → chọn nhân viên cần reset.</li>
                                 <li><strong>Từ CSV:</strong> Dán nội dung CSV có header <code>EmployeeID,LocalEmployeeID</code> (LocalEmployeeID bắt buộc nếu reset Payslip theo Local ID).</li>
                                 <li>Điền <strong>Cấu hình reset</strong> (demo phone, demo email, mask salary, payslip…) và chọn <strong>Fields to reset</strong>.</li>
                                 <li>Bấm <strong>Tạo script</strong> → tải file .sql, chạy tại DB khách hàng (nhớ backup trước).</li>
@@ -483,7 +442,7 @@
                                 <label><input type="radio" name="src" value="csv" id="radioCsv" checked /> Từ CSV</label>
                             </div>
                             <div id="srcHrdb" style="display: none;">
-                                <p class="ba-warn">Đã kết nối thì chọn Company (lọc) rồi bấm <strong>Load danh sách</strong>. Chưa kết nối: vào Database Tools → Connect → HR Helper → bấm &quot;Generate Demo Reset Script&quot; hoặc mở trang với <code>?k=...</code>.</p>
+                                <p class="ba-warn">Đã kết nối thì chọn Company (lọc) rồi bấm <strong>Load danh sách</strong>. Chưa kết nối: vào Công cụ Database → Connect → Trợ lý HR → bấm &quot;Generate Demo Reset Script&quot; hoặc mở trang với <code>?k=...</code>.</p>
                                 <div class="ba-form-group">
                                     <div class="ba-form-label-row">
                                         <label class="ba-form-label" for="selCompany">Company (lọc)</label>
@@ -677,7 +636,6 @@
         <div class="ba-progress-overlay" id="progressOverlay">
             <div>Đang xử lý…</div>
         </div>
-        <div class="toast-container"><div id="toast" class="toast" style="display:none;"><button type="button" class="toast-close" title="Đóng">&times;</button><span class="toast-msg"></span></div></div>
     </form>
     <script>
         (function() {
@@ -699,6 +657,8 @@
             var empUrl = '<%= ResolveUrl("~/Pages/EncryptDecrypt.aspx/GetEmployeesForScript") %>';
             var genUrl = '<%= ResolveUrl("~/Pages/EncryptDecrypt.aspx/GenerateDemoResetScript") %>';
             var csvUrl = '<%= ResolveUrl("~/Pages/EncryptDecrypt.aspx/GenerateDemoResetScriptFromCsv") %>';
+            var hashUrl = '<%= ResolveUrl("~/Pages/EncryptDecrypt.aspx/HashSha256Lines") %>';
+            var verifyHashUrl = '<%= ResolveUrl("~/Pages/EncryptDecrypt.aspx/VerifySha256Hash") %>';
             var companiesUrl = '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadCompanies") %>';
             var connStrStdKey = '<%= HttpUtility.JavaScriptStringEncode(StdConnectionStringEncryptKey) %>';
 
@@ -720,13 +680,7 @@
                 return ($(inp).val() || '').trim();
             }
 
-            function showToast(msg, type) {
-                var t = $('#toast').removeClass('success error').addClass(type || 'info');
-                t.find('.toast-msg').text(msg);
-                t.show();
-                var tmr = setTimeout(function () { t.hide(); }, 4000);
-                t.off('click.toastclose').on('click.toastclose', '.toast-close', function () { clearTimeout(tmr); t.hide(); });
-            }
+            function showToast(msg, type) { BaToast.show(msg, type); }
             function showProgress() { $('#progressOverlay').addClass('show'); }
             function hideProgress() { $('#progressOverlay').removeClass('show'); }
 
@@ -903,11 +857,141 @@
                 showToast('Đã copy.', 'success');
             });
 
+            // ---- Tab SHA256 Hash (giống Password) ----
+            // Tách dòng giống server: CRLF/LF/CR, bỏ dòng trống ở cuối
+            function splitHashLines(txt) {
+                var t = (txt || '').replace(/\r\n?/g, '\n').replace(/\n+$/, '');
+                return t.length ? t.split('\n') : [];
+            }
+            function updateHashInputCount() {
+                var n = splitHashLines($('#txtHashInput').val()).length;
+                $('#hashInputCount').text(n ? '(' + n + ' dòng)' : '');
+            }
+            function resetHashResult() {
+                window._hashResult = null;
+                $('#txtHashResult').val('');
+                $('#hashResultCount').text('');
+                $('#btnCopyHash, #btnDownloadHashCsv').prop('disabled', true);
+            }
+            function updateHashPlaceholder() {
+                $('#txtHashInput').attr('placeholder', $('#chkHashWithUser').is(':checked')
+                    ? 'admin\t123456\nuser01,Abc@123'
+                    : '123456\nAbc@123\nP@ssw0rd');
+            }
+            $('#txtHashInput').on('input', function () { updateHashInputCount(); });
+            $('#chkHashWithUser').on('change', function () { updateHashPlaceholder(); resetHashResult(); });
+            $('#selHashMode, #chkHashTrim').on('change', function () { resetHashResult(); });
+
+            $('#btnHashSha256').on('click', function () {
+                var txt = $('#txtHashInput').val() || '';
+                var withUser = $('#chkHashWithUser').is(':checked');
+                var trimLines = $('#chkHashTrim').is(':checked');
+                var mode = $('#selHashMode').val();
+                $('#hashErr').hide();
+                resetHashResult();
+                if (!txt.trim()) { $('#hashErr').text('Chưa nhập chuỗi cần mã hóa.').show(); return; }
+                var $btn = $(this).prop('disabled', true);
+                showProgress();
+                $.ajax({
+                    type: 'POST', url: hashUrl,
+                    data: JSON.stringify({ text: txt, mode: mode, withUserName: withUser, trimLines: trimLines }),
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: 'json',
+                    success: function (r) {
+                        hideProgress(); $btn.prop('disabled', false);
+                        var d = r.d || r;
+                        if (!d || !d.success) { $('#hashErr').text((d && d.message) || 'Lỗi').show(); return; }
+                        var results = d.results || [];
+                        window._hashResult = { lines: splitHashLines(txt), results: results, withUser: withUser, trimLines: trimLines, mode: mode };
+                        $('#txtHashResult').val(results.join('\n'));
+                        $('#hashResultCount').text('(' + (d.hashed || 0) + ' giá trị)');
+                        $('#btnCopyHash, #btnDownloadHashCsv').prop('disabled', false);
+                        var errs = d.errors || [];
+                        if (errs.length) {
+                            var shown = errs.slice(0, 10).join('\n') + (errs.length > 10 ? '\n... và ' + (errs.length - 10) + ' dòng lỗi khác' : '');
+                            $('#hashErr').text(shown).show();
+                            showToast('Đã mã hóa ' + (d.hashed || 0) + ' dòng, bỏ qua ' + errs.length + ' dòng lỗi.', 'error');
+                        } else {
+                            showToast('Đã mã hóa ' + (d.hashed || 0) + ' dòng.', 'success');
+                        }
+                    },
+                    error: function (x, s) { hideProgress(); $btn.prop('disabled', false); $('#hashErr').text(s || 'Lỗi kết nối').show(); }
+                });
+            });
+
+            $('#btnHashClear').on('click', function () {
+                $('#txtHashInput').val('');
+                $('#hashErr').hide();
+                updateHashInputCount();
+                resetHashResult();
+            });
+
+            $('#btnCopyHash').on('click', function () {
+                var t = $('#txtHashResult');
+                t.select();
+                document.execCommand('copy');
+                showToast('Đã copy.', 'success');
+            });
+
+            $('#btnDownloadHashCsv').on('click', function () {
+                var r = window._hashResult;
+                if (!r || !r.results) return;
+                function q(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+                var rows = [];
+                rows.push(r.withUser ? 'UserName,Password,SHA256' : 'Value,SHA256');
+                r.lines.forEach(function (raw, i) {
+                    var line = r.trimLines ? raw.trim() : raw;
+                    var hash = r.results[i] || '';
+                    if (r.withUser) {
+                        var idx = line.indexOf('\t');
+                        if (idx < 0) idx = line.indexOf(',');
+                        var user = idx > 0 ? line.substring(0, idx).trim() : line;
+                        var pwd = idx > 0 ? line.substring(idx + 1) : '';
+                        if (r.trimLines) pwd = pwd.trim();
+                        rows.push(q(user) + ',' + q(pwd) + ',' + q(hash));
+                    } else {
+                        rows.push(q(line) + ',' + q(hash));
+                    }
+                });
+                var blob = new Blob(['﻿' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8;' });
+                var url = URL.createObjectURL(blob);
+                var a = document.createElement('a');
+                a.href = url;
+                a.download = 'SHA256_' + r.mode + '_' + (new Date().toISOString().slice(0, 10)) + '.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast('Đã tải file CSV.', 'success');
+            });
+
+            $('#btnVerifyHash').on('click', function () {
+                var $res = $('#verifyHashResult').hide().removeClass('ba-err');
+                var plain = $('#txtVerifyPlain').val() || '';
+                var user = ($('#txtVerifyUser').val() || '').trim();
+                var hash = ($('#txtVerifyHash').val() || '').trim();
+                if (!plain || !hash) { $res.addClass('ba-err').text('Nhập chuỗi gốc và hash.').show(); return; }
+                $.ajax({
+                    type: 'POST', url: verifyHashUrl,
+                    data: JSON.stringify({ plainText: plain, userName: user, hashValue: hash }),
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: 'json',
+                    success: function (r) {
+                        var d = r.d || r;
+                        if (!d || !d.success) { $res.addClass('ba-err').text((d && d.message) || 'Lỗi').show(); return; }
+                        $res.empty()
+                            .append($('<strong></strong>').css('color', d.match ? 'var(--success)' : 'var(--danger)').text(d.match ? '✓ Khớp' : '✗ Không khớp'))
+                            .append($('<span></span>').css('color', 'var(--text-muted)').text(' — định dạng: ' + (d.format || '') + (user ? ' · có ghép UserName' : '')))
+                            .show();
+                    },
+                    error: function (x, s) { $res.addClass('ba-err').text(s || 'Lỗi kết nối').show(); }
+                });
+            });
+            updateHashPlaceholder();
+
             $('[data-tab]').on('click', function () {
                 var tab = $(this).data('tab');
                 $('.ba-tab').removeClass('active'); $('.ba-tab-content').removeClass('active');
                 $('.ba-tab[data-tab="' + tab + '"]').addClass('active');
-                var map = { encdec: 'tabEncdec', connstr: 'tabConnstr', demoreset: 'tabDemoreset' };
+                var map = { encdec: 'tabEncdec', sha256: 'tabSha256', connstr: 'tabConnstr', demoreset: 'tabDemoreset' };
                 $('#' + (map[tab] || 'tabEncdec')).addClass('active');
                 if (tab === 'encdec') { applyEncdecSubTab('single'); }
                 else if (tab === 'demoreset') { applySubTab('demoreset'); }
@@ -1190,7 +1274,7 @@
 
             var employeesList = [];
             $('#btnLoadEmployees').on('click', function () {
-                if (!k) { showToast('Chưa có kết nối HR DB. Mở trang từ HR Helper (Generate Demo Reset Script).', 'error'); return; }
+                if (!k) { showToast('Chưa có kết nối HR DB. Mở trang từ Trợ lý HR (Generate Demo Reset Script).', 'error'); return; }
                 showProgress();
                 var cid = $('#selCompany').val() ? parseInt($('#selCompany').val(), 10) : null;
                 $.ajax({
@@ -1300,80 +1384,5 @@
             });
         })();
     </script>
-    <script src="../Scripts/ba-layout.js"></script>
-    <script>
-        (function() {
-            var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-            var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-            var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
-            var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-            var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
-            function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = (typeof v === 'string') ? v : String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); return isNaN(Date.parse(s)) ? null : new Date(s); }
-            var DISMISSED_KEY = 'baDismissedJobIds';
-            function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? (JSON.parse(r) || []) : []; } catch (e) { return []; } }
-            function addDismissed(id, type) { var k = (type === 'Backup' ? 'b:' : 'r:') + id; var a = getDismissed(); if (a.indexOf(k) < 0) { a.push(k); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
-            function isDismissed(j) { return getDismissed().indexOf((j.type === 'Backup' ? 'b:' : 'r:') + (j.id || '')) >= 0; }
-            function fmtTime(v) { var d = parseDateSafe(v); return d ? d.toLocaleString() : '—'; }
-            function loadPanel() {
-                var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-                if (!$list.length) return;
-                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                    success: function(res) {
-                        var d = res.d || res;
-                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                        var newBugs = d.newBugs || [];
-                        var total = jobs.length + newBugs.length;
-                        if (!total) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                        $badge.text(total).addClass('visible');
-                        window.__notifJobsList = jobs;
-                        var bugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
-                        var jobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
-                        var html = '';
-                        if (newBugs.length > 0) {
-                            html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (bugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (bugsCollapsed ? 'display:none;' : '') + '">';
-                            newBugs.forEach(function(b) { var bugUrl = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + fmtTime(b.createdAt) + '</div><a class="ba-notif-detail-link" href="' + bugUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
-                            html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">';
-                        }
-                        jobs.forEach(function(j, idx) {
-                            var st = j.status || '', type = j.type || 'Restore', typeLabel = j.typeLabel || (type === 'Backup' ? 'Backup' : type === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore');
-                            var badge = (type === 'Backup') ? 'ba-notif-type-backup' : (type === 'Restore') ? 'ba-notif-type-restore' : (type === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : 'ba-notif-type-restore';
-                            var dbName = (j.databaseName || j.DatabaseName || '').trim();
-                            var hasReset = type === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                            var resetTag = (type === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có Reset">Có Reset' : 'ba-notif-no-reset-tag">Không Reset') + '</span> ') : '';
-                            var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0;
-                            var phase = (j.message || (type === 'Restore' ? 'Restore' : '')).toString().trim();
-                            var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                            var canCancel = (type === 'Restore' || type === 'Backup' || type === 'HRHelperMultiDbAnalyze' || type === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime), st);
-                            if (st === 'Running' || st === 'Pending') {
-                                var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
-                                row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                            } else if (st === 'Completed') row += BaNotif.completedBadgeRow() + '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                            else if (st === 'Failed') row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                            row += '</div>';
-                            html += row;
-                        });
-                        if (newBugs.length > 0) html += '</div></div>';
-                        else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
-                        $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                        $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function() { var g = $(this).data('group'); var $b = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $ar = $(this).find('.ba-notif-group-arrow'); if ($b.is(':visible')) { $b.slideUp(200); $ar.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $b.slideDown(200); $ar.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                        $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                        $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $i = $(this).closest('.ba-notif-item'); var id = parseInt($i.data('job-id'), 10); var typ = $i.data('job-type') || 'Restore'; if (id) { addDismissed(id, typ); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) }); $i.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var n = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (n) { $badgeEl.text(n).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; if ($listEl.find('.ba-notif-group-toggle[data-group="bugs"]').length) $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); if ($listEl.find('.ba-notif-group-toggle[data-group="jobs"]').length) $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
-                        $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(); var dbName = (job.databaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) loadPanel(); else $btn.prop('disabled', false); }, error: function() { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
-                    }
-                });
-            }
-            $(function() {
-                if (!$('#restoreJobsBellWrap').length) return;
-                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); }); var total = jobs.length + (d.newBugs || []).length; if (total) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-                $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) $p.hide(); else { loadPanel(); $p.show(); } });
-                $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
-                $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
-            });
-        })();
-        </script>
 </body>
 </html>

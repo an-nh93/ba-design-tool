@@ -6,6 +6,7 @@ using System.Web.Services;
 using System.Web.Script.Services;
 using System.Web.UI;
 using BADesign;
+using BADesign.Helpers.Database;
 
 namespace BADesign.Pages
 {
@@ -19,7 +20,7 @@ namespace BADesign.Pages
             if (!IsPostBack)
             {
                 ucBaSidebar.ActiveSection = "AppSettings";
-                ucBaTopBar.PageTitle = "App Settings";
+                ucBaTopBar.PageTitle = "Cài đặt ứng dụng";
             }
         }
 
@@ -352,7 +353,7 @@ ELSE
                     {
                         From = new MailAddress(from, accountName ?? "BADesign"),
                         Subject = "[BADesign] Test Connection",
-                        Body = "Email test từ BADesign App Settings. Kết nối SMTP thành công."
+                        Body = "Email test từ trang Cài đặt ứng dụng của BADesign. Kết nối SMTP thành công."
                     };
                     msg.To.Add(testEmailTo.Trim());
                     client.Send(msg);
@@ -558,6 +559,56 @@ ELSE
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
+                return new { success = true };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadSanitizeDefaults()
+        {
+            try
+            {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập." };
+                var defaults = DbSanitizeSettings.LoadDefaults(UiAuthHelper.ConnStr);
+                return new { success = true, password = defaults.Password, salaryMin = defaults.SalaryMin, salaryMax = defaults.SalaryMax };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SaveSanitizeDefaults(string password, string salaryMin, string salaryMax)
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = "Bạn không có quyền Settings." };
+                var passwordValue = (password ?? "").Trim();
+                if (passwordValue.Length == 0)
+                    return new { success = false, message = "Mật khẩu mặc định không được trống." };
+                decimal min, max;
+                var style = System.Globalization.NumberStyles.Number;
+                var culture = System.Globalization.CultureInfo.InvariantCulture;
+                if (!decimal.TryParse((salaryMin ?? "").Trim(), style, culture, out min)
+                    || !decimal.TryParse((salaryMax ?? "").Trim(), style, culture, out max)
+                    || min <= 0 || max < min)
+                    return new { success = false, message = "Khoảng lương giả không hợp lệ: nhập hai số lớn hơn 0, số sau lớn hơn hoặc bằng số trước." };
+                var values = new System.Collections.Generic.Dictionary<string, string>
+                {
+                    { DbSanitizeSettings.PasswordKey, passwordValue },
+                    { DbSanitizeSettings.SalaryMinKey, min.ToString(culture) },
+                    { DbSanitizeSettings.SalaryMaxKey, max.ToString(culture) }
+                };
+                DbSanitizeSettings.Save(UiAuthHelper.ConnStr, values, UiAuthHelper.CurrentUserId);
                 return new { success = true };
             }
             catch (Exception ex)

@@ -2,125 +2,17 @@
     Inherits="BADesign.Pages.AppSettings" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>App Settings - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
+    <title>Cài đặt ứng dụng - HR Helper</title>
+    <uc:BaHead runat="server" />
     <style>
-        :root {
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --primary-light: #0D9EFF;
-            --bg-main: #1e1e1e;
-            --bg-darker: #161616;
-            --bg-card: #2d2d30;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --success: #10b981;
-            --danger: #ef4444;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            line-height: 1.6;
-            min-height: 100vh;
-        }
-        .ba-container { display: flex; min-height: 100vh; overflow: hidden; }
-        .ba-sidebar {
-            width: 240px; background: var(--bg-darker);
-            border-right: 1px solid var(--border);
-            padding: 1.5rem 0; flex-shrink: 0;
-            display: flex; flex-direction: column;
-            transition: width 0.25s ease;
-        }
-        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
-        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
-        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
-        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .ba-sidebar-toggle:hover { color: var(--text-primary); }
-        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
-        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-        .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; }
-        .ba-nav { padding: 1rem 0; }
-        .ba-nav-item {
-            display: block; padding: 0.75rem 1.5rem;
-            color: var(--text-secondary); text-decoration: none;
-            transition: all 0.2s;
-        }
-        .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
-        /* Main không dùng margin-left: sidebar và main nằm trong flex, main tự sát sidebar; khi thu nhỏ sidebar 64px thì main vẫn sát, không thêm margin để tránh hở */
-        .ba-main { flex: 1; display: flex; flex-direction: column; overflow: auto; min-width: 0; }
-        .ba-top-bar {
-            padding: 1rem 2rem;
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            flex-shrink: 0;
-        }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; margin: 0; color: var(--text-primary); }
-        .ba-content { flex: 1; padding: 0.5rem 2rem 1rem; overflow: auto; }
-        .ba-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 0.75rem;
-            max-width: 700px;
-            overflow: hidden;
-        }
-        .ba-card-collapsible .ba-card-header {
-            display: flex; align-items: center; justify-content: flex-start; gap: 8px;
-            padding: 0.75rem 1rem;
-            cursor: pointer;
-            user-select: none;
-            font-size: 1.0625rem; font-weight: 600;
-            color: var(--text-primary);
-            transition: background 0.15s;
-        }
-        .ba-card-collapsible .ba-card-header:hover { background: var(--bg-hover); }
-        .ba-card-collapsible .ba-card-header .ba-card-toggle {
-            width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center;
-            color: var(--text-muted); font-size: 0.75rem; transition: transform 0.2s;
-        }
-        .ba-card-collapsible.collapsed .ba-card-header .ba-card-toggle { transform: rotate(-90deg); }
-        .ba-card-collapsible .ba-card-body { padding: 0.75rem 1rem 1rem; }
-        .ba-card-collapsible.collapsed .ba-card-body { display: none; }
-        .ba-card-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; }
-        .ba-input {
-            width: 100%; padding: 0.5rem 0.75rem;
-            background: var(--bg-main); border: 1px solid var(--border);
-            border-radius: 6px; color: var(--text-primary);
-            font-family: inherit; font-size: 0.875rem;
-        }
-        .ba-input:focus { outline: none; border-color: var(--primary); }
-        .ba-input[readonly] { opacity: 0.8; cursor: not-allowed; }
-        .ba-btn {
-            padding: 0.5rem 1rem; border: none; border-radius: 6px;
-            cursor: pointer; font-size: 0.875rem;
-            transition: all 0.2s;
-        }
-        .ba-btn-primary { background: var(--primary); color: white; }
-        .ba-btn-primary:hover { background: var(--primary-hover); }
-        .ba-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .ba-btn-secondary:hover { background: var(--bg-card); }
-        .ba-btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
-        .ba-msg { padding: 0.5rem 0; font-size: 0.875rem; }
-        .ba-msg.success { color: var(--success); }
-        .ba-msg.error { color: var(--danger); }
+        .ba-settings-tab-hidden { display: none !important; }
+        #appSettingsCards .ba-card { overflow: hidden; }
+        #txtTestEmailTo { max-width: 280px; }
     </style>
 </head>
 <body>
@@ -130,233 +22,286 @@
             <div class="ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="ba-content">
-                    <div class="ba-card ba-card-collapsible" id="cardPublicBaseUrl" data-collapse-key="appSettings_publicBaseUrl" style="display:none">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardPublicBaseUrl'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>Public URL</span>
+                    <div class="ba-tabs ba-settings-tabs" id="appSettingsTabs">
+                        <button type="button" class="ba-tab ba-settings-tab" data-settings-tab="general">Đăng ký và thông báo</button>
+                        <button type="button" class="ba-tab ba-settings-tab" data-settings-tab="mail">Email và SFTP</button>
+                        <button type="button" class="ba-tab ba-settings-tab" data-settings-tab="sanitize">Làm sạch dữ liệu</button>
+                    </div>
+                    <div class="ba-card-grid" id="appSettingsCards">
+                    <div class="ba-card ba-collapse-section ba-card-collapsible" id="cardPublicBaseUrl" data-settings-tab="general" data-collapse-key="appSettings_publicBaseUrl" style="display:none">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardPublicBaseUrl'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">Public URL</h3>
                         </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
                             URL công khai để user trong mạng nội bộ truy cập (ví dụ IP nội bộ). Link trong email đăng ký và forgot password sẽ dùng URL này thay vì localhost. Ví dụ: <code>https://192.168.42.82:1717</code> (không ghi /Login ở cuối).
                         </p>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">Public Base URL</label>
                             <input type="url" id="txtPublicBaseUrl" class="ba-input" placeholder="https://192.168.42.82:1717" <%= !CanEditSettings ? "readonly" : "" %> />
                         </div>
                         <div id="msgPublicBaseUrl" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                        <div class="ba-actions">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSavePublicBaseUrl" onclick="savePublicBaseUrl(); return false;">Lưu</button>
                             <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
                         </div>
                     </div>
-                    <div class="ba-card ba-card-collapsible" id="cardRegistrationNotification" data-collapse-key="appSettings_registrationNotification">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardRegistrationNotification'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>Sign Up & Notifications</span>
+                    <div class="ba-card ba-collapse-section ba-card-collapsible" id="cardRegistrationNotification" data-settings-tab="general" data-collapse-key="appSettings_registrationNotification">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardRegistrationNotification'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">Sign Up & Notifications</h3>
                         </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
                             Cấu hình domain email được phép đăng ký và cách thông báo khi có tài khoản mới đăng ký (Telegram hoặc Email).
                         </p>
-                        <div class="ba-form-group" style="margin-bottom: 1rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">Email domain được phép đăng ký</label>
-                            <p style="color: var(--text-muted); font-size: 0.75rem; margin: 0.25rem 0 0.5rem 0;">Chỉ email có đuôi trong danh sách mới được đăng ký. Mỗi dòng 1 pattern, ví dụ <code>*@cadena.com.sg</code>.</p>
+                            <p class="ba-field-hint">Chỉ email có đuôi trong danh sách mới được đăng ký. Mỗi dòng 1 pattern, ví dụ <code>*@cadena.com.sg</code>.</p>
                             <textarea id="txtRegAllowedDomains" class="ba-input" rows="3" placeholder="*@cadena.com.sg&#10;*@cadena-hrmseries.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
                         </div>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">Khi có tài khoản đăng ký, thông báo qua</label>
-                            <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 0.5rem;">
-                                <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
+                            <div class="ba-choice-row">
+                                <label class="ba-checkbox">
                                     <input type="radio" name="regNotifyMethod" value="Email" id="regNotifyEmail" <%= !CanEditSettings ? "disabled" : "" %> />
-                                    <span style="margin-left: 0.35rem;">Email</span>
+                                    <span>Email</span>
                                 </label>
-                                <label class="ba-checkbox" style="display: inline-flex; align-items: center; cursor: pointer; margin: 0;">
+                                <label class="ba-checkbox">
                                     <input type="radio" name="regNotifyMethod" value="Telegram" id="regNotifyTelegram" <%= !CanEditSettings ? "disabled" : "" %> />
-                                    <span style="margin-left: 0.35rem;">Telegram</span>
+                                    <span>Telegram</span>
                                 </label>
                             </div>
                         </div>
-                        <div id="panelRegNotifyEmail" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-main); border-radius: 6px; border: 1px solid var(--border);">
+                        <div id="panelRegNotifyEmail" class="ba-subpanel">
                             <label class="ba-form-label">Gửi thông báo tới email (mỗi dòng 1 địa chỉ)</label>
-                            <p style="color: var(--text-muted); font-size: 0.75rem; margin: 0.25rem 0 0.5rem 0;">Hệ thống gửi email thông báo user mới đăng ký tới các địa chỉ này. Mặc định: <code>an.nh@cadena.com.sg</code></p>
-                            <textarea id="txtRegNotifyEmails" class="ba-input" rows="4" placeholder="an.nh@cadena.com.sg" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
+                            <p class="ba-field-hint">Hệ thống gửi email thông báo user mới đăng ký tới các địa chỉ này. Mặc định: <code>an.nh@cadena.com.sg</code></p>
+                            <textarea id="txtRegNotifyEmails" class="ba-input" rows="3" placeholder="an.nh@cadena.com.sg" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
                         </div>
-                        <div id="panelRegNotifyTelegram" style="margin-bottom: 1rem; padding: 0.75rem; background: var(--bg-main); border-radius: 6px; border: 1px solid var(--border); display: none;">
-                            <p style="color: var(--text-muted); font-size: 0.75rem; margin-bottom: 0.5rem;">Gửi tin nhắn tới nhóm Telegram. Nếu chat not found thử: -100{số}, -{số} hoặc {số}.</p>
-                            <div class="ba-form-group" style="margin-bottom: 0.5rem;">
+                        <div id="panelRegNotifyTelegram" class="ba-subpanel" style="display: none;">
+                            <p class="ba-section-hint">Gửi tin nhắn tới nhóm Telegram. Nếu chat not found thử: -100{số}, -{số} hoặc {số}.</p>
+                            <div class="ba-form-group">
                                 <label class="ba-form-label">Telegram Bot API Key (Bot Token) (*)</label>
                                 <input type="text" id="txtTelegramBotToken" class="ba-input" placeholder="1234567890:AAHxxxx..." autocomplete="off" <%= !CanEditSettings ? "readonly" : "" %> />
                             </div>
-                            <div class="ba-form-group" style="margin-bottom: 0;">
+                            <div class="ba-form-group">
                                 <label class="ba-form-label">Telegram Group ID (Chat ID) (*)</label>
                                 <input type="text" id="txtTelegramChatId" class="ba-input" placeholder="-1001234567890" <%= !CanEditSettings ? "readonly" : "" %> />
                             </div>
                         </div>
                         <div id="msgRegistrationNotification" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                        <div class="ba-actions">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSaveRegistrationNotification" onclick="saveRegistrationNotificationConfig(); return false;">Lưu</button>
                             <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
                         </div>
                     </div>
-                   <div class="ba-card ba-card-collapsible" id="cardEmailIgnore" data-collapse-key="appSettings_emailIgnore">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailIgnore'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>Email Ignore (HR Multi-DB)</span>
+                   <div class="ba-card ba-collapse-section ba-card-collapsible" id="cardEmailIgnore" data-settings-tab="mail" data-collapse-key="appSettings_emailIgnore">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardEmailIgnore'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">Email Ignore (HR Multi-DB)</h3>
                         </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Các email/pattern trong danh sách được coi là nội bộ (đã reset). HR Helper Multi-DB sẽ load config từ đây. Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix.
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
+                            Các email/pattern trong danh sách được coi là nội bộ (đã reset). Trợ lý HR Multi-DB sẽ load config từ đây. Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix.
                         </p>
-                        <textarea id="txtEmailIgnore" class="ba-input" rows="6" placeholder="*@cadena.com.sg&#10;test@internal.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
+                        <textarea id="txtEmailIgnore" class="ba-input" rows="5" placeholder="*@cadena.com.sg&#10;test@internal.com" <%= !CanEditSettings ? "readonly" : "" %>></textarea>
                         <div id="msgEmailIgnore" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                        <div class="ba-actions">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSave" onclick="saveEmailIgnore(); return false;">Lưu</button>
                             <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
                         </div>
                     </div>
                     
-                    <div class="ba-card ba-card-collapsible" id="cardEmailServer" data-collapse-key="appSettings_emailServer">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardEmailServer'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>Email Server Settings</span>
+                    <div class="ba-card ba-collapse-section ba-card-collapsible" id="cardEmailServer" data-settings-tab="mail" data-collapse-key="appSettings_emailServer">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardEmailServer'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">Email Server Settings</h3>
                         </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Cấu hình SMTP dùng khi restore + reset (ghi vào Setting_EmailServers) và dùng cho nút &quot;Cadena Email Server&quot; trong HR Helper (load vào form Company Info).
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
+                            Cấu hình SMTP dùng khi restore + reset (ghi vào Setting_EmailServers) và dùng cho nút &quot;Cadena Email Server&quot; trong Trợ lý HR (load vào form Company Info).
                         </p>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 1.5rem;">
+                        <div class="ba-form-cols">
                             <div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                <div class="ba-form-group">
                                     <label class="ba-form-label">Outgoing Email Server (*)</label>
                                     <input type="text" id="txtEmailServerOutgoing" class="ba-input" placeholder="xmail.example.com" <%= !CanEditSettings ? "readonly" : "" %> />
                                 </div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                <div class="ba-form-group">
                                     <label class="ba-form-label">Port (*)</label>
                                     <input type="text" id="txtEmailServerPort" class="ba-input" placeholder="25" <%= !CanEditSettings ? "readonly" : "" %> />
                                 </div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                <div class="ba-form-group">
                                     <label class="ba-form-label">Account Name (*)</label>
                                     <input type="text" id="txtEmailServerAccountName" class="ba-input" placeholder="CADENA" <%= !CanEditSettings ? "readonly" : "" %> />
                                 </div>
                             </div>
                             <div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                <div class="ba-form-group">
                                     <label class="ba-form-label">Username (*)</label>
                                     <input type="text" id="txtEmailServerUsername" class="ba-input" placeholder="user@example.com" <%= !CanEditSettings ? "readonly" : "" %> />
                                 </div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                <div class="ba-form-group">
                                     <label class="ba-form-label">Email Address (*)</label>
                                     <input type="text" id="txtEmailServerEmailAddress" class="ba-input" placeholder="user@example.com" <%= !CanEditSettings ? "readonly" : "" %> />
                                 </div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                <div class="ba-form-group">
                                     <label class="ba-form-label">Password (*)</label>
                                     <input type="password" id="txtEmailServerPassword" class="ba-input" placeholder="••••••••" <%= !CanEditSettings ? "readonly" : "" %> />
                                 </div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
-                                    <div class="ba-checkbox" style="display: flex; align-items: center; gap: 8px;">
+                                <div class="ba-form-group">
+                                    <div class="ba-checkbox">
                                         <input type="checkbox" id="chkEmailServerSSL" <%= !CanEditSettings ? "disabled" : "" %> />
-                                        <label for="chkEmailServerSSL" style="margin: 0;">Enable SSL</label>
+                                        <label for="chkEmailServerSSL">Enable SSL</label>
                                     </div>
                                 </div>
-                                <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                                <div class="ba-form-group">
                                     <label class="ba-form-label">SSL Port</label>
                                     <input type="number" id="txtEmailServerSSLPort" class="ba-input" placeholder="465" min="1" max="65535" <%= !CanEditSettings ? "readonly" : "" %> />
                                 </div>
                             </div>
                         </div>
-                        <div class="ba-form-group" style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                        <div class="ba-form-group ba-form-divider">
                             <label class="ba-form-label">Test Email Sent To</label>
-                            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
-                                <input type="email" id="txtTestEmailTo" class="ba-input" placeholder="email@example.com" style="max-width: 280px;" <%= !CanEditSettings ? "readonly" : "" %> />
+                            <div class="ba-inline">
+                                <input type="email" id="txtTestEmailTo" class="ba-input" placeholder="email@example.com" <%= !CanEditSettings ? "readonly" : "" %> />
                                 <button type="button" class="ba-btn ba-btn-secondary" id="btnTestEmailConnection" onclick="testEmailConnection(); return false;" <%= !CanEditSettings ? "disabled" : "" %>>Test Connection</button>
                             </div>
-                            <p style="color: var(--text-muted); font-size: 0.75rem; margin-top: 0.35rem;">Nhập email nhận thử. Sẽ gửi email test dùng cấu hình trên (chưa lưu cũng được).</p>
+                            <p class="ba-field-hint">Nhập email nhận thử. Sẽ gửi email test dùng cấu hình trên (chưa lưu cũng được).</p>
                         </div>
                         <div id="msgEmailServer" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                        <div class="ba-actions">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSaveEmailServer" onclick="saveEmailServerConfig(); return false;">Lưu</button>
                             <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
                         </div>
                     </div>
-                    <div class="ba-card ba-card-collapsible" id="cardSftp" data-collapse-key="appSettings_sftp">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardSftp'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>SFTP Connection</span>
+                    <div class="ba-card ba-collapse-section ba-card-collapsible" id="cardSftp" data-settings-tab="mail" data-collapse-key="appSettings_sftp">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardSftp'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">SFTP Connection</h3>
                         </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
                             Thông tin kết nối SFTP dùng khi tự động restore + reset database.
                         </p>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">Host</label>
                             <input type="text" id="txtSftpHost" class="ba-input" placeholder="sftp.example.com" <%= !CanEditSettings ? "readonly" : "" %> />
                         </div>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">Port</label>
                             <input type="text" id="txtSftpPort" class="ba-input" placeholder="22" <%= !CanEditSettings ? "readonly" : "" %> />
                         </div>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">User</label>
                             <input type="text" id="txtSftpUser" class="ba-input" placeholder="username" <%= !CanEditSettings ? "readonly" : "" %> />
                         </div>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">Password</label>
                             <input type="password" id="txtSftpPassword" class="ba-input" placeholder="••••••••" <%= !CanEditSettings ? "readonly" : "" %> />
                         </div>
                         <div id="msgSftp" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                        <div class="ba-actions">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSaveSftp" onclick="saveSftpConfig(); return false;">Lưu</button>
                             <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
                         </div>
                     </div>
-                    <div class="ba-card ba-card-collapsible collapsed" id="cardResetPhone" data-collapse-key="appSettings_resetPhone">
-                        <div class="ba-card-header" onclick="toggleAppSettingsCard('cardResetPhone'); return false;">
-                            <span class="ba-card-toggle">▼</span>
-                            <span>Phone Default</span>
+                    <div class="ba-card ba-collapse-section ba-card-collapsible collapsed" id="cardResetPhone" data-settings-tab="sanitize" data-collapse-key="appSettings_resetPhone">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardResetPhone'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">Phone Default</h3>
                         </div>
-                        <div class="ba-card-body">
-                        <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">
-                            Số điện thoại mặc định khi restore database hoặc reset cột Phone trong HR Helper. Nếu không cấu hình, hệ thống dùng <code>0987654321</code>.
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
+                            Số điện thoại mặc định khi restore database hoặc reset cột Phone trong Trợ lý HR. Nếu không cấu hình, hệ thống dùng <code>0987654321</code>.
                         </p>
-                        <div class="ba-form-group" style="margin-bottom: 0.75rem;">
+                        <div class="ba-form-group">
                             <label class="ba-form-label">Số điện thoại mặc định</label>
                             <input type="text" id="txtResetPhoneDefault" class="ba-input" placeholder="0987654321" <%= !CanEditSettings ? "readonly" : "" %> />
                         </div>
                         <div id="msgResetPhone" class="ba-msg" style="display:none;"></div>
-                        <div class="ba-actions" style="margin-top: 0.75rem;">
+                        <div class="ba-actions">
                             <% if (CanEditSettings) { %>
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSaveResetPhone" onclick="saveResetPhoneDefault(); return false;">Lưu</button>
                             <% } else { %>
-                            <span style="color: var(--text-muted); font-size: 0.875rem;">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
                             <% } %>
                         </div>
                         </div>
+                    </div>
+                    <div class="ba-card ba-collapse-section ba-card-collapsible collapsed" id="cardSanitizeDefaults" data-settings-tab="sanitize" data-collapse-key="appSettings_sanitizeDefaults">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardSanitizeDefaults'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">Làm sạch dữ liệu sau restore</h3>
+                        </div>
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
+                            Giá trị mặc định điền sẵn trong bước Làm sạch dữ liệu của form Restore database. Email server, SFTP và số điện thoại lấy từ các mục phía trên.
+                        </p>
+                        <div class="ba-form-group">
+                            <label class="ba-form-label" for="txtSanitizePassword">Mật khẩu đăng nhập chung</label>
+                            <input type="text" id="txtSanitizePassword" class="ba-input" placeholder="1" autocomplete="off" <%= !CanEditSettings ? "readonly" : "" %> />
+                        </div>
+                        <div class="ba-form-group">
+                            <label class="ba-form-label" for="txtSanitizeSalaryMin">Khoảng lương giả (nhỏ nhất – lớn nhất)</label>
+                            <div class="ba-inline ba-inline-nowrap">
+                                <input type="number" id="txtSanitizeSalaryMin" class="ba-input" min="0" step="1" <%= !CanEditSettings ? "readonly" : "" %> />
+                                <span class="ba-field-hint">đến</span>
+                                <input type="number" id="txtSanitizeSalaryMax" class="ba-input" min="0" step="1" <%= !CanEditSettings ? "readonly" : "" %> />
+                            </div>
+                        </div>
+                        <div id="msgSanitizeDefaults" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions">
+                            <% if (CanEditSettings) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnSaveSanitizeDefaults" onclick="saveSanitizeDefaults(); return false;">Lưu</button>
+                            <% } else { %>
+                            <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
                     </div>
                 </div>
             </div>
         </div>
     </form>
     <script>
+        function showAppSettingsTab(tab) {
+            var $tabs = $('#appSettingsTabs .ba-settings-tab');
+            if (!$tabs.filter('[data-settings-tab="' + tab + '"]').length) tab = 'general';
+            $tabs.removeClass('active').filter('[data-settings-tab="' + tab + '"]').addClass('active');
+            $('.ba-card[data-settings-tab]').each(function() {
+                $(this).toggleClass('ba-settings-tab-hidden', $(this).attr('data-settings-tab') !== tab);
+            });
+            try { localStorage.setItem('appSettings_tab', tab); } catch (e) {}
+        }
+        $(function() {
+            var saved = null;
+            try { saved = localStorage.getItem('appSettings_tab'); } catch (e) {}
+            showAppSettingsTab(saved || 'general');
+            $('#appSettingsTabs').on('click', '.ba-settings-tab', function() { showAppSettingsTab($(this).attr('data-settings-tab')); });
+        });
         function toggleAppSettingsCard(cardId) {
             var $card = $('#' + cardId);
             if (!$card.length) return;
@@ -660,6 +605,48 @@
                     $('#btnSaveResetPhone').prop('disabled', false);
                 });
             };
+            (function loadSanitizeDefaults() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadSanitizeDefaults") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#txtSanitizePassword').val(d.password || '');
+                        $('#txtSanitizeSalaryMin').val(d.salaryMin || '');
+                        $('#txtSanitizeSalaryMax').val(d.salaryMax || '');
+                    }
+                });
+            })();
+            window.saveSanitizeDefaults = function () {
+                $('#msgSanitizeDefaults').hide();
+                $('#btnSaveSanitizeDefaults').prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SaveSanitizeDefaults") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({
+                        password: ($('#txtSanitizePassword').val() || '').trim(),
+                        salaryMin: ($('#txtSanitizeSalaryMin').val() || '').trim(),
+                        salaryMax: ($('#txtSanitizeSalaryMax').val() || '').trim()
+                    }),
+                    dataType: 'json'
+                }).done(function (r) {
+                    var d = (typeof r.d !== 'undefined') ? r.d : r;
+                    if (d && d.success) {
+                        $('#msgSanitizeDefaults').removeClass('error').addClass('success').text('Đã lưu.').show();
+                    } else {
+                        $('#msgSanitizeDefaults').removeClass('success').addClass('error').text(d && d.message ? d.message : 'Lỗi.').show();
+                    }
+                }).fail(function () {
+                    $('#msgSanitizeDefaults').removeClass('success').addClass('error').text('Lỗi khi lưu.').show();
+                }).always(function () {
+                    $('#btnSaveSanitizeDefaults').prop('disabled', false);
+                });
+            };
             window.saveSftpConfig = function () {
                 $('#msgSftp').hide();
                 $('#btnSaveSftp').prop('disabled', true);
@@ -688,79 +675,6 @@
                 });
             };
         })();
-    </script>
-    <script src="../Scripts/ba-layout.js"></script>
-    <script>
-    (function() {
-        var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-        var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-        var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
-        var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-        var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
-        function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = (typeof v === 'string') ? v : String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); return isNaN(Date.parse(s)) ? null : new Date(s); }
-        var DISMISSED_KEY = 'baDismissedJobIds';
-        function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? (JSON.parse(r) || []) : []; } catch (e) { return []; } }
-        function addDismissed(id, type) { var k = (type === 'Backup' ? 'b:' : 'r:') + id; var a = getDismissed(); if (a.indexOf(k) < 0) { a.push(k); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
-        function isDismissed(j) { return getDismissed().indexOf((j.type === 'Backup' ? 'b:' : 'r:') + (j.id || '')) >= 0; }
-        function fmtTime(v) { var d = parseDateSafe(v); return d ? d.toLocaleString() : '—'; }
-        function loadPanel() {
-            var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-            if (!$list.length) return;
-            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                success: function(res) {
-                    var d = res.d || res;
-                    if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                    var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                    var newBugs = d.newBugs || [];
-                    var total = jobs.length + newBugs.length;
-                    if (!total) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                    var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                    $badge.text(total).addClass('visible');
-                    window.__notifJobsList = jobs;
-                    var bugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
-                    var jobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
-                    var html = '';
-                    if (newBugs.length > 0) {
-                        html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (bugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (bugsCollapsed ? 'display:none;' : '') + '">';
-                        newBugs.forEach(function(b) { var bugUrl = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + fmtTime(b.createdAt) + '</div><a class="ba-notif-detail-link" href="' + bugUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
-                        html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">';
-                    }
-                    jobs.forEach(function(j, idx) {
-                        var st = j.status || '', type = j.type || 'Restore', typeLabel = j.typeLabel || (type === 'Backup' ? 'Backup' : type === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore');
-                        var badge = (type === 'Backup') ? 'ba-notif-type-backup' : (type === 'Restore') ? 'ba-notif-type-restore' : (type === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : 'ba-notif-type-restore';
-                        var pct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : 0;
-                        var phase = (j.message || (type === 'Restore' ? 'Restore' : '')).toString().trim();
-                        var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                        var canCancel = (type === 'Restore' || type === 'Backup' || type === 'HRHelperMultiDbAnalyze' || type === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                        var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime), st);
-                        if (st === 'Running' || st === 'Pending') {
-                            var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
-                            row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
-                            row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                            if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                        } else if (st === 'Completed') row += BaNotif.completedBadgeRow() + '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                        else if (st === 'Failed') row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                        row += '</div>';
-                        html += row;
-                    });
-                    if (newBugs.length > 0) html += '</div></div>';
-                    else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
-                    $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                    $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function() { var g = $(this).data('group'); var $b = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $ar = $(this).find('.ba-notif-group-arrow'); if ($b.is(':visible')) { $b.slideUp(200); $ar.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $b.slideDown(200); $ar.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                    $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                    $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $i = $(this).closest('.ba-notif-item'); var id = parseInt($i.data('job-id'), 10); var typ = $i.data('job-type') || 'Restore'; if (id) { addDismissed(id, typ); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) }); $i.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var n = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (n > 0) { $badgeEl.text(n).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
-                    $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || job.ServerName || '').trim(); var dbName = (job.databaseName || job.DatabaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) loadPanel(); else $btn.prop('disabled', false); }, error: function() { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
-                }
-            });
-        }
-        $(function() {
-            if (!$('#restoreJobsBellWrap').length) return;
-            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); }); var total = jobs.length + (d.newBugs || []).length; if (total) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-            $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) $p.hide(); else { loadPanel(); $p.show(); } });
-            $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
-            $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
-        });
-    })();
     </script>
 </body>
 </html>

@@ -106,7 +106,8 @@ WHERE j.Id = @id";
                 sb.AppendLine("HR Helper Team,");
 				sb.AppendLine("Trân trọng");
 
-				EmailHelper.SendEmail(toEmail.Trim(), subject, sb.ToString(), isHtml: false);
+				var language = BaI18n.FromPayload(payloadJson);
+				EmailHelper.SendEmail(toEmail.Trim(), BaI18n.Translate(language, subject), BaI18n.Translate(language, sb.ToString()), isHtml: false);
             }
             catch
             {
@@ -179,6 +180,8 @@ WHERE j.Id = @id";
                 sb.AppendLine("- Email pattern dùng khi reset: " + (em.Length > 0 ? em : "Mặc định hệ thống"));
                 sb.AppendLine("- Số điện thoại dùng khi reset: " + (ph.Length > 0 ? ph : "Mặc định hệ thống"));
                 sb.AppendLine("- Mật khẩu reset: " + (hasPw ? "Đã nhập khi khởi chạy restore (không hiển thị trong email)" : "Mặc định hệ thống"));
+                sb.AppendLine("- Lương và số liệu lương: " + (JsonNullableBool(jo["keepRealSalary"]) == true ? "Giữ nguyên dữ liệu thật" : "Thay bằng giá trị giả"));
+                AppendSanitizeReport(sb, jo["sanitizeReport"] as JObject);
             }
             else if (withAutoReset == false)
             {
@@ -197,6 +200,30 @@ WHERE j.Id = @id";
                 var sat = (jo["shrinkFinalAt"] != null ? jo["shrinkFinalAt"].ToString() : "").Trim();
                 if (sat.Length > 0)
                     sb.AppendLine("- Thời điểm ghi nhận: " + sat);
+            }
+        }
+
+        static void AppendSanitizeReport(StringBuilder sb, JObject report)
+        {
+            if (report == null) return;
+            sb.AppendLine();
+            sb.AppendLine("Kết quả làm sạch dữ liệu: " + (JsonNullableBool(report["clean"]) == true ? "Đã sạch" : "Chưa sạch hoàn toàn"));
+            var steps = report["steps"] as JArray;
+            if (steps == null) return;
+            foreach (var step in steps)
+            {
+                var status = (step["status"] ?? "").ToString();
+                var statusText = status == "done" ? "xong" : status == "skipped" ? "bỏ qua" : status == "warning" ? "có cảnh báo" : "lỗi";
+                long rows;
+                long.TryParse((step["rows"] ?? "0").ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out rows);
+                long ms;
+                long.TryParse((step["ms"] ?? "0").ToString(), NumberStyles.Integer, CultureInfo.InvariantCulture, out ms);
+                sb.AppendLine("- " + (step["label"] ?? "").ToString() + ": " + statusText
+                    + ", " + rows.ToString("N0", ViCulture) + " dòng, "
+                    + (ms / 1000.0).ToString("0.#", ViCulture) + " giây");
+                var detail = (step["detail"] ?? "").ToString().Trim();
+                if (detail.Length > 0)
+                    sb.AppendLine("  " + detail);
             }
         }
 

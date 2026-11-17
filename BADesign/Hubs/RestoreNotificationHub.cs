@@ -1,6 +1,6 @@
 using System;
-using System.Web;
 using Microsoft.AspNet.SignalR;
+using BADesign.Helpers;
 
 namespace BADesign.Hubs
 {
@@ -11,20 +11,15 @@ namespace BADesign.Hubs
         {
             try
             {
-                var ctx = HttpContext.Current;
-                var userId = ctx?.Session?["UiUserId"];
-                var roleId = ctx?.Session?["UiRoleId"];
-                if (userId != null)
+                HubIdentity identity;
+                if (HubAccessToken.TryRead(Context.QueryString["t"], DateTime.UtcNow, out identity))
                 {
-                    var uid = (int)userId;
-                    Groups.Add(Context.ConnectionId, "user_" + uid);
-                    var isSuperAdmin = (ctx.Session?["IsSuperAdmin"] as bool?) == true;
-                    var hasManage = BADesign.UiAuthHelper.HasFeature("DatabaseManageServers");
-                    var serverIds = BADesign.Helpers.ServerAccessHelper.GetAccessibleServerIds(
-                        uid,
-                        roleId as int?,
-                        isSuperAdmin,
-                        hasManage);
+                    Groups.Add(Context.ConnectionId, "user_" + identity.UserId);
+                    var serverIds = ServerAccessHelper.GetAccessibleServerIds(
+                        identity.UserId,
+                        identity.RoleId,
+                        identity.IsSuperAdmin,
+                        identity.CanManageServers);
                     if (serverIds != null)
                     {
                         foreach (var sid in serverIds)
@@ -34,7 +29,7 @@ namespace BADesign.Hubs
                         Groups.Add(Context.ConnectionId, "server_all");
                 }
             }
-            catch { /* Session có thể null với một số transport */ }
+            catch { }
             return base.OnConnected();
         }
 

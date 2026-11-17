@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using System.Web;
 using System.Web.Services;
 using System.Web.Script.Services;
@@ -43,6 +45,18 @@ namespace BADesign.Pages
             {
                 var k = Request.QueryString["k"];
                 var baseUrl = ResolveUrl("~/PgpTool");
+                if (string.IsNullOrWhiteSpace(k)) return baseUrl;
+                return baseUrl + "?k=" + System.Web.HttpUtility.UrlEncode(k);
+            }
+        }
+
+        /// <summary>URL to License Key (Dev) with current connection token k — chỉ hiện cho user trong whitelist.</summary>
+        public string LicenseKeyUrl
+        {
+            get
+            {
+                var k = Request.QueryString["k"];
+                var baseUrl = ResolveUrl("~/LicenseKey");
                 if (string.IsNullOrWhiteSpace(k)) return baseUrl;
                 return baseUrl + "?k=" + System.Web.HttpUtility.UrlEncode(k);
             }
@@ -93,7 +107,7 @@ namespace BADesign.Pages
                 ConnectedServer = info.Server ?? "";
                 ConnectedDatabase = info.Database ?? "";
             }
-            ucBaTopBar.PageTitle = "HR Helper";
+            ucBaTopBar.PageTitle = "Trợ lý HR";
         }
 
         private static DatabaseSearch.HRConnInfo GetConnectionFromToken(string token)
@@ -215,7 +229,7 @@ namespace BADesign.Pages
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Tools." };
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Công cụ Database." };
                 var list = new List<object>();
                 using (var conn = new SqlConnection(info.ConnectionString))
                 using (var cmd = conn.CreateCommand())
@@ -355,15 +369,12 @@ CREATE TABLE #UserTemp(
                     bulk.ColumnMappings.Add("UserName", "UserName");
                     bulk.ColumnMappings.Add("EmployeeBusinessEmail", "EmployeeBusinessEmail");
                     bulk.ColumnMappings.Add("EmployeePersonalEmail", "EmployeePersonalEmail");
+                    bulk.ColumnMappings.Add("UserID", "UserID");
                     bulk.WriteToServer(batchDt);
                 }
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandTimeout = 600;
-                    cmd.CommandText = @"UPDATE UT SET UT.UserID = U.ID
-FROM #UserTemp UT
-JOIN dbo.Security_Users U WITH (READCOMMITTED) ON U.UserName = UT.UserName COLLATE DATABASE_DEFAULT";
-                    cmd.ExecuteNonQuery();
                     cmd.CommandText = "CREATE NONCLUSTERED INDEX IX_UT_UserID ON #UserTemp(UserID);";
                     try { cmd.ExecuteNonQuery(); } catch { /* ignore */ }
                 }
@@ -399,7 +410,7 @@ COMMIT TRAN;";
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Tools." };
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Công cụ Database." };
                 if (userIds == null || userIds.Count == 0)
                     return new { success = false, message = "Chọn ít nhất 1 user." };
                 if (!isUpdatePassword && !isUpdateEmail)
@@ -438,56 +449,12 @@ COMMIT TRAN;";
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
-                if (UseBackgroundWorker())
-                {
-                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email = email ?? "", ignoreWindowsAD });
-                    int pendingJobId = 0;
-                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                    using (var cmd = appConn.CreateCommand())
-                    {
-                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperUpdateUser', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                        cmd.Parameters.AddWithValue("@sname", serverName);
-                        cmd.Parameters.AddWithValue("@db", databaseName);
-                        cmd.Parameters.AddWithValue("@uid", userId);
-                        cmd.Parameters.AddWithValue("@uname", userName);
-                        cmd.Parameters.AddWithValue("@payload", payload);
-                        appConn.Open();
-                        pendingJobId = (int)cmd.ExecuteScalar();
-                    }
-                    UserActionLogHelper.Log("HRHelper.UpdateUser", "Pending Worker, jobId=" + pendingJobId + ", userIds=" + (userIds?.Count ?? 0));
-                    return new { success = true, jobId = pendingJobId, message = "Đã đưa update user vào hàng đợi. Worker sẽ xử lý." };
-                }
-                int jobId;
-                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = appConn.CreateCommand())
-                {
-                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
-VALUES (N'HRHelperUpdateUser', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                    cmd.Parameters.AddWithValue("@sname", serverName);
-                    cmd.Parameters.AddWithValue("@db", databaseName);
-                    cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@uname", userName);
-                    appConn.Open();
-                    jobId = (int)cmd.ExecuteScalar();
-                }
-                var detail = "database=" + databaseName + ", userIds=" + (userIds?.Count ?? 0);
+                var payload = JsonConvert.SerializeObject(new { connectionString = connStr, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email = email ?? "", ignoreWindowsAD });
+                var jobId = BaJobQueue.Enqueue(new BaJobRequest { JobType = "HRHelperUpdateUser", ServerName = serverName, DatabaseName = databaseName, UserId = userId, UserName = userName, Payload = payload });
+                var detail = "jobId=" + jobId + ", database=" + databaseName + ", userIds=" + (userIds?.Count ?? 0);
                 if (isUpdatePassword) detail += ", password=updated";
                 if (isUpdateEmail && !string.IsNullOrWhiteSpace(email)) detail += ", email=" + email.Trim();
                 UserActionLogHelper.Log("HRHelper.UpdateUser", detail);
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    try
-                    {
-                        var result = ExecuteUpdateUsersCore(connStr, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email, ignoreWindowsAD);
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", result.Item1, result.Item2);
-                    }
-                    catch (Exception ex)
-                    {
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", false, ex.Message);
-                    }
-                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUser", null, userId);
-                });
                 return new { success = true, jobId = jobId, message = "Đã đưa update user vào hàng đợi." };
             }
             catch (Exception ex)
@@ -543,53 +510,9 @@ WHERE t.name = N'Security_Users' AND c.name IN (N'UserSignature', N'GeneralCalcS
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
-                if (UseBackgroundWorker())
-                {
-                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, userIds });
-                    int pendingJobId = 0;
-                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                    using (var cmd = appConn.CreateCommand())
-                    {
-                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperUpdateUserSignature', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                        cmd.Parameters.AddWithValue("@sname", serverName);
-                        cmd.Parameters.AddWithValue("@db", databaseName);
-                        cmd.Parameters.AddWithValue("@uid", userId);
-                        cmd.Parameters.AddWithValue("@uname", userName);
-                        cmd.Parameters.AddWithValue("@payload", payload);
-                        appConn.Open();
-                        pendingJobId = (int)cmd.ExecuteScalar();
-                    }
-                    UserActionLogHelper.Log("HRHelper.UpdateUserSignature", "Pending Worker, jobId=" + pendingJobId);
-                    return new { success = true, jobId = pendingJobId, message = "Đã đưa Update User Signature vào hàng đợi. Worker sẽ xử lý." };
-                }
-                int jobId;
-                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = appConn.CreateCommand())
-                {
-                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
-VALUES (N'HRHelperUpdateUserSignature', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                    cmd.Parameters.AddWithValue("@sname", serverName);
-                    cmd.Parameters.AddWithValue("@db", databaseName);
-                    cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@uname", userName);
-                    appConn.Open();
-                    jobId = (int)cmd.ExecuteScalar();
-                }
-                UserActionLogHelper.Log("HRHelper.UpdateUserSignature", "database=" + databaseName + ", userIds=" + userIds.Count);
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    try
-                    {
-                        var result = ExecuteUpdateUserSignatureCore(connStr, userIds);
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", result.Item1, result.Item2);
-                    }
-                    catch (Exception ex)
-                    {
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", false, ex.Message);
-                    }
-                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUserSignature", null, userId);
-                });
+                var payload = JsonConvert.SerializeObject(new { connectionString = connStr, userIds });
+                var jobId = BaJobQueue.Enqueue(new BaJobRequest { JobType = "HRHelperUpdateUserSignature", ServerName = serverName, DatabaseName = databaseName, UserId = userId, UserName = userName, Payload = payload });
+                UserActionLogHelper.Log("HRHelper.UpdateUserSignature", "jobId=" + jobId + ", database=" + databaseName + ", userIds=" + userIds.Count);
                 return new { success = true, jobId = jobId, message = "Đã đưa Update User Signature vào hàng đợi." };
             }
             catch (Exception ex)
@@ -598,16 +521,39 @@ VALUES (N'HRHelperUpdateUserSignature', @sname, @db, @uid, @uname, SYSDATETIME()
             }
         }
 
-        /// <summary>Cập nhật cột UserSignature theo Cadena: GetPlainSignature() = ID+UserName+EmployeeID+AzureADIdentifier+OktaIdentifier+GoogleIdentifier+GeneralOidcIdentifier (nối liền, null = ''), UserSignature = SHA256(plain).</summary>
+        /// <summary>Cập nhật UserSignature theo Cadena UserAccount.UpdateUserSignature: plain = ID+UserName+EmployeeID+identifiers, hash = SimpleHash.ComputeHash(plain, SHA256) → Base64(hash+salt).</summary>
+        private static string BuildCadenaPlainSignature(long id, string userName, long? employeeId,
+            string azureAdIdentifier, string oktaIdentifier, string googleIdentifier, string generalOidcIdentifier)
+        {
+            return id.ToString()
+                + (userName ?? "")
+                + (employeeId.HasValue ? employeeId.Value.ToString() : "")
+                + (azureAdIdentifier ?? "")
+                + (oktaIdentifier ?? "")
+                + (googleIdentifier ?? "")
+                + (generalOidcIdentifier ?? "");
+        }
+
+        private static bool SecurityUsersHasColumn(SqlConnection conn, string columnName)
+        {
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = @"
+SELECT 1 FROM sys.columns c
+INNER JOIN sys.tables t ON t.object_id = c.object_id
+WHERE t.name = N'Security_Users' AND c.name = @col";
+                cmd.Parameters.AddWithValue("@col", columnName);
+                return cmd.ExecuteScalar() != null;
+            }
+        }
+
         private static Tuple<bool, string> ExecuteUpdateUserSignatureCore(string connectionString, List<long> userIds)
         {
             if (userIds == null || userIds.Count == 0)
                 return Tuple.Create(false, "Không có user nào.");
-            var ids = string.Join(",", userIds.Select(x => x.ToString()));
             using (var conn = new SqlConnection(connectionString))
             {
                 conn.Open();
-                // Cadena entity dùng UserSignature; một số DB có GeneralCalcSignature/GeneralOidcSignature. Ưu tiên UserSignature trước.
                 string signatureColumn = null;
                 using (var cmdCol = conn.CreateCommand())
                 {
@@ -621,40 +567,91 @@ ORDER BY CASE c.name WHEN N'UserSignature' THEN 1 WHEN N'GeneralCalcSignature' T
                 }
                 if (string.IsNullOrEmpty(signatureColumn))
                     return Tuple.Create(false, "Bảng Security_Users không có cột UserSignature / GeneralCalcSignature / GeneralOidcSignature.");
-                // Cadena GetPlainSignature(): ID + UserName + Employee?.ID + AzureADIdentifier + OktaIdentifier + GoogleIdentifier + GeneralOidcIdentifier (nối liền, null = empty)
-                var updateSql = string.Format(@"
-UPDATE U SET U.[{0}] = CONVERT(NVARCHAR(128), HASHBYTES('SHA2_256', CONVERT(NVARCHAR(MAX),
-  CONCAT(
-    CAST(U.ID AS NVARCHAR(20)),
-    ISNULL(U.UserName, N''),
-    ISNULL(CAST(U.EmployeeID AS NVARCHAR(20)), N''),
-    ISNULL(U.AzureADIdentifier, N''),
-    ISNULL(U.OktaIdentifier, N''),
-    ISNULL(U.GoogleIdentifier, N''),
-    ISNULL(U.GeneralOidcIdentifier, N'')
-  ))), 2)
-FROM dbo.Security_Users U
-WHERE U.ID IN ({1})", signatureColumn, ids);
-                using (var cmd = conn.CreateCommand())
+
+                var hasAzure = SecurityUsersHasColumn(conn, "AzureADIdentifier");
+                var hasOkta = SecurityUsersHasColumn(conn, "OktaIdentifier");
+                var hasGoogle = SecurityUsersHasColumn(conn, "GoogleIdentifier");
+                var hasOidc = SecurityUsersHasColumn(conn, "GeneralOidcIdentifier");
+
+                var selectCols = new List<string> { "U.ID", "U.UserName", "U.EmployeeID" };
+                if (hasAzure) selectCols.Add("U.AzureADIdentifier");
+                if (hasOkta) selectCols.Add("U.OktaIdentifier");
+                if (hasGoogle) selectCols.Add("U.GoogleIdentifier");
+                if (hasOidc) selectCols.Add("U.GeneralOidcIdentifier");
+
+                var idList = string.Join(",", userIds.Select(x => x.ToString()));
+                var users = new List<Tuple<long, string>>();
+                using (var cmdRead = conn.CreateCommand())
                 {
-                    cmd.CommandText = updateSql;
-                    cmd.CommandTimeout = 120;
-                    cmd.ExecuteNonQuery();
+                    cmdRead.CommandText = "SELECT " + string.Join(", ", selectCols)
+                        + " FROM dbo.Security_Users U WHERE U.ID IN (" + idList + ")";
+                    cmdRead.CommandTimeout = 120;
+                    using (var r = cmdRead.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var uid = Convert.ToInt64(r.GetValue(0));
+                            var userName = r.IsDBNull(1) ? "" : r.GetValue(1).ToString();
+                            long? employeeId = null;
+                            if (!r.IsDBNull(2))
+                                employeeId = Convert.ToInt64(r.GetValue(2));
+                            var colIdx = 3;
+                            string azure = "", okta = "", google = "", oidc = "";
+                            if (hasAzure) { azure = r.IsDBNull(colIdx) ? "" : r.GetValue(colIdx).ToString(); colIdx++; }
+                            if (hasOkta) { okta = r.IsDBNull(colIdx) ? "" : r.GetValue(colIdx).ToString(); colIdx++; }
+                            if (hasGoogle) { google = r.IsDBNull(colIdx) ? "" : r.GetValue(colIdx).ToString(); colIdx++; }
+                            if (hasOidc) { oidc = r.IsDBNull(colIdx) ? "" : r.GetValue(colIdx).ToString(); colIdx++; }
+
+                            var plain = BuildCadenaPlainSignature(uid, userName, employeeId, azure, okta, google, oidc);
+                            var signature = SimpleHash.ComputeHash(plain, SimpleHash.HashType.SHA256);
+                            users.Add(Tuple.Create(uid, signature));
+                        }
+                    }
+                }
+
+                if (users.Count == 0)
+                    return Tuple.Create(false, "Không tìm thấy user để cập nhật.");
+
+                using (var tran = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var cmdUpd = conn.CreateCommand())
+                        {
+                            cmdUpd.Transaction = tran;
+                            cmdUpd.CommandTimeout = 120;
+                            cmdUpd.CommandText = "UPDATE dbo.Security_Users SET [" + signatureColumn + "] = @sig WHERE ID = @id";
+                            var pSig = cmdUpd.Parameters.Add("@sig", System.Data.SqlDbType.NVarChar, 128);
+                            var pId = cmdUpd.Parameters.Add("@id", System.Data.SqlDbType.BigInt);
+                            foreach (var u in users)
+                            {
+                                pSig.Value = u.Item2;
+                                pId.Value = u.Item1;
+                                cmdUpd.ExecuteNonQuery();
+                            }
+                        }
+                        tran.Commit();
+                    }
+                    catch
+                    {
+                        tran.Rollback();
+                        throw;
+                    }
                 }
             }
-            return Tuple.Create(true, "Đã cập nhật User Signature cho " + userIds.Count + " user.");
+            return Tuple.Create(true, "Đã cập nhật User Signature cho " + userIds.Count + " user (Cadena SimpleHash SHA256 + salt, Base64).");
         }
 
-        /// <summary>Generate SQL UPDATE script for Security_Users (password + flags). No DB access; deterministic hash (no salt).</summary>
+        /// <summary>Generate SQL UPDATE script for Security_Users (password + flags). WHERE theo User ID (tránh trùng username giữa tenant).</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object GeneratePasswordUpdateScript(string[] userNames, string password, string method)
+        public static object GeneratePasswordUpdateScript(List<UserPasswordScriptItem> users, string password, string method)
         {
             try
             {
                 if (UiAuthHelper.IsAnonymous)
                     return new { success = false, message = "Cần đăng nhập.", script = (string)null };
-                if (userNames == null || userNames.Length == 0)
+                if (users == null || users.Count == 0)
                     return new { success = false, message = "Chọn ít nhất 1 user.", script = (string)null };
                 if (string.IsNullOrWhiteSpace(password))
                     return new { success = false, message = "Nhập password.", script = (string)null };
@@ -669,14 +666,14 @@ WHERE U.ID IN ({1})", signatureColumn, ids);
 
                 var dateStr = DateTime.Now.ToString("yyyy-MM-dd");
                 var sb = new System.Text.StringBuilder();
-                foreach (var rawName in userNames)
+                foreach (var item in users)
                 {
-                    var userName = (rawName ?? "").Trim();
+                    if (item == null || item.userId <= 0) continue;
+                    var userName = (item.userName ?? "").Trim();
                     if (string.IsNullOrEmpty(userName)) continue;
                     var plain = userName.ToLowerInvariant() + password;
                     var encPwd = SimpleHash.ComputeHashNoSalt(plain, hashType);
                     var pwdEsc = (encPwd ?? "").Replace("'", "''");
-                    var nameEsc = userName.Replace("'", "''");
                     sb.AppendLine("UPDATE Security_Users");
                     sb.AppendLine("SET Password='" + pwdEsc + "',");
                     sb.AppendLine("  IsRequireChangePassword = 0,");
@@ -687,7 +684,7 @@ WHERE U.ID IN ({1})", signatureColumn, ids);
                     sb.AppendLine("  IsWindowADAccount = 0,");
                     sb.AppendLine("  ReceiveEmailTypeID = 2,");
                     sb.AppendLine("  UserEmailAddress = NULL");
-                    sb.AppendLine("WHERE UserName = '" + nameEsc + "'");
+                    sb.AppendLine("WHERE ID = " + item.userId);
                     sb.AppendLine();
                 }
                 return new { success = true, script = sb.ToString().TrimEnd(), message = (string)null };
@@ -696,6 +693,12 @@ WHERE U.ID IN ({1})", signatureColumn, ids);
             {
                 return new { success = false, message = ex.Message, script = (string)null };
             }
+        }
+
+        public class UserPasswordScriptItem
+        {
+            public long userId { get; set; }
+            public string userName { get; set; }
         }
 
         /// <summary>Đảm bảo connection string có Connection Timeout đủ lớn cho job batch (tránh connection đóng giữa chừng).</summary>
@@ -742,30 +745,16 @@ WHERE U.ID IN ({1})", signatureColumn, ids);
                     conn.Open();
                     cmd.ExecuteNonQuery();
                 }
+                BaJobProgress.End(jobId);
                 BaJobWorkerNotify.Notify(jobId);
             }
             catch { }
         }
 
         /// <summary>Cập nhật % và message cho job đang Running (Worker gọi sau mỗi batch để UI cập nhật).</summary>
-        private static void UpdateBaJobProgress(int jobId, string jobType, int percent, string message)
+        private static void UpdateBaJobProgress(int jobId, string jobType, int percent, string message, string detail = null)
         {
-            try
-            {
-                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = "UPDATE BaJob SET PercentComplete = @pct, Message = @msg WHERE Id = @id AND JobType = @jt AND Status = N'Running'";
-                    cmd.Parameters.AddWithValue("@pct", Math.Max(0, Math.Min(100, percent)));
-                    cmd.Parameters.AddWithValue("@msg", (object)message ?? DBNull.Value);
-                    cmd.Parameters.AddWithValue("@id", jobId);
-                    cmd.Parameters.AddWithValue("@jt", jobType);
-                    conn.Open();
-                    cmd.ExecuteNonQuery();
-                }
-                BaJobWorkerNotify.Notify(jobId);
-            }
-            catch { }
+            BaJobProgress.Report(jobId, percent, message, detail);
         }
 
         private sealed class UserForUpdate
@@ -834,6 +823,7 @@ WHERE U.IsActive = 1 AND U.ID IN (" + ids + ") ORDER BY U.ID";
             dt.Columns.Add("UserName", typeof(string));
             dt.Columns.Add("EmployeeBusinessEmail", typeof(string));
             dt.Columns.Add("EmployeePersonalEmail", typeof(string));
+            dt.Columns.Add("UserID", typeof(long));
 
             var expire = DateTime.Now.AddYears(1);
 
@@ -886,14 +876,21 @@ WHERE U.IsActive = 1 AND U.ID IN (" + ids + ") ORDER BY U.ID";
                 row["UserName"] = u.UserName ?? "";
                 row["EmployeeBusinessEmail"] = (object)businessEmail ?? DBNull.Value;
                 row["EmployeePersonalEmail"] = (object)personalEmail ?? DBNull.Value;
+                row["UserID"] = u.UserID;
                 dt.Rows.Add(row);
             }
 
             return dt;
         }
 
-        /* WinForms: OU.NameEN AS ManagerOrganizionStructure; we use OrganizionStructure for OU to avoid duplicate alias with M.ManagerOrganizionStructure. */
+        /* WinForms: OU.NameEN AS ManagerOrganizionStructure; we use OrganizionStructure for OU to avoid duplicate alias with M.ManagerOrganizionStructure.
+         * EmployeeUser: CTE thay OUTER APPLY (1 lần). Manager: giữ OUTER APPLY (tránh clash kiểu TenantID giữa bảng). */
         private const string EmployeesQueryBase = @"
+;WITH EmployeeUser AS (
+    SELECT U.ID, U.UserName, U.EmployeeID,
+           ROW_NUMBER() OVER (PARTITION BY U.EmployeeID ORDER BY U.IsActive DESC, U.ID) AS rn
+    FROM Security_Users AS U
+)
 SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS EmployeeName, E.EnglishName AS EmployeeEnglishName, E.DateOfBirth,
        E.PersonalEmailAddress, E.BusinessEmailAddress, E.MobilePhone1, E.MobilePhone2,
        T.ServiceStartDate,
@@ -902,17 +899,18 @@ SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS E
        OS.ID AS OrganizionStructureID, OU.NameEN AS OrganizionStructure,
        M.ManagerEmployeeID, M.ManagerLocalEmployeeID, M.ManagerFullName, M.ManagerUserName, M.ManagerOrganizionStructureID, M.ManagerOrganizionStructure,
        U.ID AS UserID, U.UserName, E.PayslipPassword,
-       CAST(C.ID AS VARCHAR(10)) + ' - ' + C.Code + ' - ' + C.NameEN AS CompanyInfo
+       CAST(C.ID AS VARCHAR(10)) + ' - ' + C.Code + ' - ' + C.NameEN AS CompanyInfo,
+       T.ID AS TransactionID
 FROM Staffing_Transactions AS T
 INNER JOIN Staffing_OrganizationStructures AS OS ON OS.ID = T.OrganizationStructureID
 INNER JOIN Staffing_OrganizationUnits AS OU ON OU.ID = OS.OrgUnitID
 INNER JOIN Staffing_Employees AS E ON E.ID = T.EmployeeID
-OUTER APPLY ( SELECT TOP 1 U.* FROM Security_Users AS U WHERE U.EmployeeID = E.ID ORDER BY U.IsActive DESC ) AS U
+LEFT JOIN EmployeeUser AS U ON U.EmployeeID = E.ID AND U.rn = 1
 INNER JOIN TIM_TimeSheetPolicies AS TS ON TS.ID = T.TimeSheetPolicyID
 INNER JOIN TIM_TimeSheetALPolicies AS TSA ON TSA.ID = T.TimeSheetALPolicyID
 INNER JOIN MultiTenant_Companies AS C ON C.ID = T.CompanyID
 OUTER APPLY (
-    SELECT ME.LocalEmployeeID AS ManagerLocalEmployeeID, ME.ID AS ManagerEmployeeID, ME.FullName AS ManagerFullName,
+    SELECT TOP 1 ME.LocalEmployeeID AS ManagerLocalEmployeeID, ME.ID AS ManagerEmployeeID, ME.FullName AS ManagerFullName,
            MOS.ID AS ManagerOrganizionStructureID, MOU.NameEN AS ManagerOrganizionStructure,
            (SELECT TOP 1 MU.UserName FROM Security_Users AS MU WHERE MU.EmployeeID = ME.ID ORDER BY MU.IsActive DESC) AS ManagerUserName
     FROM Staffing_ManagersOrgStructureActives AS MOSA
@@ -922,6 +920,353 @@ OUTER APPLY (
     INNER JOIN Staffing_OrganizationUnits AS MOU ON MOU.ID = MOS.OrgUnitID
     WHERE MOSA.OrganizationStructureID = T.OrganizationStructureID AND MOSA.ManagerTypeID = 1 AND MOSA.TenantID = T.TenantID AND MOSA.CompanyID = T.CompanyID
 ) AS M
+WHERE T.IsActiveTransaction = 1";
+
+        /* Query nhanh: 1 lần duy nhất — không CTE User, không cột encrypted/payslip (giảm ~90% bytes/row). Decrypt lấy từ DB khi xem trang. */
+        private const string EmployeesQueryListFast = @"
+SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS EmployeeName, E.EnglishName AS EmployeeEnglishName, E.DateOfBirth,
+       CAST(NULL AS NVARCHAR(1)) AS PersonalEmailAddress, CAST(NULL AS NVARCHAR(1)) AS BusinessEmailAddress,
+       CAST(NULL AS NVARCHAR(1)) AS MobilePhone1, CAST(NULL AS NVARCHAR(1)) AS MobilePhone2,
+       T.ServiceStartDate,
+       TSA.ID AS ALPolicyID, TSA.NameEN AS ALPolicy,
+       TS.ID AS TimeSheetPolicyID, TS.NameEN AS TimeSheetPolicy,
+       OS.ID AS OrganizionStructureID, OU.NameEN AS OrganizionStructure,
+       CAST(NULL AS BIGINT) AS ManagerEmployeeID, CAST(NULL AS NVARCHAR(1)) AS ManagerLocalEmployeeID,
+       CAST(NULL AS NVARCHAR(1)) AS ManagerFullName, CAST(NULL AS NVARCHAR(1)) AS ManagerUserName,
+       CAST(NULL AS BIGINT) AS ManagerOrganizionStructureID, CAST(NULL AS NVARCHAR(1)) AS ManagerOrganizionStructure,
+       CAST(NULL AS BIGINT) AS UserID, CAST(NULL AS NVARCHAR(1)) AS UserName, CAST(NULL AS NVARCHAR(1)) AS PayslipPassword,
+       CAST(C.ID AS VARCHAR(10)) + ' - ' + C.Code + ' - ' + C.NameEN AS CompanyInfo,
+       T.ID AS TransactionID
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+INNER JOIN Staffing_OrganizationStructures AS OS WITH (NOLOCK) ON OS.ID = T.OrganizationStructureID
+INNER JOIN Staffing_OrganizationUnits AS OU WITH (NOLOCK) ON OU.ID = OS.OrgUnitID
+INNER JOIN Staffing_Employees AS E WITH (NOLOCK) ON E.ID = T.EmployeeID
+INNER JOIN TIM_TimeSheetPolicies AS TS WITH (NOLOCK) ON TS.ID = T.TimeSheetPolicyID
+INNER JOIN TIM_TimeSheetALPolicies AS TSA WITH (NOLOCK) ON TSA.ID = T.TimeSheetALPolicyID
+INNER JOIN MultiTenant_Companies AS C WITH (NOLOCK) ON C.ID = T.CompanyID
+WHERE T.IsActiveTransaction = 1";
+
+        /* Phân trang View Data: chỉ T+E+Company — policy/org/user load lazy (LoadEmployeeGridExtras). */
+        private const string EmployeesQueryPageMinimal = @"
+SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS EmployeeName, E.EnglishName AS EmployeeEnglishName, E.DateOfBirth,
+       CAST(NULL AS NVARCHAR(1)) AS PersonalEmailAddress, CAST(NULL AS NVARCHAR(1)) AS BusinessEmailAddress,
+       CAST(NULL AS NVARCHAR(1)) AS MobilePhone1, CAST(NULL AS NVARCHAR(1)) AS MobilePhone2,
+       T.ServiceStartDate,
+       CAST(NULL AS BIGINT) AS ALPolicyID, CAST(NULL AS NVARCHAR(1)) AS ALPolicy,
+       CAST(NULL AS BIGINT) AS TimeSheetPolicyID, CAST(NULL AS NVARCHAR(1)) AS TimeSheetPolicy,
+       CAST(NULL AS BIGINT) AS OrganizionStructureID, CAST(NULL AS NVARCHAR(1)) AS OrganizionStructure,
+       CAST(NULL AS BIGINT) AS ManagerEmployeeID, CAST(NULL AS NVARCHAR(1)) AS ManagerLocalEmployeeID,
+       CAST(NULL AS NVARCHAR(1)) AS ManagerFullName, CAST(NULL AS NVARCHAR(1)) AS ManagerUserName,
+       CAST(NULL AS BIGINT) AS ManagerOrganizionStructureID, CAST(NULL AS NVARCHAR(1)) AS ManagerOrganizionStructure,
+       CAST(NULL AS BIGINT) AS UserID, CAST(NULL AS NVARCHAR(1)) AS UserName, CAST(NULL AS NVARCHAR(1)) AS PayslipPassword,
+       CAST(C.ID AS VARCHAR(10)) + ' - ' + C.Code + ' - ' + C.NameEN AS CompanyInfo,
+       T.ID AS TransactionID
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+INNER JOIN Staffing_Employees AS E WITH (NOLOCK) ON E.ID = T.EmployeeID
+INNER JOIN MultiTenant_Companies AS C WITH (NOLOCK) ON C.ID = T.CompanyID
+WHERE T.IsActiveTransaction = 1";
+
+        /* Query list (chunk API): có UserName, vẫn không manager. */
+        private const string EmployeesQueryList = @"
+;WITH EmployeeUser AS (
+    SELECT U.ID, U.UserName, U.EmployeeID,
+           ROW_NUMBER() OVER (PARTITION BY U.EmployeeID ORDER BY U.IsActive DESC, U.ID) AS rn
+    FROM Security_Users AS U
+)
+SELECT E.ID AS EmployeeID, E.LocalEmployeeID AS EmployeeLocalID, E.FullName AS EmployeeName, E.EnglishName AS EmployeeEnglishName, E.DateOfBirth,
+       E.PersonalEmailAddress, E.BusinessEmailAddress, E.MobilePhone1, E.MobilePhone2,
+       T.ServiceStartDate,
+       TSA.ID AS ALPolicyID, TSA.NameEN AS ALPolicy,
+       TS.ID AS TimeSheetPolicyID, TS.NameEN AS TimeSheetPolicy,
+       OS.ID AS OrganizionStructureID, OU.NameEN AS OrganizionStructure,
+       CAST(NULL AS BIGINT) AS ManagerEmployeeID, CAST(NULL AS NVARCHAR(250)) AS ManagerLocalEmployeeID,
+       CAST(NULL AS NVARCHAR(250)) AS ManagerFullName, CAST(NULL AS NVARCHAR(100)) AS ManagerUserName,
+       CAST(NULL AS BIGINT) AS ManagerOrganizionStructureID, CAST(NULL AS NVARCHAR(250)) AS ManagerOrganizionStructure,
+       U.ID AS UserID, U.UserName, E.PayslipPassword,
+       CAST(C.ID AS VARCHAR(10)) + ' - ' + C.Code + ' - ' + C.NameEN AS CompanyInfo,
+       T.ID AS TransactionID
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+INNER JOIN Staffing_OrganizationStructures AS OS WITH (NOLOCK) ON OS.ID = T.OrganizationStructureID
+INNER JOIN Staffing_OrganizationUnits AS OU WITH (NOLOCK) ON OU.ID = OS.OrgUnitID
+INNER JOIN Staffing_Employees AS E WITH (NOLOCK) ON E.ID = T.EmployeeID
+LEFT JOIN EmployeeUser AS U ON U.EmployeeID = E.ID AND U.rn = 1
+INNER JOIN TIM_TimeSheetPolicies AS TS WITH (NOLOCK) ON TS.ID = T.TimeSheetPolicyID
+INNER JOIN TIM_TimeSheetALPolicies AS TSA WITH (NOLOCK) ON TSA.ID = T.TimeSheetALPolicyID
+INNER JOIN MultiTenant_Companies AS C WITH (NOLOCK) ON C.ID = T.CompanyID
+WHERE T.IsActiveTransaction = 1";
+
+        private const int EmployeeFetchBatchSize = 2000;
+
+        private static int GetEmployeesCountInternal(string connectionString, int? companyID)
+        {
+            using (var conn = new SqlConnection(connectionString))
+            using (var cmd = conn.CreateCommand())
+            {
+                var query = EmployeesCountQuery;
+                if (companyID.HasValue && companyID.Value > 0)
+                {
+                    query += " AND T.CompanyID = @companyID";
+                    cmd.Parameters.AddWithValue("@companyID", companyID.Value);
+                }
+                cmd.CommandText = query;
+                conn.Open();
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+        }
+
+        private static List<Dictionary<string, object>> FetchAllEmployees(SqlConnection conn, int? companyID, string progressKey)
+        {
+            var list = new List<Dictionary<string, object>>(14000);
+            var swRead = string.IsNullOrEmpty(progressKey) ? null : HrEmployeeLoadProgress.StartPhase(progressKey, "fetch_all_read");
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 600;
+                var whereExtra = "";
+                AppendEmployeeCompanyFilter(cmd, companyID, ref whereExtra);
+                cmd.CommandText = EmployeesQueryListFast + whereExtra + " ORDER BY T.EmployeeID, T.ID";
+                var swOpen = string.IsNullOrEmpty(progressKey) ? null : HrEmployeeLoadProgress.StartPhase(progressKey, "fetch_all_open");
+                using (var r = cmd.ExecuteReader(CommandBehavior.SequentialAccess))
+                {
+                    HrEmployeeLoadProgress.EndPhase(progressKey, "fetch_all_open", swOpen, null);
+                    var values = new object[r.FieldCount];
+                    var rowIndex = 0;
+                    while (r.Read())
+                    {
+                        r.GetValues(values);
+                        list.Add(ReadEmployeeRowDictFromValues(values, false));
+                        rowIndex++;
+                        if (!string.IsNullOrEmpty(progressKey) && rowIndex % 500 == 0)
+                        {
+                            HrEmployeeLoadProgress.Set(progressKey, -1, rowIndex, false, false,
+                                "Đang đọc " + rowIndex + " dòng...", "fetch_all");
+                        }
+                    }
+                }
+            }
+            HrEmployeeLoadProgress.EndPhase(progressKey, "fetch_all_read", swRead, "rows=" + list.Count);
+            return list;
+        }
+
+        private static void LoadEncryptedFieldsFromDb(string connectionString, IList<Dictionary<string, object>> employees, HashSet<long> idSet)
+        {
+            if (employees == null || idSet == null || idSet.Count == 0) return;
+            var idList = idSet.ToList();
+            var byId = new Dictionary<long, Dictionary<string, object>>();
+            foreach (var emp in employees)
+            {
+                if (emp == null) continue;
+                var eid = MyConvert.To<long>(emp.ContainsKey("employeeID") ? emp["employeeID"] : 0);
+                if (idSet.Contains(eid)) byId[eid] = emp;
+            }
+            const int chunk = 200;
+            for (var i = 0; i < idList.Count; i += chunk)
+            {
+                var take = Math.Min(chunk, idList.Count - i);
+                var inList = string.Join(",", idList.Skip(i).Take(take));
+                using (var conn = new SqlConnection(connectionString))
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 120;
+                    cmd.CommandText = @"
+SELECT E.ID, E.PersonalEmailAddress, E.BusinessEmailAddress, E.MobilePhone1, E.MobilePhone2, E.PayslipPassword
+FROM Staffing_Employees AS E WITH (NOLOCK)
+WHERE E.ID IN (" + inList + @")";
+                    conn.Open();
+                    using (var r = cmd.ExecuteReader())
+                    {
+                        while (r.Read())
+                        {
+                            var eid = MyConvert.To<long>(r.GetValue(0));
+                            Dictionary<string, object> emp;
+                            if (!byId.TryGetValue(eid, out emp) || emp == null) continue;
+                            var raw5 = MyConvert.To<string>(r.GetValue(1));
+                            var raw6 = MyConvert.To<string>(r.GetValue(2));
+                            var raw7 = MyConvert.To<string>(r.GetValue(3));
+                            var raw8 = MyConvert.To<string>(r.GetValue(4));
+                            var raw24 = MyConvert.To<string>(r.GetValue(5));
+                            if (!string.IsNullOrWhiteSpace(raw5)) emp["_encPersonal"] = raw5;
+                            if (!string.IsNullOrWhiteSpace(raw6)) emp["_encBusiness"] = raw6;
+                            if (!string.IsNullOrWhiteSpace(raw7)) emp["_encM1"] = raw7;
+                            if (!string.IsNullOrWhiteSpace(raw8)) emp["_encM2"] = raw8;
+                            if (!string.IsNullOrWhiteSpace(raw24)) emp["_encPayslip"] = raw24;
+                            emp["sensitiveDecrypted"] = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        private static List<Dictionary<string, object>> FetchEmployeeBatch(
+            SqlConnection conn, int? companyID, long afterEmployeeID, int take, bool useListQuery, bool decryptSensitive,
+            string progressKey, int loadedBefore, int batchIndex)
+        {
+            var list = new List<Dictionary<string, object>>(take);
+            var phaseOpen = "batch_" + batchIndex + "_open_reader";
+            var phaseRead = "batch_" + batchIndex + "_read_rows";
+            var swOpen = string.IsNullOrEmpty(progressKey) ? null : HrEmployeeLoadProgress.StartPhase(progressKey, phaseOpen);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 180;
+                var whereExtra = "";
+                AppendEmployeeCompanyFilter(cmd, companyID, ref whereExtra);
+                whereExtra += AppendEmployeeKeysetFilter(cmd, afterEmployeeID);
+                cmd.CommandText = (useListQuery ? EmployeesQueryListFast : EmployeesQueryBase) + whereExtra
+                    + " ORDER BY T.EmployeeID, T.ID OFFSET 0 ROWS FETCH NEXT @cnt ROWS ONLY";
+                cmd.Parameters.AddWithValue("@cnt", take);
+                using (var r = cmd.ExecuteReader(CommandBehavior.SequentialAccess))
+                {
+                    HrEmployeeLoadProgress.EndPhase(progressKey, phaseOpen, swOpen, "afterEmp=" + afterEmployeeID + " take=" + take);
+                    var swRead = string.IsNullOrEmpty(progressKey) ? null : Stopwatch.StartNew();
+                    var fieldCount = r.FieldCount;
+                    var values = new object[fieldCount];
+                    var rowIndex = 0;
+                    while (r.Read())
+                    {
+                        r.GetValues(values);
+                        list.Add(ReadEmployeeRowDictFromValues(values, decryptSensitive));
+                        rowIndex++;
+                        if (!string.IsNullOrEmpty(progressKey) && rowIndex % 200 == 0)
+                        {
+                            HrEmployeeLoadProgress.Set(progressKey, -1, loadedBefore + rowIndex, false, false,
+                                "Đang đọc batch " + batchIndex + ": " + (loadedBefore + rowIndex) + " dòng",
+                                "batch_" + batchIndex + "_reading");
+                        }
+                    }
+                    HrEmployeeLoadProgress.EndPhase(progressKey, phaseRead, swRead, "rows=" + rowIndex + " afterEmp=" + afterEmployeeID);
+                }
+            }
+            return list;
+        }
+
+        /// <summary>Map 1 dòng từ mảng cột (sau GetValues). SqlDataReader chỉ đọc tuần tự — không parallel được.</summary>
+        private static Dictionary<string, object> ReadEmployeeRowDictFromValues(object[] v, bool decryptSensitive)
+        {
+            var empId = MyConvert.To<long>(v[0]);
+            var raw5 = MyConvert.To<string>(v[5]);
+            var raw6 = MyConvert.To<string>(v[6]);
+            var raw7 = MyConvert.To<string>(v[7]);
+            var raw8 = MyConvert.To<string>(v[8]);
+            var raw24 = MyConvert.To<string>(v[24]);
+            string personal = "", business = "", m1 = "", m2 = "", payslip = "";
+            var dict = new Dictionary<string, object>(32, StringComparer.OrdinalIgnoreCase);
+            if (decryptSensitive)
+            {
+                personal = DecryptEmployeeField(raw5, empId);
+                business = DecryptEmployeeField(raw6, empId);
+                m1 = DecryptEmployeeField(raw7, empId);
+                m2 = DecryptEmployeeField(raw8, empId);
+                payslip = DecryptEmployeeField(raw24, empId);
+                dict["sensitiveDecrypted"] = true;
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(raw5)) dict["_encPersonal"] = raw5;
+                if (!string.IsNullOrWhiteSpace(raw6)) dict["_encBusiness"] = raw6;
+                if (!string.IsNullOrWhiteSpace(raw7)) dict["_encM1"] = raw7;
+                if (!string.IsNullOrWhiteSpace(raw8)) dict["_encM2"] = raw8;
+                if (!string.IsNullOrWhiteSpace(raw24)) dict["_encPayslip"] = raw24;
+                dict["sensitiveDecrypted"] = false;
+            }
+            var dob = MyConvert.To<DateTime?>(v[4]);
+            var svc = MyConvert.To<DateTime?>(v[9]);
+            dict["employeeID"] = empId;
+            dict["localEmployeeID"] = MyConvert.To<string>(v[1]) ?? "";
+            dict["employeeName"] = MyConvert.To<string>(v[2]) ?? "";
+            dict["englishName"] = MyConvert.To<string>(v[3]) ?? "";
+            dict["dateOfBirth"] = dob.HasValue ? dob.Value.ToString("yyyy-MM-dd") : "";
+            dict["personalEmail"] = personal;
+            dict["businessEmail"] = business;
+            dict["mobilePhone1"] = m1;
+            dict["mobilePhone2"] = m2;
+            dict["serviceStartDate"] = svc.HasValue ? svc.Value.ToString("yyyy-MM-dd") : "";
+            dict["alPolicyID"] = MyConvert.To<long?>(v[10]);
+            dict["alPolicy"] = MyConvert.To<string>(v[11]) ?? "";
+            dict["timeSheetPolicyID"] = MyConvert.To<long?>(v[12]);
+            dict["timeSheetPolicy"] = MyConvert.To<string>(v[13]) ?? "";
+            dict["organizionStructureID"] = MyConvert.To<long?>(v[14]);
+            dict["organizionStructure"] = MyConvert.To<string>(v[15]) ?? "";
+            dict["managerEmployeeID"] = MyConvert.To<long?>(v[16]);
+            dict["managerLocalEmployeeID"] = MyConvert.To<string>(v[17]) ?? "";
+            dict["managerFullName"] = MyConvert.To<string>(v[18]) ?? "";
+            dict["managerUserName"] = MyConvert.To<string>(v[19]) ?? "";
+            dict["managerOrganizionStructureID"] = MyConvert.To<long?>(v[20]);
+            dict["managerOrganizionStructure"] = MyConvert.To<string>(v[21]) ?? "";
+            dict["userID"] = MyConvert.To<long?>(v[22]);
+            dict["userName"] = MyConvert.To<string>(v[23]) ?? "";
+            dict["payslipPassword"] = payslip;
+            dict["companyInfo"] = MyConvert.To<string>(v[25]) ?? "";
+            dict["transactionID"] = MyConvert.To<long?>(v[26]);
+            return dict;
+        }
+
+        private static string DecryptEmployeeField(string raw, long empId)
+        {
+            if (string.IsNullOrWhiteSpace(raw)) return "";
+            try { return DataSecurityWrapper.DecryptData<string>(raw, empId) ?? ""; }
+            catch { return ""; }
+        }
+
+        private static Dictionary<string, object> ReadEmployeeRowDict(SqlDataReader r, bool decryptSensitive)
+        {
+            var values = new object[r.FieldCount];
+            r.GetValues(values);
+            return ReadEmployeeRowDictFromValues(values, decryptSensitive);
+        }
+
+        private static void DecryptEmployeeDict(Dictionary<string, object> emp)
+        {
+            if (emp == null) return;
+            if (MyConvert.To<bool>(emp.ContainsKey("sensitiveDecrypted") ? emp["sensitiveDecrypted"] : false))
+                return;
+            var empId = MyConvert.To<long>(emp.ContainsKey("employeeID") ? emp["employeeID"] : 0);
+            if (emp.ContainsKey("_encPersonal"))
+                emp["personalEmail"] = DecryptEmployeeField(MyConvert.To<string>(emp["_encPersonal"]), empId);
+            if (emp.ContainsKey("_encBusiness"))
+                emp["businessEmail"] = DecryptEmployeeField(MyConvert.To<string>(emp["_encBusiness"]), empId);
+            if (emp.ContainsKey("_encM1"))
+                emp["mobilePhone1"] = DecryptEmployeeField(MyConvert.To<string>(emp["_encM1"]), empId);
+            if (emp.ContainsKey("_encM2"))
+                emp["mobilePhone2"] = DecryptEmployeeField(MyConvert.To<string>(emp["_encM2"]), empId);
+            if (emp.ContainsKey("_encPayslip"))
+                emp["payslipPassword"] = DecryptEmployeeField(MyConvert.To<string>(emp["_encPayslip"]), empId);
+            emp.Remove("_encPersonal");
+            emp.Remove("_encBusiness");
+            emp.Remove("_encM1");
+            emp.Remove("_encM2");
+            emp.Remove("_encPayslip");
+            emp["sensitiveDecrypted"] = true;
+        }
+
+        private static Dictionary<string, object> ToClientEmployeeDict(Dictionary<string, object> emp)
+        {
+            if (emp == null) return new Dictionary<string, object>();
+            var copy = new Dictionary<string, object>(emp, StringComparer.OrdinalIgnoreCase);
+            copy.Remove("_encPersonal");
+            copy.Remove("_encBusiness");
+            copy.Remove("_encM1");
+            copy.Remove("_encM2");
+            copy.Remove("_encPayslip");
+            copy.Remove("sensitiveDecrypted");
+            return copy;
+        }
+
+        private static object ToClientEmployeeObject(object item)
+        {
+            var d = item as Dictionary<string, object>;
+            if (d != null)
+                return ToClientEmployeeDict(d);
+            return item;
+        }
+
+        private static List<object> GetEmployeesSessionList(string sessionKey)
+        {
+            var session = HttpContext.Current?.Session;
+            return session?[sessionKey] as List<object>;
+        }
+
+        private const string EmployeesCountQuery = @"
+SELECT COUNT(*)
+FROM Staffing_Transactions AS T
 WHERE T.IsActiveTransaction = 1";
 
         [WebMethod(EnableSession = true)]
@@ -988,7 +1333,8 @@ WHERE T.IsActiveTransaction = 1";
                 var employees = session[sessionKey] as List<object>;
                 if (employees == null || employees.Count == 0)
                     return new { success = false, message = "Không có data trong session cho key: " + sessionKey };
-                return new { success = true, list = employees, count = employees.Count };
+                var clientList = employees.Select(ToClientEmployeeObject).ToList();
+                return new { success = true, list = clientList, count = clientList.Count };
             }
             catch (Exception ex)
             {
@@ -1722,7 +2068,7 @@ ELSE
             try
             {
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = conn.CreateCommand())
+                using (var cmd = conn.CreateCommand()) 
                 {
                     cmd.CommandText = "SELECT [Value] FROM BaAppSetting WHERE [Key] = @key";
                     cmd.Parameters.AddWithValue("@key", EmailIgnoreSettingKey);
@@ -1933,6 +2279,7 @@ VALUES (N'HRHelperMultiDbAnalyze', @sname, N'Multi', @uid, @uname, SYSDATETIME()
                     appConn.Open();
                     jobId = (int)cmd.ExecuteScalar();
                 }
+                BaJobQueue.Track(jobId);
                 UserActionLogHelper.Log("HRHelper.MultiDbAnalyze", "jobId=" + jobId + ", dbCount=" + multi.Databases.Count);
                 var dbList = multi.Databases;
                 System.Threading.Tasks.Task.Run(() =>
@@ -2123,7 +2470,7 @@ VALUES (N'HRHelperMultiDbAnalyze', @sname, N'Multi', @uid, @uname, SYSDATETIME()
                         multiGuid = jo["multiGuid"]?.ToString();
                     }
                     if (string.IsNullOrWhiteSpace(multiGuid))
-                        return new { success = false, message = "Job này không lưu thông tin kết nối Multi-DB. Vui lòng vào Database Tools chọn lại Multi-DB, vào HR Helper và bấm \"Tải kết quả phân tích gần nhất\".", token = (string)null };
+                        return new { success = false, message = "Job này không lưu thông tin kết nối Multi-DB. Vui lòng vào Công cụ Database chọn lại Multi-DB, vào Trợ lý HR và bấm \"Tải kết quả phân tích gần nhất\".", token = (string)null };
                     var token = DataSecurityWrapper.EncryptConnectId("multi_" + multiGuid);
                     return new { success = true, token = token };
                 }
@@ -2576,16 +2923,6 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
             }
         }
 
-        private static bool UseBackgroundWorker()
-        {
-            try
-            {
-                var v = ConfigurationManager.AppSettings["UseBackgroundWorker"];
-                return string.Equals(v, "true", StringComparison.OrdinalIgnoreCase);
-            }
-            catch { return false; }
-        }
-
         /// <summary>Đưa reset Multi-DB xuống job nền. Trả về jobId; client disable nút và theo dõi qua chuông/Function Queue.</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -2620,117 +2957,11 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
                 var userName = (string)HttpContext.Current?.Session?["UiUserName"] ?? "";
                 var dbNamesList = toProcess.Select(d => d.DatabaseName ?? "").ToList();
 
-                if (UseBackgroundWorker())
-                {
-                    var connectionStringsPayload = toProcess.Select(d => new { DatabaseName = d.DatabaseName ?? "", ConnectionString = d.ConnectionString ?? "" }).ToList();
-                    var payloadPending = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, emailToNull, phoneToNull, databaseNames = dbNamesList, connectionStrings = connectionStringsPayload });
-                    int pendingJobId = 0;
-                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                    using (var cmd = appConn.CreateCommand())
-                    {
-                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                        cmd.Parameters.AddWithValue("@sname", multi.Server ?? "");
-                        cmd.Parameters.AddWithValue("@uid", userId);
-                        cmd.Parameters.AddWithValue("@uname", userName);
-                        cmd.Parameters.AddWithValue("@payload", payloadPending);
-                        appConn.Open();
-                        pendingJobId = (int)cmd.ExecuteScalar();
-                    }
-                    UserActionLogHelper.Log("HRHelper.MultiDbReset", "Pending Worker, jobId=" + pendingJobId + ", dbCount=" + toProcess.Count);
-                    return new { success = true, jobId = pendingJobId, message = "Đã đưa reset Multi-DB vào hàng đợi. Worker sẽ xử lý. Theo dõi chuông và Function Queue." };
-                }
-
-                var payloadInitial = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, emailToNull, phoneToNull, databaseNames = dbNamesList });
-                int jobId = 0;
-                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = appConn.CreateCommand())
-                {
-                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), N'Running', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                    cmd.Parameters.AddWithValue("@sname", multi.Server ?? "");
-                    cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@uname", userName);
-                    cmd.Parameters.AddWithValue("@payload", payloadInitial);
-                    appConn.Open();
-                    jobId = (int)cmd.ExecuteScalar();
-                }
+                var connectionStringsPayload = toProcess.Select(d => new { DatabaseName = d.DatabaseName ?? "", ConnectionString = d.ConnectionString ?? "" }).ToList();
+                var payload = JsonConvert.SerializeObject(new { databaseCount = toProcess.Count, email = emailTrim, phone = phoneTrim, emailToNull, phoneToNull, databaseNames = dbNamesList, connectionStrings = connectionStringsPayload });
+                var jobId = BaJobQueue.Enqueue(new BaJobRequest { JobType = "HRHelperMultiDbReset", ServerName = multi.Server ?? "", DatabaseName = "Multi", UserId = userId, UserName = userName, Payload = payload });
                 UserActionLogHelper.Log("HRHelper.MultiDbReset", "jobId=" + jobId + ", dbCount=" + toProcess.Count + ", email=" + (string.IsNullOrEmpty(emailTrim) ? "" : emailTrim) + ", phone=" + (string.IsNullOrEmpty(phoneTrim) ? "" : phoneTrim));
-
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    var prevPriority = System.Threading.Thread.CurrentThread.Priority;
-                    try
-                    {
-                        System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
-                    }
-                    catch { }
-                    var totalDbs = toProcess.Count;
-                    var done = 0;
-                    var totalAffected = 0;
-                    var errors = new List<string>();
-                    try
-                    {
-                        foreach (var db in toProcess)
-                        {
-                            var errCountBefore = errors.Count;
-                            RunMultiDbResetPlainAndEncrypted(db.ConnectionString, db.DatabaseName ?? "", emailTrim, phoneTrim, emailToNull, phoneToNull, ref totalAffected, errors);
-                            if (errors.Count == errCountBefore)
-                                done++;
-                            var pct = totalDbs > 0 ? (int)Math.Round(((done * 100.0) / totalDbs)) : 0;
-                            pct = Math.Min(pct, 99);
-                            try
-                            {
-                                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                                using (var updateCmd = conn.CreateCommand())
-                                {
-                                    updateCmd.CommandText = "UPDATE BaJob SET PercentComplete = @pct, Message = @msg WHERE Id = @id AND JobType = N'HRHelperMultiDbReset' AND Status = N'Running'";
-                                    updateCmd.Parameters.AddWithValue("@pct", pct);
-                                    updateCmd.Parameters.AddWithValue("@msg", done + " / " + totalDbs + " DB");
-                                    updateCmd.Parameters.AddWithValue("@id", jobId);
-                                    conn.Open();
-                                    updateCmd.ExecuteNonQuery();
-                                }
-                                BaJobWorkerNotify.Notify(jobId);
-                                BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
-                            }
-                            catch { }
-                            System.Threading.Thread.Sleep(0);
-                        }
-                        var msg = "Đã reset " + done + "/" + totalDbs + " DB. Tổng bản ghi: " + totalAffected;
-                        if (!string.IsNullOrEmpty(emailTrim)) msg += ". Email: " + emailTrim;
-                        if (!string.IsNullOrEmpty(phoneTrim)) msg += ". Phone: " + phoneTrim;
-                        if (errors.Count > 0)
-                            msg += ". Lỗi: " + string.Join("; ", errors.Take(5));
-                        try
-                        {
-                            using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                            using (var cmd = conn.CreateCommand())
-                            {
-                                cmd.CommandText = "UPDATE BaJob SET Status = N'Completed', PercentComplete = 100, Message = @msg, CompletedAt = SYSDATETIME() WHERE Id = @id AND JobType = N'HRHelperMultiDbReset' AND Status = N'Running'";
-                                cmd.Parameters.AddWithValue("@msg", msg);
-                                cmd.Parameters.AddWithValue("@id", jobId);
-                                conn.Open();
-                                cmd.ExecuteNonQuery();
-                            }
-                            BaJobWorkerNotify.Notify(jobId);
-                            BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
-                        }
-                        catch { }
-                    }
-                    catch (Exception ex)
-                    {
-                        try
-                        {
-                            UpdateBaJobCompleted(jobId, "HRHelperMultiDbReset", false, ex.Message ?? "Lỗi");
-                            BaJobHubHelper.PushJobsUpdated("HRHelperMultiDbReset", null, userId);
-                        }
-                        catch { }
-                    }
-                    try { System.Threading.Thread.CurrentThread.Priority = prevPriority; } catch { }
-                });
-
-                return new { success = true, jobId = jobId, message = "Đã đưa reset Multi-DB vào hàng đợi. Theo dõi tiến độ trên chuông và Function Queue." };
+                return new { success = true, jobId = jobId, message = "Đã đưa reset Multi-DB vào hàng đợi. Theo dõi tiến độ trên chuông và Hàng đợi xử lý." };
             }
             catch (Exception ex)
             {
@@ -2755,6 +2986,11 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
                     userId = r.IsDBNull(r.GetOrdinal("StartedByUserId")) ? 0 : r.GetInt32(r.GetOrdinal("StartedByUserId"));
                     payloadJson = r.IsDBNull(r.GetOrdinal("Payload")) ? null : r.GetString(r.GetOrdinal("Payload"));
                 }
+            }
+            if (DatabaseSearch.IsSanitizeJobPayload(payloadJson))
+            {
+                DatabaseSearch.ExecuteSanitizeJob(jobId);
+                return;
             }
             using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
             using (var cmd = appConn.CreateCommand())
@@ -2914,6 +3150,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             try
             {
                 System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
+                UpdateBaJobProgress(jobId, "HRHelperUpdateUser", 1, "Đang xử lý...");
                 var result = ExecuteUpdateUsersCore(connStr, userIds, isUpdatePassword, password, methodHash, isUpdateEmail, email, ignoreWindowsAD);
                 UpdateBaJobCompleted(jobId, "HRHelperUpdateUser", result.Item1, result.Item2);
                 BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUser", null, userId);
@@ -2969,6 +3206,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             if (string.IsNullOrEmpty(connStr) || userIds == null || userIds.Count == 0) { UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", false, "Payload thiếu connectionString hoặc userIds."); return; }
             try
             {
+                UpdateBaJobProgress(jobId, "HRHelperUpdateUserSignature", 1, "Đang xử lý...");
                 var result = ExecuteUpdateUserSignatureCore(connStr, userIds);
                 UpdateBaJobCompleted(jobId, "HRHelperUpdateUserSignature", result.Item1, result.Item2);
                 BaJobHubHelper.PushJobsUpdated("HRHelperUpdateUserSignature", null, userId);
@@ -3064,9 +3302,9 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             {
                 System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal;
                 var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updM1, m1, updM2, m2, updBasic, basicSalary, testDataOptions,
-                    onProgress: (pct, msg) =>
+                    onProgress: (pct, msg, detail) =>
                     {
-                        UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg);
+                        UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg, detail);
                         BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] progress " + pct + "% " + (msg ?? ""));
                     });
                 BaJobWorkerNotify.Log("JobId=" + jobId + " [HRHelper] ExecuteUpdateEmployeesCore xong: success=" + result.Item1 + " msg=" + (result.Item2 ?? ""));
@@ -3141,6 +3379,7 @@ VALUES (N'HRHelperMultiDbReset', @sname, N'Multi', @uid, @uname, SYSDATETIME(), 
             if (string.IsNullOrEmpty(connStr)) { UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", false, "Payload thiếu connectionString."); return; }
             try
             {
+                UpdateBaJobProgress(jobId, "HRHelperUpdateOther", 1, "Đang xử lý...");
                 var result = ExecuteUpdateCompanyInfoCore(connStr, tenantID, companyID, isUpdateAll, useCommonEmail, commonEmail, hrEmailTo, hrEmailCC, payrollEmailTo, payrollEmailCC, contactEmail, outgoingServer, serverPort, accountName, userName, emailAddress, password, enableSSL, sslPort);
                 UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", result.Item1, result.Item2);
                 BaJobHubHelper.PushJobsUpdated("HRHelperUpdateOther", null, userId);
@@ -3337,66 +3576,6 @@ WHERE {0}";
                     afterEachColumn?.Invoke();
                 }
                 return total;
-            }
-        }
-
-        /// <summary>Reset Email và Phone trong database theo connection string (plain text, dùng cho Multi-DB reset). Trả về (tổng bản ghi cập nhật, lỗi nếu có).</summary>
-        public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone)
-        {
-            return ResetEmailAndPhoneInDatabase(connectionString, email, phone, null, false, false);
-        }
-
-        /// <summary>Giống overload không callback; progressPlain: (bước hiện tại 1..N, tổng bước N) sau mỗi cột email/phone plain — map % trên UI (vd. 2→22).</summary>
-        public static Tuple<int, string> ResetEmailAndPhoneInDatabase(string connectionString, string email, string phone, Action<int, int> progressPlain, bool clearEmailToNull = false, bool clearPhoneToNull = false)
-        {
-            if (string.IsNullOrWhiteSpace(connectionString))
-                return Tuple.Create(0, "Connection string trống.");
-            var emailTrim = (email ?? "").Trim();
-            var phoneTrim = (phone ?? "").Trim();
-            if (clearEmailToNull && !string.IsNullOrEmpty(emailTrim))
-                return Tuple.Create(0, "Không kết hợp xóa email (NULL) với giá trị email.");
-            if (clearPhoneToNull && !string.IsNullOrEmpty(phoneTrim))
-                return Tuple.Create(0, "Không kết hợp xóa phone (NULL) với giá trị phone.");
-            var anyEmail = clearEmailToNull || !string.IsNullOrEmpty(emailTrim);
-            var anyPhone = clearPhoneToNull || !string.IsNullOrEmpty(phoneTrim);
-            if (!anyEmail && !anyPhone)
-                return Tuple.Create(0, "Cần nhập Email và/hoặc Phone, hoặc chọn xóa NULL.");
-            try
-            {
-                var total = 0;
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-                    int emailCols = 0, phoneCols = 0;
-                    if (clearEmailToNull || !string.IsNullOrEmpty(emailTrim))
-                        emailCols = GetEmailColumns(conn).Count;
-                    if (clearPhoneToNull || !string.IsNullOrEmpty(phoneTrim))
-                        phoneCols = GetPhoneColumns(conn).Count;
-                    var totalSteps = emailCols + phoneCols;
-                    var step = 0;
-                    Action bump = () =>
-                    {
-                        if (progressPlain == null || totalSteps <= 0) return;
-                        step++;
-                        if (step <= totalSteps)
-                            progressPlain(step, totalSteps);
-                    };
-                    if (clearEmailToNull)
-                        total += UpdateEmailValuesToNullInDb(conn, bump);
-                    else if (!string.IsNullOrEmpty(emailTrim))
-                        total += UpdateEmailValuesInDb(conn, emailTrim, bump);
-                    if (clearPhoneToNull)
-                        total += ResetPhoneColumnsToNullInDb(conn, bump);
-                    else if (!string.IsNullOrEmpty(phoneTrim))
-                        total += ResetPhoneColumnsInDb(conn, phoneTrim, bump);
-                    if (progressPlain != null && totalSteps <= 0)
-                        progressPlain(1, 1);
-                }
-                return Tuple.Create(total, (string)null);
-            }
-            catch (Exception ex)
-            {
-                return Tuple.Create(0, ex.Message ?? "Lỗi reset.");
             }
         }
 
@@ -3979,55 +4158,9 @@ COMMIT TRAN;";
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
-                if (UseBackgroundWorker())
-                {
-                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, tenantID, companyID, isUpdateAll, useCommonEmail, commonEmail = commonEmail ?? "", hrEmailTo = hrEmailTo ?? "", hrEmailCC = hrEmailCC ?? "", payrollEmailTo = payrollEmailTo ?? "", payrollEmailCC = payrollEmailCC ?? "", contactEmail = contactEmail ?? "", outgoingServer = outgoingServer ?? "", serverPort, accountName = accountName ?? "", userName = userName ?? "", emailAddress = emailAddress ?? "", password = password ?? "", enableSSL, sslPort });
-                    int pendingJobId = 0;
-                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                    using (var cmd = appConn.CreateCommand())
-                    {
-                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                        cmd.Parameters.AddWithValue("@sname", serverName);
-                        cmd.Parameters.AddWithValue("@db", databaseName);
-                        cmd.Parameters.AddWithValue("@uid", userId);
-                        cmd.Parameters.AddWithValue("@uname", userName2);
-                        cmd.Parameters.AddWithValue("@payload", payload);
-                        appConn.Open();
-                        pendingJobId = (int)cmd.ExecuteScalar();
-                    }
-                    UserActionLogHelper.Log("HRHelper.UpdateOther", "Pending Worker, jobId=" + pendingJobId);
-                    return new { success = true, jobId = pendingJobId, message = "Đã đưa update company/other vào hàng đợi. Worker sẽ xử lý." };
-                }
-                int jobId;
-                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = appConn.CreateCommand())
-                {
-                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
-VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                    cmd.Parameters.AddWithValue("@sname", serverName);
-                    cmd.Parameters.AddWithValue("@db", databaseName);
-                    cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@uname", userName2);
-                    appConn.Open();
-                    jobId = (int)cmd.ExecuteScalar();
-                }
-                UserActionLogHelper.Log("HRHelper.UpdateOther", "database=" + databaseName + ", tenantID=" + tenantID + ", companyID=" + companyID + " (update company/email config)");
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    try
-                    {
-                        var result = ExecuteUpdateCompanyInfoCore(connStr, tenantID, companyID, isUpdateAll,
-                            useCommonEmail, commonEmail, hrEmailTo, hrEmailCC, payrollEmailTo, payrollEmailCC, contactEmail,
-                            outgoingServer, serverPort, accountName, userName, emailAddress, password, enableSSL, sslPort);
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", result.Item1, result.Item2);
-                    }
-                    catch (Exception ex)
-                    {
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateOther", false, ex.Message);
-                    }
-                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateOther", null, userId);
-                });
+                var payload = JsonConvert.SerializeObject(new { connectionString = connStr, tenantID, companyID, isUpdateAll, useCommonEmail, commonEmail = commonEmail ?? "", hrEmailTo = hrEmailTo ?? "", hrEmailCC = hrEmailCC ?? "", payrollEmailTo = payrollEmailTo ?? "", payrollEmailCC = payrollEmailCC ?? "", contactEmail = contactEmail ?? "", outgoingServer = outgoingServer ?? "", serverPort, accountName = accountName ?? "", userName = userName ?? "", emailAddress = emailAddress ?? "", password = password ?? "", enableSSL, sslPort });
+                var jobId = BaJobQueue.Enqueue(new BaJobRequest { JobType = "HRHelperUpdateOther", ServerName = serverName, DatabaseName = databaseName, UserId = userId, UserName = userName2, Payload = payload });
+                UserActionLogHelper.Log("HRHelper.UpdateOther", "jobId=" + jobId + ", database=" + databaseName + ", tenantID=" + tenantID + ", companyID=" + companyID + " (update company/email config)");
                 return new { success = true, jobId = jobId, message = "Đã đưa update company/other info vào hàng đợi." };
             }
             catch (Exception ex)
@@ -4085,105 +4218,562 @@ VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runn
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
-                using (var conn = new SqlConnection(info.ConnectionString))
-                using (var cmd = conn.CreateCommand())
-                {
-                    var query = EmployeesQueryBase;
-                    if (companyID.HasValue && companyID.Value > 0)
-                    {
-                        query += " AND T.CompanyID = @companyID";
-                        cmd.Parameters.AddWithValue("@companyID", companyID.Value);
-                    }
-                    cmd.CommandText = "SELECT COUNT(*) FROM (" + query + ") X";
-                    conn.Open();
-                    var total = Convert.ToInt32(cmd.ExecuteScalar());
-                    return new { success = true, total = total };
-                }
+                var total = GetEmployeesCountInternal(info.ConnectionString, companyID);
+                return new { success = true, total = total };
             }
             catch (Exception ex) { return new { success = false, message = ex.Message }; }
         }
 
-        /// <summary>Load employee theo trang (server-side paging). Dùng paging để tránh treo khi DB có 50k+ bản ghi; không đưa load-data vào job trả về client.</summary>
-        [WebMethod(EnableSession = true)]
+        /// <summary>Phân trang server-side — chỉ trả về 1 trang (View Data nhanh, không load hết vào browser).</summary>
+        [WebMethod(EnableSession = false)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-        public static object LoadEmployeesChunk(string k, int offset, int count, int? companyID = null)
+        public static object SearchEmployeesPage(string k, int companyID, int page, int pageSize, string search, string sortCol, int sortDir, bool skipCount)
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var companyFilter = HrEmployeeLoadProgress.ParseCompanyFilter(companyID);
+                var safePage = Math.Max(1, page);
+                var safeSize = Math.Max(1, Math.Min(5000, pageSize));
+                int total = -1;
+                List<object> rows;
+                long countMs = 0;
+                long fetchMs = 0;
+                var countKey = HrEmployeeCountCache.BuildKey(info.Database, companyFilter, search);
+                Task<int> countTask = null;
+                if (!skipCount)
+                {
+                    int cachedTotal;
+                    if (HrEmployeeCountCache.TryGet(countKey, out cachedTotal))
+                    {
+                        total = cachedTotal;
+                    }
+                    else
+                    {
+                        var cs = info.ConnectionString;
+                        var cf = companyFilter;
+                        var searchCopy = search;
+                        countTask = Task.Run(() =>
+                        {
+                            using (var c = new SqlConnection(cs))
+                            {
+                                c.Open();
+                                return GetEmployeesFilteredCount(c, cf, searchCopy);
+                            }
+                        });
+                    }
+                }
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    conn.Open();
+                    var swFetch = Stopwatch.StartNew();
+                    List<Dictionary<string, object>> pageRows;
+                    if (!skipCount && total == 0)
+                        pageRows = new List<Dictionary<string, object>>();
+                    else
+                    {
+                        if (!skipCount && total > 0)
+                        {
+                            var maxPage = Math.Max(1, (int)Math.Ceiling(total / (double)safeSize));
+                            if (safePage > maxPage) safePage = maxPage;
+                        }
+                        pageRows = FetchEmployeesPageDirect(conn, companyFilter, search, sortCol, sortDir, safePage, safeSize);
+                    }
+                    swFetch.Stop();
+                    fetchMs = swFetch.ElapsedMilliseconds;
+                    rows = pageRows.Select(x => (object)ToClientEmployeeDict(x)).ToList();
+                }
+                if (countTask != null)
+                {
+                    var swCount = Stopwatch.StartNew();
+                    total = countTask.Result;
+                    swCount.Stop();
+                    countMs = swCount.ElapsedMilliseconds;
+                    if (total >= 0)
+                        HrEmployeeCountCache.Set(countKey, total, 120);
+                }
+                sw.Stop();
+                HrEmployeeLoadProgress.Log("page", "SearchEmployeesPage page=" + safePage + " size=" + safeSize
+                    + " total=" + total + " rows=" + rows.Count + " ms=" + sw.ElapsedMilliseconds
+                    + " countMs=" + countMs + " fetchMs=" + fetchMs
+                    + (string.IsNullOrWhiteSpace(search) ? "" : " searchLen=" + (search ?? "").Trim().Length));
+                return new { success = true, total = total, page = safePage, pageSize = safeSize, list = rows };
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                HrEmployeeLoadProgress.Log("page", "SearchEmployeesPage ERROR ms=" + sw.ElapsedMilliseconds + " " + ex.Message);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Lấy toàn bộ EmployeeID khớp filter (Update all / Generate test data khi không chọn checkbox).</summary>
+        [WebMethod(EnableSession = false)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetEmployeeIdsForFilter(string k, int companyID, string search)
         {
             try
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
+                var companyFilter = HrEmployeeLoadProgress.ParseCompanyFilter(companyID);
+                List<long> ids;
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    conn.Open();
+                    ids = FetchEmployeeIdsForFilter(conn, companyFilter, search);
+                }
+                return new { success = true, ids = ids, total = ids.Count };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        /// <summary>Lazy load policy/org/userName cho trang đang hiển thị (chạy song song decrypt).</summary>
+        [WebMethod(EnableSession = false)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmployeeGridExtras(string k, List<long> employeeIds)
+        {
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                if (employeeIds == null || employeeIds.Count == 0)
+                    return new { success = true, list = new List<object>() };
+                var inList = string.Join(",", employeeIds.Select(id => id.ToString()));
                 var list = new List<object>();
-                var take = Math.Max(1, Math.Min(5000, count));
                 using (var conn = new SqlConnection(info.ConnectionString))
                 using (var cmd = conn.CreateCommand())
                 {
-                    var query = EmployeesQueryBase;
-                    if (companyID.HasValue && companyID.Value > 0)
-                    {
-                        query += " AND T.CompanyID = @companyID";
-                        cmd.Parameters.AddWithValue("@companyID", companyID.Value);
-                    }
-                    cmd.CommandText = query + " ORDER BY E.ID, T.ID OFFSET @off ROWS FETCH NEXT @cnt ROWS ONLY";
-                    cmd.Parameters.AddWithValue("@off", offset);
-                    cmd.Parameters.AddWithValue("@cnt", take);
+                    cmd.CommandTimeout = 45;
+                    cmd.CommandText = @"
+;WITH EmployeeUser AS (
+    SELECT U.ID, U.UserName, U.EmployeeID,
+           ROW_NUMBER() OVER (PARTITION BY U.EmployeeID ORDER BY U.IsActive DESC, U.ID) AS rn
+    FROM Security_Users AS U WITH (NOLOCK)
+    WHERE U.EmployeeID IN (" + inList + @")
+)
+SELECT E.ID AS EmployeeID,
+       TSA.NameEN AS ALPolicy,
+       TS.NameEN AS TimeSheetPolicy,
+       OU.NameEN AS OrganizionStructure,
+       U.UserName
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+INNER JOIN Staffing_Employees AS E WITH (NOLOCK) ON E.ID = T.EmployeeID
+INNER JOIN Staffing_OrganizationStructures AS OS WITH (NOLOCK) ON OS.ID = T.OrganizationStructureID
+INNER JOIN Staffing_OrganizationUnits AS OU WITH (NOLOCK) ON OU.ID = OS.OrgUnitID
+INNER JOIN TIM_TimeSheetPolicies AS TS WITH (NOLOCK) ON TS.ID = T.TimeSheetPolicyID
+INNER JOIN TIM_TimeSheetALPolicies AS TSA WITH (NOLOCK) ON TSA.ID = T.TimeSheetALPolicyID
+LEFT JOIN EmployeeUser AS U ON U.EmployeeID = E.ID AND U.rn = 1
+WHERE T.IsActiveTransaction = 1 AND E.ID IN (" + inList + @")";
                     conn.Open();
                     using (var r = cmd.ExecuteReader())
                     {
                         while (r.Read())
-                            list.Add(ReadEmployeeRow(r));
+                        {
+                            list.Add(new
+                            {
+                                employeeID = MyConvert.To<long>(r.GetValue(0)),
+                                alPolicy = MyConvert.To<string>(r.GetValue(1)) ?? "",
+                                timeSheetPolicy = MyConvert.To<string>(r.GetValue(2)) ?? "",
+                                organizionStructure = MyConvert.To<string>(r.GetValue(3)) ?? "",
+                                userName = MyConvert.To<string>(r.GetValue(4)) ?? ""
+                            });
+                        }
                     }
                 }
+                sw.Stop();
+                HrEmployeeLoadProgress.Log("page", "LoadEmployeeGridExtras ids=" + employeeIds.Count + " ms=" + sw.ElapsedMilliseconds);
                 return new { success = true, list = list };
+            }
+            catch (Exception ex)
+            {
+                sw.Stop();
+                HrEmployeeLoadProgress.Log("page", "LoadEmployeeGridExtras ERROR ms=" + sw.ElapsedMilliseconds + " " + ex.Message);
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Tiến trình load bulk (legacy WebMethod — ưu tiên poll qua Handlers/EmployeeLoadProgress.ashx).</summary>
+        [WebMethod(EnableSession = false)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object GetEmployeesLoadProgress(string dbName, int companyID)
+        {
+            try
+            {
+                var json = HrEmployeeLoadProgress.ToJson(dbName, companyID);
+                return new System.Web.Script.Serialization.JavaScriptSerializer().DeserializeObject(json);
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, loading = false, loaded = 0, total = 0, done = false, hasError = true, message = ex.Message, step = "" };
+            }
+        }
+
+        /// <summary>Load toàn bộ employee vào Session (1 request). Query nhẹ + không decrypt; decrypt theo trang sau.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmployeesToSessionBulk(string k, int companyID)
+        {
+            var companyFilter = HrEmployeeLoadProgress.ParseCompanyFilter(companyID);
+            var progressKey = "";
+            var swTotal = (Stopwatch)null;
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                progressKey = HrEmployeeLoadProgress.BuildKey(info.Database, companyFilter);
+                var sessionKey = "HR_Employees_" + (companyFilter.HasValue ? companyFilter.Value.ToString() : "All");
+                HrEmployeeLoadProgress.Reset(progressKey, "Khởi tạo load...");
+                HrEmployeeLoadProgress.Log(progressKey, "LoadEmployeesToSessionBulk START db=" + info.Database + " companyID=" + companyID);
+                swTotal = HrEmployeeLoadProgress.StartPhase(progressKey, "bulk_total");
+
+                var swCount = HrEmployeeLoadProgress.StartPhase(progressKey, "count");
+                HrEmployeeLoadProgress.Set(progressKey, 0, 0, false, false, "Đang đếm employee...", "count");
+                var total = GetEmployeesCountInternal(info.ConnectionString, companyFilter);
+                HrEmployeeLoadProgress.EndPhase(progressKey, "count", swCount, "total=" + total);
+                HrEmployeeLoadProgress.Set(progressKey, total, 0, false, false, "Tổng " + total + " employee", "count_done");
+
+                var all = new List<object>(total > 0 ? total : 256);
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    var swConn = HrEmployeeLoadProgress.StartPhase(progressKey, "open_connection");
+                    conn.Open();
+                    HrEmployeeLoadProgress.EndPhase(progressKey, "open_connection", swConn, null);
+                    var rows = FetchAllEmployees(conn, companyFilter, progressKey);
+                    all.AddRange(rows.Cast<object>());
+                    HrEmployeeLoadProgress.Set(progressKey, total, all.Count, false, false,
+                        "Đã đọc " + all.Count + " / " + total, "fetch_all_done");
+                }
+                var swSession = HrEmployeeLoadProgress.StartPhase(progressKey, "session_save");
+                HrEmployeeLoadProgress.Set(progressKey, total, all.Count, false, false, "Đang lưu session...", "session_save");
+                HttpContext.Current.Session.Remove(sessionKey);
+                HttpContext.Current.Session[sessionKey] = all;
+                HrEmployeeLoadProgress.EndPhase(progressKey, "session_save", swSession, "rows=" + all.Count);
+
+                HrEmployeeLoadProgress.EndPhase(progressKey, "bulk_total", swTotal, "totalRows=" + all.Count);
+                HrEmployeeLoadProgress.Set(progressKey, total, all.Count, true, false, "Hoàn thành " + all.Count + " employee", "done");
+                HrEmployeeLoadProgress.Log(progressKey, "LoadEmployeesToSessionBulk DONE rows=" + all.Count);
+                return new { success = true, total = all.Count, progressKey = progressKey };
+            }
+            catch (Exception ex)
+            {
+                HrEmployeeLoadProgress.Log(progressKey, "LoadEmployeesToSessionBulk ERROR " + ex.Message);
+                if (!string.IsNullOrEmpty(progressKey))
+                {
+                    HrEmployeeLoadProgress.EndPhase(progressKey, "bulk_total", swTotal, "FAILED");
+                    HrEmployeeLoadProgress.Set(progressKey, -1, -1, true, true, ex.Message, "error");
+                }
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Giải mã email/phone cho danh sách employee (lazy — theo trang hiển thị).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object DecryptEmployeesBatch(string k, int? companyID, List<long> employeeIds)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                if (employeeIds == null || employeeIds.Count == 0)
+                    return new { success = true, list = new List<object>() };
+                var idSet = new HashSet<long>(employeeIds);
+                var matches = new List<Dictionary<string, object>>();
+                var sessionKey = "HR_Employees_" + (companyID.HasValue ? companyID.Value.ToString() : "All");
+                var list = GetEmployeesSessionList(sessionKey);
+                if (list != null && list.Count > 0)
+                {
+                    foreach (var item in list)
+                    {
+                        var emp = item as Dictionary<string, object>;
+                        if (emp == null) continue;
+                        var eid = MyConvert.To<long>(emp.ContainsKey("employeeID") ? emp["employeeID"] : 0);
+                        if (!idSet.Contains(eid)) continue;
+                        matches.Add(emp);
+                    }
+                }
+                if (matches.Count == 0)
+                {
+                    foreach (var eid in employeeIds)
+                    {
+                        matches.Add(new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                        {
+                            { "employeeID", eid },
+                            { "sensitiveDecrypted", false }
+                        });
+                    }
+                }
+                var swEnc = HrEmployeeLoadProgress.StartPhase("decrypt", "decrypt_load_db");
+                LoadEncryptedFieldsFromDb(info.ConnectionString, matches, idSet);
+                HrEmployeeLoadProgress.EndPhase("decrypt", "decrypt_load_db", swEnc, "ids=" + matches.Count);
+                System.Threading.Tasks.Parallel.ForEach(matches, DecryptEmployeeDict);
+                var result = matches.Select(ToClientEmployeeDict).Cast<object>().ToList();
+                return new { success = true, list = result };
+            }
+            catch (Exception ex) { return new { success = false, message = ex.Message }; }
+        }
+
+        private static void AppendEmployeeCompanyFilter(SqlCommand cmd, int? companyID, ref string whereClause)
+        {
+            if (companyID.HasValue && companyID.Value > 0)
+            {
+                whereClause += " AND T.CompanyID = @companyID";
+                cmd.Parameters.AddWithValue("@companyID", companyID.Value);
+            }
+        }
+
+        private static string AppendEmployeeKeysetFilter(SqlCommand cmd, long afterEmployeeID)
+        {
+            if (afterEmployeeID <= 0) return "";
+            cmd.Parameters.AddWithValue("@afterEmpId", afterEmployeeID);
+            return " AND T.EmployeeID > @afterEmpId";
+        }
+
+        private const string EmployeesCountQueryWithJoins = @"
+SELECT COUNT(*)
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+INNER JOIN Staffing_OrganizationStructures AS OS WITH (NOLOCK) ON OS.ID = T.OrganizationStructureID
+INNER JOIN Staffing_OrganizationUnits AS OU WITH (NOLOCK) ON OU.ID = OS.OrgUnitID
+INNER JOIN Staffing_Employees AS E WITH (NOLOCK) ON E.ID = T.EmployeeID
+INNER JOIN TIM_TimeSheetPolicies AS TS WITH (NOLOCK) ON TS.ID = T.TimeSheetPolicyID
+INNER JOIN TIM_TimeSheetALPolicies AS TSA WITH (NOLOCK) ON TSA.ID = T.TimeSheetALPolicyID
+INNER JOIN MultiTenant_Companies AS C WITH (NOLOCK) ON C.ID = T.CompanyID
+WHERE T.IsActiveTransaction = 1";
+
+        /* Phân trang: chỉ T+E khi có search; không search thì chỉ T (nhanh nhất). */
+        private const string EmployeesIdPageBase = @"
+SELECT E.ID
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+INNER JOIN Staffing_Employees AS E WITH (NOLOCK) ON E.ID = T.EmployeeID
+WHERE T.IsActiveTransaction = 1";
+
+        private const string EmployeesIdPageBaseNoSearch = @"
+SELECT T.EmployeeID
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+WHERE T.IsActiveTransaction = 1";
+
+        private const string EmployeesCountQueryLight = @"
+SELECT COUNT(*)
+FROM Staffing_Transactions AS T WITH (NOLOCK)
+INNER JOIN Staffing_Employees AS E WITH (NOLOCK) ON E.ID = T.EmployeeID
+WHERE T.IsActiveTransaction = 1";
+
+        private static readonly Dictionary<string, string> EmployeeSortSqlColumns =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "employeeID", "T.EmployeeID" },
+                { "localEmployeeID", "E.LocalEmployeeID" },
+                { "employeeName", "E.FullName" },
+                { "englishName", "E.EnglishName" },
+                { "dateOfBirth", "E.DateOfBirth" },
+                { "serviceStartDate", "T.ServiceStartDate" },
+                { "alPolicy", "TSA.NameEN" },
+                { "timeSheetPolicy", "TS.NameEN" },
+                { "organizionStructure", "OU.NameEN" },
+                { "companyInfo", "C.NameEN" }
+            };
+
+        private static string EscapeSqlLikePattern(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            return text.Replace("[", "[[]").Replace("%", "[%]").Replace("_", "[_]");
+        }
+
+        private static void AppendEmployeeSearchFilter(SqlCommand cmd, string search, ref string whereClause)
+        {
+            var q = (search ?? "").Trim();
+            if (q.Length == 0) return;
+            var like = "%" + EscapeSqlLikePattern(q) + "%";
+            var prefix = EscapeSqlLikePattern(q) + "%";
+            cmd.Parameters.AddWithValue("@searchLike", like);
+            cmd.Parameters.AddWithValue("@searchPrefix", prefix);
+            long empId;
+            if (long.TryParse(q, out empId) && empId > 0)
+            {
+                cmd.Parameters.AddWithValue("@empIdSearch", empId);
+                whereClause += @"
+ AND (
+    E.ID = @empIdSearch
+    OR E.LocalEmployeeID LIKE @searchPrefix
+    OR E.FullName LIKE @searchPrefix
+    OR E.EnglishName LIKE @searchPrefix
+ )";
+            }
+            else
+            {
+                whereClause += @"
+ AND (
+    E.LocalEmployeeID LIKE @searchPrefix
+    OR E.FullName LIKE @searchPrefix
+    OR E.EnglishName LIKE @searchPrefix
+    OR E.LocalEmployeeID LIKE @searchLike
+    OR E.FullName LIKE @searchLike
+    OR E.EnglishName LIKE @searchLike
+ )";
+            }
+        }
+
+        private static string BuildEmployeePageOrderBy(string sortCol, int sortDir)
+        {
+            string colSql;
+            switch ((sortCol ?? "").ToLowerInvariant())
+            {
+                case "localemployeeid": colSql = "E.LocalEmployeeID"; break;
+                case "employeename": colSql = "E.FullName"; break;
+                case "englishname": colSql = "E.EnglishName"; break;
+                case "dateofbirth": colSql = "E.DateOfBirth"; break;
+                case "servicestartdate": colSql = "T.ServiceStartDate"; break;
+                case "companyinfo": colSql = "C.NameEN"; break;
+                default: colSql = "T.EmployeeID"; break;
+            }
+            var dir = sortDir < 0 ? "DESC" : "ASC";
+            if (!string.Equals(colSql, "T.EmployeeID", StringComparison.OrdinalIgnoreCase))
+                return " ORDER BY " + colSql + " " + dir + ", T.EmployeeID ASC, T.ID ASC";
+            return " ORDER BY T.EmployeeID " + dir + ", T.ID ASC";
+        }
+
+        private static List<Dictionary<string, object>> FetchEmployeesPageDirect(
+            SqlConnection conn, int? companyID, string search, string sortCol, int sortDir, int page, int pageSize)
+        {
+            var list = new List<Dictionary<string, object>>(pageSize);
+            var safePage = Math.Max(1, page);
+            var safeSize = Math.Max(1, Math.Min(5000, pageSize));
+            var offset = (safePage - 1) * safeSize;
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 45;
+                var whereExtra = "";
+                AppendEmployeeCompanyFilter(cmd, companyID, ref whereExtra);
+                AppendEmployeeSearchFilter(cmd, search, ref whereExtra);
+                cmd.CommandText = EmployeesQueryPageMinimal + whereExtra + BuildEmployeePageOrderBy(sortCol, sortDir)
+                    + " OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY";
+                cmd.Parameters.AddWithValue("@offset", offset);
+                cmd.Parameters.AddWithValue("@pageSize", safeSize);
+                using (var r = cmd.ExecuteReader(CommandBehavior.SequentialAccess))
+                {
+                    var values = new object[r.FieldCount];
+                    while (r.Read())
+                    {
+                        r.GetValues(values);
+                        list.Add(ReadEmployeeRowDictFromValues(values, false));
+                    }
+                }
+            }
+            return list;
+        }
+
+        private static void SortEmployeeDictList(List<Dictionary<string, object>> list, string sortCol, int sortDir)
+        {
+            if (list == null || list.Count < 2) return;
+            var col = (sortCol ?? "employeeID").ToLowerInvariant();
+            var dir = sortDir < 0 ? -1 : 1;
+            list.Sort((a, b) =>
+            {
+                object va, vb;
+                a.TryGetValue(col, out va);
+                b.TryGetValue(col, out vb);
+                if (va == null && vb == null) return 0;
+                if (va == null) return dir;
+                if (vb == null) return -dir;
+                if (va is long || va is int || va is decimal || va is double || va is float)
+                {
+                    var na = Convert.ToDecimal(va);
+                    var nb = Convert.ToDecimal(vb);
+                    return dir * na.CompareTo(nb);
+                }
+                if (va is DateTime)
+                {
+                    var da = (DateTime)va;
+                    var db = (DateTime)vb;
+                    return dir * da.CompareTo(db);
+                }
+                var sa = (va ?? "").ToString().ToLowerInvariant();
+                var sb = (vb ?? "").ToString().ToLowerInvariant();
+                return dir * string.Compare(sa, sb, StringComparison.Ordinal);
+            });
+        }
+
+        private static int GetEmployeesFilteredCount(SqlConnection conn, int? companyID, string search)
+        {
+            var hasSearch = !string.IsNullOrWhiteSpace(search);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 45;
+                var whereExtra = "";
+                AppendEmployeeCompanyFilter(cmd, companyID, ref whereExtra);
+                if (hasSearch)
+                    AppendEmployeeSearchFilter(cmd, search, ref whereExtra);
+                cmd.CommandText = (hasSearch ? EmployeesCountQueryLight : EmployeesCountQuery) + whereExtra;
+                return Convert.ToInt32(cmd.ExecuteScalar());
+            }
+        }
+
+        private static List<Dictionary<string, object>> FetchEmployeesPage(
+            SqlConnection conn, int? companyID, string search, string sortCol, int sortDir, int page, int pageSize)
+        {
+            return FetchEmployeesPageDirect(conn, companyID, search, sortCol, sortDir, page, pageSize);
+        }
+
+        private static List<long> FetchEmployeeIdsForFilter(SqlConnection conn, int? companyID, string search)
+        {
+            var ids = new List<long>(4096);
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandTimeout = 120;
+                var whereExtra = "";
+                AppendEmployeeCompanyFilter(cmd, companyID, ref whereExtra);
+                AppendEmployeeSearchFilter(cmd, search, ref whereExtra);
+                cmd.CommandText = EmployeesIdPageBase + whereExtra + " ORDER BY T.EmployeeID, T.ID";
+                using (var r = cmd.ExecuteReader())
+                {
+                    while (r.Read())
+                        ids.Add(MyConvert.To<long>(r.GetValue(0)));
+                }
+            }
+            return ids;
+        }
+
+        /// <summary>Load employee theo keyset (legacy chunk API).</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadEmployeesChunk(string k, int count, int? companyID, long afterEmployeeID)
+        {
+            try
+            {
+                var info = GetConnectionFromToken(k);
+                if (info == null || string.IsNullOrEmpty(info.ConnectionString))
+                    return new { success = false, message = "Chưa kết nối database." };
+                var take = Math.Max(1, Math.Min(5000, count));
+                long nextAfterEmployeeID = 0;
+                var rows = new List<object>();
+                using (var conn = new SqlConnection(info.ConnectionString))
+                {
+                    conn.Open();
+                    var batch = FetchEmployeeBatch(conn, companyID, afterEmployeeID, take, true, false, null, 0, 0);
+                    foreach (var row in batch)
+                    {
+                        rows.Add(ToClientEmployeeDict(row));
+                        nextAfterEmployeeID = MyConvert.To<long>(row["employeeID"]);
+                    }
+                }
+                var hasMore = rows.Count >= take;
+                return new { success = true, list = rows, hasMore = hasMore, nextAfterEmployeeID };
             }
             catch (Exception ex) { return new { success = false, message = ex.Message }; }
         }
 
         private static object ReadEmployeeRow(SqlDataReader r)
         {
-            var empId = MyConvert.To<long>(r.GetValue(0));
-            var raw5 = MyConvert.To<string>(r.GetValue(5));
-            var raw6 = MyConvert.To<string>(r.GetValue(6));
-            var raw7 = MyConvert.To<string>(r.GetValue(7));
-            var raw8 = MyConvert.To<string>(r.GetValue(8));
-            var raw24 = MyConvert.To<string>(r.GetValue(24));
-            string personal = "", business = "", m1 = "", m2 = "", payslip = "";
-            if (!string.IsNullOrWhiteSpace(raw5)) { try { personal = DataSecurityWrapper.DecryptData<string>(raw5, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw6)) { try { business = DataSecurityWrapper.DecryptData<string>(raw6, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw7)) { try { m1 = DataSecurityWrapper.DecryptData<string>(raw7, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw8)) { try { m2 = DataSecurityWrapper.DecryptData<string>(raw8, empId) ?? ""; } catch { } }
-            if (!string.IsNullOrWhiteSpace(raw24)) { try { payslip = DataSecurityWrapper.DecryptData<string>(raw24, empId) ?? ""; } catch { } }
-            var dob = MyConvert.To<DateTime?>(r.GetValue(4));
-            var svc = MyConvert.To<DateTime?>(r.GetValue(9));
-            return new
-            {
-                employeeID = empId,
-                localEmployeeID = MyConvert.To<string>(r.GetValue(1)) ?? "",
-                employeeName = MyConvert.To<string>(r.GetValue(2)) ?? "",
-                englishName = MyConvert.To<string>(r.GetValue(3)) ?? "",
-                dateOfBirth = dob.HasValue ? dob.Value.ToString("yyyy-MM-dd") : "",
-                personalEmail = personal,
-                businessEmail = business,
-                mobilePhone1 = m1,
-                mobilePhone2 = m2,
-                serviceStartDate = svc.HasValue ? svc.Value.ToString("yyyy-MM-dd") : "",
-                alPolicyID = MyConvert.To<long?>(r.GetValue(10)),
-                alPolicy = MyConvert.To<string>(r.GetValue(11)) ?? "",
-                timeSheetPolicyID = MyConvert.To<long?>(r.GetValue(12)),
-                timeSheetPolicy = MyConvert.To<string>(r.GetValue(13)) ?? "",
-                organizionStructureID = MyConvert.To<long?>(r.GetValue(14)),
-                organizionStructure = MyConvert.To<string>(r.GetValue(15)) ?? "",
-                managerEmployeeID = MyConvert.To<long?>(r.GetValue(16)),
-                managerLocalEmployeeID = MyConvert.To<string>(r.GetValue(17)) ?? "",
-                managerFullName = MyConvert.To<string>(r.GetValue(18)) ?? "",
-                managerUserName = MyConvert.To<string>(r.GetValue(19)) ?? "",
-                managerOrganizionStructureID = MyConvert.To<long?>(r.GetValue(20)),
-                managerOrganizionStructure = MyConvert.To<string>(r.GetValue(21)) ?? "",
-                userID = MyConvert.To<long?>(r.GetValue(22)),
-                userName = MyConvert.To<string>(r.GetValue(23)) ?? "",
-                payslipPassword = payslip,
-                companyInfo = MyConvert.To<string>(r.GetValue(25)) ?? ""
-            };
+            return ToClientEmployeeDict(ReadEmployeeRowDict(r, true));
         }
 
         [WebMethod(EnableSession = true)]
@@ -4194,7 +4784,7 @@ VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runn
             {
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
-                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Database Tools." };
+                    return new { success = false, message = "Chưa kết nối database. Vui lòng Connect từ Công cụ Database." };
                 var list = new List<object>();
                 using (var conn = new SqlConnection(info.ConnectionString))
                 using (var cmd = conn.CreateCommand())
@@ -4266,40 +4856,9 @@ VALUES (N'HRHelperUpdateOther', @sname, @db, @uid, @uname, SYSDATETIME(), N'Runn
                 var connStr = info.ConnectionString;
                 var serverName = info.Server ?? "";
                 var databaseName = info.Database ?? "";
-                if (UseBackgroundWorker())
-                {
-                    var payload = JsonConvert.SerializeObject(new { connectionString = connStr, companyID, employeeIds, updPersonal, personalEmail = personalEmail ?? "", updBusiness, businessEmail = businessEmail ?? "", updPayslip, payslipCommon = payslipCommon ?? "", payslipByEmp, updM1, m1 = m1 ?? "", updM2, m2 = m2 ?? "", updBasic, basicSalary });
-                    int pendingJobId = 0;
-                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                    using (var cmd = appConn.CreateCommand())
-                    {
-                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                        cmd.Parameters.AddWithValue("@sname", serverName);
-                        cmd.Parameters.AddWithValue("@db", databaseName);
-                        cmd.Parameters.AddWithValue("@uid", userId);
-                        cmd.Parameters.AddWithValue("@uname", userName);
-                        cmd.Parameters.AddWithValue("@payload", payload);
-                        appConn.Open();
-                        pendingJobId = (int)cmd.ExecuteScalar();
-                    }
-                    UserActionLogHelper.Log("HRHelper.UpdateEmployee", "Pending Worker, jobId=" + pendingJobId + ", employeeIds=" + (employeeIds?.Count ?? 0));
-                    return new { success = true, jobId = pendingJobId, message = "Đã đưa update employee vào hàng đợi. Worker sẽ xử lý." };
-                }
-                int jobId;
-                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = appConn.CreateCommand())
-                {
-                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete)
-VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                    cmd.Parameters.AddWithValue("@sname", serverName);
-                    cmd.Parameters.AddWithValue("@db", databaseName);
-                    cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@uname", userName);
-                    appConn.Open();
-                    jobId = (int)cmd.ExecuteScalar();
-                }
-                var empDetail = "database=" + databaseName + ", employeeIds=" + (employeeIds?.Count ?? 0);
+                var payload = JsonConvert.SerializeObject(new { connectionString = connStr, companyID, employeeIds, updPersonal, personalEmail = personalEmail ?? "", updBusiness, businessEmail = businessEmail ?? "", updPayslip, payslipCommon = payslipCommon ?? "", payslipByEmp, updM1, m1 = m1 ?? "", updM2, m2 = m2 ?? "", updBasic, basicSalary });
+                var jobId = BaJobQueue.Enqueue(new BaJobRequest { JobType = "HRHelperUpdateEmployee", ServerName = serverName, DatabaseName = databaseName, UserId = userId, UserName = userName, Payload = payload });
+                var empDetail = "jobId=" + jobId + ", database=" + databaseName + ", employeeIds=" + (employeeIds?.Count ?? 0);
                 if (updPersonal) empDetail += ", personalEmail" + (string.IsNullOrWhiteSpace(personalEmail) ? "" : "=" + personalEmail);
                 if (updBusiness) empDetail += ", businessEmail" + (string.IsNullOrWhiteSpace(businessEmail) ? "" : "=" + businessEmail);
                 if (updPayslip) empDetail += ", payslip";
@@ -4307,23 +4866,6 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                 if (updM2) empDetail += ", M2";
                 if (updBasic) empDetail += ", basicSalary";
                 UserActionLogHelper.Log("HRHelper.UpdateEmployee", empDetail);
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    var prevPriority = System.Threading.Thread.CurrentThread.Priority;
-                    try { System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal; } catch { }
-                    try
-                    {
-                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updM1, m1, updM2, m2, updBasic, basicSalary, null,
-                            onProgress: (pct, msg) => UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg));
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, result.Item2);
-                    }
-                    catch (Exception ex)
-                    {
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, ex.Message);
-                    }
-                    finally { try { System.Threading.Thread.CurrentThread.Priority = prevPriority; } catch { } }
-                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
-                });
                 return new { success = true, jobId = jobId, message = "Đã đưa update employee vào hàng đợi." };
             }
             catch (Exception ex)
@@ -4402,19 +4944,6 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                     if (salaryMax < salaryMin)
                         return new { success = false, message = "Lương Max phải >= Min.", jobId = 0 };
                 }
-                var options = new EmployeeTestDataOptions
-                {
-                    GenerateEmail = generateEmail,
-                    EmailPrefix = normalizedPrefix,
-                    EmailDomain = normalizedDomain,
-                    EmailStartNumber = Math.Max(1, emailStartNumber),
-                    GeneratePhone = generatePhone,
-                    GenerateSalary = generateSalary,
-                    SalaryMin = salaryMin,
-                    SalaryMax = salaryMax,
-                    UpdateUserEmailMapping = updateUserEmailMapping
-                };
-
                 var updPersonal = generateEmail;
                 var updBusiness = generateEmail;
                 var updM1 = generatePhone;
@@ -4456,59 +4985,9 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                     updateUserEmailMapping
                 });
 
-                if (UseBackgroundWorker())
-                {
-                    int pendingJobId;
-                    using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                    using (var cmd = appConn.CreateCommand())
-                    {
-                        cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Pending', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                        cmd.Parameters.AddWithValue("@sname", serverName);
-                        cmd.Parameters.AddWithValue("@db", databaseName);
-                        cmd.Parameters.AddWithValue("@uid", userId);
-                        cmd.Parameters.AddWithValue("@uname", userName);
-                        cmd.Parameters.AddWithValue("@payload", payload);
-                        appConn.Open();
-                        pendingJobId = (int)cmd.ExecuteScalar();
-                    }
-                    UserActionLogHelper.Log("HRHelper.GenerateData", "Generate test data Pending Worker, jobId=" + pendingJobId + ", employeeIds=" + employeeIds.Count
-                        + ", email=" + (generateEmail ? "1" : "0") + ", phone=" + (generatePhone ? "1" : "0") + ", salary=" + (generateSalary ? "1" : "0"));
-                    return new { success = true, jobId = pendingJobId, message = "Đã đưa Generate test data vào hàng đợi. Worker sẽ xử lý." };
-                }
-
-                int jobId;
-                using (var appConn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = appConn.CreateCommand())
-                {
-                    cmd.CommandText = @"INSERT INTO BaJob (JobType, ServerName, DatabaseName, StartedByUserId, StartedByUserName, StartTime, Status, PercentComplete, Payload)
-VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'Running', 0, @payload); SELECT CAST(SCOPE_IDENTITY() AS INT);";
-                    cmd.Parameters.AddWithValue("@sname", serverName);
-                    cmd.Parameters.AddWithValue("@db", databaseName);
-                    cmd.Parameters.AddWithValue("@uid", userId);
-                    cmd.Parameters.AddWithValue("@uname", userName);
-                    cmd.Parameters.AddWithValue("@payload", payload);
-                    appConn.Open();
-                    jobId = (int)cmd.ExecuteScalar();
-                }
-                UserActionLogHelper.Log("HRHelper.GenerateData", "Generate test data, jobId=" + jobId + ", employeeIds=" + employeeIds.Count);
-                System.Threading.Tasks.Task.Run(() =>
-                {
-                    var prevPriority = System.Threading.Thread.CurrentThread.Priority;
-                    try { System.Threading.Thread.CurrentThread.Priority = System.Threading.ThreadPriority.BelowNormal; } catch { }
-                    try
-                    {
-                        var result = ExecuteUpdateEmployeesCore(connStr, employeeIds, updPersonal, "", updBusiness, "", false, "", false, updM1, "", updM2, "", false, null, false, null, updBasic, 0m, options,
-                            onProgress: (pct, msg) => UpdateBaJobProgress(jobId, "HRHelperUpdateEmployee", pct, msg));
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", result.Item1, result.Item2);
-                    }
-                    catch (Exception ex)
-                    {
-                        UpdateBaJobCompleted(jobId, "HRHelperUpdateEmployee", false, ex.Message);
-                    }
-                    finally { try { System.Threading.Thread.CurrentThread.Priority = prevPriority; } catch { } }
-                    BaJobHubHelper.PushJobsUpdated("HRHelperUpdateEmployee", null, userId);
-                });
+                var jobId = BaJobQueue.Enqueue(new BaJobRequest { JobType = "HRHelperUpdateEmployee", ServerName = serverName, DatabaseName = databaseName, UserId = userId, UserName = userName, Payload = payload });
+                UserActionLogHelper.Log("HRHelper.GenerateData", "Generate test data, jobId=" + jobId + ", employeeIds=" + employeeIds.Count
+                    + ", email=" + (generateEmail ? "1" : "0") + ", phone=" + (generatePhone ? "1" : "0") + ", salary=" + (generateSalary ? "1" : "0"));
                 return new { success = true, jobId = jobId, message = "Đã đưa Generate test data vào hàng đợi." };
             }
             catch (Exception ex)
@@ -4518,6 +4997,11 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
         }
 
         /// <summary>Tính batch size theo totalRows để có ~12–40 batch, % cập nhật mượt. Ví dụ: 100→10, 200→17, 500→42, 1k→40, 1.5k→60, 2k→50, 3k→75, 5k→125, 10k→250, 15k→375, 20k→500, 50k→1250.</summary>
+        private const int EmployeePrepareShare = 8;
+        private const int EmployeeBatchMin = 50;
+        private const int EmployeeBatchMax = 2000;
+        private const int EmployeeBatchTargetMs = 3000;
+
         private static int GetEmployeeUpdateBatchSize(int totalRows)
         {
             if (totalRows <= 0) return 10;
@@ -4534,31 +5018,37 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
             bool updH1, string h1, bool updH2, string h2,
             bool updBasic, decimal basicSalary,
             EmployeeTestDataOptions testDataOptions = null,
-            Action<int, string> onProgress = null)
+            Action<int, string, string> onProgress = null)
         {
             connectionString = EnsureMinConnectionTimeout(connectionString, 120);
             try
             {
                 BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: LoadEmployeesForUpdate bắt đầu (target DB).");
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                onProgress?.Invoke(1, "Đang tải danh sách nhân viên...", null);
                 var employees = LoadEmployeesForUpdate(connectionString, employeeIds);
                 if (employees == null || employees.Count == 0)
                     return Tuple.Create(false, "Không tìm thấy employee cần update.");
                 BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: LoadEmployees xong count=" + employees.Count + ", BuildEmployeeDataTable.");
+                onProgress?.Invoke(3, "Đang chuẩn bị dữ liệu " + employees.Count + " nhân viên...", null);
                 var dt = BuildEmployeeDataTable(employees, updPersonal, personalEmail, updBusiness, businessEmail, updPayslip, payslipCommon, payslipByEmp, updM1, m1, updM2, m2, updH1, h1, updH2, h2, updBasic, basicSalary, testDataOptions);
                 int totalRows = dt.Rows.Count;
                 int batchSize = GetEmployeeUpdateBatchSize(totalRows);
-                int totalBatches = (int)Math.Ceiling(totalRows / (double)batchSize);
-                BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: totalBatches=" + totalBatches + " totalRows=" + totalRows + " batchSize=" + batchSize);
-                onProgress?.Invoke(0, totalBatches <= 0 ? "Đang bắt đầu..." : "Đang xử lý 0/" + totalRows + " nhân viên (batch 0/" + totalBatches + ")");
-                for (int b = 0; b < totalBatches; b++)
+                BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: totalRows=" + totalRows + " batchSize=" + batchSize);
+                onProgress?.Invoke(EmployeePrepareShare, "Đang xử lý 0/" + totalRows + " nhân viên", null);
+                int doneRows = 0;
+                int batchNo = 0;
+                var batchWatch = new System.Diagnostics.Stopwatch();
+                var updateStartMs = watch.ElapsedMilliseconds;
+                while (doneRows < totalRows)
                 {
-                    BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + (b + 1) + "/" + totalBatches + " bắt đầu.");
-                    int startIdx = b * batchSize;
-                    int endIdx = Math.Min(startIdx + batchSize, totalRows) - 1;
+                    batchNo++;
+                    int endIdx = Math.Min(doneRows + batchSize, totalRows) - 1;
                     var batchDt = dt.Clone();
-                    for (int i = startIdx; i <= endIdx; i++)
+                    for (int i = doneRows; i <= endIdx; i++)
                         batchDt.Rows.Add(dt.Rows[i].ItemArray);
                     bool batchOk = false;
+                    batchWatch.Restart();
                     for (int attempt = 1; attempt <= 3 && !batchOk; attempt++)
                     {
                         try
@@ -4568,15 +5058,18 @@ VALUES (N'HRHelperUpdateEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                         }
                         catch (Exception ex)
                         {
-                            BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + (b + 1) + "/" + totalBatches + " attempt " + attempt + " failed: " + ex.Message);
-                            if (attempt == 3) return Tuple.Create(false, "Batch update failed (batch " + (b + 1) + "/" + totalBatches + "): " + ex.Message);
+                            BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + batchNo + " attempt " + attempt + " failed: " + ex.Message);
+                            if (attempt == 3) return Tuple.Create(false, "Batch update failed (batch " + batchNo + ", " + (doneRows + 1) + "-" + (endIdx + 1) + "/" + totalRows + "): " + ex.Message);
                         }
                     }
-                    BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + (b + 1) + "/" + totalBatches + " xong.");
-                    int pct = totalBatches <= 0 ? 100 : (int)Math.Round((b + 1) * 100.0 / totalBatches);
-                    int doneRows = Math.Min((b + 1) * batchSize, totalRows);
-                    onProgress?.Invoke(Math.Min(pct, 99), "Đang xử lý " + doneRows + "/" + totalRows + " nhân viên (batch " + (b + 1) + "/" + totalBatches + ")");
-                    System.Threading.Thread.Sleep(0);
+                    doneRows = endIdx + 1;
+                    BaJobWorkerNotify.Log("ExecuteUpdateEmployeesCore: batch " + batchNo + " xong " + doneRows + "/" + totalRows + " (" + batchWatch.ElapsedMilliseconds + " ms, " + batchDt.Rows.Count + " dòng).");
+                    int pct = EmployeePrepareShare + (int)Math.Floor((99 - EmployeePrepareShare) * (doneRows / (double)totalRows));
+                    var elapsedMs = watch.ElapsedMilliseconds;
+                    var eta = JobBatchSizer.Eta(elapsedMs - updateStartMs, doneRows, totalRows);
+                    var detail = eta == null ? null : "Còn khoảng " + eta;
+                    onProgress?.Invoke(Math.Min(pct, 99), "Đang xử lý " + doneRows + "/" + totalRows + " nhân viên", detail);
+                    batchSize = JobBatchSizer.Next(batchSize, batchWatch.ElapsedMilliseconds, EmployeeBatchMin, EmployeeBatchMax, EmployeeBatchTargetMs);
                 }
                 var parts = new List<string>();
                 if (updPersonal) parts.Add("Thông tin cá nhân");
@@ -5047,7 +5540,8 @@ VALUES (N'HRHelperDeleteEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                     appConn.Open();
                     jobId = (int)cmd.ExecuteScalar();
                 }
-                UserActionLogHelper.Log("HRHelper.DeleteEmployee", "database=" + databaseName + ", localIds=" + string.Join(",", ids) + ", jobId=" + jobId);
+                BaJobQueue.Track(jobId);
+                UserActionLogHelper.Log("HRHelper.DeleteEmployee","database=" + databaseName + ", localIds=" + string.Join(",", ids) + ", jobId=" + jobId);
                 var genResult = GenerateDeleteEmployeeScriptCore(k, string.Join(",", ids));
                 var scriptToRun = genResult.Item1 ? genResult.Item2 : null;
                 var scriptError = genResult.Item3;
@@ -5061,6 +5555,7 @@ VALUES (N'HRHelperDeleteEmployee', @sname, @db, @uid, @uname, SYSDATETIME(), N'R
                         }
                         else
                         {
+                            UpdateBaJobProgress(jobId, "HRHelperDeleteEmployee", 1, "Đang xử lý...");
                             var result = ExecuteDeleteEmployeeScriptCore(connStr, scriptToRun);
                             UpdateBaJobCompleted(jobId, "HRHelperDeleteEmployee", result.Item1, result.Item2);
                         }

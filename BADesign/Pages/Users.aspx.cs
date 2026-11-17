@@ -23,7 +23,7 @@ namespace UiBuilderFull.Admin
 			if (!IsPostBack)
 			{
 				ucBaSidebar.ActiveSection = "Users";
-				ucBaTopBar.PageTitle = "User Management";
+				ucBaTopBar.PageTitle = "Quản lý người dùng";
 				BindUsers();
 			}
 		}

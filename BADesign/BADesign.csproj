@@ -96,6 +96,7 @@
     <Reference Include="System.Web.Entity" />
     <Reference Include="System.Web.ApplicationServices" />
     <Reference Include="System.Management" />
+    <Reference Include="System.Numerics" />
     <Reference Include="Microsoft.Web.Infrastructure, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <Private>True</Private>
       <HintPath>..\packages\Microsoft.Web.Infrastructure.1.0.0.0\lib\net40\Microsoft.Web.Infrastructure.dll</HintPath>
@@ -223,18 +224,25 @@
     <Content Include="Scripts\AddEmailVerifiedAndOtp.sql" />
     <Content Include="Scripts\AddPermission_DatabaseConnectAny.sql" />
     <Content Include="Scripts\ba-notification-jobs.js" />
+    <Content Include="Scripts\ba-notification-bell.js" />
     <Content Include="Scripts\DevShare_CommentUseful.sql" />
     <EmbeddedResource Include="App_Data\GetEmployeeForeignKeyList.sql" />
     <Content Include="Scripts\DevShare_Schema.sql" />
     <Content Include="Scripts\DevShare_UsefulVotes.sql" />
     <Content Include="Contact.aspx" />
     <Content Include="Content\ba-layout.css" />
+    <Content Include="Content\ba-db-tools.css" />
     <Content Include="Content\ba-notification-bell.css" />
     <Content Include="Content\bootstrap.css" />
     <Content Include="Content\bootstrap.min.css" />
     <Content Include="Content\builder-core.css" />
     <Content Include="Content\builder-ess.css" />
     <Content Include="Content\builder.css" />
+    <Content Include="Content\builder-templates.css" />
+    <Content Include="Content\builder-features.css" />
+    <Content Include="Content\builder-props.css" />
+    <Content Include="Content\builder-templates\*.png" />
+    <Content Include="App_Data\BuilderTemplates\*.json" />
     <Content Include="Content\datatables.css" />
     <Content Include="Content\datatables.min.css" />
     <Content Include="Content\images\flag-en.png" />
@@ -248,10 +256,15 @@
     <Content Include="Content\images\icon-menu\menu-cancel.png" />
     <Content Include="Content\images\icon-menu\menu-deactive.png" />
     <Content Include="Content\images\icon-menu\menu-delete.png" />
+    <Content Include="Content\images\icon-menu\menu-download.png" />
     <Content Include="Content\images\icon-menu\menu-export.png" />
+    <Content Include="Content\images\icon-menu\menu-ok.png" />
+    <Content Include="Content\images\icon-menu\menu-open-report.png" />
     <Content Include="Content\images\icon-menu\menu-save.png" />
     <Content Include="Content\images\login-overlay.png" />
     <Content Include="Content\images\no-thumb.png" />
+    <Content Include="Content\images\tree-checked.png" />
+    <Content Include="Content\images\tree-unchecked.png" />
     <Content Include="Content\devshare.css" />
     <Content Include="Content\login.css" />
     <Content Include="Content\Site.css" />
@@ -265,6 +278,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Handlers\ExportFeedback.ashx" />
+    <Content Include="Handlers\EmployeeLoadProgress.ashx" />
     <Content Include="Handlers\NotifyJobProgress.ashx" />
     <None Include="Scripts\jquery-1.10.2.intellisense.js" />
     <Content Include="Pages\AccessDenied.aspx" />
@@ -289,6 +303,10 @@
     <Content Include="Pages\AppSettings.aspx" />
     <Content Include="Pages\AuditLog.aspx" />
     <Content Include="Pages\ServerMonitor.aspx" />
+    <Content Include="Pages\LicenseKey.aspx" />
+    <Content Include="Pages\TemplateRequests.aspx" />
+    <Content Include="Pages\TemplateWorkflow.aspx" />
+    <Content Include="Pages\HrModules.aspx" />
     <Content Include="Pages\Feedback.aspx" />
     <Content Include="Pages\FeedbackManage.aspx" />
     <Content Include="Pages\DevShareList.aspx" />
@@ -307,10 +325,18 @@
     <Content Include="Scripts\AddBaDatabaseSearch.sql" />
     <Content Include="Scripts\AddBaJob.sql" />
     <Content Include="Scripts\AddBaJobDismissedByUser.sql" />
+    <Content Include="Scripts\AddBaJobProgressColumns.sql" />
+    <Content Include="Scripts\AddBaJobRunner.sql" />
     <Content Include="Scripts\AddBaRestoreJobDismissedAt.sql" />
     <Content Include="Scripts\AddDatabaseRestoreAndResetLog.sql" />
     <Content Include="Scripts\AddAuditLogColumns.sql" />
     <Content Include="Scripts\AddPgptoolPermission.sql" />
+    <Content Include="Scripts\AddLicenseKeyPermission.sql" />
+    <Content Include="Scripts\AddUiTemplateLibrary.sql" />
+    <Content Include="Scripts\AddUiHrModule.sql" />
+    <Content Include="Scripts\AddUiRoleManagers.sql" />
+    <Content Include="Scripts\AddUiBuilderControlVersion.sql" />
+    <Content Include="Scripts\AddMergeUncategorizedProject.sql" />
     <Content Include="Scripts\AddProjectSupport.sql" />
     <Content Include="Scripts\AddRestorePathPerServer.sql" />
     <Content Include="Scripts\AddUiRoles.sql" />
@@ -322,13 +348,36 @@
     <Content Include="Scripts\ai.0.22.9-build00167.js" />
     <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
     <Content Include="Scripts\ba-layout.js" />
+    <Content Include="Scripts\ba-i18n.js" />
+    <Content Include="Scripts\ba-toast.js" />
+    <Content Include="Scripts\ba-job-progress.js" />
+    <Content Include="Scripts\i18n\ba-i18n.en.js" />
     <Content Include="Scripts\bootstrap.js" />
     <Content Include="Scripts\bootstrap.min.js" />
     <Content Include="Scripts\ba-signalr.js" />
+    <Content Include="Scripts\ba-db-restore.js" />
+    <Content Include="Scripts\ba-db-servers.js" />
     <Content Include="Scripts\ba-notification-detail.js" />
     <Content Include="Scripts\jquery.signalR.min.js" />
     <Content Include="Scripts\builder\common.js" />
     <Content Include="Scripts\builder\builder.js" />
+    <Content Include="Scripts\builder\builder-snippet.js" />
+    <Content Include="Scripts\builder\builder-slice.js" />
+    <Content Include="Scripts\builder\builder-autolayout.js" />
+    <Content Include="Scripts\builder\builder-import.js" />
+    <Content Include="Scripts\builder\builder-capture.js" />
+    <Content Include="Scripts\builder\builder-capture-page.js" />
+    <Content Include="Scripts\builder\control-annotation.js" />
+    <Content Include="Scripts\builder\builder-templates.js" />
+    <Content Include="Scripts\builder\builder-inline-edit.js" />
+    <Content Include="Scripts\builder\builder-store.js" />
+    <Content Include="Scripts\builder\builder-reference.js" />
+    <Content Include="Scripts\builder\builder-draft.js" />
+    <Content Include="Scripts\builder\builder-dialog.js" />
+    <Content Include="Scripts\builder\builder-props.js" />
+    <Content Include="Scripts\builder\builder-spec.js" />
+    <Content Include="Scripts\builder\builder-versions.js" />
+    <Content Include="Scripts\builder\builder-review.js" />
     <Content Include="Scripts\builder\control-collapsible-section.js" />
     <Content Include="Scripts\builder\control-field-ess.js" />
     <Content Include="Scripts\builder\control-field.js" />
@@ -337,6 +386,7 @@
     <Content Include="Scripts\builder\control-popup.js" />
     <Content Include="Scripts\builder\control-tabpage.js" />
     <Content Include="Scripts\builder\control-toolbar.js" />
+    <Content Include="Scripts\builder\control-tree.js" />
     <Content Include="Scripts\datatables.js" />
     <Content Include="Scripts\datatables.min.js" />
     <Content Include="Scripts\html2canvas.min.js" />
@@ -382,6 +432,7 @@
     <Content Include="NotificationBell.ascx" />
     <Content Include="BaSidebar.ascx" />
     <Content Include="BaTopBar.ascx" />
+    <Content Include="BaHead.ascx" />
     <Content Include="Web.config" />
     <Content Include="Bundle.config" />
     <Content Include="packages.config" />
@@ -502,27 +553,56 @@
       <DependentUpon>VerifyPhoneNumber.aspx</DependentUpon>
     </Compile>
     <Compile Include="Common\AppLogger.cs" />
+    <Compile Include="Common\HrEmployeeCountCache.cs" />
+    <Compile Include="Common\HrEmployeeLoadProgress.cs" />
     <Compile Include="Common\EmailHelper.cs" />
     <Compile Include="Common\TelegramHelper.cs" />
     <Compile Include="Common\UserActionLogHelper.cs" />
     <Compile Include="Common\UiBuilderModels.cs" />
     <Compile Include="Common\UiAuthHelper.cs" />
+    <Compile Include="Common\BaI18n.cs" />
+    <Compile Include="Helpers\BaJobProgress.cs" />
+    <Compile Include="Helpers\BaJobQueue.cs" />
+    <Compile Include="Helpers\BaJobRunner.cs" />
+    <Compile Include="Helpers\BaJobSqlStore.cs" />
+    <Compile Include="Helpers\BaJobWebHost.cs" />
+    <Compile Include="Helpers\JobProgressThrottle.cs" />
+    <Compile Include="Common\LicenseKeyAccess.cs" />
     <Compile Include="Common\WindowsAuthHelper.cs" />
     <Compile Include="Handlers\ExportFeedback.ashx.cs">
       <DependentUpon>ExportFeedback.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="Handlers\EmployeeLoadProgress.ashx.cs">
+      <DependentUpon>EmployeeLoadProgress.ashx</DependentUpon>
     </Compile>
     <Compile Include="Handlers\NotifyJobProgress.ashx.cs">
       <DependentUpon>NotifyJobProgress.ashx</DependentUpon>
     </Compile>
     <Compile Include="Hubs\RestoreNotificationHub.cs" />
     <Compile Include="Helpers\BaJobHubHelper.cs" />
+    <Compile Include="Helpers\HubAccessToken.cs" />
+    <Compile Include="Helpers\StandardScreenLibrary.cs" />
+    <Compile Include="Helpers\UiTemplateLibrary.cs" />
+    <Compile Include="Helpers\UiDesignVersions.cs" />
+    <Compile Include="Helpers\UiRoleManagers.cs" />
+    <Compile Include="Helpers\UiDesignCatalog.cs" />
+    <Compile Include="Helpers\UiHrModules.cs" />
     <Compile Include="Helpers\BaJobWorkerNotify.cs" />
     <Compile Include="Helpers\BaJobEmailHelper.cs" />
     <Compile Include="Helpers\ServerMetricsCollector.cs" />
     <Compile Include="Helpers\ServerAccessHelper.cs" />
     <Compile Include="Helpers\MyConvert.cs" />
+    <Compile Include="Helpers\CadenaLicenseKeyHelper.cs" />
+    <Compile Include="Helpers\Database\DbSanitizeCatalog.cs" />
+    <Compile Include="Helpers\Database\DbSanitizeOptions.cs" />
+    <Compile Include="Helpers\Database\DbSanitizeReport.cs" />
+    <Compile Include="Helpers\Database\DbSanitizeSettings.cs" />
+    <Compile Include="Helpers\Database\DbSanitizeSql.cs" />
+    <Compile Include="Helpers\Database\DbSanitizer.cs" />
+    <Compile Include="Helpers\Database\DbSchemaSnapshot.cs" />
     <Compile Include="Helpers\Security\AesHelper.cs" />
     <Compile Include="Helpers\Security\DataSecurityWrapper.cs" />
+    <Compile Include="Helpers\Security\PgpKeyInspector.cs" />
     <Compile Include="Helpers\Security\SimpleHash.cs" />
     <Compile Include="Handlers\UploadAvatar.ashx.cs">
       <DependentUpon>UploadAvatar.ashx</DependentUpon>
@@ -695,6 +775,9 @@
       <DependentUpon>PgpTool.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="Pages\PgpTool.aspx.designer.cs">
+      <DependentUpon>PgpTool.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Pages\AppSettings.aspx.cs">
       <DependentUpon>AppSettings.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -715,6 +798,34 @@
     </Compile>
     <Compile Include="Pages\ServerMonitor.aspx.designer.cs">
       <DependentUpon>ServerMonitor.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\LicenseKey.aspx.cs">
+      <DependentUpon>LicenseKey.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\LicenseKey.aspx.designer.cs">
+      <DependentUpon>LicenseKey.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\TemplateRequests.aspx.cs">
+      <DependentUpon>TemplateRequests.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\TemplateRequests.aspx.designer.cs">
+      <DependentUpon>TemplateRequests.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\TemplateWorkflow.aspx.cs">
+      <DependentUpon>TemplateWorkflow.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\TemplateWorkflow.aspx.designer.cs">
+      <DependentUpon>TemplateWorkflow.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="Pages\HrModules.aspx.cs">
+      <DependentUpon>HrModules.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="Pages\HrModules.aspx.designer.cs">
+      <DependentUpon>HrModules.aspx</DependentUpon>
     </Compile>
     <Compile Include="Pages\Feedback.aspx.cs">
       <DependentUpon>Feedback.aspx</DependentUpon>

@@ -1,16 +1,15 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="LeaveManager.aspx.cs"
     Inherits="BADesign.Pages.LeaveManager" %>
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
     <title>Quản lý nghỉ phép - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
-    <script src="../Scripts/ba-layout.js"></script>
+    <uc:BaHead runat="server" />
     <script src="https://unpkg.com/lunar-javascript@1.7.7/lunar.js"></script>
     <style>
         :root {
@@ -43,31 +42,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg-main); color: var(--text-primary); line-height: 1.6; overflow-x: hidden; transition: background 0.3s, color 0.3s; }
         .ba-container { display: flex; min-height: 100vh; overflow: hidden; }
-        .ba-sidebar {
-            width: 240px; background: var(--bg-darker); border-right: 1px solid var(--border);
-            padding: 1.5rem 0; flex-shrink: 0; position: fixed; left: 0; top: 0; bottom: 0; z-index: 9999; overflow-y: auto;
-            transition: width 0.25s ease;
-        }
-        .ba-sidebar.collapsed { width: 64px; padding: 1rem 0; }
-        .ba-sidebar.collapsed .ba-sidebar-header { padding: 0 0.75rem 1rem; }
-        .ba-sidebar.collapsed .ba-sidebar-title { display: none; }
-        .ba-sidebar.collapsed .ba-nav-item { padding: 0.75rem; text-align: center; font-size: 0; }
-        .ba-sidebar.collapsed .ba-nav-item::before { content: attr(data-icon); font-size: 1.25rem; }
-        .ba-sidebar-toggle { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0.25rem; font-size: 1rem; }
-        .ba-sidebar-toggle:hover { color: var(--text-primary); }
-        .ba-sidebar.collapsed .ba-sidebar-toggle { transform: rotate(180deg); }
-        .ba-sidebar-header { padding: 0 1.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
-        .ba-sidebar-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); }
-        .ba-nav-item { display: block; padding: 0.75rem 1.5rem; color: var(--text-secondary); text-decoration: none; transition: all 0.2s; }
-        .ba-nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-        .ba-nav-item.active { background: var(--bg-hover); color: var(--primary-light); border-left: 3px solid var(--primary); }
         .ba-main { flex: 1; margin-left: 240px; display: flex; flex-direction: column; overflow: hidden; transition: margin-left 0.25s ease; }
-        .ba-sidebar.collapsed ~ .ba-main { margin-left: 64px; }
-        .ba-top-bar {
-            padding: 1rem 2rem; background: var(--bg-card); border-bottom: 1px solid var(--border);
-            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; flex-shrink: 0; position: sticky; top: 0; z-index: 100;
-        }
-        .ba-top-bar-title { font-size: 1.5rem; font-weight: 600; color: var(--text-primary); }
         .ba-content { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; overflow-x: hidden; }
         .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; }
         .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
@@ -164,11 +139,7 @@
         /* Add leave form */
         .lm-form-row { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; margin-bottom: 1rem; }
         .lm-form-group { flex: 1; min-width: 140px; }
-        .lm-form-group label { display: block; margin-bottom: 0.35rem; font-size: 0.8rem; color: var(--text-secondary); }
-        /* Theme toggle */
-        .theme-switcher { padding: 0.375rem 0.75rem; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 0.875rem; }
-        .theme-switcher:hover { background: var(--bg-hover); }
-        .ba-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .lm-form-group label { display: block; margin-bottom: 0.35rem; font-size: 0.8rem; color: var(--text-secondary); }.ba-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         @media (max-width: 900px) { .ba-grid-2 { grid-template-columns: 1fr; } }
         .lm-screenshot-hint { font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem; }
         /* Collapse */
@@ -206,21 +177,9 @@
 <body>
     <form id="form1" runat="server">
         <div class="ba-container">
-            <aside class="ba-sidebar" id="baSidebar">
-                <div class="ba-sidebar-header">
-                    <div class="ba-sidebar-title">📅 Leave Manager</div>
-                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
-                </div>
-                <nav class="ba-nav">
-                    <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ">← Về trang chủ</a>
-                    <a href="#" class="ba-nav-item active" data-icon="📅" title="Quản lý nghỉ phép">Quản lý nghỉ phép</a>
-                </nav>
-            </aside>
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" ActiveSection="LeaveManager" />
             <main class="ba-main">
-                <div class="ba-top-bar">
-                    <h1 class="ba-top-bar-title">Quản lý nghỉ phép</h1>
-                    <button class="theme-switcher" id="themeSwitcher" type="button">🌙 Dark</button>
-                </div>
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" PageTitle="Quản lý nghỉ phép" />
                 <div class="ba-content">
                     <!-- Today Summary -->
                     <div class="ba-card lm-today-card" id="todayCard">
@@ -679,13 +638,6 @@
                 viewDate.setFullYear(y);
                 viewDate.setMonth(m);
                 render();
-            });
-
-            $('#themeSwitcher').on('click', function (e) {
-                if (e.originalEvent && (e.originalEvent.detail === 0 || e.originalEvent.keyCode === 13)) return;
-                document.body.classList.toggle('light-theme');
-                var isLight = document.body.classList.contains('light-theme');
-                $(this).html(isLight ? '☀️ Light' : '🌙 Dark');
             });
 
             load();

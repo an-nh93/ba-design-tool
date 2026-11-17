@@ -1,0 +1,200 @@
+2026-11-16 00:16:07 HrModules failed
+System.InvalidOperationException: Authentication failed: Session['UiUserId'] is null.
+   at BADesign.UiAuthHelper.GetCurrentUserIdOrThrow() in C:\An.nh\Demo\BADesign\BADesign\Common\UiAuthHelper.cs:line 64
+   at BADesign.Pages.HrModules.LoadAll() in C:\An.nh\Demo\BADesign\BADesign\Pages\HrModules.aspx.cs:line 49
+2026-11-16 08:20:30 HrModules failed
+System.InvalidOperationException: Authentication failed: Session['UiUserId'] is null.
+   at BADesign.UiAuthHelper.GetCurrentUserIdOrThrow() in C:\An.nh\Demo\BADesign\BADesign\Common\UiAuthHelper.cs:line 64
+   at BADesign.Pages.HrModules.LoadAll() in C:\An.nh\Demo\BADesign\BADesign\Pages\HrModules.aspx.cs:line 49
+2026-11-16 19:29:43 [BaJobRunner] started runner=CDV207:36212:7e591689, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 19:31:15 [BaJobRunner] stopping runner=CDV207:36212:7e591689, running=0
+2026-11-16 19:31:15 [BaJobRunner] stopped runner=CDV207:36212:7e591689
+2026-11-16 19:31:20 [BaJobRunner] started runner=CDV207:36212:2e38f555, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 19:33:12 [BaJobRunner] stopping runner=CDV207:36212:2e38f555, running=0
+2026-11-16 19:33:12 [BaJobRunner] stopped runner=CDV207:36212:2e38f555
+2026-11-16 19:33:15 [BaJobRunner] started runner=CDV207:36212:dbcfde4e, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 19:34:23 [BaJobRunner] claimed job 1314 Restore
+2026-11-16 19:34:25 [BaJobRunner] job 1314 returned
+2026-11-16 19:36:07 [BaJobRunner] claimed job 1315 HRHelperMultiDbReset
+2026-11-16 19:36:08 [BaJobRunner] job 1315 returned
+2026-11-16 19:36:51 [BaJobRunner] claimed job 1316 HRHelperMultiDbReset
+2026-11-16 19:37:04 [BaJobRunner] stopping runner=CDV207:36212:dbcfde4e, running=1
+2026-11-16 19:37:06 [BaJobRunner] started runner=CDV207:36212:881694b4, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 19:37:34 [BaJobRunner] marked interrupted on shutdown: 1316
+2026-11-16 19:37:34 [BaJobRunner] stopped runner=CDV207:36212:dbcfde4e
+2026-11-16 19:37:51 [BaJobRunner] job 1316 failed: Thread was being aborted.
+2026-11-16 19:38:53 [BaJobRunner] claimed job 1317 HRHelperMultiDbReset
+2026-11-16 19:39:13 [BaJobRunner] started runner=CDV207:46520:08197d5f, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 19:42:13 [BaJobRunner] marked interrupted (no heartbeat): 1317
+2026-11-16 19:42:44 [BaJobRunner] stopping runner=CDV207:46520:08197d5f, running=0
+2026-11-16 19:42:44 [BaJobRunner] stopped runner=CDV207:46520:08197d5f
+2026-11-16 19:42:50 [BaJobRunner] started runner=CDV207:46520:277d90e1, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 19:46:03 [BaJobRunner] claimed job 1318 Restore
+2026-11-16 19:46:05 [BaJobRunner] job 1318 returned
+2026-11-16 19:46:06 [BaJobRunner] claimed job 1319 HRHelperMultiDbReset
+2026-11-16 19:46:06 [BaJobRunner] job 1319 returned
+2026-11-16 19:46:07 [BaJobRunner] claimed job 1320 HRHelperMultiDbReset
+2026-11-16 19:46:07 [BaJobRunner] job 1320 returned
+2026-11-16 19:46:43 [BaJobRunner] stopping runner=CDV207:46520:277d90e1, running=0
+2026-11-16 19:46:43 [BaJobRunner] stopped runner=CDV207:46520:277d90e1
+2026-11-16 19:46:45 [BaJobRunner] started runner=CDV207:46520:ff2f6008, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 20:00:36 [BaJobRunner] stopping runner=CDV207:46520:ff2f6008, running=0
+2026-11-16 20:00:36 [BaJobRunner] stopped runner=CDV207:46520:ff2f6008
+2026-11-16 20:43:32 [BaJobRunner] started runner=CDV207:46520:0414540c, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 20:45:01 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.CompileWebFile(VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:04 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:09 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:16 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.CompileWebFile(VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:19 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:24 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:31 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.CompileWebFile(VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:34 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:39 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:46 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.CompileWebFile(VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:49 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:54 Unhandled: POST /Pages/ServerMonitor.aspx/GetMetrics [local]
+System.Web.HttpCompileException (0x80004005): C:\An.nh\Demo\BADesign\BADesign\Pages\ServerMonitor.aspx(116): error CS0103: The name 'UsesWorker' does not exist in the current context
+   at System.Web.Compilation.BuildManager.PostProcessFoundBuildResult(BuildResult result, Boolean keyFromVPP, VirtualPath virtualPath)
+   at System.Web.Compilation.BuildManager.GetBuildResultFromCacheInternal(String cacheKey, Boolean keyFromVPP, VirtualPath virtualPath, Int64 hashCode, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultFromCacheInternal(VirtualPath virtualPath, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultInternal(VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVPathBuildResultWithNoAssert(HttpContext context, VirtualPath virtualPath, Boolean noBuild, Boolean allowCrossApp, Boolean allowBuildInPrecompile, Boolean throwIfNotFound, Boolean ensureIsUpToDate)
+   at System.Web.Compilation.BuildManager.GetVirtualPathObjectFactory(VirtualPath virtualPath, HttpContext context, Boolean allowCrossApp, Boolean throwIfNotFound)
+   at System.Web.Compilation.BuildManager.CreateInstanceFromVirtualPath(VirtualPath virtualPath, Type requiredBaseType, HttpContext context, Boolean allowCrossApp)
+   at System.Web.UI.PageHandlerFactory.GetHandlerHelper(HttpContext context, String requestType, VirtualPath virtualPath, String physicalPath)
+   at System.Web.HttpApplication.MaterializeHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute()
+   at System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step)
+   at System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously)
+2026-11-16 20:45:59 [BaJobRunner] stopping runner=CDV207:46520:0414540c, running=0
+2026-11-16 20:45:59 [BaJobRunner] stopped runner=CDV207:46520:0414540c
+2026-11-16 20:46:03 [BaJobRunner] started runner=CDV207:46520:ed42ea94, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-16 20:46:48 [BaJobRunner] stopping runner=CDV207:46520:ed42ea94, running=0
+2026-11-16 20:46:48 [BaJobRunner] stopped runner=CDV207:46520:ed42ea94
+2026-11-16 20:46:49 [BaJobRunner] started runner=CDV207:46520:9d555318, queue=CDV207/BADesign/, claiming=False, maxConcurrentJobs=15
+2026-11-16 20:47:37 [BaJobRunner] stopping runner=CDV207:46520:9d555318, running=0
+2026-11-16 20:47:37 [BaJobRunner] stopped runner=CDV207:46520:9d555318
+2026-11-16 20:47:37 [BaJobRunner] started runner=CDV207:46520:2e3a4ed4, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15

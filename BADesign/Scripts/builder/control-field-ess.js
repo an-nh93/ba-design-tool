@@ -582,23 +582,23 @@
         showProperties: function (fieldId) {
             var cfg = builder.getControlConfig(fieldId);
             if (!cfg) {
-                $("#propPanel").html('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;"><h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Field Properties</h3><p style="color:#999;">Không tìm thấy field.</p></div>');
+                $("#propPanel").html('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;"><h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Thuộc tính field</h3><p style="color:#999;">Không tìm thấy field.</p></div>');
                 return;
             }
 
             var html = [];
             html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
-            html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">ESS Field Properties</h3>');
+            html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Thuộc tính field ESS</h3>');
             
             // Basic Info Card
             html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
             html.push('<div class="ess-col-card-header">');
-            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Thông tin chung</span>');
             html.push('</div>');
             html.push('<div class="ess-col-card-body">');
             html.push('<div style="display:grid; grid-template-columns: auto 1fr; gap:8px 12px; font-size:11px;">');
             html.push('<span style="color:#666;">ID:</span><span style="color:#333; font-weight:500;">' + cfg.id + '</span>');
-            html.push('<span style="color:#666;">Type:</span><span style="color:#333; font-weight:500;">' + cfg.ftype + '</span>');
+            html.push('<span style="color:#666;">Loại:</span><span style="color:#333; font-weight:500;">' + cfg.ftype + '</span>');
             html.push('</div>');
             html.push('</div>');
             html.push('</div>');
@@ -606,12 +606,12 @@
             // Caption Section
             html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
             html.push('<div class="ess-col-card-header">');
-            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📝 Caption</span>');
+            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📝 Nhãn</span>');
             html.push('</div>');
             html.push('<div class="ess-col-card-body">');
             html.push('<div class="ess-col-row">');
             html.push('<div class="ess-col-field ess-col-field-full">');
-            html.push('<label><span style="color:#0078d4;">📝</span><strong>Caption:</strong></label>');
+            html.push('<label><span style="color:#0078d4;">📝</span><strong>Nhãn:</strong></label>');
             html.push('<input type="text" id="pf_caption" class="ess-col-input" value="' + (cfg.caption || "") + '"/>');
             html.push('</div>');
             html.push('</div>');
@@ -622,12 +622,12 @@
             if (!(cfg.ftype === "groupbox" || cfg.ftype === "section")) {
                 html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
                 html.push('<div class="ess-col-card-header">');
-                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">⚙️ Options</span>');
+                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">⚙️ Tùy chọn</span>');
                 html.push('</div>');
                 html.push('<div class="ess-col-card-body">');
                 html.push('<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">');
-                html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pf_required"' + (cfg.required ? ' checked' : '') + '><strong>Required</strong></label>');
-                html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pf_disabled"' + (cfg.disabled ? ' checked' : '') + '><strong>Disabled</strong></label>');
+                html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pf_required"' + (cfg.required ? ' checked' : '') + '><strong>Bắt buộc</strong></label>');
+                html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pf_disabled"' + (cfg.disabled ? ' checked' : '') + '><strong>Khóa</strong></label>');
                 html.push('</div>');
                 html.push('</div>');
                 html.push('</div>');
@@ -638,12 +638,12 @@
                 cfg.ftype === "checkbox" || cfg.ftype === "radio" || cfg.ftype === "button")) {
                 html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
                 html.push('<div class="ess-col-card-header">');
-                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Label Width</span>');
+                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Độ rộng nhãn</span>');
                 html.push('</div>');
                 html.push('<div class="ess-col-card-body">');
                 html.push('<div class="ess-col-row">');
                 html.push('<div class="ess-col-field ess-col-field-width">');
-                html.push('<label><span style="color:#0078d4;">📏</span><strong>Width (px):</strong></label>');
+                html.push('<label><span style="color:#0078d4;">📏</span><strong>Rộng (px):</strong></label>');
                 html.push('<input type="number" id="pf_labelWidth" class="ess-col-input" value="' + (cfg.labelWidth || 120) + '"/>');
                 html.push('</div>');
                 html.push('</div>');
@@ -661,10 +661,10 @@
                 }
                 html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
                 html.push('<div class="ess-col-card-header">');
-                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📋 Items</span>');
+                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📋 Danh sách giá trị</span>');
                 html.push('</div>');
                 html.push('<div class="ess-col-card-body">');
-                html.push('<label style="display:block; margin-bottom:6px; font-size:11px; color:#666;">Items (comma separated):</label>');
+                html.push('<label style="display:block; margin-bottom:6px; font-size:11px; color:#666;">Giá trị (cách nhau bằng dấu phẩy):</label>');
                 html.push('<textarea id="pf_items" class="ess-col-input" style="min-height:60px; resize:vertical; font-family:monospace;">' + itemsText + '</textarea>');
                 html.push('</div>');
                 html.push('</div>');

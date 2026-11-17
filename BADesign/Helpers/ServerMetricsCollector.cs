@@ -187,8 +187,26 @@ namespace BADesign.Helpers
                 }
             }
 
-            d["worker"] = TryCollectWorkerMetrics();
+            if (BaJobQueue.UseBackgroundWorker)
+                d["worker"] = TryCollectWorkerMetrics();
+            d["jobRunner"] = CollectJobRunner();
             return d;
+        }
+
+        static Dictionary<string, object> CollectJobRunner()
+        {
+            var r = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
+            r["claimsHere"] = !BaJobQueue.UseBackgroundWorker;
+            var runner = BaJobWebHost.Runner;
+            r["started"] = runner != null && runner.IsRunning;
+            if (runner == null) return r;
+            r["queueName"] = runner.Options.QueueName ?? "";
+            r["running"] = runner.RunningCount;
+            r["maxConcurrentJobs"] = runner.Options.MaxConcurrentJobs;
+            r["startedAt"] = runner.StartedAt.HasValue ? runner.StartedAt.Value.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) : "";
+            r["lastError"] = runner.LastError ?? "";
+            r["lastErrorAt"] = runner.LastErrorAt.HasValue ? runner.LastErrorAt.Value.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture) : "";
+            return r;
         }
 
         static Dictionary<string, object> TryCollectWorkerMetrics()

@@ -1,45 +1,52 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="HRHelper.aspx.cs"
     Inherits="BADesign.Pages.HRHelper" %>
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/jquery.signalR.min.js"></script>
-    <script src="../Scripts/ba-signalr.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
-    <script src="../Scripts/ba-layout.js"></script>
+    <title>Trợ lý HR - HR Helper</title>
+    <uc:BaHead runat="server" />
     <style>
         /* Layout, nút, modal dùng ba-layout.css; chỉ giữ style riêng HR Helper bên dưới */
         .ba-conn-label { font-size: 0.875rem; color: var(--text-secondary); }
         .ba-conn-label strong { color: var(--primary-light); }
         .ba-content {
             flex: 1;
-            padding: 0.5rem;
+            padding: 0.35rem 1rem 0.5rem;
             overflow: hidden;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+        }
+        .ba-page-desc {
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+            line-height: 1.35;
+            margin: 0 0 0.25rem 0;
+            flex-shrink: 0;
+        }
+        .ba-hr-conn-bar {
+            padding: 0.35rem 1rem !important;
+            flex-shrink: 0;
         }
         .ba-tabs {
             display: flex;
-            gap: 0.5rem;
+            gap: 0.25rem;
             border-bottom: 2px solid var(--border);
-            margin-bottom: 1.5rem;
+            margin-bottom: 0.5rem;
             position: sticky;
             top: 0;
             z-index: 99;
             background: var(--bg-main);
-            padding-top: 1rem;
+            padding-top: 0;
             flex-shrink: 0;
         }
         .ba-tab {
-            padding: 0.75rem 1.5rem;
+            padding: 0.45rem 1rem;
             background: transparent;
             border: none;
             color: var(--text-secondary);
@@ -55,22 +62,31 @@
             border-bottom-color: var(--primary);
         }
         .ba-tab-content { display: none; }
-        .ba-tab-content.active { display: block; }
+        .ba-tab-content.active {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
         .ba-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            padding: 1rem 1.25rem;
+            margin-bottom: 0.75rem;
         }
         .ba-card.ba-card-scrollable {
             display: flex;
             flex-direction: column;
-            max-height: calc(100vh - 200px);
+            flex: 1;
+            min-height: 0;
+            max-height: none;
             overflow-y: auto;
             overflow-x: hidden;
+            margin-bottom: 0.5rem;
         }
-        .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; }
+        .ba-card-title { font-size: 1.0625rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; flex-shrink: 0; }
         .ba-btn:disabled, .ba-btn[disabled] { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         .ba-btn-dimmed { opacity: 0.6; cursor: not-allowed; }
         .ba-multi-load-dimmed { opacity: 0.6 !important; pointer-events: none !important; cursor: not-allowed; }
@@ -78,9 +94,10 @@
         .ba-grid-toolbar {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.75rem;
             flex-wrap: wrap;
-            margin-bottom: 1rem;
+            margin-bottom: 0.5rem;
+            flex-shrink: 0;
         }
         .ba-grid-toolbar .ba-search {
             flex: 1;
@@ -89,13 +106,14 @@
         }
         .ba-table-wrap {
             overflow: auto;
-            margin: 1rem 0;
-            max-height: 60vh;
-            min-height: 320px;
+            margin: 0.35rem 0 0;
+            min-height: 240px;
+            max-height: calc(100vh - 210px);
             border: 1px solid var(--border);
             border-radius: 6px;
             position: relative;
         }
+
         .ba-table {
             width: max-content;
             min-width: 100%;
@@ -220,9 +238,10 @@
             align-items: center;
             gap: 0.75rem;
             flex-wrap: wrap;
-            margin-top: 1rem;
+            margin-top: 0.5rem;
             font-size: 0.875rem;
             color: var(--text-secondary);
+            flex-shrink: 0;
         }
         .ba-pager button:disabled { opacity: 0.5; cursor: not-allowed; }
         .ba-pager .ba-pager-size { min-width: 80px; }
@@ -504,36 +523,7 @@
         .ba-empty-state-link:hover { text-decoration: underline; }
         .ba-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
         /* Modal + nút × dùng chung từ ba-layout.css */
-        .ba-btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8125rem; }
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10040;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-        .toast {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem 1.25rem;
-            min-width: 300px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            display: none;
-            align-items: center;
-            gap: 0.75rem;
-            animation: slideInRight 0.3s ease;
-        }
-        .toast.show { display: flex; }
-        .toast { position: relative; padding-right: 2rem; padding-top: 0.25rem; }
-        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; flex-shrink: 0; }
-        .toast .toast-close:hover { color: var(--text-primary); }
-        .toast.success { border-left: 4px solid var(--success); }
-        .toast.error { border-left: 4px solid var(--danger); }
-        .toast.info { border-left: 4px solid var(--primary); }
-        @keyframes slideInRight {
+        .ba-btn-sm { padding: 0.35rem 0.75rem; font-size: 0.8125rem; }        @keyframes slideInRight {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
@@ -594,55 +584,140 @@
         .ba-form-label-row .ba-form-label { display: inline-flex; align-items: center; }
         .ba-label-with-info { display: inline-flex !important; align-items: center; flex-wrap: nowrap; gap: 0.5rem !important; flex-shrink: 0; }
         .ba-info-icon { line-height: 1; vertical-align: middle; margin-top: -1px; }
+
+        .ba-hr-conn-bar { background: var(--bg-darker, #161616); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; padding: 0.25rem 1rem !important; }
+        .ba-conn-label { font-size: 0.8125rem; display: flex; flex-wrap: wrap; gap: 0 1rem; min-width: 0; margin-right: auto; }
+        .ba-tabs { align-items: center; margin-bottom: 0.375rem; }
+        .ba-tabs-hint { margin-left: auto; padding-left: 1rem; font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+        .hr-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; flex-shrink: 0; }
+        .hr-toolbar > .ba-actions { flex: 0 0 auto; }
+        .hr-toolbar > .ba-search { flex: 0 1 340px; width: 340px; min-width: 180px; margin-left: auto; }
+        .hr-toolbar-search { flex: 1 1 200px; min-width: 180px; }
+        .hr-toolbar-filter { flex: 0 1 280px; min-width: 200px; display: flex; align-items: center; gap: 0.5rem; }
+        .hr-toolbar-filter .ba-form-label { margin: 0; white-space: nowrap; }
+        .hr-split { display: flex; gap: 0.75rem; align-items: stretch; flex: 1 1 auto; min-height: 0; }
+        .hr-split-main { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+        .hr-split-main .ba-table-wrap { flex: 1 1 auto; min-height: 160px; max-height: calc(100vh - 233px); margin: 0; }
+        .hr-split-side { flex: 0 0 390px; min-width: 0; max-height: calc(100vh - 197px); overflow-y: auto; padding-right: 2px; }
+        .hr-split-side .ba-update-section:last-child { margin-bottom: 0; }
+        .hr-split-side .ba-update-grid { grid-template-columns: 1fr; gap: 0; }
+        .hr-split-side .hr-cols { grid-template-columns: 1fr; }
+        .hr-split-side .ba-update-section .ba-form-group,
+        .hr-split-side .ba-update-section .ba-form-group > div:only-child > div { grid-template-columns: minmax(0, 1fr); }
+        .hr-split-side .ba-update-section .ba-form-group > .ba-input,
+        .hr-split-side .ba-update-section .ba-form-group > .ba-field-error,
+        .hr-split-side .ba-update-section .ba-form-group > p,
+        .hr-split-side .ba-update-section .ba-form-group > .ba-checkbox ~ .ba-checkbox { grid-column: 1; }
+        .hr-split-side .ba-update-section .ba-form-group > .ba-checkbox ~ .ba-checkbox { margin-left: 1.25rem; }
+        #tabEmployees .hr-split-side .ba-update-section .ba-form-group { grid-template-columns: 176px minmax(0, 1fr); }
+        #tabEmployees .hr-split-side .ba-update-section .ba-form-group > .ba-input { grid-column: 2; grid-row: 1; margin-left: 0; }
+        #tabEmployees .hr-split-side .ba-update-section .ba-form-group > .ba-checkbox ~ .ba-checkbox { grid-column: 1 / -1; grid-row: 2; }
+        .hr-split-side .ba-update-section > .ba-actions,
+        .hr-split-side .ba-collapse-body > .ba-actions:last-child { position: sticky; bottom: 0; background: var(--bg-card); padding: 0.375rem 0 0.125rem; margin-top: 0.375rem; border-top: 1px solid var(--border); z-index: 2; }
+        .ba-hr-job-bar { width: min(360px, 70vw); height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin: 0.625rem auto 0; }
+        .ba-hr-job-bar-fill { height: 100%; width: 0; background: var(--primary); transition: width 0.6s ease; }
+        .ba-hr-job-meta { margin-top: 0.375rem; min-height: 1em; font-size: 0.75rem; color: var(--text-muted); }
+        .ba-main:has(.ba-tabs) { height: 100vh; }
+        #tabCompany > .ba-card { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow-y: auto; overflow-x: hidden; margin-bottom: 0.5rem; padding-bottom: 0; }
+        #tabCompany > .ba-card > .ba-actions:last-child { position: sticky; bottom: 0; background: var(--bg-card); padding: 0.5rem 0; margin-top: 0; border-top: 1px solid var(--border); z-index: 2; flex-shrink: 0; }
+        #tabCompany > .ba-card > .ba-update-section { flex-shrink: 0; }
+        .hr-target { position: sticky; top: 0; z-index: 3; display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.375rem; margin-bottom: 0.5rem; padding: 0.375rem 0.625rem; border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font-size: 0.75rem; line-height: 1.45; }
+        .hr-target::after { content: ''; position: absolute; left: -3px; right: -1px; top: 100%; height: 0.5rem; margin-top: 1px; background: var(--bg-card); pointer-events: none; }
+        .hr-target-text { font-weight: 600; }
+        .hr-target-all { border-left-color: var(--warning); background: linear-gradient(rgba(245, 158, 11, 0.14), rgba(245, 158, 11, 0.14)), var(--bg-card); }
+        .hr-target-empty { border-left-color: var(--border); }
+        .hr-target-empty .hr-target-text { color: var(--text-muted); font-weight: 400; }
+        .hr-target-names { display: contents; }
+        .hr-target-more { color: var(--text-muted); white-space: nowrap; }
+        .hr-chip { display: inline-block; max-width: 100%; padding: 0 0.4375rem; border-radius: 10px; background: var(--primary-soft); color: var(--text-primary); font-size: 0.6875rem; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+        .hr-target .hr-chip { max-width: calc(50% - 0.25rem); }
+        .ba-table tbody tr:has(.chkUser:checked) > td,
+        .ba-table tbody tr:has(.chkEmployee:checked) > td { box-shadow: inset 0 0 0 999px var(--primary-soft); }
+        .hr-confirm-detail { grid-template-columns: max-content minmax(0, 1fr); gap: 0.5rem 0.75rem; margin-top: 0.75rem; padding-top: 0.625rem; border-top: 1px solid var(--border); font-size: 0.8125rem; line-height: 1.6; align-items: start; }
+        .hr-confirm-label { color: var(--text-muted); white-space: nowrap; }
+        .hr-confirm-items { display: grid; gap: 0.25rem; min-width: 0; }
+        .hr-confirm-item { display: flex; flex-wrap: wrap; align-items: center; gap: 0.125rem 0.375rem; min-width: 0; }
+        .hr-confirm-item-label { font-weight: 600; }
+        .hr-confirm-note { color: var(--text-muted); }
+        .hr-confirm-who { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.375rem; min-width: 0; max-height: 132px; overflow-y: auto; }
+        .hr-confirm-all { padding: 0 0.5rem; border-radius: 4px; background: rgba(245, 158, 11, 0.18); font-weight: 600; }
+        .hr-pair > div { display: contents; }
+        .hr-pair .ba-hash-hint { grid-column: 1 / -1; }
+        .ba-update-grid { gap: 0 1.5rem; }
+        .hr-pair, .hr-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0.375rem 0.5rem; align-items: start; }
+        .ba-collapse-section { margin-top: 0; }
+        .ba-collapse-header { padding: 0; }
+        .ba-collapse-body { margin-top: 0.375rem; }
+        .ba-update-section > .ba-card-title,
+        .ba-collapse-header .ba-card-title { font-size: 0.875rem; margin: 0 0 0.375rem; }
+        .ba-collapse-header .ba-card-title { margin: 0; }
+        .ba-section-hint { color: var(--text-muted); font-size: 0.75rem; line-height: 1.4; margin: 0 0 0.5rem; }
+        .ba-update-section .ba-actions { margin-top: 0.5rem; }
+        .ba-update-section .ba-form-group { display: grid; grid-template-columns: minmax(140px, 190px) minmax(0, 1fr); align-items: center; column-gap: 0.625rem; row-gap: 0.25rem; margin-bottom: 0.5rem; }
+        .ba-update-section .ba-form-group > .ba-checkbox,
+        .ba-update-section .ba-form-group > .ba-form-label-row,
+        .ba-update-section .ba-form-group > .ba-form-label { margin: 0; min-width: 0; }
+        .ba-update-section .ba-form-group > .ba-input,
+        .ba-update-section .ba-form-group > .ba-field-error,
+        .ba-update-section .ba-form-group > p { grid-column: 2; margin-top: 0; }
+        .ba-update-section .ba-form-group > .ba-checkbox ~ .ba-checkbox { grid-column: 2; }
+        .ba-update-section .ba-form-group > div:only-child { grid-column: 1 / -1; }
+        .ba-update-section .ba-form-group > div:only-child > div { display: grid; grid-template-columns: minmax(140px, 190px) minmax(0, 1fr); align-items: center; column-gap: 0.625rem; row-gap: 0.25rem; }
+        .ba-update-section .ba-form-group > div:only-child > div > p { grid-column: 1 / -1; margin: 0; }
+        .ba-main .ba-checkbox { margin-bottom: 0; align-items: center; }
+        .ba-main .ba-checkbox input[type="checkbox"] { width: 15px; height: 15px; margin: 0; flex-shrink: 0; }
+        .ba-main .ba-checkbox label { font-size: 0.8125rem; font-weight: 500; margin: 0; line-height: 1.3; }
+        .ba-hash-hint { font-size: 0.75rem; margin: 0.25rem 0 0; padding: 0.25rem 0.5rem; }
+        #txtPasswordScript { min-height: 96px; resize: vertical; }
+        @media (max-width: 1180px) {
+            .hr-split { flex-direction: column; flex: 0 0 auto; }
+            .hr-split-main { flex: 0 0 auto; }
+            .hr-split-side { flex: 0 0 auto; max-height: none; overflow: visible; }
+            .hr-split-main .ba-table-wrap { max-height: 45vh; }
+            .ba-tabs-hint { display: none; }
+        }
     </style>
 </head>
 <body>
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <aside class="ba-sidebar" id="baSidebar">
-                <div class="ba-sidebar-header">
-                    <div class="ba-sidebar-title">HR Helper</div>
-                    <button type="button" class="ba-sidebar-toggle" id="baSidebarToggle" title="Thu nhỏ menu">◀</button>
-                </div>
-                <nav class="ba-nav">
-                    <a href="<%= ResolveUrl(BADesign.UiAuthHelper.GetHomeUrlByRole() ?? "~/") %>" class="ba-nav-item" data-icon="🏠" title="Về trang chủ"><span>🏠 Về trang chủ</span></a>
-                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-nav-item" data-icon="🔍" title="Database Tools"><span>🔍 Database Tools</span></a>
-                    <a href="#" class="ba-nav-item active" data-icon="👥" title="HR Helper"><span>👥 HR Helper</span></a>
-                    <% if (CanEditSettings) { %><a href="<%= ResolveUrl("~/AppSettings") %>" class="ba-nav-item" data-icon="⚙" title="App Settings"><span>⚙ App Settings</span></a><% } %>
-                </nav>
-            </aside>
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" ActiveSection="HRHelper" AllowAnonymous="true" />
             <main class="ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <% if (!IsMultiDbMode) { %>
                 <input type="hidden" id="hrCurrentServer" value="<%= Server.HtmlEncode(ConnectedServer ?? "") %>" />
                 <input type="hidden" id="hrCurrentDatabase" value="<%= Server.HtmlEncode(ConnectedDatabase ?? "") %>" />
-                <div class="ba-hr-conn-bar" style="padding: 0.5rem 2rem; background: var(--bg-darker, #161616); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;">
-                    <span class="ba-conn-label" style="font-size: 0.875rem;"><span>Server: <strong><%= ConnectedServer %></strong></span><span style="margin-left: 1rem;">Database: <strong><%= ConnectedDatabase %></strong></span></span>
-                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">← Về Database Tools</a>
-                    <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">Generate Demo Reset Script</a>
-                    <a href="<%= PgpToolUrl %>" class="ba-btn ba-btn-secondary" style="flex-shrink: 0;">PGP Tool</a>
+                <div class="ba-hr-conn-bar">
+                    <span class="ba-conn-label"><span>Server: <strong><%= ConnectedServer %></strong></span><span class="ba-conn-db">Database: <strong><%= ConnectedDatabase %></strong></span></span>
+                    <a href="<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>" class="ba-btn ba-btn-secondary ba-btn-sm">← Về Công cụ Database</a>
+                    <a href="<%= EncryptDecryptUrl %>" class="ba-btn ba-btn-secondary ba-btn-sm">Generate Demo Reset Script</a>
+                    <a href="<%= PgpToolUrl %>" class="ba-btn ba-btn-secondary ba-btn-sm">Công cụ PGP</a>
+                    <% if (BADesign.LicenseKeyAccess.IsAllowed()) { %>
+                    <a href="<%= LicenseKeyUrl %>" class="ba-btn ba-btn-secondary ba-btn-sm">Khóa bản quyền</a>
+                    <% } %>
                 </div>
                 <% } %>
                 <div class="ba-content">
                     <% if (!IsMultiDbMode) { %>
-                    <p class="ba-page-desc" style="color: var(--text-muted); font-size: 0.9rem; margin: 0 0 1rem 0;">Xem và cập nhật User, Employee, Company; reset Email/Phone và cấu hình demo.</p>
                     <div class="ba-tabs">
                         <button type="button" class="ba-tab active" data-tab="users">Users</button>
                         <button type="button" class="ba-tab" data-tab="employees">Employee Info</button>
                         <button type="button" class="ba-tab" data-tab="company">Company Info</button>
                         <button type="button" class="ba-tab" data-tab="other">Other Information</button>
+                        <span class="ba-tabs-hint">Xem và cập nhật User, Employee, Company; reset Email/Phone và cấu hình demo.</span>
                     </div>
                     <div id="tabUsers" class="ba-tab-content active">
                         <div class="ba-card ba-card-scrollable">
-                            <h2 class="ba-card-title">User Management</h2>
-                            <div class="ba-grid-toolbar" style="display: flex; justify-content: space-between; gap: 0.75rem; align-items: center; margin-bottom: 1rem; flex-wrap: wrap;">
-                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div class="ba-grid-toolbar hr-toolbar">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataUsers" onclick="loadUsers(); return false;">View Data</button>
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnUpdateUserSignature" onclick="updateUserSignature(); return false;" style="display: none;" disabled title="Chọn ít nhất 1 user ở bảng dưới">Update User Signature</button>
                                 </div>
-                                <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant... (có dấu / không dấu)" style="width: 360px; flex: none; margin-left: auto;" />
+                                <input type="text" id="txtSearchUsers" class="ba-input ba-search" placeholder="Search User ID, Name, Employee, Email, Tenant... (có dấu / không dấu)" />
                             </div>
+                            <div class="hr-split">
+                            <div class="hr-split-main">
                             <div class="ba-table-wrap">
                                 <table class="ba-table ba-table-resizable" id="tableUsers">
                                     <colgroup>
@@ -670,15 +745,18 @@
                                 </table>
                             </div>
                             <div id="pagerUsers" class="ba-pager" style="display: none;"></div>
+                            </div>
+                            <div class="hr-split-side">
+                            <div class="hr-target" id="userTargetSummary"></div>
                             <div class="ba-card ba-update-section ba-collapse-section" id="sectionUpdateEmailPassword">
                                 <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Update email &amp; password</h3>
+                                    <h3 class="ba-card-title">Update email &amp; password</h3>
                                 </div>
                                 <div class="ba-collapse-body">
-                                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Chọn user ở bảng trên, bật option dưới đây rồi bấm <strong>Generate and Update</strong>.</p>
+                                <p class="ba-section-hint">Bật option cần cập nhật rồi bấm <strong>Generate and Update</strong>.</p>
                                 <div class="ba-form-group">
-                                    <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    <div class="ba-checkbox">
                                         <input type="checkbox" id="chkUpdatePassword" />
                                         <label for="chkUpdatePassword">Update Password</label>
                                         <span class="ba-info-wrap">
@@ -686,7 +764,7 @@
                                             <div class="ba-info-popover" style="display: none;">Bật để đổi mật khẩu user đã chọn. Nhập password bên dưới và chọn Method Hash (SHA256/SHA512) tương ứng phiên bản Cadena.</div>
                                         </span>
                                     </div>
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-top: 0.5rem; align-items: start;">
+                                    <div class="hr-pair">
                                         <input type="text" id="txtPassword" class="ba-input" placeholder="Enter password" disabled />
                                         <div>
                                             <select id="selMethodHash" class="ba-input" disabled>
@@ -698,9 +776,9 @@
                                     </div>
                                 </div>
                                 <div class="ba-form-group">
-                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; align-items: start;">
+                                    <div class="hr-cols">
                                         <div>
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkUpdateEmail" />
                                                 <label for="chkUpdateEmail">Update Email</label>
                                                 <span class="ba-info-wrap">
@@ -708,10 +786,10 @@
                                                     <div class="ba-info-popover" style="display: none;">Bật để cập nhật email đăng nhập cho user đã chọn. Nhập email mới vào ô bên dưới.</div>
                                                 </span>
                                             </div>
-                                            <input type="text" id="txtEmail" class="ba-input" placeholder="Example: an.nh@cadena-hrmseries.com" style="margin-top: 0.5rem;" disabled />
+                                            <input type="text" id="txtEmail" class="ba-input" placeholder="Example: an.nh@cadena-hrmseries.com" disabled />
                                         </div>
                                         <div>
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkIgnoreWindowsAD" />
                                                 <label for="chkIgnoreWindowsAD">Is Ignore Window AD Account</label>
                                                 <span class="ba-info-wrap">
@@ -723,7 +801,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <div class="ba-actions" style="margin-top: 1rem;">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-primary" onclick="updateUsers(); return false;">Generate and Update</button>
                                 </div>
                                 </div>
@@ -731,12 +809,12 @@
                             <div class="ba-card ba-update-section ba-collapse-section" id="sectionGenerateScript">
                                 <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Generate password update script (SQL)</h3>
+                                    <h3 class="ba-card-title">Generate password update script (SQL)</h3>
                                 </div>
                                 <div class="ba-collapse-body">
-                                <p class="ba-script-instruction" style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 0.5rem;">Chọn user ở bảng trên, nhập password và chọn cách mã hóa. Script chỉ generate để copy chạy tay.</p>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; align-items: start; margin-bottom: 1rem;">
-                                    <div class="ba-form-group" style="margin: 0;">
+                                <p class="ba-script-instruction ba-section-hint">Nhập password và chọn cách mã hóa. Script chỉ generate để copy chạy tay.</p>
+                                <div class="hr-cols">
+                                    <div class="ba-form-group">
                                         <div class="ba-form-label-row">
                                             <label class="ba-form-label" for="txtScriptPassword">Password</label>
                                             <span class="ba-info-wrap">
@@ -746,7 +824,7 @@
                                         </div>
                                         <input type="text" id="txtScriptPassword" class="ba-input" placeholder="Nhập password" autocomplete="off" />
                                     </div>
-                                    <div class="ba-form-group" style="margin: 0;">
+                                    <div class="ba-form-group">
                                         <div class="ba-form-label-row">
                                             <label class="ba-form-label" for="selScriptMethodHash">Method Hash</label>
                                             <span class="ba-info-wrap">
@@ -761,12 +839,14 @@
                                         <p class="ba-hash-hint">MD5: version 5.0.73 trở xuống. Hash 256: phiên bản mới hơn.</p>
                                     </div>
                                 </div>
-                                <div class="ba-actions" style="margin-bottom: 0.75rem;">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-primary" id="btnGeneratePasswordScript" onclick="generatePasswordScript(); return false;">Generate script</button>
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCopyPasswordScript" onclick="copyPasswordScript(); return false;" style="display: none;">Copy</button>
                                 </div>
-                                <textarea id="txtPasswordScript" class="ba-input" readonly rows="12" placeholder="Script SQL sẽ hiển thị ở đây..." style="width: 100%; font-family: Consolas, monospace; font-size: 0.875rem;"></textarea>
+                                <textarea id="txtPasswordScript" class="ba-input" readonly rows="6" placeholder="Script SQL sẽ hiển thị ở đây..." style="width: 100%; font-family: Consolas, monospace; font-size: 0.875rem;"></textarea>
                                 </div>
+                            </div>
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -774,24 +854,25 @@
                     <!-- Tab Employees -->
                     <div id="tabEmployees" class="ba-tab-content">
                         <div class="ba-card ba-card-scrollable">
-                            <h2 class="ba-card-title">Employee Management</h2>
-                            <div class="ba-actions" style="margin-bottom: 1rem; display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <div class="ba-grid-toolbar hr-toolbar">
+                            <div class="ba-actions">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnViewDataEmployees" onclick="loadEmployees(); return false;">View Data</button>
                                 <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateEmployeeTestData" onclick="openGenerateEmployeeTestDataModal(); return false;">Generate Test Data</button>
-                                <button type="button" class="ba-btn ba-btn-danger" id="btnDeleteEmployees" style="display: none;" onclick="openDeleteEmployeeConfirm(); return false;" title="Xóa employee đã chọn">Delete Employee</button>
+                                <button type="button" class="ba-btn ba-btn-danger" id="btnDeleteEmployees" disabled onclick="openDeleteEmployeeConfirm(); return false;" title="Chọn ít nhất 1 employee (cột Local ID) để xóa.">Delete Employee</button>
                                 <button type="button" class="ba-btn ba-btn-secondary" id="btnGenerateDeleteScript" onclick="openGenerateDeleteScriptModal(); return false;">Generate Delete Script</button>
                             </div>
-                            <div class="ba-grid-toolbar" style="display: flex; gap: 1rem; align-items: center; flex-wrap: wrap;">
-                                <div style="flex: 1; min-width: 200px;">
-                                    <input type="text" id="txtSearchEmployees" class="ba-input ba-search" placeholder="Search Employee ID, Name, English Name, Email, Phone, Org, Manager, Company... (có dấu / không dấu)" />
+                                <div class="hr-toolbar-search">
+                                    <input type="text" id="txtSearchEmployees" class="ba-input ba-search" placeholder="Tìm ID, Local ID, Tên, English Name, User Name (tối thiểu 2 ký tự)..." />
                                 </div>
-                                <div style="min-width: 250px; display: flex; align-items: center; gap: 0.5rem;">
+                                <div class="hr-toolbar-filter">
                                     <label class="ba-form-label" style="margin: 0; white-space: nowrap;">Company</label>
                                     <select id="selCompanyFilter" class="ba-input" style="flex: 1;">
                                         <option value="">Loading companies...</option>
                                     </select>
                                 </div>
                             </div>
+                            <div class="hr-split">
+                            <div class="hr-split-main">
                             <div class="ba-table-wrap">
                                 <table class="ba-table ba-table-resizable" id="tableEmployees">
                                     <colgroup>
@@ -826,13 +907,16 @@
                                 </table>
                             </div>
                             <div id="pagerEmployees" class="ba-pager" style="display: none;"></div>
-                            <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
-                                <h3 class="ba-card-title" style="font-size: 1.1rem; margin-bottom: 0.5rem;">Update employee info</h3>
-                                <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;">Chọn employee ở bảng trên, bật option dưới đây rồi bấm <strong>Generate and Update</strong>. Không chọn = update all.</p>
+                            </div>
+                            <div class="hr-split-side">
+                            <div class="hr-target" id="employeeTargetSummary"></div>
+                            <div class="ba-card ba-update-section">
+                                <h3 class="ba-card-title">Update employee info</h3>
+                                <p class="ba-section-hint">Bật option cần cập nhật rồi bấm <strong>Generate and Update</strong>.</p>
                                 <div class="ba-update-grid">
                                     <div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkUpdPersonalEmail" />
                                                 <label for="chkUpdPersonalEmail">Update Personal Email</label>
                                                 <span class="ba-info-wrap">
@@ -840,10 +924,10 @@
                                                     <div class="ba-info-popover" style="display: none;">Cập nhật email cá nhân cho employee đã chọn. Không chọn employee = áp dụng cho tất cả.</div>
                                                 </span>
                                             </div>
-                                            <input type="text" id="txtPersonalEmail" class="ba-input" placeholder="user@cadena-hrmseries.com" style="margin-top: 0.5rem;" disabled />
+                                            <input type="text" id="txtPersonalEmail" class="ba-input" placeholder="user@cadena-hrmseries.com" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkUpdBusinessEmail" />
                                                 <label for="chkUpdBusinessEmail">Update Business Email</label>
                                                 <span class="ba-info-wrap">
@@ -851,10 +935,10 @@
                                                     <div class="ba-info-popover" style="display: none;">Cập nhật email công việc cho employee đã chọn.</div>
                                                 </span>
                                             </div>
-                                            <input type="text" id="txtBusinessEmail" class="ba-input" placeholder="user@company.com" style="margin-top: 0.5rem;" disabled />
+                                            <input type="text" id="txtBusinessEmail" class="ba-input" placeholder="user@company.com" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkUpdPayslip" />
                                                 <label for="chkUpdPayslip">Update Payslip Password</label>
                                                 <span class="ba-info-wrap">
@@ -862,13 +946,13 @@
                                                     <div class="ba-info-popover" style="display: none;">Cập nhật mật khẩu payslip. Bật &quot;Encrypt by Employee (Local ID)&quot; để mã hóa theo từng nhân viên; không bật thì dùng chuỗi chung.</div>
                                                 </span>
                                             </div>
-                                            <div class="ba-checkbox" style="margin-top: 0.5rem; margin-left: 1.5rem;"><input type="checkbox" id="chkPayslipByEmployee" /><label for="chkPayslipByEmployee">Encrypt by Employee (Local ID)</label></div>
-                                            <input type="text" id="txtPayslipCommon" class="ba-input" placeholder="Payslip common (nếu không encrypt by employee)" style="margin-top: 0.5rem;" disabled />
+                                            <div class="ba-checkbox" style="margin-left: 1.5rem;"><input type="checkbox" id="chkPayslipByEmployee" /><label for="chkPayslipByEmployee">Encrypt by Employee (Local ID)</label></div>
+                                            <input type="text" id="txtPayslipCommon" class="ba-input" placeholder="Payslip common (nếu không encrypt by employee)" disabled />
                                         </div>
                                     </div>
                                     <div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkUpdMobile1" />
                                                 <label for="chkUpdMobile1">Update Mobile 1</label>
                                                 <span class="ba-info-wrap">
@@ -876,10 +960,10 @@
                                                     <div class="ba-info-popover" style="display: none;">Cập nhật số điện thoại 1 cho employee đã chọn.</div>
                                                 </span>
                                             </div>
-                                            <input type="text" id="txtMobile1" class="ba-input" placeholder="Số điện thoại 1" style="margin-top: 0.5rem;" disabled />
+                                            <input type="text" id="txtMobile1" class="ba-input" placeholder="Số điện thoại 1" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkUpdMobile2" />
                                                 <label for="chkUpdMobile2">Update Mobile 2</label>
                                                 <span class="ba-info-wrap">
@@ -887,10 +971,10 @@
                                                     <div class="ba-info-popover" style="display: none;">Cập nhật số điện thoại 2 cho employee đã chọn.</div>
                                                 </span>
                                             </div>
-                                            <input type="text" id="txtMobile2" class="ba-input" placeholder="Số điện thoại 2" style="margin-top: 0.5rem;" disabled />
+                                            <input type="text" id="txtMobile2" class="ba-input" placeholder="Số điện thoại 2" disabled />
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkUpdBasicSalary" />
                                                 <label for="chkUpdBasicSalary">Update Basic Salary</label>
                                                 <span class="ba-info-wrap">
@@ -898,13 +982,15 @@
                                                     <div class="ba-info-popover" style="display: none;">Cập nhật lương cơ bản (vd. 0 để mask).</div>
                                                 </span>
                                             </div>
-                                            <input type="number" id="txtBasicSalary" class="ba-input" placeholder="0" min="0" step="0.01" style="margin-top: 0.5rem; max-width: 100%;" disabled />
+                                            <input type="number" id="txtBasicSalary" class="ba-input" placeholder="0" min="0" step="0.01" disabled />
                                         </div>
                                     </div>
                                 </div>
-                                <div class="ba-actions" style="margin-top: 1rem;">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-primary" onclick="updateEmployees(); return false;">Generate and Update</button>
                                 </div>
+                            </div>
+                            </div>
                             </div>
                         </div>
                     </div>
@@ -912,10 +998,9 @@
                     <!-- Tab Company -->
                     <div id="tabCompany" class="ba-tab-content">
                         <div class="ba-card">
-                            <h2 class="ba-card-title">Company Management</h2>
-                            <div class="ba-card ba-update-section" style="margin-bottom: 1.5rem;">
-                                <h3 class="ba-card-title" style="font-size: 1.1rem; margin-bottom: 1rem;">Company Selection</h3>
-                                <div class="ba-form-group" style="margin-bottom: 1rem;">
+                            <div class="ba-card ba-update-section">
+                                <h3 class="ba-card-title">Company Selection</h3>
+                                <div class="ba-form-group">
                                     <label class="ba-form-label" style="display: flex; align-items: center; gap: 0.5rem;">
                                         <input type="radio" name="rbCompanyUpdateMode" id="rbCompanySelect" value="select" checked />
                                         <span>Select Company</span>
@@ -953,22 +1038,22 @@
                                         <span>Update for all Companies</span>
                                     </label>
                                 </div>
-                                <div class="ba-actions" style="margin-top: 1rem;">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-primary" id="btnCompanyViewData" onclick="loadCompanyInfo(); return false;" disabled>View Data</button>
                                 </div>
                                 <p id="companyViewDataHint" class="ba-company-hint" style="font-size: 0.8125rem; color: var(--text-muted); margin-top: 0.5rem;">Chọn Tenant và Company ở trên rồi bấm View Data.</p>
                             </div>
-                            <div class="ba-card ba-update-section ba-collapse-section" style="margin-top: 1.5rem;">
+                            <div class="ba-card ba-update-section ba-collapse-section">
                                 <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Company Email Settings</h3>
+                                    <h3 class="ba-card-title">Company Email Settings</h3>
                                 </div>
                                 <div class="ba-collapse-body">
-                                <div class="ba-actions" style="margin-bottom: 1rem;" id="companyUserActionWrap">
+                                <div class="ba-actions" id="companyUserActionWrap">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCompanyUserAction" onclick="loadUserActionEmail(); return false;" disabled>User Action Email</button>
                                 </div>
                                 <div class="ba-form-group">
-                                    <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                    <div class="ba-checkbox">
                                         <input type="checkbox" id="chkCompanyUseCommonEmail" />
                                         <label for="chkCompanyUseCommonEmail">Use Default Email</label>
                                         <span class="ba-info-wrap">
@@ -976,9 +1061,9 @@
                                             <div class="ba-info-popover" style="display: none;">Khi bật: dùng một email mặc định cho các trường HR/Payroll; nhập email đó vào ô bên dưới.</div>
                                         </span>
                                     </div>
-                                    <input type="text" id="txtCompanyCommonEmail" class="ba-input" placeholder="Default email (if checked)" style="margin-top: 0.5rem;" disabled />
+                                    <input type="text" id="txtCompanyCommonEmail" class="ba-input" placeholder="Default email (if checked)" disabled />
                                 </div>
-                                <div class="ba-update-grid" style="margin-top: 1rem;">
+                                <div class="ba-update-grid">
                                     <div>
                                         <div class="ba-form-group">
                                             <div class="ba-form-label-row">
@@ -1044,13 +1129,13 @@
                                 </p>
                                 </div>
                             </div>
-                            <div class="ba-card ba-update-section ba-collapse-section" style="margin-top: 1.5rem;">
+                            <div class="ba-card ba-update-section ba-collapse-section">
                                 <div class="ba-collapse-header" onclick="toggleCollapseSection(this)">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Email Server Settings</h3>
+                                    <h3 class="ba-card-title">Email Server Settings</h3>
                                 </div>
                                 <div class="ba-collapse-body">
-                                <div class="ba-actions" style="margin-bottom: 1rem;">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCompanyCadenaServer" onclick="loadCadenaEmailServer(); return false;" disabled>Cadena Email Server</button>
                                 </div>
                                 <div class="ba-update-grid">
@@ -1124,7 +1209,7 @@
                                             <span class="ba-field-error" style="display: none;"></span>
                                         </div>
                                         <div class="ba-form-group">
-                                            <div class="ba-checkbox" style="display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;">
+                                            <div class="ba-checkbox">
                                                 <input type="checkbox" id="chkCompanyEnableSSL" />
                                                 <label for="chkCompanyEnableSSL">Enable SSL</label>
                                                 <span class="ba-info-wrap">
@@ -1132,7 +1217,7 @@
                                                     <div class="ba-info-popover" style="display: none;">Bật kết nối SMTP qua SSL. Sau khi bật có thể nhập SSL Port (vd. 465).</div>
                                                 </span>
                                             </div>
-                                            <input type="number" id="txtCompanySSLPort" class="ba-input" placeholder="SSL Port" min="1" max="65535" style="margin-top: 0.5rem;" disabled />
+                                            <input type="number" id="txtCompanySSLPort" class="ba-input" placeholder="SSL Port" min="1" max="65535" disabled />
                                         </div>
                                     </div>
                                 </div>
@@ -1142,7 +1227,7 @@
                                 </p>
                                 </div>
                             </div>
-                            <div class="ba-actions" style="margin-top: 1.5rem;">
+                            <div class="ba-actions">
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnCompanyUpdate" onclick="updateCompanyInfo(); return false;" disabled>Update Company Info</button>
                             </div>
                         </div>
@@ -1158,11 +1243,11 @@
                             <div class="ba-card ba-update-section ba-collapsible-group" id="groupEmail">
                                 <div class="ba-collapsible-header" onclick="toggleOtherGroup('groupEmail'); return false;">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset trường Email (Gợi ý)</h3>
+                                    <h3 class="ba-card-title">Reset trường Email (Gợi ý)</h3>
                                 </div>
                                 <div class="ba-collapsible-body">
                                 <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1rem;">Liệt kê tất cả bảng có cột tên chứa "Email" và kiểu text. Chọn các bảng cần reset rồi nhập email chung.</p>
-                                <div class="ba-actions" style="margin-bottom: 0.75rem;">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnLoadEmailColumns" onclick="loadEmailColumnsList(); return false;">Tải danh sách bảng có cột Email</button>
                                 </div>
                                 <div id="emailColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
@@ -1211,11 +1296,11 @@
                             <div class="ba-card ba-update-section ba-collapsible-group" id="groupPhone">
                                 <div class="ba-collapsible-header" onclick="toggleOtherGroup('groupPhone'); return false;">
                                     <span class="ba-collapse-icon">▼</span>
-                                    <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Reset trường Phone (Gợi ý)</h3>
+                                    <h3 class="ba-card-title">Reset trường Phone (Gợi ý)</h3>
                                 </div>
                                 <div class="ba-collapsible-body">
                                 <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 1rem;">Liệt kê tất cả bảng có cột tên chứa "Phone" và kiểu text. Chọn các bảng cần reset rồi nhập số điện thoại chung.</p>
-                                <div class="ba-actions" style="margin-bottom: 0.75rem;">
+                                <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnLoadPhoneColumns" onclick="loadPhoneColumnsList(); return false;">Tải danh sách bảng có cột Phone</button>
                                 </div>
                                 <div id="phoneColumnsStatus" class="ba-other-status" style="font-size: 0.8125rem; margin-bottom: 0.5rem; color: var(--text-secondary);">Bấm nút trên để tải danh sách.</div>
@@ -1252,7 +1337,7 @@
                                             <div class="ba-info-popover" style="display: none;">Số điện thoại sẽ gán cho tất cả cột đã chọn trong danh sách bảng có cột Phone. Bấm &quot;Reset các cột đã chọn&quot; để thực hiện.</div>
                                         </span>
                                     </div>
-                                    <input type="text" id="txtOtherPhoneColumnsPhone" class="ba-input" placeholder="Mặc định: 0987654321 (load từ App Settings khi tải danh sách)" style="max-width: 400px;" />
+                                    <input type="text" id="txtOtherPhoneColumnsPhone" class="ba-input" placeholder="Mặc định: 0987654321 (load từ Cài đặt ứng dụng khi tải danh sách)" style="max-width: 400px;" />
                                 </div>
                                 <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-primary" id="btnResetPhoneColumns" onclick="resetPhoneColumns(); return false;" disabled>Reset các cột đã chọn <span id="btnPhoneCount"></span></button>
@@ -1273,10 +1358,10 @@
                         <h2 class="ba-card-title">Multi-Database Reset</h2>
                         <p style="color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1.5rem;">Phân tích và reset Email/Phone cho tất cả database trên server. Cấu hình Email Ignore để loại trừ email nội bộ.</p>
 
-                        <div class="ba-card ba-update-section ba-collapsible-group" id="groupEmailIgnoreConfig" style="margin-bottom: 1.5rem;">
+                        <div class="ba-card ba-update-section ba-collapsible-group" id="groupEmailIgnoreConfig">
                             <div class="ba-collapsible-header" onclick="toggleMultiDbSection('groupEmailIgnoreConfig'); return false;">
                                 <span class="ba-collapse-icon">▼</span>
-                                <h3 class="ba-card-title" style="font-size: 1.1rem; margin: 0;">Email Ignore (Config)</h3>
+                                <h3 class="ba-card-title">Email Ignore (Config)</h3>
                             </div>
                             <div class="ba-collapsible-body">
                                 <p style="color: var(--text-muted); font-size: 0.8125rem; margin-bottom: 0.75rem;">Các email/pattern trong danh sách được coi là nội bộ (đã reset). Email khách hàng khác sẽ được đánh dấu "Chưa reset". Mỗi dòng 1 giá trị. Dùng *@domain.com cho suffix. Load từ Settings.</p>
@@ -1289,7 +1374,7 @@
                             </div>
                         </div>
 
-                        <div class="ba-actions" style="margin-bottom: 1rem;">
+                        <div class="ba-actions">
                             <button type="button" class="ba-btn ba-btn-primary" id="btnMultiAnalyze" onclick="analyzeMultiDb(); return false;">Phân tích</button>
                             <a href="#" id="linkLoadLastMultiDbResult" style="margin-left: 1rem; font-size: 0.875rem;" onclick="loadLastMultiDbAnalyzeResult(); return false;">Tải kết quả phân tích gần nhất</a>
                         </div>
@@ -1313,14 +1398,14 @@
                                     <tbody id="tblMultiDb"></tbody>
                                 </table>
                             </div>
-                            <div class="ba-actions" style="margin-top: 1rem;">
+                            <div class="ba-actions">
                                 <button type="button" class="ba-btn ba-btn-secondary" id="btnMultiSelectNotReset" onclick="selectNotResetOnly(); return false;" disabled>Chọn Chưa reset</button>
                                 <button type="button" class="ba-btn ba-btn-primary" id="btnMultiReset" onclick="resetMultiDbSelected(); return false;" disabled>Reset đã chọn</button>
                             </div>
                         </div>
 
-                        <div class="ba-card ba-update-section" style="margin-top: 1.5rem;">
-                            <h3 class="ba-card-title" style="font-size: 1.1rem;">Giá trị reset</h3>
+                        <div class="ba-card ba-update-section">
+                            <h3 class="ba-card-title">Giá trị reset</h3>
                             <div class="ba-form-group" style="margin-bottom: 0.65rem;">
                                 <div id="wrapMultiEmailRow" class="ba-multi-reset-compact" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; width: 100%; max-width: 720px;">
                                     <label for="chkMultiResetEmail" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; margin: 0; user-select: none; min-width: 5.5rem;">
@@ -1330,7 +1415,7 @@
                                     <input type="text" id="txtMultiResetEmail" class="ba-input" placeholder="user@…" title="Có giá trị: đặt email demo. Trống: gán NULL." style="flex: 1; min-width: 200px; max-width: 100%;" disabled="disabled" />
                                 </div>
                             </div>
-                            <div class="ba-form-group" style="margin-bottom: 0;">
+                            <div class="ba-form-group">
                                 <div id="wrapMultiPhoneRow" class="ba-multi-reset-compact" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; width: 100%; max-width: 720px;">
                                     <label for="chkMultiResetPhone" style="display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; margin: 0; user-select: none; min-width: 5.5rem;">
                                         <input type="checkbox" id="chkMultiResetPhone" />
@@ -1350,6 +1435,8 @@
                 <div class="ba-hr-job-overlay-inner">
                     <div class="ba-hr-job-spinner"></div>
                     <div class="ba-hr-job-text">Đang xử lý... Không thao tác cho đến khi job hoàn thành.</div>
+                    <div class="ba-hr-job-bar"><div class="ba-hr-job-bar-fill" id="hrJobOverlayFill"></div></div>
+                    <div id="hrJobOverlayMeta" class="ba-hr-job-meta"></div>
                     <div id="hrJobOverlayDetail" class="ba-hr-job-overlay-detail" style="display:none;"></div>
                 </div>
             </div>
@@ -1380,13 +1467,14 @@
 
         <!-- Confirm Modal -->
         <div id="confirmUpdateModal" class="ba-modal" style="display: none;">
-            <div class="ba-modal-content" style="max-width: 440px;">
+            <div class="ba-modal-content" style="max-width: 540px;">
                 <div class="ba-modal-header">
                     <h3 class="ba-modal-title">Xác nhận</h3>
                     <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" onclick="hideConfirmUpdateModal(); return false;">×</button>
                 </div>
                 <div class="ba-modal-body">
                     <p id="confirmUpdateMessage" style="margin: 0; color: var(--text-primary); font-size: 0.9375rem; line-height: 1.6;"></p>
+                    <div id="confirmUpdateDetail" class="hr-confirm-detail" style="display: none;"></div>
                 </div>
                 <div class="ba-modal-footer">
                     <button type="button" class="ba-btn ba-btn-secondary" id="confirmUpdateCancel">Hủy</button>
@@ -1599,7 +1687,6 @@
         </div>
 
         <!-- Toast Container -->
-        <div id="toastContainer" class="toast-container"></div>
     </form>
     <script>
         (function() {
@@ -1706,14 +1793,19 @@
         var company = null;
         var usersDataLoaded = false;
         var employeesDataLoaded = false;
+        var employeeTotalCount = 0;
+        var employeeServerPaged = false;
+        var EMPLOYEE_SERVER_PAGE_THRESHOLD = 10000;
+        var _fetchEmployeesXhr = null;
+        var _employeeNeedTotalCount = true;
 
-        var PAGE_SIZE_OPTS = [50, 100, 500, 1000, 5000, 10000];
+        var PAGE_SIZE_OPTS = [50, 100, 200, 500, 1000, 5000, 10000];
         var USER_PAGE_SIZE = 100;
         var userPage = 1;
         var userSortCol = 'userID';
         var userSortDir = 1;
         var userSearch = '';
-        var EMPLOYEE_PAGE_SIZE = 100;
+        var EMPLOYEE_PAGE_SIZE = 200;
         var employeePage = 1;
         var employeeSortCol = 'employeeID';
         var employeeSortDir = 1;
@@ -1722,6 +1814,7 @@
         var companies = [];
         var UPDATE_CHUNK_SIZE = 2000;
         var LOAD_CHUNK_SIZE = 2000;
+        var EMPLOYEE_LOAD_CHUNK_SIZE = 500;
         var LOAD_CONCURRENCY = 4;
         var updateInProgress = false;
         var lockedColumns = {}; // { tableId: { colIndex: true } }
@@ -1752,12 +1845,13 @@
         }
         var debouncedRenderUsers = debounce(function() { renderUsers(); }, 120);
         var debouncedRenderEmployees = debounce(function() { renderEmployees(); }, 120);
+        var debouncedFetchEmployeesPage = debounce(function() { fetchEmployeesPage(false); }, 500);
 
         $(document).ready(function() {
             var urlParams = new URLSearchParams(window.location.search);
             hrToken = urlParams.get('k') || '';
             if (!hrToken) {
-                showToast('Thiếu tham số kết nối. Vui lòng Connect từ Database Tools.', 'error');
+                showToast('Thiếu tham số kết nối. Vui lòng Connect từ Công cụ Database.', 'error');
                 setTimeout(function() { window.location.href = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx") %>'; }, 2000);
                 return;
             }
@@ -1786,11 +1880,10 @@
             // Nếu trước đó có start job (vd. delete employee), reload vẫn hiện overlay ngay để không mất loading / data treo
             try {
                 if (sessionStorage.getItem('baHRHelperJobRunning')) {
-                    window.__hrOverlayWaitingForJob = true;
-                    $('#hrJobOverlay').addClass('show');
+                    var storedJobId = sessionStorage.getItem('baHRHelperJobRunning');
+                    var restoredJobId = parseInt(storedJobId, 10);
+                    showHrJobOverlayWaiting(isNaN(restoredJobId) ? null : restoredJobId);
                     $('#hrJobOverlay .ba-hr-job-text').text('Đang kiểm tra job... Không thao tác cho đến khi job hoàn thành.');
-                    $('#hrJobOverlayDetail').empty().hide();
-                    startHrOverlayPoll();
                 }
             } catch (e) {}
             // Kiểm tra job HR Helper đang chạy (update user/employee/other) → hiển thị overlay; SignalR để cập nhật khi job xong
@@ -1798,11 +1891,6 @@
             if (typeof BA_SignalR !== 'undefined') {
                 BA_SignalR.onJobsUpdated(function() {
                     checkHRHelperJobsAndShowOverlay();
-                    var activeTab = $('.ba-tab.active').data('tab');
-                    if (activeTab === 'users') { if (typeof loadUsers === 'function') loadUsers(); }
-                    else if (activeTab === 'employees') { if (typeof loadEmployees === 'function') loadEmployees(); }
-                    else if (activeTab === 'company') { if (typeof loadCompanyInfo === 'function') loadCompanyInfo(); }
-                    else if (activeTab === 'other') { otherTabLoaded = false; if (typeof loadOtherTab === 'function') loadOtherTab(); }
                 });
                 BA_SignalR.start('<%= ResolveUrl("~/signalr") %>', '<%= ResolveUrl("~/signalr/hubs") %>');
             }
@@ -1865,22 +1953,42 @@
             $('#txtSearchEmployees').on('input', function() {
                 employeeSearch = $(this).val();
                 employeePage = 1;
-                if (!(employeeSearch || '').trim()) renderEmployees();
-                else debouncedRenderEmployees();
+                if (!employeesDataLoaded) return;
+                if (employeeServerPaged) {
+                    var q = (employeeSearch || '').trim();
+                    if (q.length === 0) {
+                        _employeeNeedTotalCount = true;
+                        fetchEmployeesPage(false);
+                        return;
+                    }
+                    if (q.length < 2) return;
+                    _employeeNeedTotalCount = true;
+                    debouncedFetchEmployeesPage();
+                } else {
+                    if (!(employeeSearch || '').trim()) renderEmployees();
+                    else debouncedRenderEmployees();
+                }
             });
             $('#selCompanyFilter').on('change', function() {
                 var val = $(this).val();
                 employeeCompanyFilter = val === '' || val === '-1' ? null : parseInt(val, 10);
                 employeePage = 1;
-                // Thử load từ session trước
-                loadEmployeesFromSession();
+                if (!employeesDataLoaded) return;
+                if (employeeServerPaged) {
+                    _employeeNeedTotalCount = true;
+                    fetchEmployeesPage(false);
+                } else {
+                    renderEmployees();
+                }
             });
             $('#tableEmployees').on('click', 'th.ba-sortable', function(e) {
                 if ($(e.target).closest('.ba-col-resize').length) return;
                 var col = $(this).data('col');
                 if (employeeSortCol === col) employeeSortDir = -employeeSortDir; else { employeeSortCol = col; employeeSortDir = 1; }
                 employeePage = 1;
-                renderEmployees();
+                if (!employeesDataLoaded) return;
+                if (employeeServerPaged) fetchEmployeesPage(false);
+                else renderEmployees();
             });
             initResizableColumns('#tableUsers');
             initResizableColumns('#tableEmployees');
@@ -2039,35 +2147,206 @@
             });
         }
 
-        function showToast(msg, type) {
-            type = type || 'info';
-            var icons = { success: '✓', error: '✕', info: 'ℹ' };
-            var titles = { success: 'Thành công', error: 'Lỗi', info: 'Thông báo' };
-            var duration = type === 'error' ? 10000 : (type === 'success' ? 5000 : 4000);
-            var $t = $('<div class="toast ' + type + '"><button type="button" class="toast-close" title="Đóng">&times;</button><span>' + (icons[type] || 'ℹ') + '</span> ' + (titles[type] || '') + ': ' + msg + '</div>');
-            $('#toastContainer').append($t);
-            setTimeout(function() { $t.addClass('show'); }, 10);
-            var tmr = setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, duration);
-            $t.find('.toast-close').on('click', function() { clearTimeout(tmr); $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); });
-        }
+        function showToast(msg, type) { BaToast.show(msg, type); }
 
         var hrJobOverlayPollTimer = null;
         var hrJobOverlayFastPollCount = 0;
+        var _dataRefreshAfterJobTimer = null;
+        var _jobCompleteToastShownAt = 0;
+
+        /** Sau khi job HR Helper xong: refresh grid 1 lần, không toast/progress (tránh chớp khi SignalR bắn nhiều lần). */
+        function scheduleDataRefreshAfterJob() {
+            if (_dataRefreshAfterJobTimer) clearTimeout(_dataRefreshAfterJobTimer);
+            _dataRefreshAfterJobTimer = setTimeout(function() {
+                _dataRefreshAfterJobTimer = null;
+                var activeTab = $('.ba-tab.active').data('tab');
+                if (activeTab === 'employees' && employeesDataLoaded) refreshEmployeesQuietly();
+                else if (activeTab === 'users' && usersDataLoaded) refreshUsersQuietly();
+                else if (activeTab === 'company' && companyInfoViewed && typeof loadCompanyInfo === 'function') loadCompanyInfo();
+                else if (activeTab === 'other' && typeof loadOtherTab === 'function') { otherTabLoaded = false; loadOtherTab(); }
+            }, 600);
+        }
+
+        function refreshEmployeesQuietly() {
+            if (!employeesDataLoaded) return;
+            if (employeeServerPaged) {
+                fetchEmployeesPage(false, true, true);
+            } else {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmployeesFromSession") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: 'json',
+                    data: JSON.stringify({ k: hrToken, companyID: employeeCompanyFilter }),
+                    timeout: 600000,
+                    success: function(res) {
+                        var d = res.d || res;
+                        if (d && d.success && d.list) {
+                            employees = d.list || [];
+                            employeeTotalCount = employees.length;
+                            renderEmployees(true);
+                            decryptEmployeesForVisiblePage(true);
+                        }
+                    }
+                });
+            }
+        }
+
+        function refreshUsersQuietly() {
+            if (!usersDataLoaded) return;
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadUsersFromSession") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken }),
+                timeout: 180000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.list) {
+                        users = d.list || [];
+                        renderUsers();
+                    }
+                }
+            });
+        }
+
+        /** Hiện overlay chờ job; lưu jobId để đóng overlay khi job xong quá nhanh (poll không kịp bắt Running). */
+        function showHrJobOverlayWaiting(jobId) {
+            var overlayFill = document.getElementById('hrJobOverlayFill');
+            if (overlayFill) overlayFill.style.width = '0%';
+            var overlayMeta = document.getElementById('hrJobOverlayMeta');
+            if (overlayMeta) { overlayMeta.textContent = ''; overlayMeta.removeAttribute('data-source'); }
+            window.__hrOverlayWaitingForJob = true;
+            var jid = parseInt(jobId, 10);
+            window.__hrOverlayPendingJobId = (jid > 0) ? jid : null;
+            window.__hrOverlayWaitingSince = Date.now();
+            try {
+                sessionStorage.setItem('baHRHelperJobRunning', window.__hrOverlayPendingJobId ? String(window.__hrOverlayPendingJobId) : '1');
+            } catch (e) {}
+            $('#hrJobOverlay').addClass('show');
+            $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+            $('#hrJobOverlayDetail').empty().hide();
+            startHrOverlayPoll();
+        }
+
+        function finishHrJobOverlay(wasShowing, isMultiDbMode) {
+            if (hrJobOverlayPollTimer) { clearInterval(hrJobOverlayPollTimer); hrJobOverlayPollTimer = null; }
+            var overlayFillDone = document.getElementById('hrJobOverlayFill');
+            if (overlayFillDone && wasShowing) {
+                overlayFillDone.style.width = '100%';
+                setTimeout(function() { if (!window.__hrOverlayWaitingForJob) $('#hrJobOverlay').removeClass('show'); }, 450);
+            } else {
+                $('#hrJobOverlay').removeClass('show');
+            }
+            $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
+            $('#hrJobOverlayDetail').empty().hide();
+            window.__hrOverlayWaitingForJob = false;
+            window.__hrOverlayPendingJobId = null;
+            window.__hrOverlayWaitingSince = null;
+            try { sessionStorage.removeItem('baHRHelperJobRunning'); } catch (e) {}
+            $('#btnMultiAnalyze').prop('disabled', false);
+            if ($('#multiDbResultsSection').is(':visible')) {
+                $('#btnMultiReset').prop('disabled', false);
+                $('#btnMultiSelectNotReset').prop('disabled', false);
+            }
+            if (wasShowing) {
+                var now = Date.now();
+                if (now - _jobCompleteToastShownAt > 3000) {
+                    _jobCompleteToastShownAt = now;
+                    showToast('Job đã hoàn thành.', 'success');
+                }
+                scheduleDataRefreshAfterJob();
+            }
+            if (isMultiDbMode) {
+                if (multiDbAnalyzePollTimer) { clearInterval(multiDbAnalyzePollTimer); multiDbAnalyzePollTimer = null; }
+                setMultiDbAnalyzeUIState(false, '', 'Có kết quả phân tích gần nhất. Bấm link bên cạnh để tải.');
+                if (pendingMultiDbAnalyzeJobId) {
+                    var jobIdToFetch = pendingMultiDbAnalyzeJobId;
+                    pendingMultiDbAnalyzeJobId = null;
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiDbAnalyzeResult") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        dataType: 'json',
+                        data: JSON.stringify({ jobId: jobIdToFetch }),
+                        timeout: 30000,
+                        success: function(r) {
+                            var rd = r.d || r;
+                            if (rd && rd.success && rd.list && rd.list.length > 0) {
+                                applyMultiDbAnalyzeResult(rd.list, 'job nền', rd.completedAt);
+                                $('#multiAnalyzeHint').hide();
+                            } else if (rd && !rd.success && rd.message) {
+                                showToast(rd.message, 'info');
+                            }
+                        }
+                    });
+                } else {
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMyLastMultiDbAnalyzeResult") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        dataType: 'json',
+                        data: JSON.stringify({}),
+                        timeout: 15000,
+                        success: function(r) {
+                            var rd = r.d || r;
+                            if (rd && rd.success && rd.list && rd.list.length > 0 && rd.completedAt) {
+                                var completed = new Date(rd.completedAt);
+                                var diffMin = (Date.now() - completed.getTime()) / 60000;
+                                if (diffMin <= 10) {
+                                    applyMultiDbAnalyzeResult(rd.list, 'vừa hoàn thành', rd.completedAt);
+                                    $('#multiAnalyzeHint').hide();
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        /** Khi không còn job Pending/Running: đóng overlay; nếu đang chờ job vừa submit thì hỏi status theo jobId (job có thể xong trước khi poll thấy Running). */
+        function tryFinishOverlayWhenNoRunningJobs(wasShowing, waitingForJob, isMultiDbMode) {
+            if (!waitingForJob) {
+                finishHrJobOverlay(wasShowing, isMultiDbMode);
+                return;
+            }
+            var pendingId = window.__hrOverlayPendingJobId;
+            var elapsed = Date.now() - (window.__hrOverlayWaitingSince || Date.now());
+            if (!pendingId) {
+                if (elapsed > 60000) finishHrJobOverlay(wasShowing, isMultiDbMode);
+                return;
+            }
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetMyHRHelperJobStatus") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ jobId: pendingId }),
+                timeout: 10000,
+                success: function(res) {
+                    var st = res.d || res;
+                    var finished = st && (st.isFinished === true || st.IsFinished === true);
+                    if (finished || elapsed > 180000) finishHrJobOverlay(wasShowing, isMultiDbMode);
+                }
+            });
+        }
+
         /** Bắt đầu poll overlay: 1s trong ~20 lần đầu (để sớm bắt job Running và cập nhật % lên overlay), sau đó 3s. */
         function startHrOverlayPoll() {
             if (hrJobOverlayPollTimer) return;
             hrJobOverlayFastPollCount = 0;
             function tick() {
-                checkHRHelperJobsAndShowOverlay();
+                if (!(window.BaJobProgress && BaJobProgress.isLive())) checkHRHelperJobsAndShowOverlay();
                 hrJobOverlayFastPollCount++;
-                if (hrJobOverlayFastPollCount === 21) {
+                if (hrJobOverlayFastPollCount === 6) {
                     clearInterval(hrJobOverlayPollTimer);
-                    hrJobOverlayPollTimer = setInterval(tick, 3000);
+                    hrJobOverlayPollTimer = setInterval(tick, 5000);
                 }
             }
-            hrJobOverlayPollTimer = setInterval(tick, 1000);
+            hrJobOverlayPollTimer = setInterval(tick, 2000);
         }
-        /** Gọi GetMyRunningHRHelperJobs: nếu có job đang chạy thì show overlay (và cập nhật %/chi tiết), không thì hide (và toast khi vừa xong). Khi overlay đang hiện thì poll mỗi 3s để tắt ngay khi job xong. Nếu overlay đang hiện do vừa bấm Update (__hrOverlayWaitingForJob) thì khi count=0 chưa tắt, đợi đến khi thấy job Running rồi mới cho phép tắt khi count=0. */
+        /** Gọi GetMyRunningHRHelperJobs (Pending + Running): show/hide overlay; khi job xong quá nhanh thì GetMyHRHelperJobStatus theo jobId. */
         function checkHRHelperJobsAndShowOverlay() {
             var wasShowing = $('#hrJobOverlay').hasClass('show');
             var waitingForJob = !!(window.__hrOverlayWaitingForJob === true);
@@ -2096,8 +2375,12 @@
                     });
                     if (count > 0) {
                         window.__hrOverlayWaitingForJob = false;
+                        if (jobs.length > 0) {
+                            var j0id = jobs[0].id != null ? jobs[0].id : jobs[0].Id;
+                            if (j0id && !window.__hrOverlayPendingJobId) window.__hrOverlayPendingJobId = parseInt(j0id, 10) || null;
+                        }
                         if (hrJobOverlayPollTimer) clearInterval(hrJobOverlayPollTimer);
-                        hrJobOverlayPollTimer = setInterval(function() { checkHRHelperJobsAndShowOverlay(); }, 3000);
+                        hrJobOverlayPollTimer = setInterval(function() { if (!(window.BaJobProgress && BaJobProgress.isLive())) checkHRHelperJobsAndShowOverlay(); }, 5000);
                         $('#btnMultiAnalyze').prop('disabled', true);
                         $('#btnMultiReset').prop('disabled', true);
                         $('#btnMultiSelectNotReset').prop('disabled', true);
@@ -2118,6 +2401,8 @@
                             var jt = (j0 && (j0.jobType || j0.JobType)) ? (j0.jobType || j0.JobType) : '';
                             var overlayText = (jt === 'HRHelperDeleteEmployee') ? ('Đang xóa employee...' + pctStr) : (isAnalyzeJob ? ('Đang phân tích Multi-DB...' + pctStr) : ('Đang xử lý...' + pctStr));
                             $('#hrJobOverlay .ba-hr-job-text').text(overlayText + ' Không thao tác cho đến khi job hoàn thành.');
+                            var overlayFillNow = document.getElementById('hrJobOverlayFill');
+                            if (overlayFillNow && typeof pct === 'number' && !isNaN(pct)) overlayFillNow.style.width = Math.max(pct, parseFloat(overlayFillNow.style.width) || 0) + '%';
                             var detailHtml = '';
                             var j0msg = j0.message != null ? j0.message : j0.Message;
                             if ((j0msg || '').trim()) detailHtml += (j0msg || '').trim().replace(/</g, '&lt;');
@@ -2141,66 +2426,7 @@
                             $('#hrJobOverlay').removeClass('show');
                         }
                     } else {
-                        /* Chỉ clear timer và ẩn overlay khi thực sự kết thúc (không còn chờ job). Khi waitingForJob=true (vừa ấn Update) phải giữ timer để tiếp tục poll đến khi thấy job Running rồi mới cho phép tắt khi count=0. */
-                        if (!waitingForJob) {
-                            if (hrJobOverlayPollTimer) { clearInterval(hrJobOverlayPollTimer); hrJobOverlayPollTimer = null; }
-                            $('#hrJobOverlay').removeClass('show');
-                            $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
-                            $('#hrJobOverlayDetail').empty().hide();
-                            window.__hrOverlayWaitingForJob = false;
-                        }
-                        $('#btnMultiAnalyze').prop('disabled', false);
-                        if ($('#multiDbResultsSection').is(':visible')) {
-                            $('#btnMultiReset').prop('disabled', false);
-                            $('#btnMultiSelectNotReset').prop('disabled', false);
-                        }
-                        try { if (!waitingForJob) sessionStorage.removeItem('baHRHelperJobRunning'); } catch (e) {}
-                        if (wasShowing && !waitingForJob) showToast('Job đã hoàn thành.', 'success');
-                        if (isMultiDbMode) {
-                            if (multiDbAnalyzePollTimer) { clearInterval(multiDbAnalyzePollTimer); multiDbAnalyzePollTimer = null; }
-                            setMultiDbAnalyzeUIState(false, '', 'Có kết quả phân tích gần nhất. Bấm link bên cạnh để tải.');
-                            if (pendingMultiDbAnalyzeJobId) {
-                                var jobIdToFetch = pendingMultiDbAnalyzeJobId;
-                                pendingMultiDbAnalyzeJobId = null;
-                                $.ajax({
-                                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMultiDbAnalyzeResult") %>',
-                                    type: 'POST',
-                                    contentType: 'application/json; charset=utf-8',
-                                    dataType: 'json',
-                                    data: JSON.stringify({ jobId: jobIdToFetch }),
-                                    timeout: 30000,
-                                    success: function(r) {
-                                        var rd = r.d || r;
-                                        if (rd && rd.success && rd.list && rd.list.length > 0) {
-                                            applyMultiDbAnalyzeResult(rd.list, 'job nền', rd.completedAt);
-                                            $('#multiAnalyzeHint').hide();
-                                        } else if (rd && !rd.success && rd.message) {
-                                            showToast(rd.message, 'info');
-                                        }
-                                    }
-                                });
-                            } else {
-                                $.ajax({
-                                    url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetMyLastMultiDbAnalyzeResult") %>',
-                                    type: 'POST',
-                                    contentType: 'application/json; charset=utf-8',
-                                    dataType: 'json',
-                                    data: JSON.stringify({}),
-                                    timeout: 15000,
-                                    success: function(r) {
-                                        var rd = r.d || r;
-                                        if (rd && rd.success && rd.list && rd.list.length > 0 && rd.completedAt) {
-                                            var completed = new Date(rd.completedAt);
-                                            var diffMin = (Date.now() - completed.getTime()) / 60000;
-                                            if (diffMin <= 10) {
-                                                applyMultiDbAnalyzeResult(rd.list, 'vừa hoàn thành', rd.completedAt);
-                                                $('#multiAnalyzeHint').hide();
-                                            }
-                                        }
-                                    }
-                                });
-                            }
-                        }
+                        tryFinishOverlayWhenNoRunningJobs(wasShowing, waitingForJob, isMultiDbMode);
                     }
                 },
                 error: function() {
@@ -2412,7 +2638,7 @@
 
             var html = '';
             chunk.forEach(function(u) {
-                html += '<tr data-id="' + u.userID + '">' +
+                html += '<tr translate="no" data-id="' + u.userID + '">' +
                     '<td><input type="checkbox" class="chkUser" data-id="' + u.userID + '" /></td>' +
                     '<td>' + (u.userID || '-') + '</td>' +
                     '<td>' + (u.userName || '-') + '</td>' +
@@ -2819,7 +3045,7 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success && d.jobId) {
-                        showToast(d.message || 'Đã đưa reset vào hàng đợi. Theo dõi tiến độ trên chuông và Function Queue.', 'success');
+                        showToast(d.message || 'Đã đưa reset vào hàng đợi. Theo dõi tiến độ trên chuông và Hàng đợi xử lý.', 'success');
                         checkHRHelperJobsAndShowOverlay();
                     } else {
                         $('#btnMultiAnalyze').prop('disabled', false);
@@ -3388,6 +3614,12 @@
         }
 
         function loadEmployeesFromSession() {
+            if (!employeesDataLoaded) return;
+            employeePage = 1;
+            if (employeeServerPaged) {
+                fetchEmployeesPage(false);
+                return;
+            }
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmployeesFromSession") %>',
                 type: 'POST',
@@ -3409,15 +3641,155 @@
                         for (var k in byId) if (byId.hasOwnProperty(k)) list.push(byId[k]);
                         list.sort(function(a, b) { return (a.employeeID || 0) - (b.employeeID || 0); });
                         employees = list;
+                        employeeTotalCount = employees.length;
                         employeePage = 1;
                         employeesDataLoaded = true;
-                        renderEmployees();
+                        renderEmployees(true);
+                        decryptEmployeesForVisiblePage(true);
                     } else {
                         loadEmployees();
                     }
                 },
                 error: function() {
                     loadEmployees();
+                }
+            });
+        }
+
+        function fetchEmployeeTotalCountAsync() {
+            var q = (employeeSearch || '').trim();
+            if (q.length > 0) return;
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetEmployeesCount") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, companyID: employeeCompanyFilter }),
+                timeout: 60000,
+                success: function(res) {
+                    var d = res.d || res;
+                    if (d && d.success && d.total != null) {
+                        employeeTotalCount = parseInt(d.total, 10) || 0;
+                        _employeeNeedTotalCount = false;
+                        renderEmployees(true);
+                    }
+                }
+            });
+        }
+
+        function mergeEmployeeGridExtras(list) {
+            if (!list || !list.length || !employees.length) return;
+            for (var i = 0; i < list.length; i++) {
+                var x = list[i];
+                for (var j = 0; j < employees.length; j++) {
+                    if (employees[j].employeeID === x.employeeID) {
+                        if (x.alPolicy != null) employees[j].alPolicy = x.alPolicy;
+                        if (x.timeSheetPolicy != null) employees[j].timeSheetPolicy = x.timeSheetPolicy;
+                        if (x.organizionStructure != null) employees[j].organizionStructure = x.organizionStructure;
+                        if (x.userName != null) employees[j].userName = x.userName;
+                        employees[j]._extrasLoaded = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        var _gridExtrasPending = false;
+        function loadEmployeeGridExtras() {
+            if (!employeeServerPaged || !employeesDataLoaded || !employees.length) return;
+            var ids = [];
+            for (var i = 0; i < employees.length; i++) {
+                if (employees[i].employeeID && !employees[i]._extrasLoaded) ids.push(employees[i].employeeID);
+            }
+            if (!ids.length) return;
+            if (_gridExtrasPending) return;
+            _gridExtrasPending = true;
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmployeeGridExtras") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, employeeIds: ids }),
+                timeout: 60000,
+                success: function(res) {
+                    _gridExtrasPending = false;
+                    var d = res.d || res;
+                    if (d && d.success && d.list) {
+                        mergeEmployeeGridExtras(d.list);
+                        renderEmployees(true);
+                    }
+                },
+                error: function() { _gridExtrasPending = false; }
+            });
+        }
+
+        function fetchEmployeesPage(showToastOnDone, forceSkipCount, silent) {
+            if (_fetchEmployeesXhr) {
+                try { _fetchEmployeesXhr.abort(); } catch (e) {}
+                _fetchEmployeesXhr = null;
+            }
+            var q = (employeeSearch || '').trim();
+            if (!silent) {
+                var progressDetail = 'Trang ' + employeePage + ' (' + EMPLOYEE_PAGE_SIZE + ' dòng/trang)';
+                if (q.length >= 2) progressDetail += ' — tìm: "' + q + '"';
+                showProgress('Đang load employee...', 0, progressDetail);
+            }
+            _fetchEmployeesXhr = $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/SearchEmployeesPage") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({
+                    k: hrToken,
+                    companyID: getEmployeeCompanyIdParam(),
+                    page: employeePage,
+                    pageSize: EMPLOYEE_PAGE_SIZE,
+                    search: employeeSearch || '',
+                    sortCol: employeeSortCol,
+                    sortDir: employeeSortDir,
+                    skipCount: forceSkipCount === true || (employeesDataLoaded && !_employeeNeedTotalCount && employeeTotalCount > 0)
+                }),
+                timeout: 180000,
+                success: function(res) {
+                    _fetchEmployeesXhr = null;
+                    if (!silent) hideProgress();
+                    var d = res.d || res;
+                    if (!d || !d.success) {
+                        showToast(d && d.message ? d.message : 'Lỗi load employee.', 'error');
+                        return;
+                    }
+                    employees = d.list || [];
+                    if (d.total != null && parseInt(d.total, 10) >= 0) {
+                        employeeTotalCount = parseInt(d.total, 10) || 0;
+                        _employeeNeedTotalCount = false;
+                    }
+                    if (d.page) employeePage = parseInt(d.page, 10) || 1;
+                    employeesDataLoaded = true;
+                    renderEmployees(true);
+                    decryptEmployeesForVisiblePage(true);
+                    if (employeeServerPaged) loadEmployeeGridExtras();
+                    if (showToastOnDone && !silent) {
+                        var msg = employees.length === 0
+                            ? 'Không có employee.'
+                            : 'Đã load ' + employees.length + ' employee'
+                                + (employeeTotalCount > 0 ? ' / ' + employeeTotalCount : '')
+                                + (employeeTotalCount > 0 ? '' : ' — đang đếm tổng...');
+                        showToast(msg, employees.length === 0 ? 'info' : 'success');
+                    }
+                },
+                error: function(xhr, status) {
+                    _fetchEmployeesXhr = null;
+                    if (!silent) hideProgress();
+                    if (status === 'abort') return;
+                    var msg = 'Lỗi load employee (timeout hoặc lỗi server).';
+                    if (xhr && xhr.responseText) {
+                        try {
+                            var json = JSON.parse(xhr.responseText);
+                            if (json.d && json.d.message) msg = json.d.message;
+                            else if (json.Message) msg = json.Message;
+                        } catch (e) {}
+                    }
+                    showToast(msg, 'error');
                 }
             });
         }
@@ -3436,7 +3808,181 @@
             });
         }
 
+        function getHrDatabaseName() {
+            return ($('#hrCurrentDatabase').val() || '').trim();
+        }
+
+        /** WebMethod ASP.NET không nhận companyID null — dùng -1 = tất cả. */
+        function getEmployeeCompanyIdParam() {
+            return employeeCompanyFilter != null ? employeeCompanyFilter : -1;
+        }
+
+        function mergeEmployeeDecryptResults(list) {
+            if (!list || !list.length || !employees.length) return;
+            for (var i = 0; i < list.length; i++) {
+                var u = list[i];
+                var id = u.employeeID;
+                for (var j = 0; j < employees.length; j++) {
+                    if (employees[j].employeeID === id) {
+                        if (u.personalEmail != null) employees[j].personalEmail = u.personalEmail;
+                        if (u.businessEmail != null) employees[j].businessEmail = u.businessEmail;
+                        if (u.mobilePhone1 != null) employees[j].mobilePhone1 = u.mobilePhone1;
+                        if (u.mobilePhone2 != null) employees[j].mobilePhone2 = u.mobilePhone2;
+                        if (u.payslipPassword != null) employees[j].payslipPassword = u.payslipPassword;
+                        employees[j]._decrypted = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        var _decryptEmployeesPending = false;
+        function decryptEmployeesForVisiblePage(rerender) {
+            if (!employeesDataLoaded || !employees.length) return;
+            var chunk = employees;
+            if (!employeeServerPaged) {
+                var filtered = filterEmployees();
+                var sorted = sortEmployees(filtered);
+                var total = sorted.length;
+                var pages = Math.max(1, Math.ceil(total / EMPLOYEE_PAGE_SIZE));
+                var page = Math.max(1, Math.min(employeePage, pages));
+                var from = (page - 1) * EMPLOYEE_PAGE_SIZE;
+                chunk = sorted.slice(from, from + EMPLOYEE_PAGE_SIZE);
+            }
+            var ids = [];
+            for (var i = 0; i < chunk.length; i++) {
+                if (chunk[i].employeeID && !chunk[i]._decrypted) ids.push(chunk[i].employeeID);
+            }
+            if (!ids.length) return;
+            if (_decryptEmployeesPending) return;
+            _decryptEmployeesPending = true;
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/DecryptEmployeesBatch") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, companyID: employeeCompanyFilter, employeeIds: ids }),
+                timeout: 120000,
+                success: function(res) {
+                    _decryptEmployeesPending = false;
+                    var d = res.d || res;
+                    if (d && d.success && d.list) {
+                        mergeEmployeeDecryptResults(d.list);
+                        if (rerender !== false) renderEmployees(true);
+                    }
+                },
+                error: function() { _decryptEmployeesPending = false; }
+            });
+        }
+
+        function loadEmployeesBulkToClient(expectedTotal) {
+            var dbName = getHrDatabaseName();
+            var progressTimer = null;
+            function stopProgressPoll() {
+                if (progressTimer) { clearInterval(progressTimer); progressTimer = null; }
+            }
+            function pollEmployeeLoadProgress() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Handlers/EmployeeLoadProgress.ashx") %>',
+                    type: 'GET',
+                    dataType: 'json',
+                    cache: false,
+                    data: { dbName: dbName, companyID: getEmployeeCompanyIdParam() },
+                    timeout: 10000,
+                    success: function(p) {
+                        if (!p || p.success === false) return;
+                        var total = parseInt(p.total, 10) || expectedTotal || 0;
+                        var loaded = parseInt(p.loaded, 10) || 0;
+                        if (total > 0) expectedTotal = total;
+                        var pct = total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : 0;
+                        var stepText = (p.step || p.message || '').toString();
+                        var detail = loaded + ' / ' + (total || '?') + ' employee';
+                        if (stepText) detail += ' — ' + stepText;
+                        showProgress('Đang load employee...', pct, detail);
+                    },
+                    error: function() {}
+                });
+            }
+            progressTimer = setInterval(pollEmployeeLoadProgress, 1000);
+            pollEmployeeLoadProgress();
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmployeesToSessionBulk") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, companyID: getEmployeeCompanyIdParam() }),
+                timeout: 600000,
+                success: function(bulkRes) {
+                    var b = bulkRes.d || bulkRes;
+                    if (!b || !b.success) {
+                        stopProgressPoll();
+                        hideProgress();
+                        showToast(b && b.message ? b.message : 'Lỗi load employee.', 'error');
+                        return;
+                    }
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmployeesFromSession") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        dataType: 'json',
+                        data: JSON.stringify({ k: hrToken, companyID: employeeCompanyFilter }),
+                        timeout: 600000,
+                        success: function(sessRes) {
+                            stopProgressPoll();
+                            var s = sessRes.d || sessRes;
+                            if (!s || !s.success || !s.list) {
+                                hideProgress();
+                                showToast(s && s.message ? s.message : 'Lỗi đọc session employee.', 'error');
+                                return;
+                            }
+                            employees = s.list || [];
+                            employeeTotalCount = employees.length;
+                            employeePage = 1;
+                            employeesDataLoaded = true;
+                            showProgress('Hoàn thành', 100, employees.length + ' / ' + employees.length + ' employee');
+                            setTimeout(function() {
+                                hideProgress();
+                                renderEmployees(true);
+                                decryptEmployeesForVisiblePage(true);
+                                showToast('Đã load ' + employees.length + ' employee (chế độ đầy đủ).', 'success');
+                            }, 300);
+                        },
+                        error: function() {
+                            stopProgressPoll();
+                            hideProgress();
+                            showToast('Lỗi đọc dữ liệu employee từ session.', 'error');
+                        }
+                    });
+                },
+                error: function(xhr) {
+                    stopProgressPoll();
+                    hideProgress();
+                    var msg = 'Lỗi load employee (timeout hoặc lỗi server).';
+                    if (xhr && xhr.responseText) {
+                        try {
+                            var json = JSON.parse(xhr.responseText);
+                            if (json.d && json.d.message) msg = json.d.message;
+                            else if (json.Message) msg = json.Message;
+                        } catch (e) {}
+                    }
+                    showToast(msg, 'error');
+                }
+            });
+        }
+
+        function loadEmployeesServerPaged(expectedTotal) {
+            employeeServerPaged = true;
+            employeeTotalCount = expectedTotal;
+            _employeeNeedTotalCount = false;
+            fetchEmployeesPage(true, true, false);
+        }
+
         function loadEmployees() {
+            employeePage = 1;
+            _employeeNeedTotalCount = true;
+            employeesDataLoaded = false;
+            employees = [];
+            employeeServerPaged = false;
             showProgress('Đang load danh sách employee...', 0, 'Đang đếm...');
             $.ajax({
                 url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetEmployeesCount") %>',
@@ -3453,129 +3999,32 @@
                         return;
                     }
                     var total = parseInt(d.total, 10) || 0;
+                    employeeTotalCount = total;
                     if (total === 0) {
                         employees = [];
-                        employeePage = 1;
                         employeesDataLoaded = true;
                         hideProgress();
-                        renderEmployees();
+                        renderEmployees(true);
                         showToast('Không có employee.', 'info');
                         return;
                     }
-                    employees = [];
-                    var byId = {};
-                    var chunkSize = LOAD_CHUNK_SIZE;
-                    var firstChunkSaved = false;
-                    var rowsLoaded = 0;
-                    var completed = 0;
-                    var totalChunks = Math.ceil(total / chunkSize);
-                    var activeRequests = 0;
-                    var hasError = false;
-                    var loadingOffsets = {};
-                    var nextOffsetToLoad = 0;
-                    function getUniqueCount() {
-                        var cnt = 0;
-                        for (var id in byId) if (byId.hasOwnProperty(id)) cnt++;
-                        return cnt;
+                    if (total > EMPLOYEE_SERVER_PAGE_THRESHOLD) {
+                        loadEmployeesServerPaged(total);
+                    } else {
+                        employeeServerPaged = false;
+                        if (EMPLOYEE_PAGE_SIZE < 100) EMPLOYEE_PAGE_SIZE = 100;
+                        loadEmployeesBulkToClient(total);
                     }
-                    function checkComplete() {
-                        if (completed >= totalChunks && activeRequests === 0) {
-                            var list = [];
-                            for (var id in byId) if (byId.hasOwnProperty(id)) list.push(byId[id]);
-                            list.sort(function(a, b) { return (a.employeeID || 0) - (b.employeeID || 0); });
-                            employees = list;
-                            var uniqueCount = list.length;
-                            if (hasError) {
-                                showProgress('Hoàn thành (có lỗi)', 100, uniqueCount + ' / ' + total + ' employee');
-                            } else {
-                                showProgress('Hoàn thành', 100, uniqueCount + ' / ' + total + ' employee');
-                            }
-                            setTimeout(function() {
-                                employeesDataLoaded = true;
-                                hideProgress();
-                                employeePage = 1;
-                                renderEmployees();
-                                if (uniqueCount > 0) {
-                                    showToast('Đã load ' + uniqueCount + ' employee.', hasError ? 'warning' : 'success');
-                                } else {
-                                    showToast('Không load được employee nào.', 'error');
-                                }
-                            }, 300);
-                        }
-                    }
-                    function startNextChunk() {
-                        while (activeRequests < LOAD_CONCURRENCY && nextOffsetToLoad < total && !hasError) {
-                            var offset = nextOffsetToLoad;
-                            nextOffsetToLoad += chunkSize;
-                            if (loadingOffsets[offset]) continue;
-                            loadingOffsets[offset] = true;
-                            fetchChunk(offset);
-                        }
-                    }
-                    function fetchChunk(offset) {
-                        if (offset >= total) {
-                            completed++;
-                            checkComplete();
-                            return;
-                        }
-                        if (hasError) {
-                            checkComplete();
-                            return;
-                        }
-                        activeRequests++;
-                        var uniqueCount = getUniqueCount();
-                        var pct = total > 0 ? Math.round((rowsLoaded / total) * 100) : 0;
-                        showProgress('Đang load employee...', Math.min(99, pct), uniqueCount + ' / ' + total + ' employee');
-                        $.ajax({
-                            url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/LoadEmployeesChunk") %>',
-                            type: 'POST',
-                            contentType: 'application/json; charset=utf-8',
-                            dataType: 'json',
-                            data: JSON.stringify({ k: hrToken, offset: offset, count: chunkSize, companyID: employeeCompanyFilter }),
-                            timeout: 180000,
-                            success: function(r2) {
-                                activeRequests--;
-                                var d2 = r2.d || r2;
-                                if (!d2 || !d2.success) {
-                                    hasError = true;
-                                    completed++;
-                                    checkComplete();
-                                    return;
-                                }
-                                var list = d2.list || [];
-                                for (var i = 0; i < list.length; i++) {
-                                    var e = list[i];
-                                    var id = e.employeeID;
-                                    if (!byId[id]) byId[id] = e;
-                                }
-                                rowsLoaded += list.length;
-                                var isFirst = !firstChunkSaved;
-                                if (isFirst) firstChunkSaved = true;
-                                saveEmployeesChunkToSession(list, isFirst);
-                                completed++;
-                                startNextChunk();
-                                checkComplete();
-                            },
-                            error: function(xhr, status, err) {
-                                activeRequests--;
-                                hasError = true;
-                                completed++;
-                                startNextChunk();
-                                checkComplete();
-                            }
-                        });
-                    }
-                    startNextChunk();
                 },
-                error: function(xhr, status, err) {
+                error: function(xhr) {
                     hideProgress();
                     var msg = 'Lỗi đếm employee.';
-                    if (xhr.responseText) {
+                    if (xhr && xhr.responseText) {
                         try {
                             var json = JSON.parse(xhr.responseText);
                             if (json.d && json.d.message) msg = json.d.message;
                             else if (json.message) msg = json.message;
-                        } catch(e) {}
+                        } catch (e) {}
                     }
                     showToast(msg, 'error');
                 }
@@ -3754,37 +4203,75 @@
             });
         }
 
-        function renderEmployees() {
+        function renderEmployees(skipDecrypt) {
             var $tb = $('#tblEmployees');
             var $pg = $('#pagerEmployees');
             var $table = $tb.closest('table');
-            var filtered = filterEmployees();
-            if (!employees.length) {
-                var emptyMsg = !employeesDataLoaded
-                    ? '<div class="ba-empty-state"><span class="ba-empty-state-icon">👤</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="employeesEmptyLink">View Data</a> để tải danh sách employee.</span></div>'
-                    : '<div class="ba-empty-state"><span class="ba-empty-state-icon">📭</span><span>Không có employee nào.</span></div>';
-                $tb.html('<tr><td colspan="17" class="ba-empty">' + emptyMsg + '</td></tr>');
+            if (employeeServerPaged && !employeesDataLoaded) {
+                var notLoadedMsg = '<div class="ba-empty-state"><span class="ba-empty-state-icon">👤</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="employeesEmptyLink">View Data</a> để tải danh sách employee.</span></div>';
+                $tb.html('<tr><td colspan="17" class="ba-empty">' + notLoadedMsg + '</td></tr>');
                 $('#chkSelectAllEmployees').off('change').prop('checked', false);
                 $pg.hide();
                 return;
             }
-            if (filtered.length === 0) {
+            var chunk, total, pages;
+            if (employeeServerPaged && employeesDataLoaded) {
+                total = employeeTotalCount;
+                pages = Math.max(1, Math.ceil(total / EMPLOYEE_PAGE_SIZE));
+                employeePage = Math.max(1, Math.min(employeePage, pages));
+                chunk = employees;
+            } else {
+                var filtered = filterEmployees();
+                if (!employees.length) {
+                    var emptyMsg = !employeesDataLoaded
+                        ? '<div class="ba-empty-state"><span class="ba-empty-state-icon">👤</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="employeesEmptyLink">View Data</a> để tải danh sách employee.</span></div>'
+                        : '<div class="ba-empty-state"><span class="ba-empty-state-icon">📭</span><span>Không có employee nào.</span></div>';
+                    $tb.html('<tr><td colspan="17" class="ba-empty">' + emptyMsg + '</td></tr>');
+                    $('#chkSelectAllEmployees').off('change').prop('checked', false);
+                    $pg.hide();
+                    return;
+                }
+                if (filtered.length === 0) {
+                    $tb.html('<tr><td colspan="17" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon">🔍</span><span>Không có bản ghi phù hợp. Thử đổi từ khóa tìm kiếm hoặc bộ lọc Company.</span></div></td></tr>');
+                    $('#chkSelectAllEmployees').off('change').prop('checked', false);
+                    $pg.hide();
+                    return;
+                }
+                var sorted = sortEmployees(filtered);
+                total = sorted.length;
+                pages = Math.max(1, Math.ceil(total / EMPLOYEE_PAGE_SIZE));
+                employeePage = Math.max(1, Math.min(employeePage, pages));
+                var from = (employeePage - 1) * EMPLOYEE_PAGE_SIZE;
+                chunk = sorted.slice(from, from + EMPLOYEE_PAGE_SIZE);
+            }
+            if (employeeServerPaged && employeesDataLoaded && total === 0 && !employees.length) {
+                var emptyLoadedMsg = '<div class="ba-empty-state"><span class="ba-empty-state-icon">📭</span><span>Không có employee nào.</span></div>';
+                $tb.html('<tr><td colspan="17" class="ba-empty">' + emptyLoadedMsg + '</td></tr>');
+                $('#chkSelectAllEmployees').off('change').prop('checked', false);
+                $pg.hide();
+                return;
+            }
+            if (employeeServerPaged && employeesDataLoaded && !employees.length && total > 0) {
                 $tb.html('<tr><td colspan="17" class="ba-empty"><div class="ba-empty-state"><span class="ba-empty-state-icon">🔍</span><span>Không có bản ghi phù hợp. Thử đổi từ khóa tìm kiếm hoặc bộ lọc Company.</span></div></td></tr>');
                 $('#chkSelectAllEmployees').off('change').prop('checked', false);
+                $pg.show().empty();
+                $pg.append('<span>Trang ' + employeePage + ' / ' + pages + ' (' + total + ' employee)</span> ');
+                return;
+            }
+            if (!employeeServerPaged && !employees.length) {
+                var emptyMsg2 = !employeesDataLoaded
+                    ? '<div class="ba-empty-state"><span class="ba-empty-state-icon">👤</span><span>Chưa tải dữ liệu. Bấm <a href="#" class="ba-empty-state-link" id="employeesEmptyLink">View Data</a> để tải danh sách employee.</span></div>'
+                    : '<div class="ba-empty-state"><span class="ba-empty-state-icon">📭</span><span>Không có employee nào.</span></div>';
+                $tb.html('<tr><td colspan="17" class="ba-empty">' + emptyMsg2 + '</td></tr>');
+                $('#chkSelectAllEmployees').off('change').prop('checked', false);
                 $pg.hide();
                 return;
             }
-            var sorted = sortEmployees(filtered);
-            var total = sorted.length;
-            var pages = Math.max(1, Math.ceil(total / EMPLOYEE_PAGE_SIZE));
-            employeePage = Math.max(1, Math.min(employeePage, pages));
-            var from = (employeePage - 1) * EMPLOYEE_PAGE_SIZE;
-            var chunk = sorted.slice(from, from + EMPLOYEE_PAGE_SIZE);
             var html = '';
             chunk.forEach(function(e) {
                 var localId = (e.localEmployeeID != null && e.localEmployeeID !== '') ? String(e.localEmployeeID) : '';
                 var empName = (e.employeeName != null ? String(e.employeeName) : '').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-                html += '<tr data-id="' + e.employeeID + '" data-local-id="' + (localId || '') + '" data-name="' + empName + '">' +
+                html += '<tr translate="no" data-id="' + e.employeeID + '" data-local-id="' + (localId || '') + '" data-name="' + empName + '">' +
                     '<td data-col-index="0"><input type="checkbox" class="chkEmployee" data-id="' + e.employeeID + '" data-local-id="' + (localId || '') + '" data-name="' + empName + '" /></td>' +
                     '<td data-col-index="1">' + (e.employeeID || '-') + '</td>' +
                     '<td data-col-index="2">' + (e.localEmployeeID || '-') + '</td>' +
@@ -3825,14 +4312,164 @@
             $pg.append($selEmp);
             $pg.append('<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" ' + (employeePage <= 1 ? 'disabled' : '') + ' id="btnEmpPrev">Trước</button>');
             $pg.append('<button type="button" class="ba-btn ba-btn-secondary ba-btn-sm" ' + (employeePage >= pages ? 'disabled' : '') + ' id="btnEmpNext">Sau</button>');
-            $('#btnEmpPrev').on('click', function() { if (employeePage > 1) { employeePage--; renderEmployees(); } });
-            $('#btnEmpNext').on('click', function() { if (employeePage < pages) { employeePage++; renderEmployees(); } });
-            $('#selEmpPageSize').off('change').on('change', function() { EMPLOYEE_PAGE_SIZE = parseInt($(this).val(), 10); employeePage = 1; renderEmployees(); });
+            $('#btnEmpPrev').on('click', function() { if (employeePage > 1) { employeePage--; if (employeeServerPaged) fetchEmployeesPage(false); else renderEmployees(); } });
+            $('#btnEmpNext').on('click', function() { if (employeePage < pages) { employeePage++; if (employeeServerPaged) fetchEmployeesPage(false); else renderEmployees(); } });
+            $('#selEmpPageSize').off('change').on('change', function() { EMPLOYEE_PAGE_SIZE = parseInt($(this).val(), 10); employeePage = 1; _employeeNeedTotalCount = true; if (employeeServerPaged) fetchEmployeesPage(false); else renderEmployees(); });
+            if (skipDecrypt !== true) decryptEmployeesForVisiblePage(true);
         }
 
         var _confirmModalKeydown = null;
-        function showConfirmUpdateModal(message, onConfirm, onCancel) {
+        var HR_PANEL_CHIPS = { user: 6, employee: 4 };
+        var HR_CONFIRM_CHIPS = 30;
+        var HR_TARGET_TEXT = {
+            user: {
+                empty: 'Chưa có user nào trong danh sách.',
+                none: function(n) { return 'Chưa chọn user nào: thao tác sẽ áp dụng cho TẤT CẢ ' + n + ' user trong danh sách.'; },
+                some: function(n) { return 'Đang chọn ' + n + ' user:'; },
+                more: function(n) { return 'và ' + n + ' user khác'; },
+                all: function(n) { return 'TẤT CẢ ' + n + ' user trong danh sách'; },
+                ok: function(n) { return 'Cập nhật ' + n + ' user'; },
+                okAll: function(n) { return 'Cập nhật tất cả ' + n + ' user'; }
+            },
+            employee: {
+                empty: 'Chưa có nhân viên nào trong danh sách.',
+                none: function(n) { return 'Chưa chọn nhân viên nào: thao tác sẽ áp dụng cho TẤT CẢ ' + n + ' nhân viên trong danh sách.'; },
+                noneUncounted: 'Chưa chọn nhân viên nào: thao tác sẽ áp dụng cho TẤT CẢ nhân viên trong danh sách.',
+                some: function(n) { return 'Đang chọn ' + n + ' nhân viên:'; },
+                more: function(n) { return 'và ' + n + ' nhân viên khác'; },
+                all: function(n) { return 'TẤT CẢ ' + n + ' nhân viên trong danh sách'; },
+                ok: function(n) { return 'Cập nhật ' + n + ' nhân viên'; },
+                okAll: function(n) { return 'Cập nhật tất cả ' + n + ' nhân viên'; }
+            }
+        };
+
+        function hrSpan(className, textValue, keepSource) {
+            var el = document.createElement('span');
+            el.className = className;
+            el.textContent = textValue;
+            if (keepSource) el.setAttribute('translate', 'no');
+            return el;
+        }
+
+        function hrChips(items, detailed) {
+            var box = hrSpan('hr-target-names', '', true);
+            items.forEach(function(item) {
+                var chip = hrSpan('hr-chip', detailed ? item.full : item.name, true);
+                chip.title = item.title;
+                box.appendChild(chip);
+            });
+            return box;
+        }
+
+        function hrDescribeUser($c) {
+            var id = parseInt($c.attr('data-id'), 10);
+            var u = users.find(function(x) { return x.userID === id; });
+            var name = u && u.userName ? String(u.userName) : String(id);
+            var full = u && u.employeeName ? name + ' · ' + u.employeeName : name;
+            return { name: name, full: full, title: u && u.userEmail ? full + ' · ' + u.userEmail : full };
+        }
+
+        function hrDescribeEmployee($c) {
+            var name = [$.trim($c.attr('data-local-id') || ''), $.trim($c.attr('data-name') || '')].filter(Boolean).join(' - ');
+            if (!name) name = String($c.attr('data-id'));
+            return { name: name, full: name, title: name };
+        }
+
+        function hrSelection(kind, limit) {
+            var $checked = kind === 'user' ? $('#tblUsers .chkUser:checked') : $('#tblEmployees .chkEmployee:checked');
+            var describe = kind === 'user' ? hrDescribeUser : hrDescribeEmployee;
+            var items = [];
+            $checked.slice(0, limit).each(function() { items.push(describe($(this))); });
+            return { count: $checked.length, items: items };
+        }
+
+        function hrOptionLabel(inputId) {
+            return $.trim($('label[for="' + inputId + '"]').first().text());
+        }
+
+        function renderTargetSummary(elId, kind, total, listed) {
+            var el = document.getElementById(elId);
+            if (!el) return;
+            var text = HR_TARGET_TEXT[kind];
+            var selection = hrSelection(kind, HR_PANEL_CHIPS[kind]);
+            el.textContent = '';
+            if (selection.count > 0) {
+                el.className = 'hr-target hr-target-some';
+                el.appendChild(hrSpan('hr-target-text', text.some(selection.count)));
+                el.appendChild(hrChips(selection.items));
+                if (selection.count > selection.items.length) el.appendChild(hrSpan('hr-target-more', text.more(selection.count - selection.items.length)));
+                return;
+            }
+            if (!listed) {
+                el.className = 'hr-target hr-target-empty';
+                el.appendChild(hrSpan('hr-target-text', text.empty));
+                return;
+            }
+            el.className = 'hr-target hr-target-all';
+            el.appendChild(hrSpan('hr-target-text', total > 0 ? text.none(total) : text.noneUncounted));
+        }
+
+        function updateUserTargetSummary() {
+            var total = users.length ? filterUsers().length : 0;
+            renderTargetSummary('userTargetSummary', 'user', total, total > 0);
+        }
+
+        function updateEmployeeTargetSummary() {
+            var total = employeeServerPaged ? (employeesDataLoaded ? employeeTotalCount : 0) : filterEmployees().length;
+            var listed = employeeServerPaged ? (employeesDataLoaded && employees.length > 0) : total > 0;
+            renderTargetSummary('employeeTargetSummary', 'employee', total, listed);
+        }
+
+        function renderConfirmDetail(detail) {
+            var box = document.getElementById('confirmUpdateDetail');
+            if (!box) return;
+            box.textContent = '';
+            box.style.display = 'none';
+            $('#confirmUpdateOk').text('Cập nhật');
+            if (!detail) return;
+            var text = HR_TARGET_TEXT[detail.kind];
+            if (detail.what.length) {
+                box.appendChild(hrSpan('hr-confirm-label', 'Nội dung cập nhật'));
+                var what = hrSpan('hr-confirm-items', '');
+                detail.what.forEach(function(item) {
+                    var line = hrSpan('hr-confirm-item', '');
+                    line.appendChild(hrSpan('hr-confirm-item-label', item.label, true));
+                    if (item.value) line.appendChild(hrSpan('hr-chip', item.value, true));
+                    if (item.note) line.appendChild(hrSpan('hr-confirm-note', item.note));
+                    what.appendChild(line);
+                });
+                box.appendChild(what);
+            }
+            box.appendChild(hrSpan('hr-confirm-label', 'Áp dụng cho'));
+            var who = hrSpan('hr-confirm-who', '');
+            if (detail.all) {
+                who.appendChild(hrSpan('hr-confirm-all', text.all(detail.total)));
+            } else {
+                var selection = hrSelection(detail.kind, HR_CONFIRM_CHIPS);
+                who.appendChild(hrChips(selection.items, true));
+                if (selection.count > selection.items.length) who.appendChild(hrSpan('hr-target-more', text.more(selection.count - selection.items.length)));
+            }
+            box.appendChild(who);
+            box.style.display = 'grid';
+            $('#confirmUpdateOk').text(detail.all ? text.okAll(detail.total) : text.ok(detail.total));
+        }
+
+        $(function() {
+            var later = function(fn) { return function() { setTimeout(fn, 0); }; };
+            $(document).on('change', '#tblUsers .chkUser, #chkSelectAllUsers', later(updateUserTargetSummary));
+            $(document).on('change', '#tblEmployees .chkEmployee, #chkSelectAllEmployees', later(updateEmployeeTargetSummary));
+            if (typeof MutationObserver !== 'undefined') {
+                new MutationObserver(later(updateUserTargetSummary)).observe(document.getElementById('tblUsers'), { childList: true });
+                new MutationObserver(later(updateEmployeeTargetSummary)).observe(document.getElementById('tblEmployees'), { childList: true });
+                new MutationObserver(later(updateEmployeeTargetSummary)).observe(document.getElementById('pagerEmployees'), { childList: true });
+            }
+            updateUserTargetSummary();
+            updateEmployeeTargetSummary();
+        });
+
+        function showConfirmUpdateModal(message, onConfirm, onCancel, detail) {
             $('#confirmUpdateMessage').text(message);
+            renderConfirmDetail(detail);
             $('#confirmUpdateModal').addClass('show').css('display', 'flex');
             $('#confirmUpdateOk').off('click');
             $('#confirmUpdateCancel').off('click');
@@ -3895,7 +4532,7 @@
 
         function toggleDeleteEmployeeButton() {
             var n = $('#tabEmployees .chkEmployee:checked').length;
-            $('#btnDeleteEmployees').toggle(n > 0);
+            $('#btnDeleteEmployees').prop('disabled', n === 0).attr('title', n === 0 ? 'Chọn ít nhất 1 employee (cột Local ID) để xóa.' : 'Xóa employee đã chọn');
         }
 
         var deleteEmployeeCaptchaA = 0, deleteEmployeeCaptchaB = 0;
@@ -3943,12 +4580,7 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success) {
-                        try { sessionStorage.setItem('baHRHelperJobRunning', '1'); } catch (e) {}
-                        window.__hrOverlayWaitingForJob = true;
-                        $('#hrJobOverlay').addClass('show');
-                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
-                        $('#hrJobOverlayDetail').empty().hide();
-                        startHrOverlayPoll();
+                        showHrJobOverlayWaiting(d.jobId || d.JobId);
                         checkHRHelperJobsAndShowOverlay();
                         showToast('Đã đưa xóa employee vào hàng đợi. Job chạy nền.', 'success');
                     } else {
@@ -4010,23 +4642,24 @@
         }
 
         function openGenerateEmployeeTestDataModal() {
-            var targetIds = getUpdateTargetEmployeeIds();
-            if (!targetIds || targetIds.length === 0) {
-                showToast('Chưa có employee nào để generate. Bấm View Data trước.', 'error');
-                return;
-            }
-            $('#generateEmployeeTestDataTargetCount').text(targetIds.length + ' employee');
-            $('#chkGenTestEmail').prop('checked', true);
-            $('#chkGenTestPhone').prop('checked', false);
-            $('#chkGenTestSalary').prop('checked', false);
-            $('#txtGenTestEmailPrefix').val('test');
-            $('#txtGenTestEmailStart').val('1');
-            $('#txtGenTestSalaryMin').val('');
-            $('#txtGenTestSalaryMax').val('');
-            $('#chkGenTestUpdateUserEmail').prop('checked', true);
-            syncGenerateEmployeeTestDataControls();
-            loadGenerateEmployeeEmailDomains();
-            $('#generateEmployeeTestDataModal').addClass('show').css('display', 'flex');
+            resolveUpdateTargetEmployeeIds(function(targetIds) {
+                if (!targetIds || targetIds.length === 0) {
+                    showToast('Chưa có employee nào để generate. Bấm View Data trước.', 'error');
+                    return;
+                }
+                $('#generateEmployeeTestDataTargetCount').text(targetIds.length + ' employee');
+                $('#chkGenTestEmail').prop('checked', true);
+                $('#chkGenTestPhone').prop('checked', false);
+                $('#chkGenTestSalary').prop('checked', false);
+                $('#txtGenTestEmailPrefix').val('test');
+                $('#txtGenTestEmailStart').val('1');
+                $('#txtGenTestSalaryMin').val('');
+                $('#txtGenTestSalaryMax').val('');
+                $('#chkGenTestUpdateUserEmail').prop('checked', true);
+                syncGenerateEmployeeTestDataControls();
+                loadGenerateEmployeeEmailDomains();
+                $('#generateEmployeeTestDataModal').addClass('show').css('display', 'flex');
+            });
         }
 
         function hideGenerateEmployeeTestDataModal() {
@@ -4069,7 +4702,7 @@
         }
 
         function generateEmployeeTestData() {
-            var targetIds = getUpdateTargetEmployeeIds();
+            resolveUpdateTargetEmployeeIds(function(targetIds) {
             if (!targetIds || targetIds.length === 0) {
                 showToast('Chưa có employee nào để generate.', 'error');
                 return;
@@ -4136,6 +4769,7 @@
                     updateUserEmailMapping: updateUserEmailMapping
                 }
             });
+            });
         }
 
         function doGenerateEmployeeTestData(targetIds, opts) {
@@ -4165,11 +4799,7 @@
                     var d = res.d || res;
                     if (d && d.success) {
                         hideGenerateEmployeeTestDataModal();
-                        window.__hrOverlayWaitingForJob = true;
-                        $('#hrJobOverlay').addClass('show');
-                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
-                        $('#hrJobOverlayDetail').empty().hide();
-                        startHrOverlayPoll();
+                        showHrJobOverlayWaiting(d.jobId || d.JobId);
                         checkHRHelperJobsAndShowOverlay();
                         showToast(d.message || 'Đã đưa Generate Test Data vào hàng đợi. Job chạy nền.', 'success');
                     } else {
@@ -4309,7 +4939,7 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success) {
-                        try { sessionStorage.setItem('baHRHelperJobRunning', '1'); } catch (e) {}
+                        showHrJobOverlayWaiting(d.jobId || d.JobId);
                         $('#hrJobOverlay .ba-hr-job-text').text('Đang xóa employee... Không thao tác cho đến khi job hoàn thành.');
                         showToast(d.message || 'Đã đưa xóa employee vào hàng đợi. Xem tiến độ trên chuông.', 'success');
                         if (typeof checkHRHelperJobsAndShowOverlay === 'function') checkHRHelperJobsAndShowOverlay();
@@ -4397,7 +5027,7 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success) {
-                        showToast(d.message || 'Đã đưa Update User Signature vào hàng đợi. Xem tiến độ tại chuông / Function Queue.', 'success');
+                        showToast(d.message || 'Đã đưa Update User Signature vào hàng đợi. Xem tiến độ tại chuông / Hàng đợi xử lý.', 'success');
                         if (typeof checkHRHelperJobsAndShowOverlay === 'function') checkHRHelperJobsAndShowOverlay();
                         if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel();
                     } else {
@@ -4418,20 +5048,20 @@
             });
         }
 
-        /** User names của các user đang chọn (hoặc tất cả nếu không chọn ai) – dùng cho Generate script. */
-        function getSelectedUserNames() {
+        /** User ID + UserName của các user đang chọn – dùng cho Generate script (hash theo username, WHERE theo ID). */
+        function getSelectedUsersForPasswordScript() {
             var ids = getUpdateTargetIds();
-            var names = [];
+            var list = [];
             ids.forEach(function(id) {
                 var u = users.find(function(x) { return x.userID === id; });
-                if (u && u.userName) names.push(u.userName);
+                if (u && u.userID) list.push({ userId: u.userID, userName: u.userName || '' });
             });
-            return names;
+            return list;
         }
 
         function generatePasswordScript() {
-            var userNames = getSelectedUserNames();
-            if (userNames.length === 0) {
+            var scriptUsers = getSelectedUsersForPasswordScript();
+            if (scriptUsers.length === 0) {
                 showToast('Chưa có user nào. Bấm View Data và chọn user (hoặc không chọn = tất cả).', 'error');
                 return;
             }
@@ -4447,14 +5077,14 @@
                 type: 'POST',
                 contentType: 'application/json; charset=utf-8',
                 dataType: 'json',
-                data: JSON.stringify({ userNames: userNames, password: password.trim(), method: method }),
+                data: JSON.stringify({ users: scriptUsers, password: password.trim(), method: method }),
                 timeout: 15000,
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success && d.script !== undefined) {
                         $('#txtPasswordScript').val(d.script);
                         $('#btnCopyPasswordScript').show();
-                        showToast('Đã tạo script cho ' + userNames.length + ' user.', 'success');
+                        showToast('Đã tạo script cho ' + scriptUsers.length + ' user.', 'success');
                     } else {
                         $('#txtPasswordScript').val('');
                         $('#btnCopyPasswordScript').hide();
@@ -4521,9 +5151,13 @@
             var msg = isUpdateAll
                 ? 'Chắc chắn update thông tin cho TẤT CẢ ' + targetIds.length + ' user? (Bạn không chọn ai = update cho all.)'
                 : 'Chắc chắn update thông tin ' + targetIds.length + ' user đã chọn?';
+            var userWhat = [];
+            if (isUpdatePassword) userWhat.push({ label: hrOptionLabel('chkUpdatePassword'), value: $('#selMethodHash option:selected').text() });
+            if (isUpdateEmail) userWhat.push({ label: hrOptionLabel('chkUpdateEmail'), value: $('#txtEmail').val().trim() });
+            if (ignoreWindowsAD) userWhat.push({ label: hrOptionLabel('chkIgnoreWindowsAD') });
             showConfirmUpdateModal(msg, function() {
                 doUpdateUsers(targetIds, isUpdatePassword, isUpdateEmail, ignoreWindowsAD);
-            });
+            }, null, { kind: 'user', what: userWhat, all: isUpdateAll, total: targetIds.length });
         }
 
         function doUpdateUsers(targetIds, isUpdatePassword, isUpdateEmail, ignoreWindowsAD) {
@@ -4547,11 +5181,7 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success) {
-                        window.__hrOverlayWaitingForJob = true;
-                        $('#hrJobOverlay').addClass('show');
-                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
-                        $('#hrJobOverlayDetail').empty().hide();
-                        startHrOverlayPoll();
+                        showHrJobOverlayWaiting(d.jobId || d.JobId);
                         checkHRHelperJobsAndShowOverlay();
                         showToast('Đã đưa update user vào hàng đợi. Job chạy nền.', 'success');
                     } else {
@@ -4572,17 +5202,50 @@
             });
         }
 
+        function resolveUpdateTargetEmployeeIds(callback) {
+            var selected = [];
+            $('.chkEmployee:checked').each(function() { selected.push(parseInt($(this).data('id'), 10)); });
+            if (selected.length > 0) {
+                callback(selected);
+                return;
+            }
+            if (!employeesDataLoaded) {
+                callback([]);
+                return;
+            }
+            showProgress('Đang lấy danh sách employee...', 0, 'Theo filter hiện tại...');
+            $.ajax({
+                url: '<%= ResolveUrl("~/Pages/HRHelper.aspx/GetEmployeeIdsForFilter") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                dataType: 'json',
+                data: JSON.stringify({ k: hrToken, companyID: getEmployeeCompanyIdParam(), search: employeeSearch || '' }),
+                timeout: 600000,
+                success: function(res) {
+                    hideProgress();
+                    var d = res.d || res;
+                    if (d && d.success && d.ids) callback(d.ids);
+                    else callback([]);
+                },
+                error: function() {
+                    hideProgress();
+                    callback([]);
+                }
+            });
+        }
+
         function getUpdateTargetEmployeeIds() {
             var selected = [];
             $('.chkEmployee:checked').each(function() { selected.push(parseInt($(this).data('id'), 10)); });
             if (selected.length > 0) return selected;
+            if (employeeServerPaged) return null;
             var list = sortEmployees(filterEmployees());
             return list.map(function(e) { return e.employeeID; });
         }
 
         function updateEmployees() {
-            var targetIds = getUpdateTargetEmployeeIds();
-            if (targetIds.length === 0) {
+            resolveUpdateTargetEmployeeIds(function(targetIds) {
+            if (!targetIds || targetIds.length === 0) {
                 showToast('Chưa có employee nào để update. Bấm View Data trước.', 'error');
                 return;
             }
@@ -4611,10 +5274,21 @@
             }
             var isUpdateAll = $('.chkEmployee:checked').length === 0;
             var msg = isUpdateAll
-                ? 'Chắc chắn update thông tin cho TẤT CẢ ' + targetIds.length + ' employee? (Bạn không chọn ai = update cho all.)'
-                : 'Chắc chắn update thông tin ' + targetIds.length + ' employee đã chọn?';
+                ? 'Chắc chắn update thông tin cho TẤT CẢ ' + targetIds.length + ' nhân viên? (Bạn không chọn ai = update cho all.)'
+                : 'Chắc chắn update thông tin ' + targetIds.length + ' nhân viên đã chọn?';
+            var blank = '(để trống)';
+            var mobile1 = $('#txtMobile1').val().trim();
+            var mobile2 = $('#txtMobile2').val().trim();
+            var employeeWhat = [];
+            if (updPersonal) employeeWhat.push({ label: hrOptionLabel('chkUpdPersonalEmail'), value: $('#txtPersonalEmail').val().trim() });
+            if (updBusiness) employeeWhat.push({ label: hrOptionLabel('chkUpdBusinessEmail'), value: $('#txtBusinessEmail').val().trim() });
+            if (updPayslip) employeeWhat.push({ label: hrOptionLabel('chkUpdPayslip'), value: payslipByEmp ? hrOptionLabel('chkPayslipByEmployee') : '' });
+            if (updM1) employeeWhat.push({ label: hrOptionLabel('chkUpdMobile1'), value: mobile1, note: mobile1 ? '' : blank });
+            if (updM2) employeeWhat.push({ label: hrOptionLabel('chkUpdMobile2'), value: mobile2, note: mobile2 ? '' : blank });
+            if (updBasic) employeeWhat.push({ label: hrOptionLabel('chkUpdBasicSalary'), value: String(parseFloat($('#txtBasicSalary').val()) || 0) });
             showConfirmUpdateModal(msg, function() {
                 doUpdateEmployees(targetIds, updPersonal, updBusiness, updPayslip, payslipByEmp, updM1, updM2, updBasic);
+            }, null, { kind: 'employee', what: employeeWhat, all: isUpdateAll, total: targetIds.length });
             });
         }
 
@@ -4647,11 +5321,7 @@
                 success: function(res) {
                     var d = res.d || res;
                     if (d && d.success) {
-                        window.__hrOverlayWaitingForJob = true;
-                        $('#hrJobOverlay').addClass('show');
-                        $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
-                        $('#hrJobOverlayDetail').empty().hide();
-                        startHrOverlayPoll();
+                        showHrJobOverlayWaiting(d.jobId || d.JobId);
                         checkHRHelperJobsAndShowOverlay();
                         showToast('Đã đưa update employee vào hàng đợi. Job chạy nền.', 'success');
                     } else {
@@ -4841,10 +5511,10 @@
                     var sslPort = (d.sslPort != null && d.sslPort !== '') ? d.sslPort : '0';
                     $('#txtCompanySSLPort').val(sslPort).prop('disabled', !d.enableSSL);
                 } else {
-                    showToast((d && d.message) ? d.message : 'Không load được Email Server Settings. Cấu hình tại App Settings.', 'error');
+                    showToast((d && d.message) ? d.message : 'Không load được Email Server Settings. Cấu hình tại Cài đặt ứng dụng.', 'error');
                 }
             }).fail(function() {
-                showToast('Không load được Email Server Settings. Cấu hình tại App Settings.', 'error');
+                showToast('Không load được Email Server Settings. Cấu hình tại Cài đặt ứng dụng.', 'error');
             }).always(function() {
                 hideProgress();
             });
@@ -4940,11 +5610,7 @@
                     success: function(res) {
                         var d = res.d || res;
                         if (d && d.success) {
-                            window.__hrOverlayWaitingForJob = true;
-                            $('#hrJobOverlay').addClass('show');
-                            $('#hrJobOverlay .ba-hr-job-text').text('Đang xử lý... Không thao tác cho đến khi job hoàn thành.');
-                            $('#hrJobOverlayDetail').empty().hide();
-                            startHrOverlayPoll();
+                            showHrJobOverlayWaiting(d.jobId || d.JobId);
                             checkHRHelperJobsAndShowOverlay();
                             showToast('Đã đưa update company/other info vào hàng đợi. Job chạy nền.', 'success');
                         } else {
@@ -4957,284 +5623,6 @@
                 });
             });
         }
-        // Chuông thông báo (job Backup/Restore/HR Helper) - dùng GetJobs từ DatabaseSearch
-        (function() {
-            var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-            var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-            var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
-            function parseDateSafe(v) {
-                if (v == null || v === '') return null;
-                if (typeof v === 'number') return new Date(v);
-                var s = (typeof v === 'string') ? v : String(v);
-                var m = s.match(/\/Date\((\d+)\)\//);
-                if (m) return new Date(parseInt(m[1], 10));
-                var n = Date.parse(s);
-                return isNaN(n) ? null : new Date(n);
-            }
-            var DISMISSED_JOBS_KEY = 'baDismissedJobIds';
-            function getDismissedJobIds() { try { var raw = localStorage.getItem(DISMISSED_JOBS_KEY); if (!raw) return []; var arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch (e) { return []; } }
-            function addDismissedJobId(id, type) { var key = (type === 'Backup' ? 'b:' : 'r:') + id; var arr = getDismissedJobIds(); if (arr.indexOf(key) < 0) { arr.push(key); localStorage.setItem(DISMISSED_JOBS_KEY, JSON.stringify(arr)); } }
-            function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
-            function formatNotifTime(v) { var dt = parseDateSafe(v); return dt ? dt.toLocaleString() : '—'; }
-            function showNotificationDetail(job) {
-                if (!job) return;
-                var jtEarly = (job.type || '').trim();
-                if (jtEarly === 'Restore' || jtEarly === 'Backup' || (!jtEarly && (job.databaseName || job.DatabaseName))) {
-                    if (typeof window.showNotificationDetail === 'function') {
-                        window.showNotificationDetail(job);
-                        return;
-                    }
-                }
-                var typeLabel = (job.typeLabel || job.type || 'Restore').replace(/</g, '&lt;');
-                var dbName = (job.databaseName || job.DatabaseName || '').trim();
-                var isRestore = (job.type === 'Restore' || !job.type);
-                var hasReset = isRestore && (job.withAutoReset === true || (job.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                var resetBadge = '';
-                if (isRestore) {
-                    resetBadge = hasReset ? '<span class="ba-notif-type-badge ba-notif-reset-tag">Có Reset</span>' : '<span class="ba-notif-type-badge ba-notif-no-reset-tag">Không Reset</span>';
-                    if (hasReset) {
-                        var srvId = job.serverId != null ? job.serverId : (job.ServerId != null ? job.ServerId : 0);
-                        var jobIdVal = job.id != null ? job.id : (job.Id != null ? job.Id : 0);
-                        resetBadge += ' <button type="button" class="ba-notif-reset-info-btn" title="Xem thông tin reset (email, phone, password)" data-job-id="' + jobIdVal + '" data-server-id="' + srvId + '" data-database-name="' + (dbName.replace(/"/g, '&quot;')) + '">ℹ</button>';
-                    }
-                }
-                var payloadRows = '';
-                if ((job.type || '') === 'HRHelperMultiDbReset' && job.payload) {
-                    try {
-                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                        if (pl) {
-                            payloadRows += '<tr><th>Email reset</th><td>' + (pl.email || '—').replace(/</g, '&lt;') + '</td></tr>';
-                            payloadRows += '<tr><th>Phone reset</th><td>' + (pl.phone || '—').replace(/</g, '&lt;') + '</td></tr>';
-                            var dbArr = pl.databaseNames || [];
-                            var nDb = dbArr.length || pl.databaseCount || 0;
-                            var dbCell = nDb + ' Database';
-                            if (dbArr.length > 0) {
-                                var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-                                dbCell += ' <button type="button" class="ba-db-list-toggle" data-dbs="' + esc(JSON.stringify(dbArr)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
-                                dbCell += '<div class="ba-db-list-popover"></div>';
-                            }
-                            payloadRows += '<tr><th>Danh sách database</th><td>' + dbCell + '</td></tr>';
-                        }
-                    } catch (e) {}
-                }
-                var isRunningOrPending = (job.status === 'Running' || job.status === 'Pending');
-                if ((job.type || '') === 'HRHelperDeleteEmployee' && job.payload) {
-                    try {
-                        var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                        var empList = Array.isArray(pl) ? pl : (pl && pl.employees) ? pl.employees : [];
-                        if (empList.length > 0) {
-                            var esc = function(s){ return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-                            var empCell = empList.length + ' nhân viên';
-                            empCell += ' <button type="button" class="ba-emp-list-toggle" data-emps="' + esc(JSON.stringify(empList)) + '" title="Bấm xem danh sách">▼ Xem danh sách</button>';
-                            empCell += '<div class="ba-db-list-popover ba-emp-list-popover"></div>';
-                            payloadRows += '<tr><th>' + (isRunningOrPending ? 'Danh sách nhân viên sẽ xóa' : 'Danh sách nhân viên đã xóa') + '</th><td>' + empCell + '</td></tr>';
-                        }
-                    } catch (e) {}
-                }
-                var resetRow = ((job.type || '') === 'HRHelperMultiDbReset') ? ('<tr><th>Loại reset</th><td>' + (resetBadge || '—') + '</td></tr>') : '';
-                var html = '<table><tbody><tr><th>Loại</th><td>' + typeLabel + '</td></tr><tr><th>Server</th><td>' + (job.serverName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Database</th><td>' + (job.databaseName || '—').replace(/</g, '&lt;') + '</td></tr>' + resetRow + '<tr><th>Thực hiện bởi</th><td>' + (job.startedByUserName || '—').replace(/</g, '&lt;') + '</td></tr><tr><th>Trạng thái</th><td>' + (job.status === 'Running' ? 'Đang chạy' : (job.status === 'Completed' ? 'Thành công' : (job.status === 'Failed' ? 'Lỗi' : job.status))) + '</td></tr><tr><th>Bắt đầu</th><td>' + formatNotifTime(job.startTime) + '</td></tr><tr><th>Kết thúc</th><td>' + formatNotifTime(job.completedAt) + '</td></tr>' + payloadRows + '</tbody></table>';
-                /* Khi job đang chạy: hiển thị "Dự kiến cập nhật" / "Giá trị dự kiến" từ payload để user kiểm tra và kịp hủy nếu nhầm */
-                if (isRunningOrPending && job.payload) {
-                    var jt = (job.type || '').trim();
-                    if (jt === 'HRHelperUpdateEmployee' || jt === 'HRHelperUpdateUser' || jt === 'HRHelperUpdateOther') {
-                        try {
-                            var pl = typeof job.payload === 'string' ? JSON.parse((job.payload || '').replace(/^[\s\uFEFF]+|[\s\uFEFF]+$/g, '')) : job.payload;
-                            if (pl) {
-                                var parts = [];
-                                if (pl.updPersonal || pl.updatePersonalInfo) parts.push('Thông tin cá nhân');
-                                if (pl.updBusiness || pl.updateBusinessEmail) parts.push('Email công việc');
-                                if (pl.updPayslip) parts.push('Payslip');
-                                if (pl.updM1) parts.push('M1');
-                                if (pl.updM2) parts.push('M2');
-                                if (pl.updBasic) parts.push('Basic Salary');
-                                if (parts.length) {
-                                    html += '<div class="ba-notif-full-msg" style="margin-top:10px;padding:10px;background:var(--surface-alt,var(--bg-darker));border-radius:8px;border:1px solid var(--border);">';
-                                    html += '<strong>Dự kiến cập nhật:</strong> ' + parts.join(', ');
-                                    var vals = [];
-                                    if (pl.personalEmail != null && pl.personalEmail !== '') vals.push('Email cá nhân: ' + (pl.personalEmail + '').replace(/</g, '&lt;'));
-                                    if (pl.businessEmail != null && pl.businessEmail !== '') vals.push('Email công việc: ' + (pl.businessEmail + '').replace(/</g, '&lt;'));
-                                    if (pl.m1 != null && pl.m1 !== '') vals.push('SĐT 1: ' + (pl.m1 + '').replace(/</g, '&lt;'));
-                                    if (pl.m2 != null && pl.m2 !== '') vals.push('SĐT 2: ' + (pl.m2 + '').replace(/</g, '&lt;'));
-                                    if (pl.basicSalary != null && pl.basicSalary !== '') vals.push('Lương: ' + (pl.basicSalary + '').replace(/</g, '&lt;'));
-                                    if (vals.length) html += '<br/><strong>Giá trị dự kiến:</strong> ' + vals.join(' | ');
-                                    html += '</div>';
-                                }
-                            }
-                        } catch (e) {}
-                    }
-                    if (jt === 'HRHelperMultiDbReset' && !payloadRows) {
-                        try {
-                            var pl = typeof job.payload === 'string' ? JSON.parse(job.payload) : job.payload;
-                            if (pl) {
-                                html += '<div class="ba-notif-full-msg" style="margin-top:10px;padding:10px;background:var(--surface-alt);border-radius:8px;"><strong>Dự kiến reset:</strong> Email: ' + (pl.email || '—').replace(/</g, '&lt;') + ', Phone: ' + (pl.phone || '—').replace(/</g, '&lt;') + '</div>';
-                            }
-                        } catch (e) {}
-                    }
-                }
-                if (job.message) html += '<div class="ba-notif-full-msg">' + (job.message || '').replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div>';
-                html += '<div id="baResetInfoPopup" class="ba-reset-info-popup" style="display:none;"></div>';
-                $('#notificationDetailBody').html(html);
-                $('#notificationDetailBody').off('click.baDbList').on('click.baDbList', '.ba-db-list-toggle', function() {
-                    var $btn = $(this), $pop = $btn.siblings('.ba-db-list-popover').first();
-                    var raw = $btn.attr('data-dbs');
-                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
-                    try {
-                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
-                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(name) { return '<span>' + (name || '').replace(/</g, '&lt;') + '</span>'; }).join('')) + '</div>';
-                        $pop.html(grid).addClass('show');
-                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
-                });
-                $('#notificationDetailBody').off('click.baEmpList').on('click.baEmpList', '.ba-emp-list-toggle', function() {
-                    var $btn = $(this), $pop = $btn.siblings('.ba-emp-list-popover').first();
-                    var raw = $btn.attr('data-emps');
-                    if ($pop.hasClass('show')) { $pop.removeClass('show').empty(); return; }
-                    try {
-                        var arr = typeof raw === 'string' ? JSON.parse(raw.replace(/&quot;/g, '"')) : (raw || []);
-                        var esc = function(s){ return (s||'').replace(/</g, '&lt;').replace(/&/g, '&amp;'); };
-                        var grid = '<div class="ba-db-list-grid">' + (arr.map(function(o) { var lid = o.localId != null ? o.localId : o.LocalId || ''; var name = o.name != null ? o.name : o.Name || ''; return '<span>' + esc(lid) + (name ? ' – ' + esc(name) : '') + '</span>'; }).join('')) + '</div>';
-                        $pop.html(grid).addClass('show');
-                    } catch (e) { $pop.html('Không parse được danh sách.').addClass('show'); }
-                });
-                $('#notificationDetailBody').off('click.baResetInfo').on('click.baResetInfo', '.ba-notif-reset-info-btn', function(e) {
-                    e.preventDefault(); e.stopPropagation();
-                    var $btn = $(this), jobId = $btn.data('job-id'), serverId = $btn.data('server-id'), dbName = $btn.data('database-name');
-                    var $popup = $('#baResetInfoPopup');
-                    if ($popup.length && (serverId != null && dbName || jobId)) {
-                        $popup.html('<span class="ba-reset-info-loading">Đang tải...</span>').show();
-                        var payload = { serverId: serverId || 0, databaseName: dbName || '' };
-                        if (jobId) payload.jobId = jobId;
-                        $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetRestoreResetInfo") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify(payload) })
-                            .done(function(res) {
-                                var d = res.d || res;
-                                if (d && d.success && d.resetDetail) {
-                                    var raw = d.resetDetail.replace(/^Reset:\s*/i, '').trim();
-                                    var rows = [];
-                                    raw.split(/\s*,\s*/).forEach(function(pair) {
-                                        var idx = pair.indexOf('=');
-                                        if (idx > 0) {
-                                            var label = pair.substring(0, idx).trim();
-                                            var value = pair.substring(idx + 1).trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                                            var lbl = label === 'Email' ? 'Email' : label === 'Phone' ? 'Phone' : label === 'Password' ? 'Password' : label;
-                                            rows.push('<div class="ba-reset-info-row"><span class="ba-reset-info-label">' + lbl + '</span><span class="ba-reset-info-value">' + value + '</span></div>');
-                                        }
-                                    });
-                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">' + (rows.length ? rows.join('') : raw.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')) + '</div>');
-                                } else
-                                    $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không có thông tin reset.</div>');
-                            })
-                            .fail(function() { $popup.html('<div class="ba-reset-info-title">Thông tin reset</div><div class="ba-reset-info-content">Không tải được thông tin.</div>'); });
-                    }
-                });
-                $(document).off('click.baResetInfoClose').on('click.baResetInfoClose', function(ev) { if ($(ev.target).closest('#baResetInfoPopup').length === 0 && !$(ev.target).hasClass('ba-notif-reset-info-btn')) $('#baResetInfoPopup').hide(); });
-                $('#notificationDetailModal').addClass('show');
-            }
-            $('#notificationDetailModal').on('click', function(e) { if (e.target === this) $('#notificationDetailModal').removeClass('show'); });
-            $('#notificationDetailClose').on('click', function(e) { e.preventDefault(); $('#notificationDetailModal').removeClass('show'); });
-            var NOTIF_MSG_MAX_LEN = 120;
-            var restoreJobsPanelTimer = null;
-            var restoreProgressTimer = null;
-            function loadRestoreJobsPanel() {
-                var $list = $('#restoreJobsList'); var $badge = $('#restoreJobsBadge');
-                if (!$list.length) return;
-                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                    success: function(res) {
-                        var d = res.d || res;
-                        if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } if (restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; } return; }
-                        var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                        var newBugs = d.newBugs || [];
-                        var totalCount = jobs.length + newBugs.length;
-                        if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); window.__notifJobsList = []; if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } if (restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; } return; }
-                        $badge.text(totalCount).addClass('visible');
-                        var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                        var isSuperAdmin = !!(d.isSuperAdmin === true || d.isSuperAdmin === 'true');
-                        var runningMultiDbAnalyze = jobs.filter(function(j) { return j.status === 'Running' && (j.type || '') === 'HRHelperMultiDbAnalyze'; });
-                        var hasRunningJobs = jobs.some(function(j) { return j.status === 'Running'; });
-                        window.__notifJobsList = jobs;
-                        var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-                        var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
-                        var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
-                        var html = '';
-                        if (newBugs.length > 0) {
-                            html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifBugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (notifBugsCollapsed ? 'display:none;' : '') + '">';
-                            newBugs.forEach(function(b) { var created = formatNotifTime(b.createdAt); var bugUrl = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug" data-bug-id="' + (b.id || '') + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + bugUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
-                            html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
-                        }
-                        jobs.forEach(function(j, idx) {
-                            var st = j.status || ''; var msg = (j.message || '').trim(); var msgShort = msg.length > NOTIF_MSG_MAX_LEN ? msg.substring(0, NOTIF_MSG_MAX_LEN) + '…' : msg;
-                            var jobType = j.type || 'Restore';
-                            var typeLabel = (j.typeLabel || (jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : jobType === 'HRHelperMultiDbReset' ? 'Reset Multi-DB' : jobType === 'HRHelperDeleteEmployee' ? 'Xóa Employee' : jobType) || 'Restore').replace(/</g, '&lt;');
-                            var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : (jobType === 'HRHelperUpdateUser' || jobType === 'HRHelperUpdateUserSignature') ? 'ba-notif-type-hr-user' : (jobType === 'HRHelperUpdateEmployee') ? 'ba-notif-type-hr-employee' : (jobType === 'HRHelperUpdateOther') ? 'ba-notif-type-hr-other' : (jobType === 'HRHelperMultiDbAnalyze') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperMultiDbReset') ? 'ba-notif-type-hr-analyze' : (jobType === 'HRHelperDeleteEmployee') ? 'ba-notif-type-hr-employee' : '';
-                            var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                            var cancellableTypes = ['Restore','Backup','HRHelperUpdateUser','HRHelperUpdateUserSignature','HRHelperUpdateEmployee','HRHelperUpdateOther','HRHelperMultiDbAnalyze','HRHelperMultiDbReset','HRHelperDeleteEmployee'];
-                            var canCancel = (st === 'Running') && (cancellableTypes.indexOf(jobType) >= 0) && currentUserId && (startedByUid === currentUserId || isSuperAdmin);
-                            var serverPct = (j.percentComplete != null && j.percentComplete !== '') ? Number(j.percentComplete) : (j.PercentComplete != null && j.PercentComplete !== '') ? Number(j.PercentComplete) : 0;
-                            var startTimeStr = formatNotifTime(j.startTime);
-                            var endTimeStr = formatNotifTime(j.completedAt);
-                            var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + (j.type || 'Restore') + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + typeLabel + '</span> ' + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · Bắt đầu: ' + startTimeStr + (endTimeStr !== '—' ? ' · Kết thúc: ' + endTimeStr : ''), st);
-                            if (st === 'Running' || st === 'Pending') {
-                                var pct = Math.min(100, Math.max(0, serverPct));
-                                var msgPhase = (j.message || '').toString().trim();
-                                var progressLabel = (jobType === 'Restore' && msgPhase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(msgPhase)) : (jobType === 'HRHelperMultiDbAnalyze') ? (pct + '% - Phân tích') : (jobType === 'HRHelperMultiDbReset') ? (pct + '% - Reset') : (jobType === 'HRHelperDeleteEmployee') ? (pct + '% - Xóa employee') : (pct + '%');
-                                row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
-                                row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Hủy job đang chạy">Hủy</button>';
-                            }
-                            else if (st === 'Failed') { row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
-                            else if (st === 'Completed') { row += BaNotif.completedBadgeRow(); if (msgShort) row += '<div class="ba-notif-msg" style="margin-top:2px;">' + msgShort.replace(/</g, '&lt;') + '</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>'; }
-                            if (st !== 'Running' && st !== 'Pending' && st !== 'Failed' && st !== 'Completed') row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                            row += '</div>';
-                            html += row;
-                        });
-                        if (newBugs.length > 0) html += '</div></div>';
-                        else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
-                        $list.html(html);
-                        $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function(e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                        $list.off('click.baNotif').on('click.baNotif', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = window.__notifJobsList && window.__notifJobsList[idx]; if (!job) return; var jid = job.id || 0; if (jid) { $.ajax({ url: '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobResult") %>', type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jid }), success: function(res) { var d = res.d || res; if (d && d.success) { if (d.message != null) job.message = d.message; if (d.payload != null) job.payload = d.payload; } showNotificationDetail(job); }, error: function() { showNotificationDetail(job); } }); } else { showNotificationDetail(job); } });
-                        $list.off('click.baNotifDismiss').on('click.baNotifDismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($item.data('job-id'), 10); var jobType = $item.data('job-type') || 'Restore'; if (jobId) { addDismissedJobId(jobId, jobType); var $listEl = $('#restoreJobsList'), $badgeEl = $('#restoreJobsBadge'); var newCount = Math.max(0, $listEl.find('.ba-notif-item').length - 1); if (newCount > 0) { $badgeEl.text(newCount).addClass('visible'); } else { $badgeEl.removeClass('visible'); } $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }) }); $item.slideUp(200, function() { $(this).remove(); var $listEl = $('#restoreJobsList'); var left = $listEl.find('.ba-notif-item').length; var $badgeEl = $('#restoreJobsBadge'); if (left > 0) { $badgeEl.text(left).addClass('visible'); var bugsCount = $listEl.find('.ba-notif-group-body[data-group="bugs"] .ba-notif-item').length; var jobsCount = $listEl.find('.ba-notif-group-body[data-group="jobs"] .ba-notif-item').length; $listEl.find('.ba-notif-group-toggle[data-group="bugs"]').html(function(i, h) { return (h || '').replace(/(🐛 )?Bugs mới \(\d+\)/, '🐛 Bugs mới (' + bugsCount + ')'); }); $listEl.find('.ba-notif-group-toggle[data-group="jobs"]').html(function(i, h) { return (h || '').replace(/Thông báo job \(\d+\)/, 'Thông báo job (' + jobsCount + ')'); }); } else { $badgeEl.removeClass('visible'); $listEl.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
-                        $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $btn = $(this), jobId = parseInt($btn.data('job-id'), 10); if (!jobId) return; var $item = $btn.closest('.ba-notif-item'), idx = parseInt($item.data('notif-index'), 10), job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(), dbName = (job.databaseName || '').trim(), jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) { if (typeof loadRestoreJobsPanel === 'function') loadRestoreJobsPanel(); } else { $btn.prop('disabled', false); showToast((d && d.message) ? d.message : 'Không thể hủy.', 'error'); } }, error: function() { $btn.prop('disabled', false); showToast('Lỗi kết nối.', 'error'); } }); }, null, 'Đồng ý', 'Thoát'); });
-                        if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
-                        if (hasRunningJobs && !document.hidden && $('#restoreJobsPanel').is(':visible') && !restoreProgressTimer) {
-                            if (restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; }
-                            restoreProgressTimer = setInterval(loadRestoreJobsPanel, 2000);
-                        }
-                        else if (hasRunningJobs && !document.hidden && !$('#restoreJobsPanel').is(':visible') && !restoreJobsPanelTimer) {
-                            restoreJobsPanelTimer = setInterval(function() {
-                                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) {
-                                    var d = res.d || res; if (!d || !d.jobs) return;
-                                    var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); });
-                                    var hasRunning = jobs.some(function(j) { return j.status === 'Running'; });
-                                    var total = jobs.length + (d.newBugs || []).length;
-                                    if (total > 0) { $('#restoreJobsBadge').text(total).addClass('visible'); } else { $('#restoreJobsBadge').removeClass('visible'); }
-                                    if (!hasRunning && restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; }
-                                } });
-                            }, 5000);
-                        }
-                        if (!hasRunningJobs && restoreJobsPanelTimer) { clearInterval(restoreJobsPanelTimer); restoreJobsPanelTimer = null; }
-                    }
-                });
-            }
-            window.loadRestoreJobsPanel = loadRestoreJobsPanel;
-            $(function() {
-                if ($('#restoreJobsBellWrap').length) {
-                    $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isJobDismissed(j); }); var newBugs = d.newBugs || []; var total = jobs.length + newBugs.length; if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-                    $('#restoreJobsBellBtn').on('click', function(e) {
-                        e.stopPropagation();
-                        var $p = $('#restoreJobsPanel');
-                        if ($p.is(':visible')) {
-                            $p.hide();
-                            if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; }
-                            loadRestoreJobsPanel();
-                        } else {
-                            loadRestoreJobsPanel();
-                            $p.show();
-                        }
-                    });
-                    $(document).on('click', function() { $('#restoreJobsPanel').hide(); if (restoreProgressTimer) { clearInterval(restoreProgressTimer); restoreProgressTimer = null; } loadRestoreJobsPanel(); });
-                    $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
-                    if (typeof BA_SignalR !== 'undefined') { BA_SignalR.onJobsUpdated(function() { loadRestoreJobsPanel(); }); }
-                }
-            });
-        })();
     </script>
     <script>
         (function() {

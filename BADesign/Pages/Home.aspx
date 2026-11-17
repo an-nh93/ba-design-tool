@@ -1,3761 +1,829 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Home.aspx.cs"
     Inherits="BADesign.Pages.Home" %>
-
+<%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
+<%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>UI Builder – My Designs</title>
-
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/ba-layout.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
-
+    <meta charset="utf-8" />
+    <title>Thiết kế giao diện - HR Helper</title>
+    <uc:BaHead runat="server" />
+    <link href="../Content/builder-templates.css?v=20261150" rel="stylesheet" />
+    <script src="../Scripts/builder/builder-templates.js?v=20261151"></script>
     <style>
-        :root {
-            /* Dark theme (default) */
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --primary-light: #0D9EFF;
-            --primary-soft: rgba(0, 120, 212, 0.1);
-            --bg-main: #1e1e1e;
-            --bg-dark: #1e1e1e;
-            --bg-darker: #161616;
-            --bg-card: #2d2d30;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --border-light: #464647;
-            --success: #10b981;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-        }
-
-        /* Light theme */
-        body.light-theme {
-            --bg-main: #e3e8ef;
-            --bg-dark: #d6dde8;
-            --bg-darker: #eef2f7;
-            --bg-card: #f3f6fa;
-            --bg-hover: #dde5f1;
-            --text-primary: #1e2a3a;
-            --text-secondary: #3f4f63;
-            --text-muted: #5e6f84;
-            --border: #c3cfde;
-            --border-light: #b4c2d4;
-            --primary-soft: rgba(0, 120, 212, 0.14);
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-
-        /* Dark theme mặc định */
-        body {
-            background: var(--bg-main);
-            color: var(--text-primary);
-        }
-
-        /* ===== Layout ===== */
-        .app-container {
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-        }
-
-        /* ===== Sidebar ===== */
-        .sidebar {
-            width: 240px;
-            background: var(--bg-darker);
-            border-right: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-            flex-shrink: 0;
-        }
-
-        .sidebar-header {
-            padding: 1.5rem 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .sidebar-header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin: 0;
-        }
-
-        .sidebar-back {
-            flex-shrink: 0;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .sidebar-back .nav-item {
-            margin: 0;
-        }
-
-        .sidebar-search {
-            flex-shrink: 0;
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .sidebar-search input {
-            width: 100%;
-            padding: 0.5rem 0.75rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-        }
-
-        .sidebar-search input:focus {
-            outline: none;
-            border-color: var(--primary);
-        }
-
-        .sidebar-search input::placeholder {
-            color: var(--text-muted);
-        }
-
-        .sidebar-nav {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0.5rem 0;
-        }
-
-        .nav-section {
-            padding: 0.5rem 0;
-        }
-
-        .nav-section-title {
-            padding: 0.5rem 1rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .nav-item {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 1rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            user-select: none;
-        }
-
-        .nav-item[data-filter] {
-            cursor: pointer;
-        }
-
-        .nav-item:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .nav-item.active {
-            background: var(--primary-soft);
-            color: var(--primary-light);
-            border-left: 3px solid var(--primary);
-        }
-
-        .nav-item .icon {
-            margin-right: 0.5rem;
-            width: 16px;
-            text-align: center;
-        }
-
-        .project-item {
-            position: relative;
-        }
-
-        .project-name {
-            flex: 1;
-            cursor: pointer;
-        }
-
-        .project-delete {
-            opacity: 0;
-            cursor: pointer;
-            font-size: 0.875rem;
-            padding: 0.25rem;
-            transition: opacity 0.2s ease;
-            margin-left: 0.5rem;
-        }
-
-        .project-item:hover .project-delete {
-            opacity: 1;
-        }
-
-        .project-delete:hover {
-            transform: scale(1.1);
-        }
-
-        /* ===== Main Content ===== */
-        .main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            background: var(--bg-main);
-        }
-
-        /* ===== Top Bar ===== */
-        .top-bar {
-            background: var(--bg-card);
-            border-bottom: 1px solid var(--border);
-            padding: 0.75rem 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-
-        .top-bar-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .top-bar-actions {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        /* Theme switcher */
-        .theme-switcher {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-
-        .theme-switcher:hover {
-            background: var(--bg-hover);
-        }
-
-        .theme-switcher-icon {
-            font-size: 1rem;
-        }
-
-        .user-menu {
-            position: relative;
-        }
-
-        .user-menu-trigger {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            border: none;
-        }
-
-        .user-menu-trigger:hover {
-            background: var(--bg-hover);
-        }
-
-        .user-menu-trigger:focus {
-            outline: none;
-        }
-
-        .user-avatar {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            background: var(--primary);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 0.75rem;
-            font-weight: 600;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-sizing: border-box;
-            overflow: hidden;
-        }
-        
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-        }
-        
-        .user-avatar:has(img) {
-            background: transparent !important;
-        }
-
-        .user-menu-dropdown {
-            position: absolute;
-            top: calc(100% + 0.5rem);
-            right: 0;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            min-width: 200px;
-            z-index: 1000;
-            display: none;
-            overflow: hidden;
-        }
-
-        .user-menu-dropdown.show {
-            display: block;
-        }
-
-        .user-menu-dropdown .menu-item {
-            display: block;
-            padding: 0.75rem 1rem;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .user-menu-dropdown .menu-item:last-child {
-            border-bottom: none;
-        }
-
-        .user-menu-dropdown .menu-item:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .btn {
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-size: 0.875rem;
-            font-weight: 500;
-            border: none;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background: var(--primary-hover);
-            transform: translateY(-1px);
-        }
-
-        .btn-sm {
-            padding: 0.375rem 0.75rem;
-            font-size: 0.8125rem;
-        }
-
-        /* ===== Content Area ===== */
-        .content-area {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem;
-        }
-
-        .section {
-            margin-bottom: 3rem;
-        }
-
-        .section-header {
-            margin-bottom: 1.5rem;
-        }
-
-        .section-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .section-subtitle {
-            font-size: 0.875rem;
-            color: var(--text-muted);
-        }
-
-        /* ===== Toolbar (Filter, Sort, View Toggle) ===== */
-        .section-toolbar {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-top: 1rem;
-            padding: 0.75rem;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            flex-wrap: wrap;
-        }
-
-        .toolbar-group {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .toolbar-label {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            white-space: nowrap;
-        }
-
-        .toolbar-select {
-            padding: 0.375rem 0.75rem;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.2s ease;
-        }
-
-        /* ===== Project Filter Multi-Select ===== */
-        .project-filter-wrapper {
-            position: relative;
-        }
-
-        .project-filter-trigger {
-            padding: 0.375rem 0.75rem;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 180px;
-            justify-content: space-between;
-        }
-
-        .project-filter-trigger:hover {
-            border-color: var(--primary);
-        }
-
-        .project-filter-trigger.active {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--primary-soft);
-        }
-
-        .project-filter-text {
-            flex: 1;
-            text-align: left;
-        }
-
-        .project-filter-count {
-            background: var(--primary);
-            color: white;
-            padding: 0.125rem 0.375rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            min-width: 20px;
-            text-align: center;
-        }
-
-        .project-filter-arrow {
-            font-size: 0.75rem;
-            transition: transform 0.2s ease;
-        }
-
-        .project-filter-trigger.active .project-filter-arrow {
-            transform: rotate(180deg);
-        }
-
-        .project-filter-dropdown {
-            position: absolute;
-            top: calc(100% + 0.25rem);
-            left: 0;
-            right: 0;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            z-index: 1000;
-            max-height: 300px;
-            overflow-y: auto;
-            min-width: 250px;
-        }
-
-        .project-filter-header {
-            padding: 0.75rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .project-filter-checkbox-label {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            color: var(--text-primary);
-            flex: 1;
-        }
-
-        .project-filter-checkbox {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-            accent-color: var(--primary);
-            flex-shrink: 0;
-        }
-
-        .project-filter-clear {
-            padding: 0.25rem 0.5rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 0.25rem;
-            color: var(--text-secondary);
-            font-size: 0.75rem;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .project-filter-clear:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border-color: var(--primary);
-        }
-
-        .project-filter-list {
-            padding: 0.5rem 0;
-            max-height: 250px;
-            overflow-y: auto;
-        }
-
-        .project-filter-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 0.75rem;
-            cursor: pointer;
-            transition: background 0.2s ease;
-            font-size: 0.875rem;
-            color: var(--text-primary);
-        }
-
-        .project-filter-item:hover {
-            background: var(--bg-hover);
-        }
-
-        .project-filter-item span {
-            flex: 1;
-        }
-
-        .toolbar-select:hover {
-            border-color: var(--primary);
-        }
-
-        .toolbar-select:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--primary-soft);
-        }
-
-        .badge-project {
-            background: rgba(0, 120, 212, 0.2);
-            color: var(--primary-light);
-        }
-
-        /* ===== Custom Multi-Select Dropdown ===== */
-        .custom-multiselect {
-            position: relative;
-            display: inline-block;
-        }
-
-        .custom-multiselect-btn {
-            padding: 0.375rem 0.75rem;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            cursor: pointer;
-            outline: none;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            min-width: 180px;
-            justify-content: space-between;
-        }
-
-        .custom-multiselect-btn:hover {
-            border-color: var(--primary);
-        }
-
-        .custom-multiselect-btn.active {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--primary-soft);
-        }
-
-        .filter-text {
-            flex: 1;
-            text-align: left;
-        }
-
-        .filter-count {
-            background: var(--primary);
-            color: white;
-            padding: 0.125rem 0.375rem;
-            border-radius: 0.75rem;
-            font-size: 0.75rem;
-            font-weight: 600;
-            min-width: 1.25rem;
-            text-align: center;
-        }
-
-        .filter-arrow {
-            font-size: 0.625rem;
-            transition: transform 0.2s ease;
-        }
-
-        .custom-multiselect-btn.active .filter-arrow {
-            transform: rotate(180deg);
-        }
-
-        .custom-multiselect-dropdown {
-            display: none;
-            position: absolute;
-            top: calc(100% + 0.25rem);
-            left: 0;
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            z-index: 1000;
-            min-width: 250px;
-            max-width: 350px;
-            max-height: 400px;
-            overflow: hidden;
-            flex-direction: column;
-        }
-
-        .custom-multiselect-dropdown.show {
-            display: flex;
-        }
-
-        .multiselect-search {
-            padding: 0.5rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .multiselect-search input {
-            width: 100%;
-            padding: 0.375rem 0.5rem;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 0.25rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            outline: none;
-        }
-
-        .multiselect-search input:focus {
-            border-color: var(--primary);
-        }
-
-        .multiselect-options {
-            max-height: 300px;
-            overflow-y: auto;
-            padding: 0.25rem;
-        }
-
-        .multiselect-options::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .multiselect-options::-webkit-scrollbar-track {
-            background: var(--bg-dark);
-        }
-
-        .multiselect-options::-webkit-scrollbar-thumb {
-            background: var(--border);
-            border-radius: 3px;
-        }
-
-        .multiselect-options::-webkit-scrollbar-thumb:hover {
-            background: var(--text-muted);
-        }
-
-        .multiselect-option {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem;
-            cursor: pointer;
-            border-radius: 0.25rem;
-            transition: background 0.2s ease;
-            user-select: none;
-        }
-
-        .multiselect-option:hover {
-            background: var(--bg-hover);
-        }
-
-        .multiselect-option input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-            accent-color: var(--primary);
-            flex-shrink: 0;
-        }
-
-        .multiselect-option span {
-            flex: 1;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-        }
-
-        .multiselect-option input[type="checkbox"]:checked + span {
-            color: var(--primary-light);
-            font-weight: 500;
-        }
-
-        .toolbar-search {
-            padding: 0.375rem 0.75rem;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            outline: none;
-            transition: all 0.2s ease;
-            min-width: 200px;
-        }
-
-        .toolbar-search::placeholder {
-            color: var(--text-muted);
-        }
-
-        .toolbar-search:hover {
-            border-color: var(--primary);
-        }
-
-        .toolbar-search:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px var(--primary-soft);
-        }
-
-        .view-toggle {
-            display: flex;
-            gap: 0.25rem;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            padding: 0.25rem;
-        }
-
-        .view-toggle-btn {
-            padding: 0.375rem 0.5rem;
-            background: transparent;
-            border: none;
-            border-radius: 0.25rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .view-toggle-btn:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .view-toggle-btn.active {
-            background: var(--primary);
-            color: white;
-        }
-
-        /* ===== Card Grid ===== */
-        .designs-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .designs-grid.hidden {
-            display: none;
-        }
-
-        /* ===== Table View ===== */
-        .designs-table-container {
-            display: none;
-            overflow-x: auto;
-        }
-
-        .designs-table-container.show {
-            display: block;
-        }
-
-        .designs-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--bg-card);
-            border-radius: 0.5rem;
-            overflow: hidden;
-        }
-
-        .designs-table thead {
-            background: var(--bg-darker);
-        }
-
-        .designs-table th {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-secondary);
-            border-bottom: 1px solid var(--border);
-        }
-
-        .designs-table td {
-            padding: 1rem;
-            border-bottom: 1px solid var(--border);
-            color: var(--text-primary);
-        }
-
-        .designs-table tbody tr:hover {
-            background: var(--bg-hover);
-        }
-
-        .designs-table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        .table-thumb {
-            width: 80px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 0.375rem;
-            cursor: pointer;
-        }
-
-        .table-name {
-            font-weight: 600;
-            color: var(--text-primary);
-            text-decoration: none;
-        }
-
-        .table-name:hover {
-            color: var(--primary-light);
-        }
-
-        .design-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 0.5rem;
-            overflow: hidden;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .design-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.2);
-        }
-
-        .design-card-thumb {
-            width: 100%;
-            height: 160px;
-            object-fit: cover;
-            background: var(--bg-darker);
-        }
-
-        .design-card-body {
-            padding: 1rem;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .design-card-title {
-            font-size: 0.9375rem;
-        font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-            text-decoration: none;
-        }
-
-        .design-card-title:hover {
-            color: var(--primary-light);
-        }
-
-        .design-card-meta {
-            font-size: 0.8125rem;
-            color: var(--text-muted);
-            margin-bottom: 0.75rem;
-        }
-
-        .design-card-actions {
-            display: flex;
-            gap: 0.5rem;
-            flex-wrap: wrap;
-            margin-top: auto;
-        }
-
-        .badge {
-            display: inline-block;
-            padding: 0.125rem 0.5rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .badge-public {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-        }
-
-        .badge-private {
-            background: rgba(245, 158, 11, 0.2);
-            color: #f59e0b;
-        }
-
-        .btn-icon {
-            padding: 0.375rem;
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 0.375rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-        cursor: pointer;
-            transition: all 0.2s ease;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-icon:hover {
-            background: var(--bg-hover);
-            border-color: var(--border-light);
-            color: var(--text-primary);
-        }
-
-        .btn-danger {
-            background: transparent;
-            border: 1px solid var(--danger);
-            color: var(--danger);
-        }
-
-        .btn-danger:hover {
-            background: var(--danger);
-            color: white;
-        }
-
-        .btn-warning {
-            background: transparent;
-            border: 1px solid var(--warning);
-            color: var(--warning);
-        }
-
-        .btn-warning:hover {
-            background: var(--warning);
-            color: white;
-        }
-
-        .btn-success {
-            background: transparent;
-            border: 1px solid var(--success);
-            color: var(--success);
-        }
-
-        .btn-success:hover {
-            background: var(--success);
-            color: white;
-        }
-
-        /* ===== Modal ===== */
-        .modal-content {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            color: var(--text-primary);
-        }
-
-        .modal-header {
-            border-bottom: 1px solid var(--border);
-        }
-
-        .modal-body {
-            background: var(--bg-dark);
-        }
-
-        /* ===== Account Settings Modal (Figma Style) ===== */
-        .account-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-            overflow-y: auto;
-            padding: 2rem;
-            box-sizing: border-box;
-        }
-
-        .account-modal.show {
-            display: flex;
-        }
-        
-        .account-modal[style*="display: block"] {
-            display: flex !important;
-        }
-
-        .account-modal-content {
-            background: var(--bg-card);
-            border-radius: 12px;
-            width: 90%;
-            max-width: 640px;
-            max-height: 90vh;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            animation: modalSlideIn 0.2s ease-out;
-        }
-
-        @keyframes modalSlideIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-
-        .account-modal-header {
-            padding: 1.5rem 2rem;
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
-
-        .account-modal-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .account-modal-close {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0;
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 6px;
-            transition: all 0.2s ease;
-        }
-
-        .account-modal-close:hover {
-            background: var(--bg-hover);
-            color: var(--text-primary);
-        }
-
-        .account-modal-tabs {
-            display: flex;
-            border-bottom: 1px solid var(--border);
-            padding: 0 2rem;
-            flex-shrink: 0;
-        }
-
-        .account-modal-tab {
-            padding: 1rem 1.5rem;
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s ease;
-            position: relative;
-            top: 1px;
-        }
-
-        .account-modal-tab:hover {
-            color: var(--text-primary);
-        }
-
-        .account-modal-tab.active {
-            color: var(--primary);
-            border-bottom-color: var(--primary);
-        }
-
-        .account-modal-body {
-            flex: 1;
-            overflow-y: auto;
-            padding: 2rem;
-        }
-
-        .account-modal-footer {
-            padding: 1.5rem 2rem;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            gap: 0.75rem;
-            flex-shrink: 0;
-        }
-
-        /* ===== Confirmation Modal ===== */
-        .confirm-modal {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 10001;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(4px);
-        }
-
-        .confirm-modal.show {
-            display: flex;
-        }
-
-        .confirm-modal-content {
-            background: var(--bg-card);
-            border-radius: 12px;
-            width: 90%;
-            max-width: 480px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            animation: modalSlideIn 0.2s ease-out;
-        }
-
-        .confirm-modal-header {
-            padding: 1.5rem 2rem;
-            border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-        }
-
-        .confirm-modal-header h3 {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .confirm-modal-body {
-            padding: 1.5rem 2rem;
-            flex: 1;
-        }
-
-        .confirm-modal-body p {
-            margin: 0;
-            color: var(--text-primary);
-            font-size: 0.9375rem;
-            line-height: 1.6;
-            white-space: pre-line;
-        }
-
-        .confirm-modal-footer {
-            padding: 1.5rem 2rem;
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-            flex-shrink: 0;
-        }
-
-        /* ===== Toast Message ===== */
-        .toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10002;
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-            pointer-events: none;
-        }
-
-        .toast {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.75rem 1rem 0.25rem 1rem;
-            min-width: 280px;
-            max-width: 360px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-            display: flex;
-            flex-direction: column;
-            pointer-events: auto;
-            opacity: 0;
-            transform: translateX(100%);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .toast.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .toast.hide {
-            opacity: 0;
-            transform: translateX(100%);
-        }
-
-        .toast-header {
-            display: flex !important;
-            align-items: center;
-            gap: 0.625rem;
-            margin-bottom: 0.375rem;
-            background: transparent !important;
-            border: none !important;
-            padding: 0 !important;
-        }
-
-        .toast-icon {
-            font-size: 1rem;
-            flex-shrink: 0;
-            line-height: 1;
-        }
-
-        .toast.success .toast-icon {
-            color: var(--success);
-        }
-
-        .toast.error .toast-icon {
-            color: var(--danger);
-        }
-
-        .toast.info .toast-icon {
-            color: var(--primary);
-        }
-
-        .toast-content {
-            flex: 1;
-        }
-
-        .toast-title {
-            font-weight: 600;
-            font-size: 0.875rem;
-            color: var(--text-primary);
-            margin-bottom: 0.125rem;
-            line-height: 1.3;
-        }
-
-        .toast-message {
-            font-size: 0.8125rem;
-            color: var(--text-secondary);
-            line-height: 1.4;
-        }
-
-        .toast-progress {
-            height: 2px;
-            margin-top: 0.5rem;
-            background: rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-            border-radius: 0 0 6px 6px;
-            margin-left: -1rem;
-            margin-right: -1rem;
-            margin-bottom: -0.25rem;
-        }
-
-        .toast-progress-bar {
-            height: 100%;
-            width: 100%;
-            background: rgba(255, 255, 255, 0.25);
-            transform-origin: left center;
-            transform: scaleX(1);
-            transition: transform linear;
-        }
-
-        .toast-close {
-            background: none;
-            border: none;
-            color: var(--text-muted);
-            cursor: pointer;
-            font-size: 1rem;
-            padding: 0;
-            width: 20px;
-            height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            transition: color 0.2s ease;
-            line-height: 1;
-        }
-
-        .toast-close:hover {
-            color: var(--text-primary);
-        }
-
-        .account-section {
-            margin-bottom: 2rem;
-        }
-
-        .account-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .account-section-title {
-            font-size: 0.875rem;
-        font-weight: 600;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 1rem;
-        }
-
-        .account-field {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 1rem 0;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .account-field:last-child {
-            border-bottom: none;
-        }
-
-        .account-field-label {
-            font-size: 0.875rem;
-            color: var(--text-primary);
-            font-weight: 500;
-        }
-
-        .account-field-value {
-            font-size: 0.875rem;
-            color: var(--text-secondary);
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .account-field-action {
-            color: var(--primary);
-            text-decoration: none;
-            font-size: 0.875rem;
-        cursor: pointer;
-            transition: color 0.2s ease;
-        }
-
-        .account-field-action:hover {
-            color: var(--primary-hover);
-        }
-
-        .account-avatar {
-            width: 64px;
-            height: 64px;
-            border-radius: 50%;
-            background: var(--primary); /* Default: màu xanh khi không có avatar */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.5rem;
-            font-weight: 600;
-            flex-shrink: 0;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            box-sizing: border-box;
-            overflow: hidden;
-        }
-        
-        /* Khi có avatar (background-image), làm nền trong suốt */
-        .account-avatar[style*="background-image"] {
-            background-color: transparent !important;
-        }
-
-        .account-profile-header {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .account-profile-info {
-            flex: 1;
-        }
-
-        .account-profile-name {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-
-        .account-form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .account-form-label {
-            display: block;
-            font-size: 0.875rem;
-            font-weight: 500;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-
-        .account-form-input {
-            width: 100%;
-            padding: 0.75rem;
-            background: var(--bg-dark);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            color: var(--text-primary);
-            font-size: 0.875rem;
-            transition: all 0.2s ease;
-        }
-
-        .account-form-input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
-        }
-
-        .account-badge {
-            display: inline-block;
-            padding: 0.25rem 0.75rem;
-            border-radius: 999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-        }
-
-        .account-badge-success {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-        }
-
-        .account-badge-default {
-            background: rgba(107, 114, 128, 0.2);
-            color: var(--text-secondary);
-        }
-
-        .account-badge-danger {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-        }
-
-        #imgDesignPreview {
-            max-width: 100%;
-            max-height: calc(100vh - 200px);
-            border-radius: 0.5rem;
-        }
-
-        /* ===== Empty State ===== */
-        .empty-state {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--text-muted);
-        }
-
-        .empty-state-icon {
-            font-size: 3rem;
-            margin-bottom: 1rem;
-            opacity: 0.5;
-        }
-
-        /* ===== Anonymous home (không đăng nhập) ===== */
-        .anonymous-home {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 2rem;
-            background: var(--bg-main);
-        }
-        .anonymous-home-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-        .anonymous-home-header h1 {
-            font-size: 1.75rem;
-            color: var(--text-primary);
-            margin-bottom: 0.5rem;
-        }
-        .anonymous-home-header p {
-            color: var(--text-muted);
-            font-size: 0.9375rem;
-        }
-        .anonymous-home-tools {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-            gap: 1.25rem;
-            max-width: 900px;
-            width: 100%;
-        }
-        .anonymous-home-tool-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            text-decoration: none;
-            color: inherit;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            text-align: left;
-            transition: all 0.2s ease;
-        }
-        .anonymous-home-tool-card:hover {
-            border-color: var(--primary);
-            background: var(--bg-hover);
-        }
-        .anonymous-home-tool-card .tool-icon {
-            font-size: 1.75rem;
-            margin-bottom: 0.75rem;
-        }
-        .anonymous-home-tool-card .tool-title {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-bottom: 0.25rem;
-        }
-        .anonymous-home-tool-card .tool-desc {
-            font-size: 0.8125rem;
-            color: var(--text-muted);
-            line-height: 1.4;
-        }
-        .anonymous-home-login-wrap {
-            margin-top: 2rem;
-            text-align: center;
-        }
-        .anonymous-home-login-wrap a {
-            display: inline-block;
-            padding: 0.6rem 1.5rem;
-            border-radius: 6px;
-            font-size: 0.9375rem;
-            font-weight: 500;
-            text-decoration: none;
-            background: var(--bg-hover);
-            color: var(--text-primary);
-            border: 1px solid var(--border);
-            transition: all 0.2s;
-        }
-        .anonymous-home-login-wrap a:hover {
-            background: var(--bg-card);
-            border-color: var(--primary);
-        }
-
-        /* ===== Responsive ===== */
-        @media (max-width: 768px) {
-            .anonymous-home-tools {
-                grid-template-columns: 1fr;
-            }
-
-            .sidebar {
-                width: 60px;
-            }
-
-            .sidebar-header h1,
-            .sidebar-nav .nav-item span:not(.icon),
-            .sidebar-search {
-                display: none;
-            }
-
-            .designs-grid {
-                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-                gap: 1rem;
-            }
-
-            .content-area {
-                padding: 1rem;
-            }
-        }
+        .hd-head { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0.375rem 0.75rem; border-bottom: 2px solid var(--border); flex-shrink: 0; }
+        .hd-head .ba-tabs { flex: 1 1 auto; border-bottom: 0; margin-bottom: 0; }
+        .hd-head-actions { display: flex; gap: 0.5rem; padding-bottom: 0.375rem; }
+        .hd-count { display: inline-block; min-width: 1.25rem; margin-left: 0.375rem; padding: 0 0.375rem; border-radius: 999px; background: var(--border); color: var(--text-secondary); font-size: 0.6875rem; font-weight: 600; line-height: 1.125rem; text-align: center; }
+        .hd-count:empty { display: none; }
+        .ba-tab.active .hd-count { background: var(--primary-soft); color: var(--primary-light); }
+
+        .hd-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; padding: 0.625rem 0; flex-shrink: 0; }
+        .hd-search { position: relative; flex: 1 1 14rem; max-width: 20rem; }
+        .hd-search .ba-input { padding-left: 1.875rem; }
+        .hd-search .hd-icon { position: absolute; left: 0.5625rem; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none; }
+        .hd-toolbar select.ba-input { flex: 0 0 auto; width: auto; }
+        .hd-result { margin-left: auto; color: var(--text-muted); font-size: 0.8125rem; white-space: nowrap; }
+        .hd-view { display: inline-flex; flex: 0 0 auto; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+        .hd-view-btn { display: inline-flex; align-items: center; justify-content: center; width: 2rem; height: 1.8125rem; border: 0; background: var(--bg-darker); color: var(--text-muted); cursor: pointer; }
+        .hd-view-btn + .hd-view-btn { border-left: 1px solid var(--border); }
+        .hd-view-btn:hover { color: var(--text-primary); }
+        .hd-view-btn.active { background: var(--primary); color: #fff; }
+
+        .hd-pop-wrap { position: relative; flex: 0 0 auto; }
+        .hd-pop-btn { display: inline-flex; align-items: center; gap: 0.375rem; width: auto; max-width: 15rem; cursor: pointer; text-align: left; }
+        .hd-pop-btn > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hd-pop-btn .hd-icon { width: 0.75rem; height: 0.75rem; color: var(--text-muted); }
+        .hd-pop { position: absolute; z-index: 50; top: calc(100% + 4px); left: 0; display: none; flex-direction: column; width: 17.5rem; max-height: 21rem; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28); overflow: hidden; }
+        .hd-pop-wrap.open .hd-pop { display: flex; }
+        .hd-pop-search { padding: 0.5rem; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+        .hd-pop-list { flex: 1 1 auto; min-height: 0; padding: 0.25rem; overflow-y: auto; scrollbar-width: thin; }
+        .hd-pop-item { display: flex; align-items: center; gap: 0.5rem; margin: 0; padding: 0.3125rem 0.5rem; border-radius: 6px; color: var(--text-primary); font-size: 0.8125rem; font-weight: 400; cursor: pointer; }
+        .hd-pop-item:hover { background: var(--bg-hover); }
+        .hd-pop-item input { flex: 0 0 auto; width: 15px; height: 15px; margin: 0; cursor: pointer; }
+        .hd-pop-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hd-pop-count { flex: 0 0 auto; color: var(--text-muted); font-size: 0.75rem; }
+        .hd-pop-item .hd-act { width: 1.5rem; height: 1.5rem; }
+        .hd-pop-foot { display: flex; padding: 0.5rem; border-top: 1px solid var(--border); flex-shrink: 0; }
+        .hd-pop-foot .ba-btn { flex: 1 1 auto; }
+
+        .hd-body { flex: 1 1 auto; min-height: 0; padding-bottom: 0.75rem; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--border-light) transparent; }
+        .hd-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr)); gap: 0.75rem; }
+        .hd-card { display: flex; flex-direction: column; min-width: 0; background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; transition: border-color 0.15s ease, box-shadow 0.15s ease; }
+        .hd-card:hover { border-color: var(--primary); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); }
+        .hd-thumb { position: relative; display: block; width: 100%; aspect-ratio: 16 / 9; padding: 0; border: 0; border-bottom: 1px solid var(--border); background: #fff; overflow: hidden; cursor: pointer; }
+        .hd-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+        .hd-thumb-cta { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.45); opacity: 0; transition: opacity 0.15s ease; }
+        .hd-thumb:hover .hd-thumb-cta, .hd-thumb:focus-visible .hd-thumb-cta { opacity: 1; }
+        .hd-thumb-cta span { padding: 0.3125rem 0.875rem; border-radius: 999px; background: var(--primary); color: #fff; font-size: 0.8125rem; font-weight: 600; }
+        .hd-noimg { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.375rem; width: 100%; height: 100%; background: var(--bg-darker); color: var(--text-muted); font-size: 0.75rem; }
+        .hd-noimg .hd-icon { width: 1.75rem; height: 1.75rem; opacity: 0.7; }
+        .hd-card-body { display: flex; flex-direction: column; gap: 0.25rem; min-width: 0; padding: 0.5rem 0.75rem; }
+        .hd-name { display: block; color: var(--text-primary); font-size: 0.875rem; font-weight: 600; line-height: 1.35; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        a.hd-name:hover { color: var(--primary-light); text-decoration: none; }
+        .hd-meta { display: flex; align-items: center; gap: 0.375rem; min-width: 0; min-height: 1.25rem; color: var(--text-muted); font-size: 0.75rem; }
+        .hd-chip { display: inline-flex; flex: 0 0 auto; align-items: center; padding: 0 0.4375rem; border-radius: 999px; font-size: 0.6875rem; font-weight: 600; line-height: 1.125rem; white-space: nowrap; }
+        .hd-chip-public { background: rgba(16, 185, 129, 0.16); color: var(--success); }
+        .hd-chip-private { background: var(--bg-hover); color: var(--text-secondary); }
+        .hd-chip-type { background: var(--primary-soft); color: var(--primary-light); }
+        body.light-theme .hd-chip-public { color: #047857; }
+        body.light-theme .hd-chip-type, body.light-theme .ba-tab.active .hd-count { color: var(--primary); }
+        .hd-project { display: inline-flex; align-items: center; gap: 0.25rem; min-width: 0; }
+        .hd-project > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .hd-foot { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; min-height: 1.75rem; }
+        .hd-date { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+        .hd-acts { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 0.125rem; }
+        .hd-act { display: inline-flex; align-items: center; justify-content: center; width: 1.75rem; height: 1.75rem; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
+        .hd-act:hover { background: var(--bg-hover); color: var(--text-primary); }
+        .hd-act-danger:hover { background: rgba(239, 68, 68, 0.14); color: var(--danger); }
+        .hd-icon { display: inline-flex; flex: 0 0 auto; width: 1rem; height: 1rem; }
+        .hd-icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }
+
+        .hd-body .ba-table-wrap { min-height: 0; max-height: none; margin-bottom: 0; }
+        .hd-row-thumb { display: block; width: 4rem; height: 2.25rem; padding: 0; border: 1px solid var(--border); border-radius: 4px; background: #fff; overflow: hidden; cursor: pointer; }
+        .hd-row-thumb img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: left top; }
+        .hd-row-thumb .hd-noimg .hd-icon { width: 1rem; height: 1rem; }
+        .hd-row-thumb .hd-noimg-text { display: none; }
+        .hd-row-name { max-width: 22rem; }
+        .hd-row-acts { display: flex; align-items: center; justify-content: flex-end; gap: 0.25rem; }
+
+        .hd-skel { pointer-events: none; }
+        .hd-skel .hd-thumb, .hd-skel-line { background: var(--bg-hover); animation: hd-pulse 1.2s ease-in-out infinite; }
+        .hd-skel-line { height: 0.75rem; border-radius: 4px; }
+        .hd-skel-line.short { width: 55%; }
+        @keyframes hd-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+
+        .hd-empty-title { color: var(--text-primary); font-size: 0.9375rem; font-weight: 600; }
+        .hd-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; margin-top: 0.375rem; }
+        .hd-empty .hd-icon { width: 2.25rem; height: 2.25rem; opacity: 0.6; }
+
+        .hd-preview .ba-modal-content { max-width: min(68.75rem, 96vw); }
+        .hd-preview .ba-modal-body { padding: 0.75rem; background: var(--bg-darker); text-align: center; }
+        .hd-preview img { max-width: 100%; max-height: 76vh; border: 1px solid var(--border); background: #fff; }
+        .hd-preview .hd-noimg { min-height: 14rem; font-size: 0.875rem; }
+        .hd-form { display: flex; flex-direction: column; gap: 0.75rem; }
+        .hd-form-error { color: var(--danger); font-size: 0.8125rem; }
+        .hd-form-error:empty { display: none; }
     </style>
 </head>
 <body>
     <form id="form1" runat="server">
-        <asp:Panel ID="pnlAnonymous" runat="server" Visible="false">
-            <div class="anonymous-home">
-                <div class="anonymous-home-header">
-                    <h1>Cadena Helper</h1>
-                    <p>Các công cụ hỗ trợ nhân viên – dùng được ngay không cần đăng nhập</p>
-                </div>
-                <div class="anonymous-home-tools">
-                    <a href="<%= ResolveUrl("~/DatabaseSearch") %>" class="anonymous-home-tool-card">
-                        <span class="tool-icon">🔍</span>
-                        <span class="tool-title">Database Tools</span>
-                        <span class="tool-desc">Reset password và tra cứu thông tin trong database.</span>
-                    </a>
-                    <a href="<%= ResolveUrl("~/PgpTool") %>" class="anonymous-home-tool-card">
-                        <span class="tool-icon">🔐</span>
-                        <span class="tool-title">PGP Tool</span>
-                        <span class="tool-desc">Mã hóa, giải mã file PGP với public/private key.</span>
-                    </a>
-                    <%-- Thêm tool mới cho guest: copy block dưới và chỉnh URL, icon, title, desc
-                    <a href="<%= ResolveUrl("~/ToolMoi") %>" class="anonymous-home-tool-card">
-                        <span class="tool-icon">📎</span>
-                        <span class="tool-title">Tên tool</span>
-                        <span class="tool-desc">Mô tả ngắn về chức năng.</span>
-                    </a>
-                    --%>
-                </div>
-                <div class="anonymous-home-login-wrap">
-                    <asp:HyperLink ID="lnkAnonymousLogin" runat="server" NavigateUrl="~/Login" Text="Đăng nhập để dùng thêm tính năng" />
-                </div>
-            </div>
-        </asp:Panel>
-        <asp:Panel ID="pnlLoggedIn" runat="server">
-        <div class="app-container">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <h1>UI Builder</h1>
-                </div>
-                <div class="sidebar-back">
-                    <asp:HyperLink ID="lnkBackHome" runat="server" NavigateUrl="~/HomeRole" CssClass="nav-item" style="text-decoration: none; display: flex; align-items: center; padding: 0.5rem 1rem;">
-                        <span class="icon">←</span>
-                        <span>Về trang chủ</span>
-                    </asp:HyperLink>
-                </div>
-                <div class="sidebar-search">
-                    <input type="text" placeholder="Q Search..." />
-                </div>
-                <div class="sidebar-nav">
-                    <div class="nav-section">
-                        <div class="nav-item active" data-section="my-designs">
-                            <span class="icon">📁</span>
-                            <span>Recents</span>
+        <div class="ba-container">
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" />
+            <main class="ba-main">
+                <uc:BaTopBar ID="ucBaTopBar" runat="server" />
+                <div class="ba-content ba-fill">
+                    <div class="hd-head">
+                        <div class="ba-tabs" id="hdTabs">
+                            <button type="button" class="ba-tab active" data-scope="mine"><span>Thiết kế của tôi</span><span class="hd-count" id="hdCountMine" translate="no"></span></button>
+                            <button type="button" class="ba-tab" data-scope="shared"><span>Thiết kế công khai</span><span class="hd-count" id="hdCountShared" translate="no"></span></button>
                         </div>
-                        <div class="nav-item" data-section="public-designs">
-                            <span class="icon">🌐</span>
-                            <span>Community</span>
+                        <div class="hd-head-actions">
+                            <button type="button" class="ba-btn ba-btn-secondary" id="hdFromStandard" title="Bắt đầu từ một màn hình chuẩn của HRM"><span class="hd-icon" data-icon="layout"></span><span>Từ màn hình chuẩn</span></button>
+                            <a class="ba-btn ba-btn-secondary" id="hdFromDrawio" href="<%= ResolveUrl("~/Builder") %>?drawio=1" title="Mở file vẽ bằng draw.io và chuyển các hình thành control"><span class="hd-icon" data-icon="file"></span><span>Từ file draw.io</span></a>
+                            <a class="ba-btn ba-btn-primary" id="hdNew" href="<%= ResolveUrl("~/Builder") %>" title="Mở UI Builder với trang trắng"><span class="hd-icon" data-icon="plus"></span><span>Thiết kế mới</span></a>
                         </div>
                     </div>
 
-                    <div class="nav-section">
-                        <div class="nav-section-title">Projects</div>
-                        <div class="nav-item nav-item-new-project" onclick="showNewProjectModal(); return false;" style="color: var(--primary-light); font-weight: 600;">
-                            <span class="icon">➕</span>
-                            <span>New Project</span>
+                    <div class="hd-toolbar">
+                        <div class="hd-search">
+                            <span class="hd-icon" data-icon="search"></span>
+                            <input type="text" class="ba-input" id="hdSearch" placeholder="Tìm theo tên, dự án, người tạo..." autocomplete="off" />
                         </div>
-                        <div class="nav-item" data-project="all" data-filter="all" onclick="selectProject('all'); return false;">
-                            <span class="icon">📂</span>
-                            <span>All Projects</span>
-                        </div>
-                        <div id="projectsList">
-                            <!-- Projects will be loaded here -->
-                        </div>
-                    </div>
-                    
-                    <div class="nav-section">
-                        <div class="nav-section-title">Team</div>
-                        <div class="nav-item" data-filter="drafts">
-                            <span class="icon">📄</span>
-                            <span>Drafts</span>
-                        </div>
-                        <div class="nav-item" data-filter="starred">
-                            <span class="icon">⭐</span>
-                            <span>Starred</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Main Content -->
-            <div class="main-content">
-                <!-- Top Bar -->
-                <div class="top-bar">
-                    <div class="top-bar-title">Recents</div>
-                    <div class="top-bar-actions">
-                        <asp:HyperLink ID="lnkBuilder" runat="server" CssClass="btn btn-primary btn-sm" NavigateUrl="~/Builder" Text="+ New empty page" />
-
-                        <button class="theme-switcher" id="themeSwitcher" onclick="toggleTheme(event)">
-                            <span class="theme-switcher-icon" id="themeIcon">🌙</span>
-                            <span id="themeText">Dark</span>
-                        </button>
-
-                        <div class="user-menu">
-                            <button class="user-menu-trigger" type="button" id="userMenuTrigger" onclick="toggleUserMenu(event); return false;">
-                                <div class="user-avatar">
-                                    <asp:Literal ID="litUserInitial" runat="server" />
-                    </div>
-                                <asp:Literal ID="litUserName" runat="server" />
-                                <span>▼</span>
-                            </button>
-                            <div class="user-menu-dropdown" id="userMenuDropdown">
-                                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('security'); return false;">🔒 Change Password</a>
-                                <a href="#" class="menu-item" onclick="closeUserMenu(); showAccountModal('account'); return false;">⚙️ Account Settings</a>
-                                <div class="menu-item" style="border-top: 1px solid var(--border); margin-top: 0.25rem; padding-top: 0.75rem;">
-                                    <a href="~/Login?logout=1" runat="server" style="color: inherit; text-decoration: none;" onclick="closeUserMenu();">🚪 Logout</a>
-                </div>
+                        <div class="hd-pop-wrap" id="hdProjectWrap">
+                            <button type="button" class="ba-input hd-pop-btn" id="hdProjectBtn" title="Lọc theo dự án" aria-haspopup="true" aria-expanded="false"><span id="hdProjectLabel">Tất cả dự án</span><span class="hd-icon" data-icon="caret"></span></button>
+                            <div class="hd-pop" id="hdProjectPop">
+                                <div class="hd-pop-search"><input type="text" class="ba-input" id="hdProjectSearch" placeholder="Tìm dự án..." autocomplete="off" /></div>
+                                <div class="hd-pop-list" id="hdProjectList"></div>
+                                <div class="hd-pop-foot"><button type="button" class="ba-btn ba-btn-secondary" id="hdProjectNew"><span class="hd-icon" data-icon="plus"></span><span>Dự án mới</span></button></div>
                             </div>
                         </div>
-            </div>
-        </div>
-
-                <!-- Content Area -->
-                <div class="content-area">
-                    <!-- My Designs Section -->
-                    <div class="section" id="my-designs-section">
-                        <div class="section-header">
-                    <div>
-                                <div class="section-title">My designs</div>
-                                <div class="section-subtitle">Double-click thumbnail to preview full size</div>
+                        <select class="ba-input" id="hdVisibility" title="Lọc theo trạng thái chia sẻ">
+                            <option value="all">Mọi trạng thái</option>
+                            <option value="public">Công khai</option>
+                            <option value="private">Riêng tư</option>
+                        </select>
+                        <select class="ba-input" id="hdSort" title="Sắp xếp">
+                            <option value="date-desc">Mới sửa trước</option>
+                            <option value="date-asc">Cũ nhất trước</option>
+                            <option value="name-asc">Tên A đến Z</option>
+                            <option value="name-desc">Tên Z đến A</option>
+                            <option value="type-asc">Theo loại</option>
+                            <option value="owner-asc" id="hdSortOwner">Theo người tạo</option>
+                        </select>
+                        <span class="hd-result" id="hdResult"></span>
+                        <div class="hd-view" id="hdView">
+                            <button type="button" class="hd-view-btn active" data-view="grid" title="Xem dạng lưới"><span class="hd-icon" data-icon="grid"></span></button>
+                            <button type="button" class="hd-view-btn" data-view="table" title="Xem dạng danh sách"><span class="hd-icon" data-icon="list"></span></button>
+                        </div>
                     </div>
-                            <!-- Toolbar: Filter, Sort, View Toggle -->
-                            <div class="section-toolbar">
-                                <div class="toolbar-group">
-                                    <span class="toolbar-label">🔍 Search:</span>
-                                    <input type="text" class="toolbar-search" id="searchMyDesigns" placeholder="Search by name..." />
-                </div>
-                                <div class="toolbar-group">
-                                    <span class="toolbar-label">Filter:</span>
-                                    <select class="toolbar-select" id="filterMyDesigns">
-                                        <option value="all">All</option>
-                                        <option value="public">Public</option>
-                                        <option value="private">Private</option>
-                                    </select>
-                </div>
-                                <div class="toolbar-group">
-                                    <span class="toolbar-label">Project:</span>
-                                    <div class="custom-multiselect" id="projectFilterWrapper">
-                                        <button type="button" class="custom-multiselect-btn" id="projectFilterBtn">
-                                            <span class="filter-text">All Projects</span>
-                                            <span class="filter-count" style="display: none;"></span>
-                                            <span class="filter-arrow">▼</span>
-                                        </button>
-                                        <div class="custom-multiselect-dropdown" id="projectFilterDropdown">
-                                            <div class="multiselect-search">
-                                                <input type="text" placeholder="Search projects..." id="projectFilterSearch" />
-                                            </div>
-                                            <div class="multiselect-options" id="projectFilterOptions">
-                                                <label class="multiselect-option" data-value="all">
-                                                    <input type="checkbox" value="all" checked />
-                                                    <span>All Projects</span>
-                                                </label>
-                                                <label class="multiselect-option" data-value="null">
-                                                    <input type="checkbox" value="null" />
-                                                    <span>Uncategorized</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                                    </div>
-                </div>
-                                <div class="toolbar-group">
-                                    <span class="toolbar-label">Sort by:</span>
-                                    <select class="toolbar-select" id="sortMyDesigns">
-                                        <option value="date-desc">Date (Newest)</option>
-                                        <option value="date-asc">Date (Oldest)</option>
-                                        <option value="name-asc">Name (A-Z)</option>
-                                        <option value="name-desc">Name (Z-A)</option>
-                                        <option value="type-asc">Type (A-Z)</option>
-                                    </select>
-                                </div>
-                                <div class="toolbar-group">
-                                    <div class="view-toggle">
-                                        <button type="button" class="view-toggle-btn active" data-view="grid" data-section="my-designs" title="Grid view">
-                                            <span>⊞</span>
-                                        </button>
-                                        <button type="button" class="view-toggle-btn" data-view="table" data-section="my-designs" title="Table view">
-                                            <span>☰</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Grid View -->
-                        <div class="designs-grid" id="my-designs-grid">
-                            <asp:Repeater ID="rpMyDesigns" runat="server" OnItemCommand="rpMyDesigns_ItemCommand">
-                                    <ItemTemplate>
-                                    <div class="design-card" 
-                                         data-id='<%# Eval("ControlId") %>'
-                                         data-name='<%# Eval("Name") %>'
-                                         data-type='<%# Eval("ControlType") %>'
-                                         data-public='<%# (bool)Eval("IsPublic") ? "true" : "false" %>'
-                                         data-date='<%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm:ss}") %>'
-                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'
-                                         data-project-id='<%# Eval("ProjectId") != DBNull.Value ? Eval("ProjectId") : "" %>'
-                                         data-project-name='<%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %>'>
-                                                <img src='<%# Eval("ThumbnailUrl") %>'
-                                             class="design-card-thumb js-preview-thumb" 
-                                             alt='<%# Eval("Name") %>'
-                                                     data-full='<%# Eval("ThumbnailUrl") %>' />
-                                        <div class="design-card-body">
-                                            <a href='<%# Eval("EditUrl") %>' class="design-card-title">
-                                                    <%# Eval("Name") %>
-                                            </a>
-                                            <div class="design-card-meta">
-                                                    <%# Eval("ControlType") %> ·
-                                                <span class='<%# (bool)Eval("IsPublic") ? "badge badge-public" : "badge badge-private" %>'>
-                                                        <%# (bool)Eval("IsPublic") ? "Public" : "Private" %>
-                                                    </span>
-                                                <span class="project-badge" data-project-id='<%# Eval("ProjectId") != DBNull.Value ? Eval("ProjectId") : "" %>' style="display: none;">
-                                                    · <span class="badge badge-project"><%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %></span>
-                                                </span>
-                                                <br />
-                                                <small>Updated: <%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></small>
-                                            </div>
-                                            <div class="design-card-actions">
-                                                <a href='<%# Eval("EditUrl") %>' class="btn btn-sm btn-primary" style="flex: 1;">
-                                                        Edit
-                                                    </a>
-                                                    <asp:LinkButton ID="btnDelete" runat="server"
-                                                    CssClass="btn btn-sm btn-danger"
-                                                        CommandName="Delete"
-                                                        CommandArgument='<%# Eval("ControlId") %>'
-                                                        OnClientClick="handleDeleteDesign(this); return false;">
-                                                    🗑️
-                                                    </asp:LinkButton>
-                                                    <asp:PlaceHolder runat="server" Visible='<%# (bool)Eval("IsPublic") %>'>
-                                                        <button type="button"
-                                                            class="btn btn-sm btn-warning btn-toggle-public"
-                                                                data-id='<%# Eval("ControlId") %>'
-                                                            data-next="false"
-                                                            title="Make private">
-                                                        🔒
-                                                        </button>
-                                                    </asp:PlaceHolder>
-                                                    <asp:PlaceHolder runat="server" Visible='<%# !(bool)Eval("IsPublic") %>'>
-                                                        <button type="button"
-                                                            class="btn btn-sm btn-success btn-toggle-public"
-                                                                data-id='<%# Eval("ControlId") %>'
-                                                            data-next="true"
-                                                            title="Make public">
-                                                        🌐
-                                                        </button>
-                                                    </asp:PlaceHolder>
-                                                </div>
-                                        </div>
-                                    </div>
-                                    </ItemTemplate>
-                                </asp:Repeater>
-                        </div>
-                        <!-- Table View -->
-                        <div class="designs-table-container" id="my-designs-table">
-                            <table class="designs-table">
+
+                    <div class="hd-body" id="hdBody">
+                        <div class="hd-grid" id="hdGrid"></div>
+                        <div class="ba-table-wrap" id="hdTableWrap">
+                            <table class="ba-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 100px;">Preview</th>
-                                        <th>Name</th>
-                                        <th style="width: 120px;">Type</th>
-                                        <th style="width: 100px;">Status</th>
-                                        <th style="width: 150px;">Project</th>
-                                        <th style="width: 160px;">Updated</th>
-                                        <th style="width: 200px;">Actions</th>
+                                        <th>Ảnh</th>
+                                        <th>Tên thiết kế</th>
+                                        <th>Loại</th>
+                                        <th id="hdColState">Trạng thái</th>
+                                        <th id="hdColOwner">Người tạo</th>
+                                        <th>Dự án</th>
+                                        <th>Sửa lần cuối</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
-                                <tbody id="my-designs-table-body">
-                                    <!-- Table rows will be generated by JavaScript -->
-                            </tbody>
-                        </table>
-                </div>
-            </div>
-
-                    <!-- Public Designs Section -->
-                    <div class="section" id="public-designs-section" style="display: none;">
-                        <div class="section-header">
-                    <div>
-                                <div class="section-title">Public designs</div>
-                                <div class="section-subtitle">(clone only)</div>
-                    </div>
-                            <!-- Toolbar: Filter, Sort, View Toggle -->
-                            <div class="section-toolbar">
-                                <div class="toolbar-group">
-                                    <span class="toolbar-label">🔍 Search:</span>
-                                    <input type="text" class="toolbar-search" id="searchPublicDesigns" placeholder="Search by name..." />
-                </div>
-                                <div class="toolbar-group">
-                                    <span class="toolbar-label">Sort by:</span>
-                                    <select class="toolbar-select" id="sortPublicDesigns">
-                                        <option value="date-desc">Date (Newest)</option>
-                                        <option value="date-asc">Date (Oldest)</option>
-                                        <option value="name-asc">Name (A-Z)</option>
-                                        <option value="name-desc">Name (Z-A)</option>
-                                        <option value="type-asc">Type (A-Z)</option>
-                                        <option value="owner-asc">Owner (A-Z)</option>
-                                    </select>
-                </div>
-                                <div class="toolbar-group">
-                                    <div class="view-toggle">
-                                        <button type="button" class="view-toggle-btn active" data-view="grid" data-section="public-designs" title="Grid view">
-                                            <span>⊞</span>
-                                        </button>
-                                        <button type="button" class="view-toggle-btn" data-view="table" data-section="public-designs" title="Table view">
-                                            <span>☰</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
+                                <tbody id="hdRows"></tbody>
+                            </table>
                         </div>
-                        <!-- Grid View -->
-                        <div class="designs-grid" id="public-designs-grid">
-                                <asp:Repeater ID="rpPublicDesigns" runat="server">
-                                    <ItemTemplate>
-                                    <div class="design-card"
-                                         data-id='<%# Eval("ControlId") %>'
-                                         data-name='<%# Eval("Name") %>'
-                                         data-type='<%# Eval("ControlType") %>'
-                                         data-owner='<%# Eval("OwnerName") %>'
-                                         data-date='<%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm:ss}") %>'
-                                         data-timestamp='<%# ((DateTime)Eval("UpdatedAt")).Ticks %>'
-                                         data-project-id='<%# Eval("ProjectId") != DBNull.Value ? Eval("ProjectId") : "" %>'
-                                         data-project-name='<%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %>'>
-                                        <img src='<%# Eval("ThumbnailUrl") %>' 
-                                             class="design-card-thumb" 
-                                             alt='<%# Eval("Name") %>' />
-                                        <div class="design-card-body">
-                                            <div class="design-card-title" style="cursor: default;">
-                                                <%# Eval("Name") %>
-                                            </div>
-                                            <div class="design-card-meta">
-                                                <%# Eval("ControlType") %> · Owner: <%# Eval("OwnerName") %>
-                                                <span class="project-badge">
-                                                    · <span class="badge badge-project"><%# Eval("ProjectName") != null ? Eval("ProjectName") : "Uncategorized" %></span>
-                                                </span>
-                                                <br />
-                                                <small>Updated: <%# Eval("UpdatedAt", "{0:yyyy-MM-dd HH:mm}") %></small>
-                                            </div>
-                                            <div class="design-card-actions">
-                                                <a href='<%# Eval("CloneUrl") %>' class="btn btn-sm btn-primary" style="flex: 1;">
-                                                    Clone
-                                                </a>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    </ItemTemplate>
-                                </asp:Repeater>
-                        </div>
-                        <!-- Table View -->
-                        <div class="designs-table-container" id="public-designs-table">
-                            <table class="designs-table">
-                                <thead>
-                                    <tr>
-                                        <th style="width: 100px;">Preview</th>
-                                        <th>Name</th>
-                                        <th style="width: 120px;">Type</th>
-                                        <th style="width: 120px;">Owner</th>
-                                        <th style="width: 150px;">Project</th>
-                                        <th style="width: 150px;">Updated</th>
-                                        <th style="width: 120px;">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="public-designs-table-body">
-                                    <!-- Table rows will be generated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-        </div>
-        </div>
-        </asp:Panel>
-
-        <!-- Modal Preview -->
-    <div class="modal fade" id="previewModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-xl modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-                        <h5 class="modal-title">Design preview</h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-          <div class="modal-body text-center">
-            <img id="imgDesignPreview" src="" alt="preview" />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Account Settings Modal (Figma Style) -->
-    <div class="account-modal" id="accountModal">
-        <div class="account-modal-content">
-            <div class="account-modal-header">
-                <h3 class="account-modal-title">Account Settings</h3>
-                <button type="button" class="account-modal-close" onclick="hideAccountModal(); return false;">×</button>
-            </div>
-            <div class="account-modal-tabs">
-                <button class="account-modal-tab active" data-tab="account" onclick="switchAccountTab(event, 'account')">Account</button>
-                <button class="account-modal-tab" data-tab="security" onclick="switchAccountTab(event, 'security')">Security</button>
-            </div>
-            <div class="account-modal-body">
-                <!-- Account Tab -->
-                <div id="accountTabContent" class="account-tab-content">
-                    <div class="account-profile-header">
-                        <div class="account-avatar-container" id="accountAvatarContainer">
-                            <div class="account-avatar" id="accountAvatar"></div>
-                            <button type="button" class="account-avatar-remove-btn" id="avatarRemove" title="Remove avatar">🗑</button>
-                            <label for="avatarUpload" class="account-avatar-upload-btn" title="Upload avatar">
-                                <input type="file" id="avatarUpload" accept="image/*" style="display: none;" />
-                                <span>📷</span>
-                            </label>
-                        </div>
-                        <div class="account-profile-info">
-                            <div class="account-profile-name" id="accountFullName"></div>
-                            <div class="account-field-value" id="accountEmail"></div>
-                        </div>
-                    </div>
-
-                    <div class="account-section">
-                        <div class="account-section-title">Account Information</div>
-                        <div class="account-field">
-                            <span class="account-field-label">User ID</span>
-                            <span class="account-field-value" id="accountUserId"></span>
-                        </div>
-                        <div class="account-field">
-                            <span class="account-field-label">Username</span>
-                            <span class="account-field-value" id="accountUserName"></span>
-                        </div>
-                        <div class="account-field">
-                            <span class="account-field-label">Full Name</span>
-                            <span class="account-field-value" id="accountFullName2"></span>
-                        </div>
-                        <div class="account-field">
-                            <span class="account-field-label">Email</span>
-                            <span class="account-field-value" id="accountEmail2"></span>
-                        </div>
-                        <div class="account-field">
-                            <span class="account-field-label">Role</span>
-                            <span class="account-field-value" id="accountRole"></span>
-                        </div>
-                        <div class="account-field">
-                            <span class="account-field-label">Status</span>
-                            <span class="account-field-value" id="accountStatus"></span>
+                        <div class="ba-empty-state hd-empty" id="hdEmpty">
+                            <span class="hd-icon" id="hdEmptyIcon"></span>
+                            <div class="hd-empty-title" id="hdEmptyTitle"></div>
+                            <div id="hdEmptyText"></div>
+                            <div class="hd-empty-actions" id="hdEmptyActions"></div>
                         </div>
                     </div>
                 </div>
+            </main>
+        </div>
 
-                <!-- Security Tab -->
-                <div id="securityTabContent" class="account-tab-content" style="display: none;">
-                    <div class="account-section">
-                        <div class="account-section-title">Change Password</div>
-                        <form id="changePasswordForm">
-                            <div class="account-form-group">
-                                <label class="account-form-label" for="txtModalCurrentPassword">Current Password</label>
-                                <input type="password" id="txtModalCurrentPassword" class="account-form-input" />
-                            </div>
-                            <div class="account-form-group">
-                                <label class="account-form-label" for="txtModalNewPassword">New Password</label>
-                                <input type="password" id="txtModalNewPassword" class="account-form-input" />
-                            </div>
-                            <div class="account-form-group">
-                                <label class="account-form-label" for="txtModalConfirmPassword">Confirm New Password</label>
-                                <input type="password" id="txtModalConfirmPassword" class="account-form-input" />
-                            </div>
-                            <div class="account-form-group">
-                                <button type="button" class="btn btn-primary" onclick="changePassword()">Change Password</button>
-                            </div>
-                            <div id="passwordMessage" style="margin-top: 1rem; display: none;"></div>
-                        </form>
+        <div id="hdPreview" class="ba-modal hd-preview">
+            <div class="ba-modal-content">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title" id="hdPreviewTitle" translate="no"></h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" data-close="hdPreview" aria-label="Đóng">&times;</button>
+                </div>
+                <div class="ba-modal-body" id="hdPreviewBody"></div>
+            </div>
+        </div>
+
+        <div id="hdProjectModal" class="ba-modal">
+            <div class="ba-modal-content">
+                <div class="ba-modal-header">
+                    <h3 class="ba-modal-title">Dự án mới</h3>
+                    <button type="button" class="ba-btn ba-btn-secondary ba-modal-close" data-close="hdProjectModal" aria-label="Đóng">&times;</button>
+                </div>
+                <div class="ba-modal-body hd-form">
+                    <div class="ba-form-group">
+                        <label class="ba-form-label" for="hdProjectName">Tên dự án</label>
+                        <input type="text" class="ba-input" id="hdProjectName" maxlength="100" placeholder="Ví dụ: Chấm công 2026" autocomplete="off" />
                     </div>
+                    <div class="ba-form-group">
+                        <label class="ba-form-label" for="hdProjectDescription">Mô tả</label>
+                        <textarea class="ba-input" id="hdProjectDescription" rows="3" maxlength="500" placeholder="Không bắt buộc"></textarea>
+                    </div>
+                    <div class="hd-form-error" id="hdProjectError"></div>
+                </div>
+                <div class="ba-modal-footer">
+                    <button type="button" class="ba-btn ba-btn-secondary" data-close="hdProjectModal">Hủy</button>
+                    <button type="button" class="ba-btn ba-btn-primary" id="hdProjectCreate">Tạo dự án</button>
                 </div>
             </div>
         </div>
-    </div>
     </form>
-
-    <!-- New Project Modal -->
-    <div id="newProjectModal" class="account-modal" style="display: none;">
-        <div class="account-modal-content" style="max-width: 500px;">
-            <div class="account-modal-header">
-                <h2 style="font-size: 1.25rem;">New Project</h2>
-                <button type="button" class="account-modal-close" onclick="hideNewProjectModal()">&times;</button>
-            </div>
-            <div class="account-modal-body">
-                <div class="account-form-group">
-                    <label class="account-form-label" for="txtProjectName">Project Name *</label>
-                    <input type="text" id="txtProjectName" class="account-form-input" placeholder="Enter project name..." />
-                </div>
-                <div class="account-form-group">
-                    <label class="account-form-label" for="txtProjectDescription">Description</label>
-                    <textarea id="txtProjectDescription" class="account-form-input" rows="5" style="min-height: 120px; resize: vertical;" placeholder="Optional description..."></textarea>
-                </div>
-                <div id="projectMessage" style="margin-top: 1rem; display: none;"></div>
-            </div>
-            <div class="account-modal-footer" style="justify-content: center; gap: 0.75rem;">
-                <button type="button" class="btn btn-primary" onclick="createProject()">Create Project</button>
-                <button type="button" class="btn btn-secondary" onclick="hideNewProjectModal()">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Confirmation Modal -->
-    <div id="confirmModal" class="confirm-modal" style="display: none;">
-        <div class="confirm-modal-content">
-            <div class="confirm-modal-header">
-                <h3 id="confirmModalTitle">Confirm</h3>
-            </div>
-            <div class="confirm-modal-body">
-                <p id="confirmModalMessage"></p>
-            </div>
-            <div class="confirm-modal-footer">
-                <button type="button" class="btn btn-secondary" id="confirmModalCancel">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmModalOk">OK</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Toast Container -->
-    <div id="toastContainer" class="toast-container"></div>
-
     <script>
-        // ===== Delete design (grid card) - dùng baConfirm thay cho confirm native =====
-        function handleDeleteDesign(linkBtn) {
-            if (typeof baConfirm === 'function') {
-                baConfirm('Delete this design?', function() {
-                    var h = (linkBtn.getAttribute('href') || '');
-                    if (h.indexOf('__doPostBack') >= 0) eval(h.replace('javascript:', ''));
-                }, null, 'OK', 'Cancel');
+        (function () {
+            var SERVICE = '<%= ResolveUrl("~/Pages/Home.aspx") %>';
+            var PROJECT_SERVICE = '<%= ResolveUrl("~/Pages/Builder.aspx") %>';
+            var BUILDER = '<%= ResolveUrl("~/Builder") %>';
+            var VIEW_KEY = 'designs-view';
+            var NO_PROJECT = 'none';
+            var SKELETON_CARDS = 8;
+            var ICONS = {
+                search: '<circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>',
+                plus: '<path d="M8 3v10M3 8h10"/>',
+                grid: '<rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/>',
+                list: '<path d="M2.5 4h11M2.5 8h11M2.5 12h11"/>',
+                caret: '<path d="M8 10.7L1.3 4h13.4z" fill="currentColor" stroke="none"/>',
+                layout: '<rect x="2" y="2.5" width="12" height="11" rx="1.2"/><path d="M2 6h12M6.5 6v7.5"/>',
+                file: '<path d="M4 2h5.5L12 4.5V14H4z"/><path d="M9.5 2v2.5H12"/>',
+                image: '<rect x="2" y="3" width="12" height="10" rx="1.2"/><circle cx="5.6" cy="6.4" r="1.1"/><path d="M2.4 11.6l3.4-3 2.4 2 2.2-1.8 3.2 2.8"/>',
+                eye: '<path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/>',
+                globe: '<circle cx="8" cy="8" r="6"/><path d="M2 8h12M8 2c1.8 1.7 2.6 3.7 2.6 6S9.8 12.3 8 14c-1.8-1.7-2.6-3.7-2.6-6S6.2 3.7 8 2z"/>',
+                lock: '<rect x="3.5" y="7" width="9" height="6.5" rx="1.2"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/>',
+                trash: '<path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5M6.8 7v4M9.2 7v4"/>',
+                copy: '<rect x="5.5" y="5.5" width="8" height="8" rx="1.2"/><path d="M3.5 10.5h-1v-8h8v1"/>',
+                folder: '<path d="M2 4.5a1 1 0 011-1h3l1.5 1.5H13a1 1 0 011 1v6a1 1 0 01-1 1H3a1 1 0 01-1-1z"/>',
+                user: '<circle cx="8" cy="5.5" r="2.5"/><path d="M3 13.5c.6-2.6 2.6-4 5-4s4.4 1.4 5 4"/>',
+                alert: '<path d="M8 2.5l6 10.5H2z"/><path d="M8 6.5v3M8 11.3v.2"/>'
+            };
+            var TYPE_LABELS = { page: 'Trang' };
+            var state = { scope: 'mine', view: 'grid', status: 'loading', message: '', search: '', visibility: 'all', sort: 'date-desc', projects: null, mine: [], shared: [], projectList: [] };
+
+            function call(base, method, payload) {
+                return $.ajax({
+                    url: base + '/' + method,
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    dataType: 'json',
+                    data: JSON.stringify(payload || {})
+                }).then(function (res) { return res && res.d !== undefined ? res.d : res; });
             }
-        }
 
-        // ===== Project Management =====
-        var currentProjectId = null; // null = all projects
+            function toast(message, type) { BaToast.show(message, type || 'info'); }
 
-        function loadProjects() {
-            $.ajax({
-                url: '<%= ResolveUrl("~/Pages/Builder.aspx/GetProjects") %>',
-                type: "POST",
-                contentType: "application/json; charset=utf-8",
-                dataType: "json",
-                data: "{}",
-                success: function(res) {
-                    var projects = res.d || res || [];
-                    var $projectsList = $('#projectsList');
-                    $projectsList.empty();
-                    
-                    // Update project filter dropdown
-                    var $projectFilterOptions = $('#projectFilterOptions');
-                    if ($projectFilterOptions.length) {
-                        // Find Uncategorized project ID
-                        var uncategorizedProjectId = null;
-                        projects.forEach(function(p) {
-                            if ((p.name || '').toLowerCase() === 'uncategorized') {
-                                uncategorizedProjectId = p.projectId;
-                            }
-                        });
-                        
-                        // Keep "All Projects" option, remove others
-                        $projectFilterOptions.find('label:not([data-value="all"])').remove();
-                        
-                        // Add all project options (including Uncategorized)
-                        projects.forEach(function(p) {
-                            var projectName = (p.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                            var projectId = p.projectId;
-                            var designCount = p.designCount || 0;
-                            var $option = $('<label class="multiselect-option" data-value="' + projectId + '">' +
-                                '<input type="checkbox" value="' + projectId + '" />' +
-                                '<span>' + projectName + ' <small style="color: var(--text-muted);">(' + designCount + ')</small></span>' +
-                                '</label>');
-                            $projectFilterOptions.append($option);
-                        });
-                        
-                        // Add "Uncategorized" option for NULL ProjectId designs (if Uncategorized project exists, use its ID; otherwise use "null")
-                        var uncategorizedValue = uncategorizedProjectId || 'null';
-                        var $uncategorizedOption = $projectFilterOptions.find('label[data-value="' + uncategorizedValue + '"]');
-                        if (!$uncategorizedOption.length) {
-                            // If Uncategorized project doesn't exist in list, add option for NULL ProjectId
-                            var $uncategorized = $('<label class="multiselect-option" data-value="null">' +
-                                '<input type="checkbox" value="null" />' +
-                                '<span>Uncategorized</span>' +
-                                '</label>');
-                            $projectFilterOptions.append($uncategorized);
-                        }
-                        
-                        // If "All Projects" is selected in sidebar, check all projects in dropdown
-                        if (currentProjectId === null || currentProjectId === undefined || currentProjectId === 'all') {
-                            $projectFilterOptions.find('input[type="checkbox"]').prop('checked', true);
-                        }
-                    }
-                    
-                    // Update filter button text
-                    updateProjectFilterButton();
-                    
-                    if (projects.length === 0) {
-                        // Show message if no projects
-                        $projectsList.html('<div style="padding: 0.5rem 1rem; color: var(--text-muted); font-size: 0.75rem;">No projects yet</div>');
+            function byId(id) { return document.getElementById(id); }
+
+            function el(tag, className, text) {
+                var node = document.createElement(tag);
+                if (className) node.className = className;
+                if (text != null) node.textContent = text;
+                return node;
+            }
+
+            function data(tag, className, text) {
+                var node = el(tag, className, text);
+                node.setAttribute('translate', 'no');
+                return node;
+            }
+
+            function fillIcon(node, name) {
+                node.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">' + (ICONS[name] || '') + '</svg>';
+                return node;
+            }
+
+            function icon(name) { return fillIcon(el('span', 'hd-icon'), name); }
+
+            function iconButton(name, title, className, onClick) {
+                var button = el('button', 'hd-act' + (className ? ' ' + className : ''));
+                button.type = 'button';
+                button.title = title;
+                button.setAttribute('aria-label', title);
+                button.appendChild(icon(name));
+                button.addEventListener('click', onClick);
+                return button;
+            }
+
+            function noImage() {
+                var node = el('span', 'hd-noimg');
+                node.appendChild(icon('image'));
+                node.appendChild(el('span', 'hd-noimg-text', 'Chưa có ảnh xem trước'));
+                return node;
+            }
+
+            function image(item) {
+                if (!item.Thumb) return noImage();
+                var img = el('img');
+                img.alt = '';
+                img.loading = 'lazy';
+                img.src = item.Thumb;
+                img.addEventListener('error', function () {
+                    if (img.parentNode) img.parentNode.replaceChild(noImage(), img);
+                });
+                return img;
+            }
+
+            function typeLabel(item) { return TYPE_LABELS[item.Type] || item.Type; }
+            function projectKey(item) { return item.ProjectId == null ? NO_PROJECT : String(item.ProjectId); }
+            function editUrl(item) { return BUILDER + '?controlId=' + item.Id; }
+            function cloneUrl(item) { return BUILDER + '?cloneId=' + item.Id; }
+            function isMineScope() { return state.scope === 'mine'; }
+
+            function haystack(item) {
+                return [item.Name, item.ProjectName, item.Owner, item.Type, item.Updated].join(' ').toLowerCase();
+            }
+
+            function byText(a, b) { return String(a).localeCompare(String(b), 'vi', { sensitivity: 'base' }); }
+            function newestFirst(a, b) { return b.UpdatedOrder - a.UpdatedOrder; }
+
+            var SORTERS = {
+                'date-desc': newestFirst,
+                'date-asc': function (a, b) { return a.UpdatedOrder - b.UpdatedOrder; },
+                'name-asc': function (a, b) { return byText(a.Name, b.Name) || newestFirst(a, b); },
+                'name-desc': function (a, b) { return byText(b.Name, a.Name) || newestFirst(a, b); },
+                'type-asc': function (a, b) { return byText(a.Type, b.Type) || newestFirst(a, b); },
+                'owner-asc': function (a, b) { return byText(a.Owner, b.Owner) || newestFirst(a, b); }
+            };
+
+            function visibleItems() {
+                var mine = isMineScope();
+                var text = state.search;
+                return state[state.scope].filter(function (item) {
+                    if (mine && state.visibility === 'public' && !item.IsPublic) return false;
+                    if (mine && state.visibility === 'private' && item.IsPublic) return false;
+                    if (mine && state.projects && !state.projects[projectKey(item)]) return false;
+                    return !text || haystack(item).indexOf(text) >= 0;
+                }).sort(SORTERS[state.sort] || newestFirst);
+            }
+
+            function hasFilter() {
+                return !!state.search || (isMineScope() && (state.visibility !== 'all' || !!state.projects));
+            }
+
+            function clearFilters() {
+                state.search = '';
+                state.visibility = 'all';
+                state.projects = null;
+                byId('hdSearch').value = '';
+                byId('hdVisibility').value = 'all';
+                renderProjects();
+                render();
+            }
+
+            function stateChip(item) {
+                return el('span', 'hd-chip ' + (item.IsPublic ? 'hd-chip-public' : 'hd-chip-private'), item.IsPublic ? 'Công khai' : 'Riêng tư');
+            }
+
+            function projectLabel(item) {
+                return item.ProjectName ? data('span', null, item.ProjectName) : el('span', null, 'Chưa chọn dự án');
+            }
+
+            function ownerLabel(item) {
+                return item.IsMine ? el('span', null, 'Bạn') : data('span', null, item.Owner);
+            }
+
+            function dateLabel(item) {
+                var node = el('span', 'hd-date');
+                node.title = 'Sửa lần cuối';
+                node.appendChild(data('span', null, item.Updated));
+                return node;
+            }
+
+            function actions(item) {
+                var box = el('div', 'hd-acts');
+                box.appendChild(iconButton('eye', 'Xem ảnh lớn', null, function () { openPreview(item); }));
+                if (isMineScope()) {
+                    box.appendChild(iconButton(item.IsPublic ? 'lock' : 'globe', item.IsPublic ? 'Chuyển thành riêng tư' : 'Chuyển thành công khai', null, function () { setPublic(item, !item.IsPublic); }));
+                    box.appendChild(iconButton('trash', 'Xóa thiết kế', 'hd-act-danger', function () { removeDesign(item); }));
+                }
+                return box;
+            }
+
+            function cloneLink(item) {
+                var link = el('a', 'ba-btn ba-btn-sm ba-btn-primary');
+                link.href = cloneUrl(item);
+                link.title = 'Tạo bản sao của thiết kế này trong UI Builder';
+                link.appendChild(icon('copy'));
+                link.appendChild(el('span', null, 'Nhân bản'));
+                return link;
+            }
+
+            function card(item) {
+                var mine = isMineScope();
+                var node = el('article', 'hd-card');
+                node.setAttribute('data-id', item.Id);
+
+                var thumb = el(mine ? 'a' : 'button', 'hd-thumb');
+                if (mine) thumb.href = editUrl(item);
+                else {
+                    thumb.type = 'button';
+                    thumb.addEventListener('click', function () { openPreview(item); });
+                }
+                thumb.appendChild(image(item));
+                var cta = el('span', 'hd-thumb-cta');
+                cta.appendChild(el('span', null, mine ? 'Mở thiết kế' : 'Xem ảnh lớn'));
+                thumb.appendChild(cta);
+                node.appendChild(thumb);
+
+                var body = el('div', 'hd-card-body');
+                var name = data(mine ? 'a' : 'div', 'hd-name', item.Name);
+                name.title = item.Name;
+                if (mine) name.href = editUrl(item);
+                body.appendChild(name);
+
+                var meta = el('div', 'hd-meta');
+                if (mine) meta.appendChild(stateChip(item));
+                if (item.Type !== 'page') meta.appendChild(data('span', 'hd-chip hd-chip-type', typeLabel(item)));
+                var project = el('span', 'hd-project');
+                project.appendChild(icon(mine ? 'folder' : 'user'));
+                if (mine) project.appendChild(projectLabel(item));
+                else project.appendChild(ownerLabel(item));
+                meta.appendChild(project);
+                body.appendChild(meta);
+
+                var foot = el('div', 'hd-foot');
+                foot.appendChild(dateLabel(item));
+                var right = actions(item);
+                if (!mine) right.appendChild(cloneLink(item));
+                foot.appendChild(right);
+                body.appendChild(foot);
+                node.appendChild(body);
+                return node;
+            }
+
+            function cell(child) {
+                var td = el('td');
+                td.appendChild(child);
+                return td;
+            }
+
+            function row(item) {
+                var mine = isMineScope();
+                var tr = el('tr');
+                tr.setAttribute('data-id', item.Id);
+
+                var thumb = el('button', 'hd-row-thumb');
+                thumb.type = 'button';
+                thumb.title = 'Xem ảnh lớn';
+                thumb.appendChild(image(item));
+                thumb.addEventListener('click', function () { openPreview(item); });
+                tr.appendChild(cell(thumb));
+
+                var name = data(mine ? 'a' : 'span', 'hd-name hd-row-name', item.Name);
+                name.title = item.Name;
+                if (mine) name.href = editUrl(item);
+                tr.appendChild(cell(name));
+                tr.appendChild(cell(TYPE_LABELS[item.Type] ? el('span', null, typeLabel(item)) : data('span', null, item.Type)));
+                tr.appendChild(cell(mine ? stateChip(item) : ownerLabel(item)));
+                tr.appendChild(cell(projectLabel(item)));
+                tr.appendChild(cell(dateLabel(item)));
+
+                var tools = el('div', 'hd-row-acts');
+                tools.appendChild(actions(item));
+                if (mine) {
+                    var open = el('a', 'ba-btn ba-btn-sm ba-btn-primary', 'Mở');
+                    open.href = editUrl(item);
+                    tools.appendChild(open);
+                } else {
+                    tools.appendChild(cloneLink(item));
+                }
+                tr.appendChild(cell(tools));
+                return tr;
+            }
+
+            function skeletonCard() {
+                var node = el('div', 'hd-card hd-skel');
+                node.appendChild(el('div', 'hd-thumb'));
+                var body = el('div', 'hd-card-body');
+                body.appendChild(el('div', 'hd-skel-line'));
+                body.appendChild(el('div', 'hd-skel-line short'));
+                node.appendChild(body);
+                return node;
+            }
+
+            function emptyAction(text, className, onClick, href) {
+                var node = el(href ? 'a' : 'button', 'ba-btn ' + className, text);
+                if (href) node.href = href;
+                else {
+                    node.type = 'button';
+                    node.addEventListener('click', onClick);
+                }
+                return node;
+            }
+
+            function showEmpty(iconName, title, text, buttons) {
+                fillIcon(byId('hdEmptyIcon'), iconName);
+                byId('hdEmptyTitle').textContent = title;
+                byId('hdEmptyText').textContent = text || '';
+                var host = byId('hdEmptyActions');
+                host.textContent = '';
+                (buttons || []).forEach(function (button) { host.appendChild(button); });
+                $('#hdEmpty').show();
+            }
+
+            function renderEmpty(total) {
+                if (state.status === 'error') {
+                    showEmpty('alert', state.message || 'Không tải được danh sách thiết kế.', 'Kiểm tra kết nối rồi thử lại.',
+                        [emptyAction('Thử lại', 'ba-btn-primary', function () { load(); })]);
+                } else if (total > 0) {
+                    showEmpty('search', 'Không có thiết kế nào khớp bộ lọc', 'Thử từ khóa khác hoặc bỏ bớt điều kiện lọc.',
+                        [emptyAction('Xóa bộ lọc', 'ba-btn-secondary', clearFilters)]);
+                } else if (isMineScope()) {
+                    showEmpty('layout', 'Bạn chưa có thiết kế nào', 'Tạo một thiết kế mới hoặc bắt đầu từ màn hình chuẩn của HRM.', [
+                        emptyAction('Từ màn hình chuẩn', 'ba-btn-secondary', openStandardScreens),
+                        emptyAction('Thiết kế mới', 'ba-btn-primary', null, BUILDER)
+                    ]);
+                } else {
+                    showEmpty('globe', 'Chưa có thiết kế công khai nào', 'Thiết kế được chuyển thành công khai sẽ hiện ở đây để mọi người nhân bản.');
+                }
+            }
+
+            function render() {
+                var mine = isMineScope();
+                var loading = state.status === 'loading';
+                var ready = state.status === 'ready';
+                var total = state[state.scope].length;
+                var list = ready ? visibleItems() : [];
+                var grid = byId('hdGrid');
+                var rows = byId('hdRows');
+                var showTable = state.view === 'table' && !loading;
+
+                $('#hdTabs .ba-tab').removeClass('active').filter('[data-scope="' + state.scope + '"]').addClass('active');
+                $('#hdCountMine').text(ready ? String(state.mine.length) : '');
+                $('#hdCountShared').text(ready ? String(state.shared.length) : '');
+                $('#hdProjectWrap, #hdVisibility').toggle(mine);
+                $('#hdSortOwner').prop('disabled', mine).prop('hidden', mine);
+                $('#hdColState').toggle(mine);
+                $('#hdColOwner').toggle(!mine);
+                $('#hdView .hd-view-btn').removeClass('active').filter('[data-view="' + state.view + '"]').addClass('active');
+                $('#hdResult').text(!ready ? '' : (list.length === total ? total + ' thiết kế' : 'Hiện ' + list.length + ' trên ' + total + ' thiết kế'));
+
+                grid.textContent = '';
+                rows.textContent = '';
+                $('#hdEmpty').hide();
+                if (loading) {
+                    for (var i = 0; i < SKELETON_CARDS; i++) grid.appendChild(skeletonCard());
+                } else if (!list.length) {
+                    renderEmpty(ready ? total : 0);
+                } else if (showTable) {
+                    list.forEach(function (item) { rows.appendChild(row(item)); });
+                } else {
+                    list.forEach(function (item) { grid.appendChild(card(item)); });
+                }
+                $(grid).toggle(loading || (!!list.length && !showTable));
+                $('#hdTableWrap').toggle(!!list.length && showTable);
+            }
+
+            function showLoadError(message) {
+                state.status = 'error';
+                state.message = message || '';
+                render();
+            }
+
+            function load(silent) {
+                if (!silent) {
+                    state.status = 'loading';
+                    render();
+                }
+                call(SERVICE, 'ListDesigns').done(function (d) {
+                    if (!d || !d.success) {
+                        if (!silent) showLoadError(d && d.message);
                         return;
                     }
-                    
-                    projects.forEach(function(p) {
-                        var projectName = (p.name || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-                        var $item = $('<div class="nav-item project-item" data-project="' + p.projectId + '" data-project-id="' + p.projectId + '" data-design-count="' + (p.designCount || 0) + '">' +
-                            '<span class="icon">📁</span>' +
-                            '<span class="project-name" onclick="selectProject(' + p.projectId + '); return false;">' + projectName + '</span>' +
-                            '<span class="project-count">' + (p.designCount || 0) + '</span>' +
-                            '<span class="project-delete" onclick="deleteProject(' + p.projectId + ', ' + (p.designCount || 0) + ', \'' + projectName + '\'); return false;" title="Delete project">🗑️</span>' +
-                            '</div>');
-                        $projectsList.append($item);
-                    });
-                    
-                    // Show project badges in cards when viewing "All Projects"
-                    updateProjectBadges();
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error loading projects:', error);
-                    var $projectsList = $('#projectsList');
-                    $projectsList.html('<div style="padding: 0.5rem 1rem; color: var(--danger); font-size: 0.75rem;">Error loading projects</div>');
-                }
-            });
-        }
+                    state.status = 'ready';
+                    state.mine = d.mine || [];
+                    state.shared = d.shared || [];
+                    renderProjects();
+                    render();
+                }).fail(function () {
+                    if (!silent) showLoadError();
+                });
+            }
 
-        function updateProjectBadges() {
-            // Show project badges when viewing "All Projects" (currentProjectId is null or 'all')
-            var showBadges = (currentProjectId === null || currentProjectId === 'all' || currentProjectId === undefined);
-            $('.project-badge').each(function() {
-                $(this).toggle(showBadges);
-            });
-        }
+            function reload() {
+                load(true);
+                loadProjects();
+            }
 
-        function initProjectFilter() {
-            var $btn = $('#projectFilterBtn');
-            var $dropdown = $('#projectFilterDropdown');
-            var $options = $('#projectFilterOptions');
-            var $search = $('#projectFilterSearch');
+            function openPreview(item) {
+                byId('hdPreviewTitle').textContent = item.Name;
+                var body = byId('hdPreviewBody');
+                body.textContent = '';
+                body.appendChild(image(item));
+                $('#hdPreview').addClass('show');
+            }
 
-            // Toggle dropdown
-            $btn.on('click', function(e) {
-                e.stopPropagation();
-                $dropdown.toggleClass('show');
-                $btn.toggleClass('active');
-                if ($dropdown.hasClass('show')) {
-                    $search.focus();
-                }
-            });
+            function setPublic(item, isPublic) {
+                call(SERVICE, 'SetDesignPublic', { controlId: item.Id, isPublic: isPublic }).done(function (d) {
+                    toast(d && d.message ? d.message : 'Không đổi được trạng thái chia sẻ.', d && d.success ? 'success' : 'error');
+                    reload();
+                }).fail(function () { toast('Không đổi được trạng thái chia sẻ.', 'error'); });
+            }
 
-            // Close dropdown when clicking outside
-            $(document).on('click', function(e) {
-                if (!$(e.target).closest('.custom-multiselect').length) {
-                    $dropdown.removeClass('show');
-                    $btn.removeClass('active');
-                }
-            });
+            function removeDesign(item) {
+                baConfirm('Xóa thiết kế "' + item.Name + '"? Thiết kế sẽ không còn trong danh sách của bạn.', function () {
+                    call(SERVICE, 'DeleteDesign', { controlId: item.Id }).done(function (d) {
+                        toast(d && d.message ? d.message : 'Không xóa được thiết kế.', d && d.success ? 'success' : 'error');
+                        reload();
+                    }).fail(function () { toast('Không xóa được thiết kế.', 'error'); });
+                }, null, 'Xóa thiết kế', 'Không');
+            }
 
-            // Handle checkbox changes
-            $options.on('change', 'input[type="checkbox"]', function() {
-                var $checkbox = $(this);
-                var value = $checkbox.val();
-                var $allCheckbox = $options.find('input[type="checkbox"][value="all"]');
-                var $otherCheckboxes = $options.find('input[type="checkbox"]:not([value="all"]):not([value="null"])');
-                var $uncategorizedCheckbox = $options.find('input[type="checkbox"][value="null"]');
+            function openStandardScreens() { builderTemplates.openGallery(); }
 
-                // Handle "All Projects" checkbox
-                if (value === 'all') {
-                    if ($checkbox.is(':checked')) {
-                        // Check all other projects (including Uncategorized)
-                        $options.find('input[type="checkbox"]:not([value="all"])').prop('checked', true);
+            function looseDesigns() {
+                return state.mine.filter(function (item) { return item.ProjectId == null; }).length;
+            }
+
+            function projectName(key) {
+                if (key === NO_PROJECT) return null;
+                var found = state.projectList.filter(function (p) { return String(p.projectId) === key; })[0];
+                return found ? found.name : null;
+            }
+
+            function toggleProject(key, checked) {
+                var selected = state.projects || {};
+                if (checked) selected[key] = true;
+                else delete selected[key];
+                state.projects = Object.keys(selected).length ? selected : null;
+                renderProjects();
+                render();
+            }
+
+            function projectOption(key, name, count, isData, canDelete) {
+                var label = el('label', 'hd-pop-item');
+                var box = el('input');
+                box.type = 'checkbox';
+                box.checked = key === null ? !state.projects : !!(state.projects && state.projects[key]);
+                box.addEventListener('change', function () {
+                    if (key === null) {
+                        state.projects = null;
+                        renderProjects();
+                        render();
                     } else {
-                        // Uncheck all others when "All Projects" is unchecked
-                        $options.find('input[type="checkbox"]:not([value="all"])').prop('checked', false);
+                        toggleProject(key, box.checked);
                     }
-                } else {
-                    // Handle individual project checkbox
-                    if ($checkbox.is(':checked')) {
-                        // Uncheck "All Projects" when any specific project is checked
-                        $allCheckbox.prop('checked', false);
-                        
-                        // Check if all projects (excluding "All Projects" and "Uncategorized") are checked
-                        var allProjectsChecked = $otherCheckboxes.length > 0 && 
-                            $otherCheckboxes.filter(':checked').length === $otherCheckboxes.length;
-                        
-                        // If all projects are checked, automatically check "All Projects" and Uncategorized
-                        if (allProjectsChecked) {
-                            $allCheckbox.prop('checked', true);
-                            // Also check Uncategorized when all projects are selected
-                            $uncategorizedCheckbox.prop('checked', true);
-                            // Keep all others checked
-                            $options.find('input[type="checkbox"]:not([value="all"])').prop('checked', true);
-                        }
-                    } else {
-                        // When unchecking a project, ensure "All Projects" is unchecked
-                        $allCheckbox.prop('checked', false);
-                    }
-                }
-
-                updateProjectFilterButton();
-                applyFilterAndSort('my-designs');
-            });
-
-            // Search filter
-            $search.on('input', function() {
-                var searchText = $(this).val().toLowerCase();
-                $options.find('.multiselect-option').each(function() {
-                    var $option = $(this);
-                    var text = $option.find('span').text().toLowerCase();
-                    $option.toggle(text.indexOf(searchText) !== -1);
                 });
-            });
-        }
-
-        function updateProjectFilterButton() {
-            var $btn = $('#projectFilterBtn');
-            var $text = $btn.find('.filter-text');
-            var $count = $btn.find('.filter-count');
-            var $options = $('#projectFilterOptions');
-            
-            var $allCheckbox = $options.find('input[type="checkbox"][value="all"]');
-            var checkedBoxes = $options.find('input[type="checkbox"]:checked');
-            var checkedValues = Array.from(checkedBoxes).map(function(cb) { return cb.value; });
-            
-            // If "All Projects" is checked, always show "All Projects" text
-            if ($allCheckbox.is(':checked')) {
-                $text.text('All Projects');
-                $count.hide();
-            } else if (checkedValues.length === 0) {
-                $text.text('All Projects');
-                $count.hide();
-            } else {
-                var count = checkedValues.length;
-                $text.text(count === 1 ? '1 project' : count + ' projects');
-                $count.text(count).show();
-            }
-        }
-
-        function showNewProjectModal() {
-            $('#newProjectModal').css('display', 'flex');
-            $('#txtProjectName').val('').focus();
-            $('#txtProjectDescription').val('');
-            $('#projectMessage').hide();
-        }
-
-        function hideNewProjectModal() {
-            $('#newProjectModal').css('display', 'none');
-        }
-
-        function createProject() {
-            var name = $('#txtProjectName').val().trim();
-            var description = $('#txtProjectDescription').val().trim();
-            
-            if (!name) {
-                showProjectMessage('Project name is required.', 'error');
-                return;
-            }
-
-            $.ajax({
-                url: '<%= ResolveUrl("~/Pages/Builder.aspx/CreateProject") %>',
-                type: "POST",
-                contentType: "application/json; charset=utf-8",
-                dataType: "json",
-                data: JSON.stringify({ name: name, description: description }),
-                success: function(res) {
-                    var result = res.d || res;
-                    if (result && result.success) {
-                        hideNewProjectModal();
-                        loadProjects();
-                        showToast('Project created successfully!', 'success');
-                        setTimeout(function() {
-                            if (result.projectId) {
-                                selectProject(result.projectId);
-                            }
-                        }, 300);
-                    } else {
-                        showProjectMessage(result && result.message ? result.message : 'Error creating project.', 'error');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Create project error:', xhr.responseText);
-                    var errorMsg = 'Error creating project.';
-                    try {
-                        var errorResponse = JSON.parse(xhr.responseText);
-                        if (errorResponse && errorResponse.Message) {
-                            errorMsg = errorResponse.Message;
-                        }
-                    } catch(e) {}
-                    showProjectMessage(errorMsg, 'error');
-                }
-            });
-        }
-
-        function showProjectMessage(msg, type) {
-            var $msg = $('#projectMessage');
-            $msg.removeClass('success error').addClass(type);
-            $msg.text(msg).show();
-        }
-
-        function selectProject(projectId) {
-            // Update active state - remove active from ALL nav items (including all project items)
-            $('.nav-item').removeClass('active');
-            $('.project-item').removeClass('active');
-            
-            // Normalize projectId
-            if (projectId === 'all' || projectId === null || projectId === undefined) {
-                // Select "All Projects"
-                $('.nav-item[data-project="all"]').addClass('active');
-                currentProjectId = null;
-            } else {
-                // Select specific project - ensure projectId is a number
-                var pid = parseInt(projectId);
-                if (!isNaN(pid)) {
-                    $('.nav-item[data-project="' + pid + '"]').addClass('active');
-                    currentProjectId = pid;
-                } else {
-                    // Invalid projectId, default to "All Projects"
-                    $('.nav-item[data-project="all"]').addClass('active');
-                    currentProjectId = null;
-                }
-            }
-            
-            // Update top bar title
-            var projectName = (currentProjectId === null) ? 'All Projects' : 
-                $('.nav-item[data-project="' + currentProjectId + '"] .project-name').text();
-            $('.top-bar-title').text(projectName);
-            
-            // Show/hide project filter based on selection
-            var $projectFilterWrapper = $('#projectFilterWrapper').closest('.toolbar-group');
-            if (currentProjectId === null || currentProjectId === undefined || currentProjectId === 'all') {
-                // Show project filter when "All Projects" is selected
-                if ($projectFilterWrapper.length) {
-                    $projectFilterWrapper.show();
-                }
-                
-                // Reset and check all projects in dropdown
-                var $projectFilterOptions = $('#projectFilterOptions');
-                if ($projectFilterOptions.length) {
-                    // Check all projects including "All Projects" and Uncategorized
-                    $projectFilterOptions.find('input[type="checkbox"]').prop('checked', true);
-                    updateProjectFilterButton();
-                }
-            } else {
-                // Hide project filter when specific project is selected
-                if ($projectFilterWrapper.length) {
-                    $projectFilterWrapper.hide();
-                }
-            }
-            
-            // Update project badges visibility
-            updateProjectBadges();
-            
-            // Apply filter
-            applyFilterAndSort('my-designs');
-        }
-
-        // ===== Confirmation Modal Functions =====
-        function showConfirmModal(title, message, onConfirm, onCancel) {
-            $('#confirmModalTitle').text(title || 'Confirm');
-            $('#confirmModalMessage').text(message);
-            $('#confirmModal').addClass('show').css('display', 'flex');
-            $('#confirmModalCancel').show();
-            $('#confirmModalOk').text('OK');
-            
-            // Remove old event listeners
-            $('#confirmModalOk').off('click');
-            $('#confirmModalCancel').off('click');
-            
-            // Add new event listeners
-            $('#confirmModalOk').on('click', function() {
-                hideConfirmModal();
-                if (onConfirm) onConfirm();
-            });
-            
-            $('#confirmModalCancel').on('click', function() {
-                hideConfirmModal();
-                if (onCancel) onCancel();
-            });
-        }
-
-        function hideConfirmModal() {
-            $('#confirmModal').removeClass('show').css('display', 'none');
-        }
-
-        function showAlertModal(title, message, onOk) {
-            $('#confirmModalTitle').text(title || 'Alert');
-            $('#confirmModalMessage').text(message);
-            $('#confirmModal').addClass('show').css('display', 'flex');
-            $('#confirmModalCancel').hide();
-            $('#confirmModalOk').text('OK');
-            
-            // Remove old event listeners
-            $('#confirmModalOk').off('click');
-            
-            // Add new event listener
-            $('#confirmModalOk').on('click', function() {
-                hideConfirmModal();
-                $('#confirmModalCancel').show();
-                if (onOk) onOk();
-            });
-        }
-
-        function deleteProject(projectId, designCount, projectName) {
-            var confirmMessage = 'Are you sure you want to delete project "' + projectName + '"?';
-            
-            if (designCount > 0) {
-                confirmMessage = 'Project "' + projectName + '" contains ' + designCount + ' design(s).\n\n' +
-                    'Are you sure you want to delete this project?\n\n' +
-                    'All designs in this project will be moved to "Uncategorized".';
-            }
-            
-            showConfirmModal(
-                'Delete Project',
-                confirmMessage,
-                function() {
-                    // User confirmed deletion
-                    $.ajax({
-                        url: '<%= ResolveUrl("~/Pages/Builder.aspx/DeleteProject") %>',
-                        type: "POST",
-                        contentType: "application/json; charset=utf-8",
-                        dataType: "json",
-                        data: JSON.stringify({ projectId: projectId }),
-                        success: function(res) {
-                            var result = res.d || res;
-                            if (result && result.success) {
-                                // Reload projects list
-                                loadProjects();
-                                // Reset to "All Projects" view
-                                selectProject('all');
-                                // Show success toast message
-                                showToast('Project deleted successfully.', 'success');
-                            } else {
-                                showAlertModal('Error', result && result.message ? result.message : 'Error deleting project.');
-                            }
-                        },
-                        error: function(xhr, status, error) {
-                            console.error('Delete project error:', xhr.responseText);
-                            var errorMsg = 'Error deleting project.';
-                            try {
-                                var errorResponse = JSON.parse(xhr.responseText);
-                                if (errorResponse && errorResponse.Message) {
-                                    errorMsg = errorResponse.Message;
-                                }
-                            } catch(e) {}
-                            showAlertModal('Error', errorMsg);
-                        }
-                    });
-                },
-                function() {
-                    // User cancelled - do nothing
-                }
-            );
-        }
-
-        // Close confirmation modal when clicking outside
-        $(document).on('click', '#confirmModal', function(e) {
-            if (e.target.id === 'confirmModal') {
-                hideConfirmModal();
-            }
-        });
-
-        // ===== Toast Message Functions =====
-        function showToast(message, type) {
-            type = type || 'info';
-            var icons = {
-                success: '✓',
-                error: '✕',
-                info: 'ℹ'
-            };
-            var titles = {
-                success: 'Success',
-                error: 'Error',
-                info: 'Info'
-            };
-            
-            var timeout = 5000; // 5 seconds
-            var secsTotal = Math.ceil(timeout / 1000);
-            
-            var $toast = $('<div class="toast ' + type + '">' +
-                '<div class="toast-header">' +
-                '<span class="toast-icon">' + (icons[type] || icons.info) + '</span>' +
-                '<div class="toast-content">' +
-                '<div class="toast-title">' + (titles[type] || titles.info) + '</div>' +
-                '<div class="toast-message">' + message + '</div>' +
-                '</div>' +
-                '<button type="button" class="toast-close">&times;</button>' +
-                '</div>' +
-                '<div class="toast-progress"><div class="toast-progress-bar"></div></div>' +
-                '</div>');
-            
-            var $bar = $toast.find('.toast-progress-bar');
-            var $close = $toast.find('.toast-close');
-            
-            $('#toastContainer').append($toast);
-            
-            // Trigger reflow to ensure initial state
-            $toast[0].offsetHeight;
-            
-            // Show toast with animation
-            setTimeout(function() {
-                $toast.addClass('show');
-            }, 10);
-            
-            // Start progress bar animation
-            setTimeout(function() {
-                $bar.css('transition', 'transform ' + timeout + 'ms linear');
-                $bar.css('transform', 'scaleX(0)');
-            }, 100);
-            
-            // Remove toast function
-            function removeToast() {
-                $toast.removeClass('show').addClass('hide');
-                setTimeout(function() {
-                    $toast.remove();
-                }, 300);
-            }
-            
-            // Close button click
-            $close.on('click', removeToast);
-            
-            // Auto remove after timeout
-            var autoHide = setTimeout(removeToast, timeout);
-            
-            // Pause on hover
-            $toast.on('mouseenter', function() {
-                clearTimeout(autoHide);
-                var remaining = $bar[0].getBoundingClientRect().width / $bar.parent().width() * timeout;
-                $bar.css('transition', 'none');
-                $bar.css('transform', 'scaleX(' + ($bar[0].getBoundingClientRect().width / $bar.parent().width()) + ')');
-            });
-            
-            $toast.on('mouseleave', function() {
-                var remaining = $bar[0].getBoundingClientRect().width / $bar.parent().width() * timeout;
-                $bar.css('transition', 'transform ' + remaining + 'ms linear');
-                $bar.css('transform', 'scaleX(0)');
-                autoHide = setTimeout(removeToast, remaining);
-            });
-        }
-
-        // Removed: Close modal when clicking outside (user requested only Cancel/X button should close)
-
-        // ===== Theme Switcher =====
-        function initTheme() {
-            var savedTheme = localStorage.getItem('theme') || 'light';
-            applyTheme(savedTheme);
-        }
-
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                document.body.classList.add('dark-theme');
-                document.getElementById('themeIcon').textContent = '☀️';
-                document.getElementById('themeText').textContent = 'Light';
-            } else {
-                document.body.classList.remove('dark-theme');
-                document.getElementById('themeIcon').textContent = '🌙';
-                document.getElementById('themeText').textContent = 'Dark';
-            }
-            localStorage.setItem('theme', theme);
-        }
-
-        function toggleTheme(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (e.keyCode === 13 || e.which === 13 || (e.type === 'click' && e.detail === 0)) return false;
-            }
-            var currentTheme = localStorage.getItem('theme') || 'light';
-            var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            applyTheme(newTheme);
-            return false;
-        }
-
-        // ===== User Menu =====
-        function toggleUserMenu(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            var dropdown = document.getElementById('userMenuDropdown');
-            dropdown.classList.toggle('show');
-            return false;
-        }
-
-        function closeUserMenu() {
-            var dropdown = document.getElementById('userMenuDropdown');
-            dropdown.classList.remove('show');
-        }
-
-        // Close user menu when clicking outside
-        document.addEventListener('click', function(e) {
-            var dropdown = document.getElementById('userMenuDropdown');
-            var trigger = document.getElementById('userMenuTrigger');
-            if (trigger && dropdown && !trigger.contains(e.target) && !dropdown.contains(e.target)) {
-                dropdown.classList.remove('show');
-            }
-        });
-
-        // ===== Navigation =====
-        document.addEventListener('DOMContentLoaded', function() {
-            // Initialize: select "All Projects" by default
-            currentProjectId = null;
-            $('.nav-item[data-project="all"]').addClass('active');
-            
-            // Load projects when page loads
-            loadProjects();
-            
-            // Section navigation (Recents, Community)
-            document.querySelectorAll('.nav-item[data-section]').forEach(function(item) {
-                item.addEventListener('click', function() {
-                    var section = this.getAttribute('data-section');
-                    
-                    // Update active state
-                    document.querySelectorAll('.nav-item').forEach(function(nav) {
-                        nav.classList.remove('active');
-                    });
-                    this.classList.add('active');
-                    
-                    // Show/hide sections
-                    if (section === 'my-designs') {
-                        document.getElementById('my-designs-section').style.display = 'block';
-                        document.getElementById('public-designs-section').style.display = 'none';
-                        document.querySelector('.top-bar-title').textContent = 'Recents';
-                    } else if (section === 'public-designs') {
-                        document.getElementById('my-designs-section').style.display = 'none';
-                        document.getElementById('public-designs-section').style.display = 'block';
-                        document.querySelector('.top-bar-title').textContent = 'Community';
-                    }
-            });
-        });
-
-            // Filter navigation (Drafts, All projects, Starred)
-            document.querySelectorAll('.nav-item[data-filter]').forEach(function(item) {
-                item.addEventListener('click', function() {
-                    var filter = this.getAttribute('data-filter');
-                    
-                    // Update active state - remove from section navs first
-                    document.querySelectorAll('.nav-item[data-section]').forEach(function(nav) {
-                        nav.classList.remove('active');
-                    });
-                    
-                    // Update active state for filter navs
-                    document.querySelectorAll('.nav-item[data-filter]').forEach(function(nav) {
-                        nav.classList.remove('active');
-                    });
-                    this.classList.add('active');
-                    
-                    // Update title
-                    var titles = {
-                        'drafts': 'Drafts',
-                        'all': 'All Projects',
-                        'starred': 'Starred'
-                    };
-                    document.querySelector('.top-bar-title').textContent = titles[filter] || 'My Designs';
-                    
-                    // For now, just show all designs (can be enhanced later with actual filtering)
-                    document.getElementById('my-designs-section').style.display = 'block';
-                    document.getElementById('public-designs-section').style.display = 'none';
-                    
-                    // TODO: Implement actual filtering logic
-                    console.log('Filter selected:', filter);
-                });
-            });
-
-            // ===== Filter, Sort, and View Toggle =====
-            initDesignsView();
-        });
-
-        // Initialize designs view (filter, sort, toggle)
-        function initDesignsView() {
-            // Load saved view preference
-            var savedView = localStorage.getItem('designs-view') || 'grid';
-            setViewMode('my-designs', savedView);
-            setViewMode('public-designs', savedView);
-
-            // View toggle buttons
-            document.querySelectorAll('.view-toggle-btn').forEach(function(btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    var view = this.getAttribute('data-view');
-                    var section = this.getAttribute('data-section');
-                    setViewMode(section, view);
-                    localStorage.setItem('designs-view', view);
-                    return false;
-                });
-            });
-
-            // Search for My Designs
-            var searchMyDesigns = document.getElementById('searchMyDesigns');
-            if (searchMyDesigns) {
-                var searchTimeout;
-                searchMyDesigns.addEventListener('input', function() {
-                    clearTimeout(searchTimeout);
-                    searchTimeout = setTimeout(function() {
-                        applyFilterAndSort('my-designs');
-                    }, 300); // Debounce 300ms
-                });
-                // Prevent Enter key from triggering form submit or theme toggle
-                searchMyDesigns.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.keyCode === 13) {
+                label.appendChild(box);
+                label.appendChild(isData ? data('span', 'hd-pop-name', name) : el('span', 'hd-pop-name', name));
+                if (count != null) label.appendChild(data('span', 'hd-pop-count', String(count)));
+                if (canDelete) {
+                    label.appendChild(iconButton('trash', 'Xóa dự án', 'hd-act-danger', function (e) {
                         e.preventDefault();
-                        e.stopPropagation();
-                        applyFilterAndSort('my-designs');
-                        return false;
-                    }
-                });
-            }
-
-            // Filter for My Designs
-            var filterMyDesigns = document.getElementById('filterMyDesigns');
-            if (filterMyDesigns) {
-                filterMyDesigns.addEventListener('change', function() {
-                    applyFilterAndSort('my-designs');
-                });
-            }
-
-            // Project filter for My Designs (custom multi-select)
-            initProjectFilter();
-
-            // Sort for My Designs
-            var sortMyDesigns = document.getElementById('sortMyDesigns');
-            if (sortMyDesigns) {
-                sortMyDesigns.addEventListener('change', function() {
-                    applyFilterAndSort('my-designs');
-                });
-            }
-
-            // Search for Public Designs
-            var searchPublicDesigns = document.getElementById('searchPublicDesigns');
-            if (searchPublicDesigns) {
-                var searchTimeoutPublic;
-                searchPublicDesigns.addEventListener('input', function() {
-                    clearTimeout(searchTimeoutPublic);
-                    searchTimeoutPublic = setTimeout(function() {
-                        applyFilterAndSort('public-designs');
-                    }, 300); // Debounce 300ms
-                });
-                // Prevent Enter key from triggering form submit or theme toggle
-                searchPublicDesigns.addEventListener('keydown', function(e) {
-                    if (e.key === 'Enter' || e.keyCode === 13) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        applyFilterAndSort('public-designs');
-                        return false;
-                    }
-                });
-            }
-
-            // Sort for Public Designs
-            var sortPublicDesigns = document.getElementById('sortPublicDesigns');
-            if (sortPublicDesigns) {
-                sortPublicDesigns.addEventListener('change', function() {
-                    applyFilterAndSort('public-designs');
-                });
-            }
-
-            // Initial render
-            setTimeout(function() {
-                applyFilterAndSort('my-designs');
-                applyFilterAndSort('public-designs');
-                
-                // Generate table rows if table view is active
-                var savedView = localStorage.getItem('designs-view') || 'grid';
-                if (savedView === 'table') {
-                    generateTableRows('my-designs');
-                    generateTableRows('public-designs');
+                        removeProject(key, name, count);
+                    }));
                 }
-            }, 100);
-        }
-
-        // Set view mode (grid or table)
-        function setViewMode(section, view) {
-            var grid = document.getElementById(section + '-grid');
-            var table = document.getElementById(section + '-table');
-            var toggleBtns = document.querySelectorAll('.view-toggle-btn[data-section="' + section + '"]');
-
-            if (view === 'grid') {
-                if (grid) grid.classList.remove('hidden');
-                if (table) table.classList.remove('show');
-                toggleBtns.forEach(function(btn) {
-                    if (btn.getAttribute('data-view') === 'grid') {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                });
-            } else {
-                if (grid) grid.classList.add('hidden');
-                if (table) table.classList.add('show');
-                toggleBtns.forEach(function(btn) {
-                    if (btn.getAttribute('data-view') === 'table') {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                });
-                // Generate table rows when switching to table view
-                setTimeout(function() {
-                    generateTableRows(section);
-                }, 100);
-            }
-        }
-
-        // Apply filter and sort
-        function applyFilterAndSort(section) {
-            var grid = document.getElementById(section + '-grid');
-            if (!grid) return;
-            
-            var cards = Array.from(grid.querySelectorAll('.design-card'));
-            var filterValue = section === 'my-designs' ? 
-                (document.getElementById('filterMyDesigns')?.value || 'all') : 'all';
-            var sortValue = section === 'my-designs' ?
-                (document.getElementById('sortMyDesigns')?.value || 'date-desc') :
-                (document.getElementById('sortPublicDesigns')?.value || 'date-desc');
-            var searchText = section === 'my-designs' ?
-                (document.getElementById('searchMyDesigns')?.value || '').toLowerCase().trim() :
-                (document.getElementById('searchPublicDesigns')?.value || '').toLowerCase().trim();
-            
-            // Get selected projects from custom multi-select filter
-            var selectedProjects = [];
-            if (section === 'my-designs') {
-                var $projectFilterOptions = $('#projectFilterOptions');
-                if ($projectFilterOptions.length) {
-                    var checkedBoxes = $projectFilterOptions.find('input[type="checkbox"]:checked');
-                    selectedProjects = Array.from(checkedBoxes).map(function(cb) { return cb.value; });
-                    // If "all" is selected or no selection, show all
-                    if (selectedProjects.length === 0 || selectedProjects.indexOf('all') !== -1) {
-                        selectedProjects = []; // Empty means show all
-                    }
-                }
-            }
-            
-            // Debug log
-            if (section === 'my-designs' && selectedProjects.length > 0) {
-                console.log('Selected projects:', selectedProjects);
-            }
-            
-            // Filter
-            var filteredCards = Array.from(cards).filter(function(card) {
-                // Project filter (only for My Designs)
-                if (section === 'my-designs') {
-                    // Filter by sidebar selection (currentProjectId) - takes precedence
-                    if (currentProjectId !== null && currentProjectId !== undefined && currentProjectId !== 'all') {
-                        // Filter by specific project from sidebar
-                        var cardProjectId = card.getAttribute('data-project-id') || '';
-                        if (cardProjectId !== String(currentProjectId)) {
-                            return false;
-                        }
-                    } else if (selectedProjects.length > 0) {
-                        // Filter by multi-select dropdown
-                        var cardProjectId = card.getAttribute('data-project-id') || '';
-                        var cardProjectValue = cardProjectId === '' ? 'null' : String(cardProjectId);
-                        
-                        // Check if this card's project matches any selected project
-                        var matches = false;
-                        for (var i = 0; i < selectedProjects.length; i++) {
-                            var selectedValue = String(selectedProjects[i]);
-                            
-                            // Match: selectedValue matches cardProjectValue
-                            // Also handle: if selectedValue is "null" and cardProjectId is empty, they match
-                            // Also handle: if selectedValue is a project ID and cardProjectId matches, they match
-                            if (selectedValue === 'null' && cardProjectValue === 'null') {
-                                matches = true;
-                                break;
-                            } else if (selectedValue !== 'null' && selectedValue !== 'all' && cardProjectValue === selectedValue) {
-                                matches = true;
-                                break;
-                            }
-                        }
-                        if (!matches) {
-                            return false;
-                        }
-                    }
-                    // If no filter selected, show all cards
-                }
-                
-                // Search filter
-                if (searchText) {
-                    var name = (card.getAttribute('data-name') || '').toLowerCase();
-                    var type = (card.getAttribute('data-type') || '').toLowerCase();
-                    
-                    // Get all text content from the card (including meta info like "page · Public")
-                    var cardText = (card.textContent || card.innerText || '').toLowerCase();
-                    
-                    // Normalize search text
-                    var normalizedSearch = searchText.toLowerCase().trim();
-                    
-                    // Search in name, type, and all card text
-                    var matchesSearch = name.includes(normalizedSearch) || 
-                                      type.includes(normalizedSearch) || 
-                                      cardText.includes(normalizedSearch);
-                    
-                    if (!matchesSearch) {
-                        return false;
-                    }
-                }
-                
-                // Public/Private filter (only for My Designs)
-                if (section === 'my-designs') {
-                    if (filterValue === 'all') return true;
-                    var isPublic = card.getAttribute('data-public') === 'true';
-                    if (filterValue === 'public') return isPublic;
-                    if (filterValue === 'private') return !isPublic;
-                }
-                
-                return true;
-            });
-
-            // Sort
-            filteredCards.sort(function(a, b) {
-                if (sortValue.startsWith('date-')) {
-                    var timestampA = parseInt(a.getAttribute('data-timestamp') || '0');
-                    var timestampB = parseInt(b.getAttribute('data-timestamp') || '0');
-                    return sortValue === 'date-desc' ? timestampB - timestampA : timestampA - timestampB;
-                } else if (sortValue.startsWith('name-')) {
-                    var nameA = (a.getAttribute('data-name') || '').toLowerCase();
-                    var nameB = (b.getAttribute('data-name') || '').toLowerCase();
-                    return sortValue === 'name-asc' ? 
-                        (nameA < nameB ? -1 : nameA > nameB ? 1 : 0) :
-                        (nameB < nameA ? -1 : nameB > nameA ? 1 : 0);
-                } else if (sortValue.startsWith('type-')) {
-                    var typeA = (a.getAttribute('data-type') || '').toLowerCase();
-                    var typeB = (b.getAttribute('data-type') || '').toLowerCase();
-                    return typeA < typeB ? -1 : typeA > typeB ? 1 : 0;
-                } else if (sortValue.startsWith('owner-')) {
-                    var ownerA = (a.getAttribute('data-owner') || '').toLowerCase();
-                    var ownerB = (b.getAttribute('data-owner') || '').toLowerCase();
-                    return ownerA < ownerB ? -1 : ownerA > ownerB ? 1 : 0;
-                }
-                return 0;
-            });
-
-            // Show/hide cards based on filter and reorder
-            if (grid) {
-                // First, reset all cards to visible
-                cards.forEach(function(card) {
-                    card.style.display = '';
-                });
-                
-                // Hide cards that don't match filter
-                cards.forEach(function(card) {
-                    var isFiltered = filteredCards.indexOf(card) !== -1;
-                    if (!isFiltered) {
-                        card.style.display = 'none';
-                    }
-                });
-                
-                // Reorder visible cards (only move filtered cards)
-                filteredCards.forEach(function(card) {
-                    grid.appendChild(card);
-                });
+                return label;
             }
 
-            // Show/hide empty state for grid
-            if (grid) {
-                var emptyState = grid.parentElement.querySelector('.empty-state');
-                if (!emptyState && filteredCards.length === 0) {
-                    // Create empty state if it doesn't exist
-                    emptyState = document.createElement('div');
-                    emptyState.className = 'empty-state';
-                    emptyState.innerHTML = '<div class="empty-state-icon">📭</div><div>No designs found</div>';
-                    grid.parentElement.appendChild(emptyState);
-                } else if (emptyState) {
-                    emptyState.style.display = filteredCards.length === 0 ? 'block' : 'none';
+            function renderProjects() {
+                var list = byId('hdProjectList');
+                var query = $.trim(byId('hdProjectSearch').value).toLowerCase();
+                var selected = state.projects ? Object.keys(state.projects) : [];
+                var loose = looseDesigns();
+                list.textContent = '';
+                if (!query) list.appendChild(projectOption(null, 'Tất cả dự án', null, false, false));
+                state.projectList.forEach(function (p) {
+                    if (query && String(p.name).toLowerCase().indexOf(query) < 0) return;
+                    list.appendChild(projectOption(String(p.projectId), p.name, p.designCount || 0, true, true));
+                });
+                if (loose && !query) list.appendChild(projectOption(NO_PROJECT, 'Chưa chọn dự án', loose, false, false));
+
+                var label = byId('hdProjectLabel');
+                var single = selected.length === 1 ? projectName(selected[0]) : null;
+                if (single) {
+                    label.setAttribute('translate', 'no');
+                    label.textContent = single;
+                } else {
+                    label.removeAttribute('translate');
+                    label.textContent = !selected.length ? 'Tất cả dự án' : (selected.length === 1 ? 'Chưa chọn dự án' : selected.length + ' dự án');
                 }
             }
 
-            // Update table if visible
-            var table = document.getElementById(section + '-table');
-            if (table && table.classList.contains('show')) {
-                generateTableRows(section, filteredCards);
-                
-                // Show/hide empty state for table
-                var tbody = document.getElementById(section + '-table-body');
-                if (tbody) {
-                    var emptyState = table.parentElement.querySelector('.empty-state');
-                    if (!emptyState && filteredCards.length === 0) {
-                        emptyState = document.createElement('div');
-                        emptyState.className = 'empty-state';
-                        emptyState.innerHTML = '<div class="empty-state-icon">📭</div><div>No designs found</div>';
-                        table.parentElement.appendChild(emptyState);
-                    } else if (emptyState) {
-                        emptyState.style.display = filteredCards.length === 0 ? 'block' : 'none';
-                    }
-                }
-            }
-        }
-
-        // Generate table rows from cards
-        function generateTableRows(section, cards) {
-            var tbody = document.getElementById(section + '-table-body');
-            if (!tbody) return;
-
-            if (!cards) {
-                var grid = document.getElementById(section + '-grid');
-                if (!grid) return;
-                cards = Array.from(grid.querySelectorAll('.design-card'));
-            }
-
-            // Apply filter
-            var filterValue = section === 'my-designs' ? 
-                (document.getElementById('filterMyDesigns')?.value || 'all') : 'all';
-            var searchText = section === 'my-designs' ?
-                (document.getElementById('searchMyDesigns')?.value || '').toLowerCase().trim() :
-                (document.getElementById('searchPublicDesigns')?.value || '').toLowerCase().trim();
-            cards = cards.filter(function(card) {
-                // Search filter
-                if (searchText) {
-                    var name = (card.getAttribute('data-name') || '').toLowerCase();
-                    var type = (card.getAttribute('data-type') || '').toLowerCase();
-                    
-                    // Get all text content from the card (including meta info like "page · Public")
-                    var cardText = (card.textContent || card.innerText || '').toLowerCase();
-                    
-                    // Normalize search text
-                    var normalizedSearch = searchText.toLowerCase().trim();
-                    
-                    // Search in name, type, and all card text
-                    var matchesSearch = name.includes(normalizedSearch) || 
-                                      type.includes(normalizedSearch) || 
-                                      cardText.includes(normalizedSearch);
-                    
-                    if (!matchesSearch) {
-                        return false;
-                    }
-                }
-                
-                // Public/Private filter (only for My Designs)
-                if (section === 'my-designs') {
-                    if (filterValue === 'all') return true;
-                    var isPublic = card.getAttribute('data-public') === 'true';
-                    if (filterValue === 'public') return isPublic;
-                    if (filterValue === 'private') return !isPublic;
-                }
-                
-                return true;
-            });
-
-            // Apply sort
-            var sortValue = section === 'my-designs' ?
-                (document.getElementById('sortMyDesigns')?.value || 'date-desc') :
-                (document.getElementById('sortPublicDesigns')?.value || 'date-desc');
-
-            cards.sort(function(a, b) {
-                if (sortValue.startsWith('date-')) {
-                    var timestampA = parseInt(a.getAttribute('data-timestamp') || '0');
-                    var timestampB = parseInt(b.getAttribute('data-timestamp') || '0');
-                    return sortValue === 'date-desc' ? timestampB - timestampA : timestampA - timestampB;
-                } else if (sortValue.startsWith('name-')) {
-                    var nameA = (a.getAttribute('data-name') || '').toLowerCase();
-                    var nameB = (b.getAttribute('data-name') || '').toLowerCase();
-                    return sortValue === 'name-asc' ? 
-                        (nameA < nameB ? -1 : nameA > nameB ? 1 : 0) :
-                        (nameB < nameA ? -1 : nameB > nameA ? 1 : 0);
-                } else if (sortValue.startsWith('type-')) {
-                    var typeA = (a.getAttribute('data-type') || '').toLowerCase();
-                    var typeB = (b.getAttribute('data-type') || '').toLowerCase();
-                    return typeA < typeB ? -1 : typeA > typeB ? 1 : 0;
-                } else if (sortValue.startsWith('owner-')) {
-                    var ownerA = (a.getAttribute('data-owner') || '').toLowerCase();
-                    var ownerB = (b.getAttribute('data-owner') || '').toLowerCase();
-                    return ownerA < ownerB ? -1 : ownerA > ownerB ? 1 : 0;
-                }
-                return 0;
-            });
-
-            tbody.innerHTML = '';
-            cards.forEach(function(card) {
-                var row = createTableRow(card, section);
-                tbody.appendChild(row);
-            });
-
-            // Re-attach preview event listeners for table thumbnails
-            attachPreviewListeners();
-        }
-
-        // Create table row from card
-        function createTableRow(card, section) {
-            var row = document.createElement('tr');
-            var id = card.getAttribute('data-id');
-            var name = card.getAttribute('data-name') || '';
-            var type = card.getAttribute('data-type') || '';
-            var isPublic = card.getAttribute('data-public') === 'true';
-            var date = card.getAttribute('data-date') || '';
-            var thumbImg = card.querySelector('.design-card-thumb');
-            var thumbSrc = thumbImg ? thumbImg.getAttribute('src') : '';
-            var editLink = card.querySelector('.design-card-title');
-            var editUrl = editLink ? editLink.getAttribute('href') : '';
-            var cloneLink = card.querySelector('a[href*="clone"], a[href*="Clone"]');
-            var cloneUrl = cloneLink ? cloneLink.getAttribute('href') : '';
-            var owner = card.getAttribute('data-owner') || '';
-            
-            // Extract URLs from card actions if not found
-            if (!editUrl && section === 'my-designs') {
-                var editBtn = card.querySelector('.design-card-actions a.btn-primary');
-                if (editBtn) editUrl = editBtn.getAttribute('href') || '';
-            }
-            if (!cloneUrl && section === 'public-designs') {
-                var cloneBtn = card.querySelector('.design-card-actions a');
-                if (cloneBtn) cloneUrl = cloneBtn.getAttribute('href') || '';
-            }
-
-            // Preview
-            var previewCell = document.createElement('td');
-            if (thumbSrc) {
-                var img = document.createElement('img');
-                img.src = thumbSrc;
-                img.className = 'table-thumb js-preview-thumb';
-                img.setAttribute('data-full', thumbSrc);
-                previewCell.appendChild(img);
-            }
-            row.appendChild(previewCell);
-
-            // Name
-            var nameCell = document.createElement('td');
-            var nameLink = document.createElement('a');
-            nameLink.href = editUrl || cloneUrl;
-            nameLink.className = 'table-name';
-            nameLink.textContent = name;
-            nameCell.appendChild(nameLink);
-            row.appendChild(nameCell);
-
-            // Type
-            var typeCell = document.createElement('td');
-            typeCell.textContent = type;
-            row.appendChild(typeCell);
-
-            // Status (for My Designs) or Owner (for Public Designs)
-            var statusCell = document.createElement('td');
-            if (section === 'my-designs') {
-                var badge = document.createElement('span');
-                badge.className = isPublic ? 'badge badge-public' : 'badge badge-private';
-                badge.textContent = isPublic ? 'Public' : 'Private';
-                statusCell.appendChild(badge);
-            } else {
-                statusCell.textContent = owner;
-            }
-            row.appendChild(statusCell);
-
-            // Project (for both My Designs and Public Designs)
-            var projectCell = document.createElement('td');
-            var projectId = card.getAttribute('data-project-id') || '';
-            var projectName = card.getAttribute('data-project-name') || 'Uncategorized';
-            var projectBadge = document.createElement('span');
-            projectBadge.className = 'badge badge-project';
-            projectBadge.textContent = projectName;
-            projectCell.appendChild(projectBadge);
-            row.appendChild(projectCell);
-
-            // Updated
-            var dateCell = document.createElement('td');
-            dateCell.textContent = date ? date.substring(0, 16) : '';
-            row.appendChild(dateCell);
-
-            // Actions
-            var actionsCell = document.createElement('td');
-            actionsCell.className = 'design-card-actions';
-            if (section === 'my-designs') {
-                var editBtn = document.createElement('a');
-                editBtn.href = editUrl;
-                editBtn.className = 'btn btn-sm btn-primary';
-                editBtn.textContent = 'Edit';
-                actionsCell.appendChild(editBtn);
-
-                var deleteBtn = document.createElement('button');
-                deleteBtn.type = 'button';
-                deleteBtn.className = 'btn btn-sm btn-danger';
-                deleteBtn.textContent = '🗑️';
-                deleteBtn.title = 'Delete';
-                deleteBtn.onclick = function() {
-                    if (typeof baConfirm === 'function') {
-                        baConfirm('Delete this design?', function() {
-                            // Find the original delete LinkButton from grid
-                        var grid = document.getElementById(section + '-grid');
-                        var originalCard = grid ? grid.querySelector('.design-card[data-id="' + id + '"]') : null;
-                        if (originalCard) {
-                            var deleteLink = originalCard.querySelector('[id*="btnDelete"]');
-                            if (deleteLink) {
-                                deleteLink.click();
-                            } else {
-                                // Fallback: use form postback
-                                var form = document.getElementById('form1');
-                                if (form) {
-                                    var hiddenInput = document.createElement('input');
-                                    hiddenInput.type = 'hidden';
-                                    hiddenInput.name = '__EVENTTARGET';
-                                    hiddenInput.value = 'rpMyDesigns';
-                                    form.appendChild(hiddenInput);
-                                    form.submit();
-                                }
-                            }
+            function loadProjects() {
+                call(PROJECT_SERVICE, 'GetProjects').done(function (list) {
+                    state.projectList = Array.isArray(list) ? list : [];
+                    if (state.projects) {
+                        Object.keys(state.projects).forEach(function (key) {
+                            if (key !== NO_PROJECT && !projectName(key)) delete state.projects[key];
                         });
+                        if (!Object.keys(state.projects).length) state.projects = null;
                     }
-                };
-                actionsCell.appendChild(deleteBtn);
-
-                var toggleBtn = document.createElement('button');
-                toggleBtn.className = 'btn btn-sm ' + (isPublic ? 'btn-warning' : 'btn-success') + ' btn-toggle-public';
-                toggleBtn.setAttribute('data-id', id);
-                toggleBtn.setAttribute('data-next', isPublic ? 'false' : 'true');
-                toggleBtn.textContent = isPublic ? '🔒' : '🌐';
-                toggleBtn.title = isPublic ? 'Make private' : 'Make public';
-                actionsCell.appendChild(toggleBtn);
-            } else {
-                var cloneBtn = document.createElement('a');
-                cloneBtn.href = cloneUrl;
-                cloneBtn.className = 'btn btn-sm btn-primary';
-                cloneBtn.textContent = 'Clone';
-                actionsCell.appendChild(cloneBtn);
+                    renderProjects();
+                    render();
+                }).fail(function () { toast('Không tải được danh sách dự án.', 'error'); });
             }
-            row.appendChild(actionsCell);
 
-            return row;
-        }
+            function closeProjectPop() {
+                $('#hdProjectWrap').removeClass('open');
+                $('#hdProjectBtn').attr('aria-expanded', 'false');
+            }
 
-        // Initialize theme on load - mặc định dark theme
-        function initTheme() {
-            var savedTheme = localStorage.getItem('theme') || 'dark';
-            applyTheme(savedTheme);
-        }
+            function openProjectModal() {
+                closeProjectPop();
+                byId('hdProjectName').value = '';
+                byId('hdProjectDescription').value = '';
+                byId('hdProjectError').textContent = '';
+                $('#hdProjectModal').addClass('show');
+                byId('hdProjectName').focus();
+            }
 
-        function applyTheme(theme) {
-            if (theme === 'dark') {
-                document.body.classList.remove('light-theme');
-                document.body.classList.add('dark-theme');
-                if (document.getElementById('themeIcon')) {
-                    document.getElementById('themeIcon').textContent = '☀️';
-                    document.getElementById('themeText').textContent = 'Light';
+            function createProject() {
+                var name = $.trim(byId('hdProjectName').value);
+                var error = byId('hdProjectError');
+                if (!name) {
+                    error.textContent = 'Chưa nhập tên dự án.';
+                    byId('hdProjectName').focus();
+                    return;
                 }
-            } else {
-                document.body.classList.remove('dark-theme');
-                document.body.classList.add('light-theme');
-                if (document.getElementById('themeIcon')) {
-                    document.getElementById('themeIcon').textContent = '🌙';
-                    document.getElementById('themeText').textContent = 'Dark';
-                }
+                call(PROJECT_SERVICE, 'CreateProject', { name: name, description: $.trim(byId('hdProjectDescription').value) }).done(function (d) {
+                    if (!d || !d.success) {
+                        error.textContent = d && d.message ? d.message : 'Không tạo được dự án.';
+                        return;
+                    }
+                    $('#hdProjectModal').removeClass('show');
+                    toast('Đã tạo dự án.', 'success');
+                    loadProjects();
+                }).fail(function () { error.textContent = 'Không tạo được dự án.'; });
             }
-            localStorage.setItem('theme', theme);
-        }
 
-        function toggleTheme(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                if (e.keyCode === 13 || e.which === 13 || (e.type === 'click' && e.detail === 0)) return false;
-            }
-            var currentTheme = localStorage.getItem('theme') || 'dark';
-            var newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-            applyTheme(newTheme);
-            return false;
-        }
-
-        // Initialize theme on load
-        initTheme();
-
-        // Modal preview
-        var previewModal = null;
-        function attachPreviewListeners() {
-            if (!previewModal) {
-            var previewModalEl = document.getElementById('previewModal');
-                if (previewModalEl) {
-                    previewModal = new bootstrap.Modal(previewModalEl);
-                }
-            }
-            if (!previewModal) return;
-
-            document.querySelectorAll('.js-preview-thumb').forEach(function(img) {
-                // Remove existing listeners to avoid duplicates
-                var newImg = img.cloneNode(true);
-                img.parentNode.replaceChild(newImg, img);
-                newImg.addEventListener('dblclick', function() {
-                    var src = this.getAttribute('data-full') || this.src;
-                    document.getElementById('imgDesignPreview').src = src;
-                previewModal.show();
-            });
-        });
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            attachPreviewListeners();
-        });
-
-        // Account Settings Modal
-        function showAccountModal(tab) {
-            var modal = document.getElementById('accountModal');
-            modal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-            
-            // Set default tab if not provided
-            if (!tab) {
-                tab = 'account';
-            }
-            
-            // Switch to the specified tab (this will also call loadAccountInfo if needed)
-            switchAccountTab(null, tab);
-        }
-
-        function loadAccountInfo(retryCount) {
-            // Check if modal is visible before loading
-            var modal = document.getElementById('accountModal');
-            if (!modal || !modal.classList.contains('show')) {
-                console.log('Modal not visible, skipping loadAccountInfo');
-                return;
-            }
-            
-            retryCount = retryCount || 0;
-            var maxRetries = 5;
-            
-            $.ajax({
-                url: '/Pages/Home.aspx/GetAccountInfo',
-                type: 'POST',
-                contentType: 'application/json; charset=utf-8',
-                data: '{}',
-                success: function(response) {
-                    if (response.d && response.d.success) {
-                        var data = response.d;
-                        var userName = data.userName || '';
-                        
-                        // Set avatar
-                        var avatarEl = document.getElementById('accountAvatar');
-                        
-                        // Check if element exists (modal might not be fully rendered yet)
-                        if (!avatarEl) {
-                            if (retryCount < maxRetries) {
-                                console.warn('Avatar element not found, retrying... (' + (retryCount + 1) + '/' + maxRetries + ')');
-                                setTimeout(function() {
-                                    loadAccountInfo(retryCount + 1);
-                                }, 100);
-                            } else {
-                                console.error('Avatar element not found after ' + maxRetries + ' retries');
-                            }
+            function removeProject(key, name, count) {
+                closeProjectPop();
+                var question = 'Xóa dự án "' + name + '"?';
+                var note = count > 0 ? 'Dự án có ' + count + ' thiết kế; các thiết kế này không bị xóa, chỉ không còn thuộc dự án.' : '';
+                baConfirm(note ? question + ' ' + note : question, function () {
+                    call(PROJECT_SERVICE, 'DeleteProject', { projectId: parseInt(key, 10) }).done(function (d) {
+                        if (!d || !d.success) {
+                            toast(d && d.message ? d.message : 'Không xóa được dự án.', 'error');
                             return;
                         }
-                        
-                        var container = document.getElementById('accountAvatarContainer');
-                        if (data.avatarPath) {
-                            var avatarUrl = data.avatarPath + '?t=' + new Date().getTime();
-                            avatarEl.style.backgroundImage = 'url(' + avatarUrl + ')';
-                            avatarEl.style.backgroundSize = 'cover';
-                            avatarEl.style.backgroundPosition = 'center';
-                            avatarEl.style.backgroundRepeat = 'no-repeat';
-                            avatarEl.style.backgroundColor = 'transparent';
-                            avatarEl.textContent = '';
-                            if (container) container.classList.add('has-avatar');
-                        } else {
-                            avatarEl.style.backgroundImage = '';
-                            avatarEl.style.backgroundColor = 'var(--primary)';
-                            avatarEl.textContent = userName.length > 0 ? userName.substring(0, 1).toUpperCase() : '';
-                            if (container) container.classList.remove('has-avatar');
-                        }
-                        
-                        // Set profile header
-                        var accountFullName = document.getElementById('accountFullName');
-                        var accountEmail = document.getElementById('accountEmail');
-                        if (accountFullName) accountFullName.textContent = data.fullName || data.userName || '';
-                        if (accountEmail) accountEmail.innerHTML = data.email || '<em>Not set</em>';
-                        
-                        // Set account fields
-                        var accountUserId = document.getElementById('accountUserId');
-                        var accountUserName = document.getElementById('accountUserName');
-                        var accountFullName2 = document.getElementById('accountFullName2');
-                        var accountEmail2 = document.getElementById('accountEmail2');
-                        if (accountUserId) accountUserId.textContent = data.userId || '';
-                        if (accountUserName) accountUserName.textContent = data.userName || '';
-                        if (accountFullName2) accountFullName2.innerHTML = data.fullName2 || '<em>Not set</em>';
-                        if (accountEmail2) accountEmail2.innerHTML = data.email || '<em>Not set</em>';
-                        
-                        var roleBadge = data.isSuperAdmin 
-                            ? '<span class="account-badge account-badge-success">Super Admin</span>' 
-                            : '<span class="account-badge account-badge-default">User</span>';
-                        var accountRole = document.getElementById('accountRole');
-                        if (accountRole) accountRole.innerHTML = roleBadge;
-                        
-                        var statusBadge = data.isActive 
-                            ? '<span class="account-badge account-badge-success">Active</span>' 
-                            : '<span class="account-badge account-badge-danger">Inactive</span>';
-                        var accountStatus = document.getElementById('accountStatus');
-                        if (accountStatus) accountStatus.innerHTML = statusBadge;
-                    }
-                },
-                error: function() {
-                    console.error('Failed to load account info');
+                        toast('Đã xóa dự án.', 'success');
+                        reload();
+                    }).fail(function () { toast('Không xóa được dự án.', 'error'); });
+                }, null, 'Xóa dự án', 'Không');
+            }
+
+            function setScope(scope) {
+                state.scope = scope === 'shared' ? 'shared' : 'mine';
+                if (isMineScope() && state.sort === 'owner-asc') {
+                    state.sort = 'date-desc';
+                    byId('hdSort').value = state.sort;
                 }
-            });
-        }
-
-        function hideAccountModal(e) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            var modal = document.getElementById('accountModal');
-            modal.classList.remove('show');
-            document.body.style.overflow = '';
-            return false;
-        }
-
-        function switchAccountTab(e, tab) {
-            if (e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-            
-            // Update tabs
-            document.querySelectorAll('.account-modal-tab').forEach(function(t) {
-                t.classList.remove('active');
-            });
-            document.querySelector('.account-modal-tab[data-tab="' + tab + '"]').classList.add('active');
-
-            // Update content
-            document.getElementById('accountTabContent').style.display = tab === 'account' ? 'block' : 'none';
-            document.getElementById('securityTabContent').style.display = tab === 'security' ? 'block' : 'none';
-            
-            if (tab === 'account') {
-                loadAccountInfo();
-            }
-            
-            return false;
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('accountModal').addEventListener('click', function(e) {
-            if (e.target === this) {
-                hideAccountModal();
-            }
-        });
-
-        // Upload avatar
-        document.getElementById('avatarUpload').addEventListener('change', function(e) {
-            var file = e.target.files[0];
-            if (!file) return;
-
-            if (!file.type.startsWith('image/')) {
-                (typeof baAlert === 'function' && baAlert('Please select an image file.'));
-                return;
+                if (window.history && history.replaceState) history.replaceState(null, '', '#' + state.scope);
+                closeProjectPop();
+                render();
             }
 
-            if (file.size > 5 * 1024 * 1024) {
-                (typeof baAlert === 'function' && baAlert('Image size must be less than 5MB.'));
-                return;
-            }
+            $(function () {
+                $('.hd-icon[data-icon]').each(function () { fillIcon(this, this.getAttribute('data-icon')); });
 
-            var formData = new FormData();
-            formData.append('file', file);
+                var savedView = null;
+                try { savedView = window.localStorage.getItem(VIEW_KEY); } catch (e) { savedView = null; }
+                state.view = savedView === 'table' ? 'table' : 'grid';
+                state.scope = (window.location.hash || '') === '#shared' ? 'shared' : 'mine';
 
-            $.ajax({
-                url: '/Handlers/UploadAvatar.ashx',
-                type: 'POST',
-                data: formData,
-                processData: false,
-                contentType: false,
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.success) {
-                        console.log('Upload success, avatarPath:', response.avatarPath);
-                        
-                        var avatarUrl = response.avatarPath + '?t=' + new Date().getTime();
-                        
-                        // Update avatar in modal if it's open
-                        var modal = document.getElementById('accountModal');
-                        if (modal && modal.classList.contains('show')) {
-                            var avatarEl = document.getElementById('accountAvatar');
-                            if (avatarEl) {
-                                avatarEl.style.backgroundImage = 'url(' + avatarUrl + ')';
-                                avatarEl.style.backgroundSize = 'cover';
-                                avatarEl.style.backgroundPosition = 'center';
-                                avatarEl.style.backgroundRepeat = 'no-repeat';
-                                avatarEl.style.backgroundColor = 'transparent';
-                                avatarEl.textContent = '';
-                            }
-                            // Reload account info to ensure all data is fresh
-                            loadAccountInfo();
-                        }
-                        
-                        // Update avatar in top bar (user-avatar contains litUserInitial)
-                        // Find all .user-avatar elements
-                        var topBarAvatars = document.querySelectorAll('.user-avatar');
-                        topBarAvatars.forEach(function(avatarEl) {
-                            // Clear existing content and set new avatar
-                            avatarEl.innerHTML = '<img src="' + avatarUrl + '" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />';
-                        });
-                        
-                        // Also check if litUserInitial exists (server control)
-                        var litUserInitialEl = document.querySelector('#<%= litUserInitial.ClientID %>');
-                        if (litUserInitialEl) {
-                            var parentAvatar = litUserInitialEl.closest('.user-avatar');
-                            if (parentAvatar) {
-                                parentAvatar.innerHTML = '<img src="' + avatarUrl + '" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" />';
-                            }
-                        }
-                    } else {
-                        (typeof baAlert === 'function' && baAlert(response && response.message ? response.message : 'Failed to upload avatar.'));
+                $('#hdTabs').on('click', '.ba-tab', function () { setScope($(this).attr('data-scope')); });
+                $('#hdView').on('click', '.hd-view-btn', function () {
+                    state.view = $(this).attr('data-view') === 'table' ? 'table' : 'grid';
+                    try { window.localStorage.setItem(VIEW_KEY, state.view); } catch (e) { }
+                    render();
+                });
+                $('#hdSearch').on('input', function () {
+                    state.search = $.trim(this.value).toLowerCase();
+                    render();
+                });
+                $('#hdVisibility').on('change', function () {
+                    state.visibility = this.value;
+                    render();
+                });
+                $('#hdSort').on('change', function () {
+                    state.sort = this.value;
+                    render();
+                });
+                $('#hdFromStandard').on('click', openStandardScreens);
+
+                $('#hdProjectBtn').on('click', function () {
+                    var open = !$('#hdProjectWrap').hasClass('open');
+                    $('#hdProjectWrap').toggleClass('open', open);
+                    $(this).attr('aria-expanded', open ? 'true' : 'false');
+                    if (open) byId('hdProjectSearch').focus();
+                });
+                $('#hdProjectSearch').on('input', renderProjects);
+                $('#hdProjectNew').on('click', openProjectModal);
+                $('#hdProjectCreate').on('click', createProject);
+                $('#hdProjectName').on('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        createProject();
                     }
-                },
-                error: function(xhr) {
-                    var errorMsg = 'Failed to upload avatar.';
-                    try {
-                        var response = JSON.parse(xhr.responseText);
-                        if (response.message) errorMsg = response.message;
-                    } catch(e) {
-                        if (xhr.responseText) {
-                            errorMsg += ' ' + xhr.responseText.substring(0, 200);
-                        }
-                    }
-                    (typeof baAlert === 'function' && baAlert(errorMsg));
-                }
+                });
+
+                $(document).on('click', '[data-close]', function () { $('#' + $(this).attr('data-close')).removeClass('show'); });
+                $(document).on('mousedown', function (e) {
+                    if (!$(e.target).closest('#hdProjectWrap').length) closeProjectPop();
+                });
+                $(document).on('keydown', function (e) {
+                    if (e.key !== 'Escape') return;
+                    closeProjectPop();
+                    $('#hdPreview, #hdProjectModal').removeClass('show');
+                });
+
+                load();
+                loadProjects();
             });
-        });
-
-        // Remove avatar
-        document.getElementById('avatarRemove').addEventListener('click', function() {
-            function doRemoveAvatar() {
-            $.ajax({
-                url: '/Handlers/RemoveAvatar.ashx',
-                type: 'POST',
-                dataType: 'json',
-                success: function(response) {
-                    if (response && response.success) {
-                        loadAccountInfo();
-                        var initial = (response.initial || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                        var topBarAvatars = document.querySelectorAll('.user-avatar');
-                        topBarAvatars.forEach(function(av) {
-                            av.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1rem;font-weight:600;color:white;">' + initial + '</span>';
-                        });
-                        var litUserInitialEl = document.querySelector('#<%= litUserInitial.ClientID %>');
-                        if (litUserInitialEl) {
-                            var parentAvatar = litUserInitialEl.closest('.user-avatar');
-                            if (parentAvatar) {
-                                parentAvatar.innerHTML = '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;font-size:1rem;font-weight:600;color:white;">' + initial + '</span>';
-                            }
-                        }
-                    } else {
-                        if (typeof baAlert === 'function') baAlert(response && response.message ? response.message : 'Failed to remove avatar.');
-                    }
-                },
-                error: function() { if (typeof baAlert === 'function') baAlert('Failed to remove avatar.'); }
-            });
-            }
-            if (typeof baConfirm === 'function') baConfirm('Xóa ảnh đại diện?', doRemoveAvatar, null, 'Đồng ý', 'Thoát');
-        });
-
-        // Change password
-        function changePassword() {
-            var currentPassword = document.getElementById('txtModalCurrentPassword').value;
-            var newPassword = document.getElementById('txtModalNewPassword').value;
-            var confirmPassword = document.getElementById('txtModalConfirmPassword').value;
-            var messageDiv = document.getElementById('passwordMessage');
-
-            if (!currentPassword || !newPassword || !confirmPassword) {
-                messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">Please fill in all fields.</div>';
-                messageDiv.style.display = 'block';
-                return;
-            }
-
-            if (newPassword !== confirmPassword) {
-                messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">New password and confirmation do not match.</div>';
-                messageDiv.style.display = 'block';
-                return;
-            }
-
-            if (newPassword.length < 6) {
-                messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">Password must be at least 6 characters.</div>';
-                messageDiv.style.display = 'block';
-                return;
-            }
-
-            // Call server method
-            $.ajax({
-                url: '/Pages/Home.aspx/ChangePassword',
-                type: 'POST',
-                contentType: 'application/json; charset=utf-8',
-                data: JSON.stringify({
-                    currentPassword: currentPassword,
-                    newPassword: newPassword
-                }),
-                success: function(response) {
-                    if (response.d && response.d.success) {
-                        messageDiv.innerHTML = '<div style="color: #10b981; font-size: 0.875rem;">Password changed successfully!</div>';
-                        messageDiv.style.display = 'block';
-                        document.getElementById('txtModalCurrentPassword').value = '';
-                        document.getElementById('txtModalNewPassword').value = '';
-                        document.getElementById('txtModalConfirmPassword').value = '';
-                        setTimeout(function() {
-                            hideAccountModal();
-                        }, 1500);
-                    } else {
-                        messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">' + (response.d && response.d.message ? response.d.message : 'Failed to change password.') + '</div>';
-                        messageDiv.style.display = 'block';
-                    }
-                },
-                error: function(xhr) {
-                    var errorMsg = 'Failed to change password.';
-                    try {
-                        var response = JSON.parse(xhr.responseText);
-                        if (response.Message) errorMsg = response.Message;
-                        else if (response.d && response.d.message) errorMsg = response.d.message;
-                    } catch(e) {}
-                    messageDiv.innerHTML = '<div style="color: #ef4444; font-size: 0.875rem;">' + errorMsg + '</div>';
-                    messageDiv.style.display = 'block';
-                }
-            });
-        }
-
-        // Toggle Public/Private
-        $(document).on('click', '.btn-toggle-public', function(e) {
-            e.preventDefault();
-            var $btn = $(this);
-            var id = parseInt($btn.data('id'), 10);
-            var next = $btn.data('next') === true || $btn.data('next') === "true";
-
-            $.ajax({
-                url: '/Pages/Home.aspx/SetDesignPublic',
-                type: 'POST',
-                contentType: 'application/json; charset=utf-8',
-                data: JSON.stringify({ controlId: id, isPublic: next }),
-                success: function() {
-                    window.location.reload();
-                },
-                error: function(xhr) {
-                    (typeof baAlert === 'function' && baAlert('Lỗi cập nhật trạng thái Public: ' + xhr.responseText));
-                }
-            });
-        });
+        })();
     </script>
 </body>
 </html>

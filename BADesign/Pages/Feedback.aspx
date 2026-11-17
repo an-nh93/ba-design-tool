@@ -1,29 +1,21 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Feedback.aspx.cs" Inherits="BADesign.Pages.Feedback" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
     <title>Góp ý - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
+    <uc:BaHead runat="server" BootstrapScript="false" />
     <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.20/dist/summernote.min.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
     <!-- Trang Feedback dùng Bootstrap 3 để Summernote dropdown/popover (font, cỡ chữ, màu...) mở được. Các trang khác vẫn dùng Bootstrap 5. -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/js/bootstrap.min.js"></script>
-    <script src="../Scripts/ba-layout.js"></script>
     <style>
-        .ba-content { padding: 0.5rem; }
-        .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
-        .ba-card-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin-bottom: 0.5rem; }
-        .ba-card-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem; }
+.ba-card-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem; }
         .ba-form-group { margin-bottom: 1rem; }
-        .ba-form-label { display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.35rem; }
-        .ba-input { background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.875rem; width: 100%; max-width: 480px; }
-        .ba-input:focus { outline: none; border-color: var(--primary); }
-        /* Nút + modal dùng chung từ ba-layout.css */
+        .ba-form-label { display: block; margin-bottom: 0.35rem; }
+        .ba-input { max-width: 480px; }        /* Nút + modal dùng chung từ ba-layout.css */
         .ba-feedback-success { padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 6px; color: var(--success, #10b981); margin-bottom: 1rem; display: none; flex-shrink: 0; }
         .ba-feedback-error { padding: 12px; background: rgba(239, 68, 68, 0.15); border-radius: 6px; color: var(--danger, #ef4444); margin-bottom: 1rem; display: none; flex-shrink: 0; }
         .ba-card .ba-form-group:not(:has(.note-editor)) { flex-shrink: 0; }
@@ -98,10 +90,7 @@
         .ba-timeline-v2-comment-toggle:hover { text-decoration: underline; }
         .ba-timeline-v2-comment-box { margin-top: 8px; padding: 10px; background: var(--bg-darker); border-radius: 6px; border-left: 3px solid var(--primary); font-size: 0.8125rem; color: var(--text-primary); white-space: pre-wrap; }
         .ba-timeline-reopen { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
-        .ba-timeline-reopen-btn { margin-top: 8px; }
-        /* Badge Mở lại (Reopen) - màu tím phân biệt với Mới (xanh) */
-        .ba-feedback-status-reopen { background: rgba(168, 85, 247, 0.25); color: #a855f7; }
-        /* Nút Gửi góp ý - không dãn full width, text căn giữa */
+        .ba-timeline-reopen-btn { margin-top: 8px; }        /* Nút Gửi góp ý - không dãn full width, text căn giữa */
         #btnSubmitFeedback { width: auto; align-self: flex-start; min-width: 140px; justify-content: center; }
     </style>
 </head>
@@ -214,11 +203,6 @@
         (function () {
             var uploadUrl = '<%= ResolveUrl("~/Handlers/UploadFeedbackImage.ashx") %>';
             var submitUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/SubmitFeedback") %>';
-            var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-            var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-            var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
-            var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-            var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
             var getFeedbackListUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/GetFeedbackList") %>';
             var getFeedbackDetailUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/GetFeedbackDetailForView") %>';
             var getHistoryUrl = '<%= ResolveUrl("~/Pages/Feedback.aspx/GetFeedbackStatusHistoryForView") %>';
@@ -400,7 +384,7 @@
                     var created = r.createdAt ? new Date(r.createdAt).toLocaleString() : '—';
                     var st = r.status || '';
                     var badgeCls = statusBadgeClass(st);
-                    html += '<tr><td>' + (r.title || '').replace(/</g, '&lt;') + '</td><td>' + (r.category || '—').replace(/</g, '&lt;') + '</td><td><span class="ba-feedback-status-badge ' + badgeCls + ' view-timeline" data-id="' + (r.id || '') + '" title="Bấm xem timeline">' + statusLabel(st) + '</span></td><td>' + created + '</td><td>' + (r.userName || '—').replace(/</g, '&lt;') + '</td><td><a href="#" class="ba-link view-feedback-detail" data-id="' + (r.id || '') + '">Xem</a></td></tr>';
+                    html += '<tr><td translate="no">' + (r.title || '').replace(/</g, '&lt;') + '</td><td>' + (r.category || '—').replace(/</g, '&lt;') + '</td><td><span class="ba-feedback-status-badge ' + badgeCls + ' view-timeline" data-i18n-ctx="status" data-id="' + (r.id || '') + '" title="Bấm xem timeline">' + statusLabel(st) + '</span></td><td>' + created + '</td><td>' + (r.userName || '—').replace(/</g, '&lt;') + '</td><td><a href="#" class="ba-link view-feedback-detail" data-id="' + (r.id || '') + '">Xem</a></td></tr>';
                 });
                 $('#feedbackListBody').html(html);
             }
@@ -499,11 +483,11 @@
                             var i = d.item;
                             $('#bugDetailTitle').text((i.title || '').replace(/</g, '&lt;'));
                             var meta = 'Gửi bởi: ' + (i.userName || '—').replace(/</g, '&lt;') + ' · ' + (i.createdAt ? new Date(i.createdAt).toLocaleString() : '') + ' · ' + statusLabel(i.status || '');
-                            var bodyHtml = '<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.75rem;">' + meta + '</div><div class="ba-feedback-detail-content">' + (i.content || '') + '</div>';
+                            var bodyHtml = '<div style="font-size:0.8125rem;color:var(--text-muted);margin-bottom:0.75rem;">' + meta + '</div><div class="ba-feedback-detail-content" translate="no">' + (i.content || '') + '</div>';
                             (function () {
                                 var raw = (i.adminNote || '').trim();
                                 var adminOnly = raw.replace(/\s*\[Reopen[^\]]*\]\s*/g, '').trim();
-                                if (adminOnly) bodyHtml += '<div style="margin-top:0.75rem;"><strong>Phản hồi từ admin:</strong><div class="ba-feedback-detail-content" style="margin-top:4px;">' + adminOnly.replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div></div>';
+                                if (adminOnly) bodyHtml += '<div style="margin-top:0.75rem;"><strong>Phản hồi từ admin:</strong><div class="ba-feedback-detail-content" translate="no" style="margin-top:4px;">' + adminOnly.replace(/</g, '&lt;').replace(/\n/g, '<br/>') + '</div></div>';
                             })();
                             bodyHtml += '<div style="margin-top:1rem;"><div style="font-size:0.8125rem;font-weight:600;margin-bottom:4px;">Lịch sử trạng thái</div><ul id="viewDetailHistoryList" style="list-style:none;padding:0;margin:0;font-size:0.8125rem;"></ul></div>';
                             bodyHtml += '<div style="margin-top:0.75rem;"><div style="font-size:0.8125rem;font-weight:600;margin-bottom:4px;">Comment</div><ul id="viewDetailCommentsList" style="list-style:none;padding:0;margin:0;font-size:0.8125rem;"></ul></div>';
@@ -631,91 +615,6 @@
                 $('#bugDetailClose').on('click', function () { $('#bugDetailModal').removeClass('show'); });
                 $('#timelineModalClose').on('click', function () { $('#timelineModal').removeClass('show'); });
             });
-
-            // Chuông thông báo: load badge và khi mở panel thì load danh sách
-            (function () {
-                var DISMISSED_JOBS_KEY = 'baDismissedJobIds';
-                function getDismissedJobIds() { try { var raw = localStorage.getItem(DISMISSED_JOBS_KEY); if (!raw) return []; var arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch (e) { return []; } }
-                function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
-                function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = (typeof v === 'string') ? v : String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); var n = Date.parse(s); return isNaN(n) ? null : new Date(n); }
-                function formatNotifTime(v) { var dt = parseDateSafe(v); return dt ? dt.toLocaleString() : '—'; }
-                function loadBellBadge() {
-                    if (!$('#restoreJobsBellWrap').length) return;
-                    $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                        success: function (res) {
-                            var d = res.d || res;
-                            if (d && (d.jobs || d.newBugs)) {
-                                var jobs = (d.jobs || []).map(function (j) { j.type = j.type || 'Restore'; return j; }).filter(function (j) { return j.id != null && !isJobDismissed(j); });
-                                var newBugs = d.newBugs || [];
-                                var total = jobs.length + newBugs.length;
-                                if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible');
-                            }
-                        }
-                    });
-                }
-                function loadBellPanel() {
-                    var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-                    if (!$list.length) return;
-                    $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                        success: function (res) {
-                            var d = res.d || res;
-                            if (!d) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                            var jobs = (d.jobs || []).map(function (j) { j.type = j.type || 'Restore'; return j; }).filter(function (j) { return j.id != null && !isJobDismissed(j); }).sort(function (a, b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                            var newBugs = d.newBugs || [];
-                            var totalCount = jobs.length + newBugs.length;
-                            if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                            var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                            $badge.text(totalCount).addClass('visible');
-                            window.__notifJobsList = jobs;
-                            var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
-                            var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
-                            var html = '';
-                            if (newBugs.length > 0) {
-                                html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifBugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (notifBugsCollapsed ? 'display:none;' : '') + '">';
-                                newBugs.forEach(function (b) { var created = formatNotifTime(b.createdAt); var bugUrl = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + bugUrl + '" data-action="bug">Xem / Xử lý</a></div>'; });
-                                html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
-                            }
-                            jobs.forEach(function (j, idx) {
-                                var st = j.status || '', jobType = j.type || 'Restore', typeLabel = (j.typeLabel || (jobType === 'Backup' ? 'Backup' : jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore'));
-                                var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : 'ba-notif-type-restore';
-                                var dbName = (j.databaseName || j.DatabaseName || '').trim();
-                                var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                                var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có Reset">Có Reset' : 'ba-notif-no-reset-tag">Không Reset') + '</span> ') : '';
-                                var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0;
-                                var phase = (j.message || (jobType === 'Restore' ? 'Restore' : '')).toString().trim();
-                                var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                                var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                                var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + formatNotifTime(j.startTime), st);
-                                if (st === 'Running' || st === 'Pending') {
-                                    var progressLabel = (jobType === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (jobType === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
-                                    row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
-                                    row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                    if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                                } else if (st === 'Completed') row += BaNotif.completedBadgeRow() + '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                else if (st === 'Failed') row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                row += '</div>';
-                                html += row;
-                            });
-                            if (newBugs.length > 0) html += '</div></div>';
-                            else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
-                            $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                            $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function (e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                            $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function (e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                            $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function (e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(); var dbName = (job.databaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function () { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function (r) { var d = r.d || r; if (d && d.success) loadBellPanel(); else $btn.prop('disabled', false); }, error: function () { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
-                        }
-                    });
-                }
-                $(function () {
-                    loadBellBadge();
-                    $('#restoreJobsBellBtn').on('click', function (e) {
-                        e.stopPropagation();
-                        var $p = $('#restoreJobsPanel');
-                        if ($p.is(':visible')) { $p.hide(); } else { loadBellPanel(); $p.show(); }
-                    });
-                    $(document).on('click', function () { $('#restoreJobsPanel').hide(); });
-                    $('#restoreJobsPanel').on('click', function (e) { e.stopPropagation(); });
-                });
-            })();
         })();
     </script>
 </body>

@@ -16,9 +16,10 @@ namespace BADesign
             // Code that runs on application startup
             RouteConfig.RegisterRoutes(RouteTable.Routes);
             BundleConfig.RegisterBundles(BundleTable.Bundles);
+            Helpers.BaJobWebHost.Start();
         }
 
-        protected void Application_BeginRequest(object sender, EventArgs e)
+        protected void Application_AcquireRequestState(object sender, EventArgs e)
         {
             // Restore session từ Remember Me cookie nếu session trống
             var userId = UiAuthHelper.TryRestoreFromRememberCookie();

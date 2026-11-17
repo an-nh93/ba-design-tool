@@ -4,9 +4,10 @@
 <!DOCTYPE html>
 <html>
 <head runat="server">
-    <title>Change Password - HR Helper</title>
+    <title>Đổi mật khẩu - HR Helper</title>
     <link href="../Content/bootstrap.min.css" rel="stylesheet" />
     <script src="../Scripts/jquery-1.10.2.min.js"></script>
+    <script src="../Scripts/ba-i18n.js?v=20261132"></script>
     <script src="../Scripts/bootstrap.min.js"></script>
     <style>
         :root {

@@ -1,0 +1,9 @@
+2026-11-17 10:12:24 [BaJobRunner] started runner=CDV207:31700:648afb0f, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-17 11:22:56 [BaJobRunner] started runner=CDV207:22376:00d5844c, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-17 11:38:26 [BaJobRunner] started runner=CDV207:35032:403f186b, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-17 11:49:30 [BaJobRunner] started runner=CDV207:37040:c7876e4f, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-17 14:39:25 [BaJobRunner] started runner=CDV207:20320:94a1209d, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-17 14:49:59 [BaJobRunner] stopping runner=CDV207:20320:94a1209d, running=0
+2026-11-17 14:49:59 [BaJobRunner] stopped runner=CDV207:20320:94a1209d
+2026-11-17 14:50:08 [BaJobRunner] started runner=CDV207:20320:83134ac7, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15
+2026-11-17 15:12:21 [BaJobRunner] started runner=CDV207:35028:d2dde8fc, queue=CDV207/BADesign/, claiming=True, maxConcurrentJobs=15

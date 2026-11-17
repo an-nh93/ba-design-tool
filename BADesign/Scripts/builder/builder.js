@@ -6,6 +6,36 @@ var builder = {
     selectedControlId: null,
     selectedControlType: null,
     currentDesignInfo: null,
+    savedSnapshot: "[]",
+    savedAt: null,
+    isSaving: false,
+    clickAddCount: 0,
+    fieldTypeChoices: {
+        core: [
+            { ftype: "text", text: "Text box" },
+            { ftype: "number", text: "Numeric" },
+            { ftype: "date", text: "Date" },
+            { ftype: "combo", text: "Combobox" },
+            { ftype: "multiselect", text: "Multi-select Dropdown" },
+            { ftype: "memo", text: "Memo" },
+            { ftype: "checkbox", text: "Checkbox" },
+            { ftype: "radio", text: "Radio" },
+            { ftype: "label", text: "Label" },
+            { ftype: "button", text: "Button" }
+        ],
+        ess: [
+            { ftype: "text", text: "ESS Text box" },
+            { ftype: "numberic-test", text: "ESS Numeric" },
+            { ftype: "date", text: "ESS Date" },
+            { ftype: "combo", text: "ESS Combobox" },
+            { ftype: "memo", text: "ESS Memo" },
+            { ftype: "checkbox", text: "ESS Checkbox" },
+            { ftype: "radio", text: "ESS Radio" },
+            { ftype: "label", text: "ESS Label" },
+            { ftype: "button", text: "ESS Button" },
+            { ftype: "tag", text: "Tag" }
+        ]
+    },
     dragHintEl: null,
     smartGuideVEl: null,
     smartGuideHEl: null,
@@ -16,6 +46,9 @@ var builder = {
     history: [],
     historyIndex: -1,
     _suppressHistory: false,
+    _coalesceHistory: false,
+    _coalescePushed: false,
+    _dragGroupChildPins: null,
 
     viewScale: 1,
     canvasTranslateX: 0,
@@ -85,239 +118,157 @@ var builder = {
         }
     },
 
-    hitTestPopupPoint: function (clientX, clientY) {
-        // ✅ CÁCH 1: Dùng elementFromPoint để tìm element tại vị trí drop
-        var el = document.elementFromPoint(clientX, clientY);
-        console.log("hitTestPopupPoint: elementFromPoint returned:", el ? (el.tagName + "." + el.className) : "null", "at", clientX, clientY);
-        
-        if (el) {
-            // Check xem element có phải popup không
-            if ($(el).hasClass('popup-design')) {
-                var popupId = $(el).attr("data-id");
-                console.log("hitTestPopupPoint: ✅ Found popup directly:", popupId);
-                return popupId;
-            }
-            
-            // Check xem element có nằm trong popup không (popup-body, popup-header, etc.)
-            var $popup = $(el).closest('.popup-design');
-            if ($popup.length) {
-                var popupId = $popup.attr("data-id");
-                console.log("hitTestPopupPoint: ✅ Found popup via closest:", popupId, "element:", el.tagName);
-                return popupId;
-            }
-        }
-        
-        // ✅ CÁCH 2: Check tất cả popups xem có popup nào chứa drop point không
-        // Đây là cách chính xác nhất vì không phụ thuộc vào elementFromPoint
-        var hit = null;
-        var allPopups = $(".popup-design");
-        var closestPopup = null;
-        var closestDistance = Infinity;
-
-        console.log("hitTestPopupPoint: Checking", allPopups.length, "popups at", clientX, clientY);
-
-        allPopups.each(function () {
-            var $p = $(this);
-            var pid = $p.attr("data-id");
-            var r = this.getBoundingClientRect();
-
-            // Kiểm tra xem popup có visible không
-            var isVisible = $p.is(":visible") && $p.css("display") !== "none";
-            if (!isVisible) return; // Skip invisible popups
-            
-            // ✅ Tính toán với tolerance lớn hơn để bù cho các edge cases
-            // Tolerance 50px để đảm bảo detect được ngay cả khi drop gần border
-            var tolerance = 50;
-            var inside = (clientX >= (r.left - tolerance) && 
-                         clientX <= (r.right + tolerance) && 
-                         clientY >= (r.top - tolerance) && 
-                         clientY <= (r.bottom + tolerance));
-            
-            if (inside) { 
-                // Tính khoảng cách từ drop point đến center của popup
-                var centerX = r.left + r.width / 2;
-                var centerY = r.top + r.height / 2;
-                var distance = Math.sqrt(Math.pow(clientX - centerX, 2) + Math.pow(clientY - centerY, 2));
-                
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestPopup = pid;
-                }
-            }
-        });
-
-        if (closestPopup) {
-            hit = closestPopup;
-            console.log("hitTestPopupPoint: ✅ Found popup", hit, "at", clientX, clientY, "distance:", closestDistance.toFixed(2));
-        } else {
-            console.log("hitTestPopupPoint: ❌ No popup found at", clientX, clientY, "Total popups:", allPopups.length);
-            // ✅ Debug: In ra tất cả popup rects để so sánh
-            allPopups.each(function() {
-                var r = this.getBoundingClientRect();
-                var $p = $(this);
-                var isVisible = $p.is(":visible") && $p.css("display") !== "none";
-                console.log("  - Popup", $p.attr("data-id"), "visible:", isVisible, "rect:", r.left, r.top, r.right, r.bottom, "size:", r.width, "x", r.height);
-            });
-        }
-        return hit;
-    },
-
-    hitTestPopup: function (rect) {
-        if (!rect) return null;
-        var cx = rect.left + rect.width / 2;
-        var cy = rect.top + rect.height / 2;
-        return this.hitTestPopupPoint(cx, cy);
-    },
-
     // ✅ Convert clientX/clientY về tọa độ canvas
     clientToCanvasPoint: function (clientX, clientY) {
-        var canvasEl = document.getElementById("canvas");
+        var canvasEl = document.getElementById("canvas-zoom-inner");
         if (!canvasEl) return { x: clientX, y: clientY };
-        
+
         var r = canvasEl.getBoundingClientRect();
         var scale = (this.viewScale && this.viewScale > 0) ? this.viewScale : 1;
-        
-        var x = (clientX - r.left + canvasEl.scrollLeft) / scale;
-        var y = (clientY - r.top + canvasEl.scrollTop) / scale;
-        
+
+        var x = Math.round((clientX - r.left) / scale);
+        var y = Math.round((clientY - r.top) / scale);
+
         return { x: x, y: y };
     },
 
-    // ✅ Tìm popup chứa drop point (dùng tọa độ canvas)
-    // Nếu không tìm thấy popup chứa drop point, tìm popup gần nhất (trong khoảng cách cho phép)
-    findPopupAtCanvasPoint: function (canvasX, canvasY) {
-        var best = null;
-        var bestDistance = Infinity;
-        var self = this;
-        var maxDistance = 200; // Khoảng cách tối đa để coi như "drop vào popup"
-
-        // Duyệt qua tất cả popup DOM elements thay vì config
-        $(".popup-design").each(function() {
-            var $popup = $(this);
-            var popupId = $popup.attr("data-id");
-            if (!popupId) return;
-            
-            // Lấy tọa độ viewport của popup
-            var popupRect = this.getBoundingClientRect();
-            
-            // Convert popup's viewport rect về canvas coordinates
-            var canvasEl = document.getElementById("canvas");
-            if (!canvasEl) return;
-            
-            var canvasRect = canvasEl.getBoundingClientRect();
-            var scale = (self.viewScale && self.viewScale > 0) ? self.viewScale : 1;
-            
-            // Convert popup's viewport position về canvas position
-            var popupCanvasLeft = (popupRect.left - canvasRect.left + canvasEl.scrollLeft) / scale;
-            var popupCanvasTop = (popupRect.top - canvasRect.top + canvasEl.scrollTop) / scale;
-            var popupCanvasRight = popupCanvasLeft + (popupRect.width / scale);
-            var popupCanvasBottom = popupCanvasTop + (popupRect.height / scale);
-            var popupCenterX = popupCanvasLeft + (popupRect.width / scale) / 2;
-            var popupCenterY = popupCanvasTop + (popupRect.height / scale) / 2;
-
-            // Tính khoảng cách từ drop point đến center của popup
-            var distance = Math.sqrt(Math.pow(canvasX - popupCenterX, 2) + Math.pow(canvasY - popupCenterY, 2));
-            
-            // Check xem drop point có nằm trong popup không (với tolerance lớn)
-            var tolerance = 100; // Tăng tolerance lên 100px
-            var inside = (canvasX >= (popupCanvasLeft - tolerance) && 
-                         canvasX <= (popupCanvasRight + tolerance) && 
-                         canvasY >= (popupCanvasTop - tolerance) && 
-                         canvasY <= (popupCanvasBottom + tolerance));
-            
-            // Nếu nằm trong popup hoặc gần popup (trong khoảng cách cho phép)
-            if (inside || distance < maxDistance) {
-                if (distance < bestDistance) {
-                    bestDistance = distance;
-                    best = popupId;
-                }
-            }
-        });
-
-        if (best) {
-            console.log("findPopupAtCanvasPoint: ✅ Found popup", best, "at canvas", canvasX, canvasY, "distance:", bestDistance.toFixed(2));
-        } else {
-            console.log("findPopupAtCanvasPoint: ❌ No popup found at canvas", canvasX, canvasY);
-        }
-        
-        return best;
+    placeAtDropPoint: function (cfg, dropPoint) {
+        if (!cfg || !dropPoint || dropPoint.clientX == null || dropPoint.clientY == null) return;
+        var pt = this.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
+        cfg.left = Math.max(20, pt.x);
+        cfg.top = Math.max(20, pt.y);
     },
 
-    // ✅ Tìm popup chứa control bằng cách check bounds (giống findParentContainerFor của field controls)
-    // Dùng DOM element thực tế thay vì config để có tọa độ chính xác
-    findParentPopupForControl: function (controlCfg) {
-        if (!controlCfg) return null;
-        
-        var left = controlCfg.left || 0;
-        var top = controlCfg.top || 0;
-        var right = left + (controlCfg.width || 900);
-        var bottom = top + (controlCfg.height || 400); // Giả sử height mặc định
-
-        var best = null;
-        var bestArea = 0;
-        var self = this;
-
-        // Duyệt qua tất cả popup DOM elements thay vì config
-        $(".popup-design").each(function() {
-            var $popup = $(this);
-            var popupId = $popup.attr("data-id");
-            if (!popupId) return;
-            
-            // Lấy tọa độ viewport của popup
-            var popupRect = this.getBoundingClientRect();
-            
-            // Convert popup's viewport rect về canvas coordinates
-            var canvasEl = document.getElementById("canvas");
-            if (!canvasEl) return;
-            
-            var canvasRect = canvasEl.getBoundingClientRect();
-            var scale = (self.viewScale && self.viewScale > 0) ? self.viewScale : 1;
-            
-            // Convert popup's viewport position về canvas position
-            var popupCanvasLeft = (popupRect.left - canvasRect.left + canvasEl.scrollLeft) / scale;
-            var popupCanvasTop = (popupRect.top - canvasRect.top + canvasEl.scrollTop) / scale;
-            var popupCanvasRight = popupCanvasLeft + (popupRect.width / scale);
-            var popupCanvasBottom = popupCanvasTop + (popupRect.height / scale);
-
-            // Check xem control có nằm trong popup không
-            // Dùng tolerance để tránh miss do border
-            var tolerance = 50; // Tăng tolerance để dễ detect hơn
-            if (left >= (popupCanvasLeft - tolerance) && 
-                top >= (popupCanvasTop - tolerance) && 
-                right <= (popupCanvasRight + tolerance) && 
-                bottom <= (popupCanvasBottom + tolerance)) {
-                
-                // Chọn popup nhỏ nhất chứa control (giống findParentContainerFor)
-                var area = (popupCanvasRight - popupCanvasLeft) * (popupCanvasBottom - popupCanvasTop);
-                if (!best || area < bestArea) {
-                    bestArea = area;
-                    best = popupId;
-                }
-            }
-        });
-
-        if (best) {
-            console.log("findParentPopupForControl: ✅ Found popup", best, "for control at", left, top);
-        } else {
-            console.log("findParentPopupForControl: ❌ No popup found for control at", left, top, "size:", right - left, "x", bottom - top);
-        }
-
-        return best;
+    shellView: function () {
+        var shell = document.querySelector(".canvas-shell");
+        if (!shell) return null;
+        var r = shell.getBoundingClientRect();
+        var bar = document.getElementById("canvasToolbar");
+        var bottom = r.top + shell.clientHeight;
+        var covered = bar && bar.offsetParent !== null ? Math.max(0, bottom - bar.getBoundingClientRect().top) : 0;
+        return { el: shell, left: r.left, top: r.top, right: r.left + shell.clientWidth, bottom: bottom, covered: Math.min(covered, 140) };
     },
 
+    toolboxDropPoint: function (clientX, clientY) {
+        var view = this.shellView();
+        if (!view) return { clientX: clientX, clientY: clientY };
+        var under = document.elementFromPoint(clientX, clientY);
+        if ((under && $(under).closest(".toolbox").length) || clientX < view.left - 8) return null;
+        return {
+            clientX: Math.min(Math.max(clientX, view.left + 28), Math.max(view.left + 28, view.right - 60)),
+            clientY: Math.min(Math.max(clientY, view.top + 28), Math.max(view.top + 28, view.bottom - view.covered - 34))
+        };
+    },
+
+    revealControl: function (cfg) {
+        var view = this.shellView(), $el = cfg ? this.controlElement(cfg) : null;
+        if (!view || !$el || !$el.length) return;
+        var r = $el[0].getBoundingClientRect();
+        var overX = Math.min(r.right - (view.right - 16), r.left - (view.left + 16));
+        var overY = Math.min(r.bottom - (view.bottom - view.covered - 12), r.top - (view.top + 16));
+        if (overX > 0) view.el.scrollLeft += overX;
+        if (overY > 0) view.el.scrollTop += overY;
+    },
+
+    beginGesture: function () {
+        document.body.classList.add("ub-gesture");
+        var selection = window.getSelection ? window.getSelection() : null;
+        if (selection && !selection.isCollapsed) selection.removeAllRanges();
+    },
+
+    endGesture: function () {
+        document.body.classList.remove("ub-gesture");
+        this._gestureStart = null;
+        this.stopDragScroll();
+    },
+
+    dragView: function () {
+        if (!this._dragView) this._dragView = this.shellView();
+        return this._dragView;
+    },
+
+    clampDragDelta: function (dx, dy) {
+        var view = this.dragView(), cur = this._pointer;
+        if (!view || !cur) return { dx: dx, dy: dy };
+        function clamp(p) {
+            return {
+                x: Math.min(Math.max(p.x, view.left + 4), view.right - 4),
+                y: Math.min(Math.max(p.y, view.top + 4), view.bottom - 4)
+            };
+        }
+        var prev = this._dragClamp || clamp({ x: cur.x - dx, y: cur.y - dy });
+        var now = clamp(cur);
+        this._dragClamp = now;
+        return { dx: now.x - prev.x, dy: now.y - prev.y };
+    },
+
+    dragStep: function (dx, dy, apply) {
+        var step = this.clampDragDelta(dx, dy);
+        this.startDragScroll(apply);
+        return step;
+    },
+
+    startDragScroll: function (apply) {
+        this._dragApply = apply;
+        if (this._dragScrollFrame) return;
+        var self = this, zone = 28, last = 0, restX = 0, restY = 0;
+        function speed(depth) {
+            return depth <= zone ? 180 + depth * 15 : Math.min(1300, 600 + (depth - zone) * 7);
+        }
+        function step(time) {
+            if (!self._dragApply) { self._dragScrollFrame = null; return; }
+            var view = self.dragView(), p = self._pointer, from = self._gestureStart;
+            var elapsed = last ? Math.min(48, time - last) : 16;
+            last = time;
+            if (view && p) {
+                var vx = p.x > view.right - zone ? speed(p.x - (view.right - zone)) : p.x < view.left + zone ? -speed(view.left + zone - p.x) : 0;
+                var vy = p.y > view.bottom - zone ? speed(p.y - (view.bottom - zone)) : p.y < view.top + zone ? -speed(view.top + zone - p.y) : 0;
+                if (from && ((vx > 0 && p.x < from.x + 3) || (vx < 0 && p.x > from.x - 3))) vx = 0;
+                if (from && ((vy > 0 && p.y < from.y + 3) || (vy < 0 && p.y > from.y - 3))) vy = 0;
+                restX = vx ? restX + vx * elapsed / 1000 : 0;
+                restY = vy ? restY + vy * elapsed / 1000 : 0;
+                var wantX = restX < 0 ? Math.ceil(restX) : Math.floor(restX), wantY = restY < 0 ? Math.ceil(restY) : Math.floor(restY);
+                if (wantX > 0 && view.el.scrollLeft > 9000) wantX = 0;
+                if (wantY > 0 && view.el.scrollTop > 9000) wantY = 0;
+                if (wantX || wantY) {
+                    restX -= wantX; restY -= wantY;
+                    var beforeX = view.el.scrollLeft, beforeY = view.el.scrollTop;
+                    if (wantX) view.el.scrollLeft = beforeX + wantX;
+                    if (wantY) view.el.scrollTop = beforeY + wantY;
+                    var movedX = view.el.scrollLeft - beforeX, movedY = view.el.scrollTop - beforeY;
+                    if (movedX || movedY) self._dragApply(movedX, movedY);
+                }
+            }
+            self._dragScrollFrame = window.requestAnimationFrame(step);
+        }
+        this._dragScrollFrame = window.requestAnimationFrame(step);
+    },
+
+    stopDragScroll: function () {
+        this._dragApply = null;
+        this._dragClamp = null;
+        this._dragView = null;
+        if (this._dragScrollFrame) {
+            window.cancelAnimationFrame(this._dragScrollFrame);
+            this._dragScrollFrame = null;
+        }
+    },
 
     // ========= Drag hint =========
-    showDragHint: function (x, y) {
+    showDragHint: function (x, y, label) {
         if (!this.dragHintEl) {
-            this.dragHintEl = $('<div class="drag-hint">Thả vào vùng canvas</div>')
+            this.dragHintEl = $('<div class="drag-hint"></div>')
                 .appendTo("body");
         }
-        this.dragHintEl.show().css({ left: x, top: y });
+        this.dragHintEl.text($.trim(label || "") || "Thả vào vùng canvas").show();
+        this.moveDragHint(x, y);
     },
 
     moveDragHint: function (x, y) {
         if (this.dragHintEl) {
-            this.dragHintEl.css({ left: x, top: y });
+            var blocked = !this.toolboxDropPoint(x, y);
+            this.dragHintEl.css({ left: x, top: y }).toggleClass("drag-hint-nodrop", blocked);
+            document.body.classList.toggle("ui-drag-nodrop", blocked);
         }
     },
 
@@ -329,6 +280,7 @@ var builder = {
         if (this.dragHintEl) {
             this.dragHintEl.hide();
         }
+        document.body.classList.remove("ui-drag-nodrop");
     },
 
     // ========= Init =========
@@ -340,63 +292,70 @@ var builder = {
         this.initCanvasToolbar();
 
         interact('.tool-item').draggable({
-            inertia: true,
-            autoScroll: true,
             onstart: function (event) {
                 document.body.classList.add("ui-dragging");
+                builder.beginGesture();
                 $(event.target).addClass("tool-dragging");
-                builder.showDragHint(event.clientX, event.clientY);
-                // Reset last detected popup
-                builder._lastDetectedPopupId = null;
+                builder.showDragHint(event.clientX, event.clientY, $(event.target).closest(".tool-item").text());
             },
             onmove: function (event) {
                 builder.moveDragHint(event.clientX, event.clientY);
-                // ✅ Detect popup trong khi drag để lưu lại
-                var popupId = builder.hitTestPopupPoint(event.clientX, event.clientY);
-                if (popupId) {
-                    builder._lastDetectedPopupId = popupId;
-                }
             },
             onend: function (event) {
                 document.body.classList.remove("ui-dragging");
+                builder.endGesture();
 
                 var type = event.target.getAttribute("data-control");
                 var uiMode = event.target.getAttribute("data-ui") || "core"; // default core
 
-                // ✅ Ưu tiên dùng popup đã detect trong onmove
-                var popupId = builder._lastDetectedPopupId;
-                
-                // ✅ Nếu chưa có, detect lại tại vị trí drop
-                if (!popupId) {
-                    popupId = builder.hitTestPopupPoint(event.clientX, event.clientY);
-                }
-                
-                // ✅ Nếu vẫn không có, thử detect với một số điểm xung quanh để tránh miss do timing
-                if (!popupId) {
-                    var offsets = [[0,0], [-5,-5], [5,5], [-10,-10], [10,10]];
-                    for (var i = 0; i < offsets.length && !popupId; i++) {
-                        popupId = builder.hitTestPopupPoint(
-                            event.clientX + offsets[i][0], 
-                            event.clientY + offsets[i][1]
-                        );
-                    }
-                }
-                
-                var dropPoint = { 
-                    clientX: event.clientX, 
-                    clientY: event.clientY,
-                    popupId: popupId // Thêm popupId vào dropPoint để dễ debug
-                };
-                
-                console.log("Builder.onend: type=" + type + ", dropPoint=", dropPoint, ", detectedPopupId=", popupId);
-
-                builder.addControl(type, uiMode, dropPoint);
+                var point = builder.toolboxDropPoint(event.clientX, event.clientY);
+                if (point) builder.addControl(type, uiMode, point);
 
                 event.target.style.transform = "";
                 $(event.target).removeClass("tool-dragging");
                 builder.hideDragHint();
-                builder._lastDetectedPopupId = null; // Reset
             }
+        }).on("tap", function (event) {
+            builder.addControlFromToolbox(event.currentTarget || event.target);
+        });
+
+        document.addEventListener("pointermove", function (e) {
+            builder._pointer = { x: e.clientX, y: e.clientY };
+        }, true);
+        document.addEventListener("mousedown", function (e) {
+            if (e.button !== 0 && e.button !== 1) return;
+            var $target = $(e.target);
+            if (!$target.closest(".canvas-shell").length) return;
+            if ($target.closest("input, textarea, select, [contenteditable=true]").length) return;
+            builder._pointer = { x: e.clientX, y: e.clientY };
+            builder._gestureStart = { x: e.clientX, y: e.clientY };
+            builder.beginGesture();
+        }, true);
+        ["mouseup", "pointerup", "pointercancel"].forEach(function (name) {
+            document.addEventListener(name, function () { builder.endGesture(); }, true);
+        });
+        document.addEventListener("mousedown", function (e) { builder.pressControl(e); }, true);
+        document.addEventListener("mouseup", function (e) { builder.releaseControl(e); }, true);
+        window.addEventListener("blur", function () { builder.endGesture(); });
+
+        $(document).on("keydown.builderSave", function (e) {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey || !e.key || e.key.toLowerCase() !== "s") return;
+            e.preventDefault();
+            if ($(".ub-modal-backdrop").length) return;
+            if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) document.activeElement.blur();
+            builder.savePageToServer(e.shiftKey ? { saveAs: true } : null);
+        });
+
+        $(document).on("keydown.builderPanels", function (e) {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey || e.code !== "Backslash") return;
+            e.preventDefault();
+            builder.togglePanels();
+        });
+
+        window.addEventListener("beforeunload", function (e) {
+            if (!builder.isDirty()) return;
+            e.preventDefault();
+            e.returnValue = "";
         });
 
         var cid = parseInt($("#hiddenControlId").val() || "0", 10);
@@ -428,6 +387,13 @@ var builder = {
             if (e.key === "Escape") {
                 builder.hideContextMenu();
                 builder.clearSelection();
+                return;
+            }
+
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && e.key && e.key.toLowerCase() === "a") {
+                if ($(".ub-modal-backdrop").length) return;
+                e.preventDefault();
+                builder.selectAll();
                 return;
             }
 
@@ -543,6 +509,7 @@ var builder = {
                         case "ArrowDown": dy = step; break;
                     }
 
+                    builder._coalesceHistory = true;
                     builder.moveSelectionBy(dx, dy);
                     return;
                 }
@@ -565,9 +532,27 @@ var builder = {
             }
         });
 
+        // Kéo/resize bằng chuột (mọi loại control): gộp cả lượt kéo thành 1 bước Undo — Ctrl+Z về đúng vị trí trước khi nắm chuột
+        document.addEventListener("pointerdown", function (e) {
+            if (e.button !== 0 && e.pointerType === "mouse") return;
+            if ($(e.target).closest("#canvas-zoom-inner, .canvas-shell").length) {
+                builder._coalesceHistory = true;
+                builder._coalescePushed = false;
+            }
+        }, true);
+        function endPointerCoalesce() {
+            setTimeout(function () { builder._coalesceHistory = false; builder._coalescePushed = false; }, 0);
+        }
+        document.addEventListener("pointerup", endPointerCoalesce, true);
+        document.addEventListener("pointercancel", endPointerCoalesce, true);
+
         $(document).on("keyup", function (e) {
             if (e.code === "Space") {
                 builder.isSpaceDown = false;
+            }
+            if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowUp" || e.key === "ArrowDown") {
+                builder._coalesceHistory = false;
+                builder._coalescePushed = false;
             }
         });
 
@@ -591,7 +576,7 @@ var builder = {
             }
 
             // Cho phép quét khối khi click vào vùng trống trong groupbox/section (để chọn nhiều control bên trong)
-            var inGroupboxSectionContent = $t.closest(".page-field-groupbox-content, .page-field-section-content").length;
+            var inGroupboxSectionContent = $t.closest(".page-field-groupbox-content, .page-field-section-content").length || builder.isTabBody(e.target);
             if (!inGroupboxSectionContent && $t.closest(".page-field, .popup-field, .canvas-toolbar, .canvas-tabpage").length) {
                 return;
             }
@@ -701,7 +686,7 @@ var builder = {
             }
 
             // Nếu click trong panel thuộc tính, toolbar, hoặc splitter thì giữ selection
-            if ($t.closest("#propPanel, .canvas-toolbar, #propSplitter, .prop-splitter").length) {
+            if ($t.closest(".prop-shell, .canvas-toolbar, #propSplitter, .prop-splitter, .builder-header, .toolbox").length) {
                 return;
             }
 
@@ -810,6 +795,107 @@ var builder = {
         }, 50);
     },
 
+    contentBounds: function () {
+        var inner = document.getElementById("canvas-zoom-inner");
+        if (!inner) return null;
+        var self = this;
+        var base = inner.getBoundingClientRect();
+        var scale = this.viewScale > 0 ? this.viewScale : 1;
+        var bounds = null;
+        $(inner).find(this.previewControlSelector).each(function () {
+            var $el = $(this);
+            if (self.isNestedControl($el) || !$el.is(":visible")) return;
+            var r = this.getBoundingClientRect();
+            if (!r.width || !r.height) return;
+            var box = {
+                left: (r.left - base.left) / scale, top: (r.top - base.top) / scale,
+                right: (r.right - base.left) / scale, bottom: (r.bottom - base.top) / scale
+            };
+            if (!bounds) { bounds = box; return; }
+            bounds.left = Math.min(bounds.left, box.left);
+            bounds.top = Math.min(bounds.top, box.top);
+            bounds.right = Math.max(bounds.right, box.right);
+            bounds.bottom = Math.max(bounds.bottom, box.bottom);
+        });
+        return bounds;
+    },
+
+    fitZoom: function (widthOnly) {
+        var shell = document.querySelector(".canvas-shell");
+        var bounds = this.contentBounds();
+        if (!shell || !bounds) {
+            this.setZoom(1);
+            return;
+        }
+        var margin = 24;
+        var availableWidth = shell.clientWidth - 20 - 16;
+        var availableHeight = shell.clientHeight - 20 - 16;
+        var scale = availableWidth / (bounds.right + margin);
+        if (!widthOnly) scale = Math.min(scale, availableHeight / (bounds.bottom + margin));
+        this.setZoom(Math.min(scale, 1.5));
+        $(shell).scrollLeft(0).scrollTop(0);
+    },
+
+    fitOnOpen: function () {
+        var shell = document.querySelector(".canvas-shell");
+        var bounds = this.contentBounds();
+        if (!shell || !bounds || shell.clientWidth < 80) return;
+        var scale = (shell.clientWidth - 36) / (bounds.right + 24);
+        this.setZoom(Math.max(0.5, Math.min(1, scale)));
+        $(shell).scrollLeft(0).scrollTop(0);
+    },
+
+    panelsHidden: function () {
+        var $wrapper = $(".builder-wrapper");
+        return $wrapper.hasClass("toolbox-collapsed") && $wrapper.hasClass("props-collapsed");
+    },
+
+    togglePanels: function () {
+        var $wrapper = $(".builder-wrapper");
+        var show = this.panelsHidden();
+        if ($wrapper.hasClass("toolbox-collapsed") === show) $("#toolboxToggle").trigger("click");
+        if ($wrapper.hasClass("props-collapsed") === show) $("#propToggle .pt-text").trigger("click");
+    },
+
+    addControlFromToolbox: function (el) {
+        var $item = $(el).closest(".tool-item");
+        var type = $item.attr("data-control");
+        var shell = document.querySelector(".canvas-shell");
+        if (!type || !shell) return;
+
+        var area = shell.getBoundingClientRect();
+        var nestable = type !== "popup" && type !== "tabpage" && type.indexOf("annot-") !== 0;
+        var selected = this.selectedControlId ? this.getControlConfig(this.selectedControlId) : null;
+        if (selected && !nestable && !(type === "tabpage" && selected.type === "popup")) selected = null;
+        if (selected) {
+            var $content = $("#canvas").find('[data-id="' + selected.id + '"]')
+                .find(".popup-body, .page-field-groupbox-content, .page-field-section-content, .ess-collapsible-content").first();
+            if ($content.length && $content.is(":visible")) {
+                var inner = $content[0].getBoundingClientRect();
+                var visible = {
+                    left: Math.max(inner.left, area.left), top: Math.max(inner.top, area.top),
+                    right: Math.min(inner.right, area.right), bottom: Math.min(inner.bottom, area.bottom)
+                };
+                if (visible.right - visible.left > 60 && visible.bottom - visible.top > 40) {
+                    area = { left: visible.left, top: visible.top, width: visible.right - visible.left, height: visible.bottom - visible.top };
+                }
+            }
+        }
+
+        var step = (this.clickAddCount++ % 6) * 22;
+        this.addControl(type, $item.attr("data-ui") || "core", {
+            clientX: Math.round(area.left + Math.min(area.width * 0.25, 220) + step),
+            clientY: Math.round(area.top + Math.min(area.height * 0.25, 120) + step)
+        });
+
+        var added = this.selectedControlId ? this.getControlConfig(this.selectedControlId) : null;
+        if (added) {
+            var $added = $("#canvas").find('[data-id="' + added.id + '"]');
+            $added.addClass("canvas-control-selected");
+            if (added.type === "field") $added.addClass("page-field-selected");
+        }
+    },
+
     beginPan: function (x, y) {
         this.isPanning = true;
         this.panStartX = x;
@@ -882,15 +968,63 @@ var builder = {
     },
 
     // ========= History =========
+    packHistory: function (json) {
+        var store = this._historyImages || (this._historyImages = { index: new Map(), list: [] });
+        return json.replace(/"imageData":"(data:image\/[^"\\]+)"/g, function (all, data) {
+            var id = store.index.get(data);
+            if (id == null) {
+                id = store.list.length;
+                store.list.push(data);
+                store.index.set(data, id);
+            }
+            return '"imageData":"@history-image:' + id + '"';
+        });
+    },
+
+    unpackHistory: function (json) {
+        var list = this._historyImages ? this._historyImages.list : [];
+        return json.replace(/"imageData":"@history-image:(\d+)"/g, function (all, id) {
+            return '"imageData":' + JSON.stringify(list[parseInt(id, 10)] || "");
+        });
+    },
+
     pushHistory: function () {
         if (this._suppressHistory) return;
-        var snapshot = JSON.stringify(this.controls || []);
+
+        // Undo rồi sửa tiếp: bỏ nhánh redo, tránh Ctrl+Z nhảy về một trạng thái đã undo
+        if (this.historyIndex < this.history.length - 1) {
+            this.history.splice(this.historyIndex + 1);
+        }
+
+        var snapshot = this.packHistory(JSON.stringify(this.controls || []));
+        var typing = false;
+        var ae = document.activeElement;
+        if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA" || ae.tagName === "SELECT")) {
+            if ($(ae).closest("#propPanel, .prop-shell").length) typing = true;
+        }
+        var coalesce = this._coalesceHistory || typing;
+
+        if (!coalesce) this._coalescePushed = false;
+
+        // Gõ chữ / giữ phím mũi tên: một thao tác = một bước undo
+        if (coalesce && this._coalescePushed && this.historyIndex >= 0) {
+            if (this.historyIndex > 0 && this.history[this.historyIndex - 1] === snapshot) {
+                this.history.splice(this.historyIndex, 1);
+                this.historyIndex--;
+                this._coalescePushed = false;
+                return;
+            }
+            this.history[this.historyIndex] = snapshot;
+            return;
+        }
+
         if (this.history.length && this.history[this.history.length - 1] === snapshot) return;
         this.history.push(snapshot);
         if (this.history.length > 100) {
             this.history.shift();
         }
         this.historyIndex = this.history.length - 1;
+        if (coalesce) this._coalescePushed = true;
     },
 
     _clearCanvasContent: function () {
@@ -902,12 +1036,18 @@ var builder = {
     restoreFromJson: function (json) {
         var arr = [];
         try { arr = JSON.parse(json || "[]"); } catch (e) { console.error(e); }
+        arr = this.sanitizeControls(arr);
+
+        var $shell = $(".canvas-shell");
+        var scrollLeft = $shell.length ? $shell.scrollLeft() : 0;
+        var scrollTop = $shell.length ? $shell.scrollTop() : 0;
+        var keepId = this.selectedControlId;
 
         this.controls = [];
         var $inner = $("#canvas-zoom-inner");
         $inner.empty();
         this.marqueeRectEl = null; // ✅ Sau Undo/Redo khung quét tạo mới, tránh quét khối không hoạt động
-        $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
+        builderProps.showEmpty();
         this.hideSizeHint();
 
         // Sắp xếp theo thứ tự phụ thuộc: parent render trước child (tránh control trong popup/groupbox bị sai vị trí khi Undo)
@@ -926,43 +1066,48 @@ var builder = {
         if (remaining.length) ordered = ordered.concat(remaining);
 
         var self = this;
-        ordered.forEach(function (cfg) {
-            if (cfg.type === "field" && !cfg.uiMode) cfg.uiMode = "core";
-            cfg._fromRestore = true; // Để render không convert lại tọa độ popup/groupbox (đã lưu relative)
-            if (cfg.type === "grid") {
-                controlGrid.renderExisting(cfg);
-            } else if (cfg.type === "popup") {
-                controlPopup.renderExisting(cfg);
-            } else if (cfg.type === "field" && window.controlField && typeof controlField.renderExisting === "function") {
-                controlField.renderExisting(cfg);
-            } else if (cfg.type === "tabpage" && window.controlTabPage && typeof controlTabPage.renderExisting === "function") {
-                controlTabPage.renderExisting(cfg);
-            } else if (cfg.type === "toolbar" && window.controlToolbar && typeof controlToolbar.renderExisting === "function") {
-                controlToolbar.renderExisting(cfg);
-            } else if (cfg.type === "collapsible-section" && window.controlCollapsibleSection && typeof controlCollapsibleSection.renderExisting === "function") {
-                controlCollapsibleSection.renderExisting(cfg);
-            }
-            delete cfg._fromRestore;
-            self.controls.push(cfg);
-        });
-
         this._suppressHistory = true;
-        this.refreshJson({ skipHistory: true });
-        this._suppressHistory = false;
+        try {
+            ordered.forEach(function (cfg) {
+                cfg._fromRestore = true; // Để render không convert lại tọa độ popup/groupbox (đã lưu relative)
+                self.renderControlByConfig(cfg);
+                delete cfg._fromRestore;
+                self.controls.push(cfg);
+            });
+
+            this.refreshJson({ skipHistory: true });
+        } finally {
+            this._suppressHistory = false;
+        }
+
+        if ($shell.length) {
+            $shell.scrollLeft(scrollLeft);
+            $shell.scrollTop(scrollTop);
+        }
+
+        this.selectedControlId = null;
+        this.selectedControlType = null;
+        if (keepId && this.getControlConfig(keepId)) {
+            this.selectedControlId = keepId;
+            var kept = this.getControlConfig(keepId);
+            this.selectedControlType = kept.type || null;
+            var $kept = $("#canvas").find('[data-id="' + keepId + '"]');
+            $kept.addClass("canvas-control-selected");
+            if (kept.type === "field") $kept.addClass("page-field-selected");
+            if (kept.type === "popup") $kept.addClass("popup-selected");
+        }
     },
 
     undo: function () {
         if (this.historyIndex <= 0) return;
         this.historyIndex--;
-        var json = this.history[this.historyIndex];
-        this.restoreFromJson(json);
+        this.restoreFromJson(this.unpackHistory(this.history[this.historyIndex]));
     },
 
     redo: function () {
         if (this.historyIndex >= this.history.length - 1) return;
         this.historyIndex++;
-        var json = this.history[this.historyIndex];
-        this.restoreFromJson(json);
+        this.restoreFromJson(this.unpackHistory(this.history[this.historyIndex]));
     },
 
     // ========= Marquee selection =========
@@ -980,6 +1125,12 @@ var builder = {
 
     beginMarquee: function (e) {
         this.isMarquee = true;
+
+        var $target = $(e.target);
+        var $content = $target.closest(this.containerContentSelector);
+        this._marqueeScope = $content.length ? ($content.closest(".popup-design, .canvas-control").attr("data-id") || null) : null;
+        this._marqueeSkip = $target.closest(".canvas-tabpage").attr("data-id") || null;
+        this._marqueeBase = (e.ctrlKey || e.metaKey || e.shiftKey) ? this.getAllSelectedControlIds() : null;
 
         var co = this.clientToMarqueeCoords(e.clientX, e.clientY);
         this.marqueeStartX = co.x;
@@ -1012,85 +1163,163 @@ var builder = {
             width: width,
             height: height
         });
+
+        var self = this;
+        this.startDragScroll(function () {
+            if (self.isMarquee && self._pointer) self.updateMarquee({ clientX: self._pointer.x, clientY: self._pointer.y });
+        });
     },
 
     endMarquee: function (e) {
         if (!this.isMarquee) return;
         this.isMarquee = false;
+        this.stopDragScroll();
 
         var rectEl = this.marqueeRectEl;
         if (!rectEl) return;
 
-        var width = rectEl.width();
-        var height = rectEl.height();
-
-        // Nếu quét rất nhỏ coi như click trống → clear selection
-        if (width < 3 && height < 3) {
-            rectEl.hide();
-            this.clearSelection();
-            return;
-        }
-
+        var base = this._marqueeBase;
+        var tiny = rectEl.width() < 3 && rectEl.height() < 3;
         var selRect = rectEl[0].getBoundingClientRect();
-        var ids = [];
-        var self = this;
-
-        $("#canvas .page-field, #canvas .popup-field, #canvas .canvas-control").each(function () {
-            var elRect = this.getBoundingClientRect();
-            var inter = !(
-                elRect.right < selRect.left ||
-                elRect.left > selRect.right ||
-                elRect.bottom < selRect.top ||
-                elRect.top > selRect.bottom
-            );
-            if (inter) {
-                var id = $(this).attr("data-id");
-                if (id && ids.indexOf(id) < 0) ids.push(id);
-            }
-        });
-
         rectEl.hide();
 
-        if (!ids.length) {
-            this.clearSelection();
+        // Nếu quét rất nhỏ coi như click trống → clear selection
+        if (tiny) {
+            if (!base) this.clearSelection();
             return;
         }
 
-        // Clear class selected
-        $("#canvas .page-field, #canvas .popup-field, #canvas .canvas-control")
-            .removeClass("page-field-selected popup-field-selected canvas-control-selected");
+        var self = this;
+        var scope = this._marqueeScope || null;
+        var skip = this._marqueeSkip;
+        var ids = base ? base.slice() : [];
 
-        // Gán lại class selected theo từng control
-        ids.forEach(function (id) {
-            var $el = $('#canvas').find('[data-id="' + id + '"], #' + id);
-            if (!$el.length) return;
-
+        this.selectableElements().each(function () {
+            var id = $(this).attr("data-id");
             var cfg = self.getControlConfig(id);
-
-            // Tất cả control được chọn đều có canvas-control-selected
-            $el.addClass("canvas-control-selected");
-
-            // Chỉ field mới gán page/popup-field-selected
-            if (cfg && cfg.type === "field") {
-                if ($el.hasClass("popup-field")) {
-                    $el.addClass("popup-field-selected");
-                } else {
-                    $el.addClass("page-field-selected");
-                }
-            }
+            if (id === skip || self.containerOf(cfg) !== scope || ids.indexOf(id) >= 0) return;
+            var elRect = this.getBoundingClientRect();
+            if (elRect.right < selRect.left || elRect.left > selRect.right ||
+                elRect.bottom < selRect.top || elRect.top > selRect.bottom) return;
+            ids.push(id);
         });
 
-        // Nếu TẤT CẢ là field thì mới coi selection type = 'field'
-        var allFields = ids.every(function (id) {
-            var cfg = self.getControlConfig(id);
-            return cfg && cfg.type === "field";
+        this.selectControls(ids);
+    },
+
+    selectableElements: function () {
+        var self = this;
+        return $("#canvas").find(".canvas-control[data-id], .popup-design[data-id]").filter(function () {
+            return !!self.getControlConfig($(this).attr("data-id")) && $(this).is(":visible");
+        });
+    },
+
+    containerOf: function (cfg) {
+        return cfg && cfg.parentId && this.getControlConfig(cfg.parentId) ? cfg.parentId : null;
+    },
+
+    selectControls: function (ids) {
+        var self = this;
+        var list = [];
+        (ids || []).forEach(function (id) {
+            if (list.indexOf(id) < 0 && self.getControlConfig(id)) list.push(id);
         });
 
-        this.selectedControlId = ids[0];
+        this.clearSelection();
+        if (!list.length) return;
+
+        if (list.length === 1) {
+            this.selectOnly(list[0]);
+            this.showPropertiesFor(this.getControlConfig(list[0]));
+            return;
+        }
+
+        var allFields = true;
+        list.forEach(function (id) {
+            var cfg = self.getControlConfig(id);
+            var $el = self.controlElement(cfg).addClass("canvas-control-selected");
+            if (cfg.type === "field") $el.addClass("page-field-selected");
+            else allFields = false;
+        });
+
+        this.selectedControlId = list[0];
         this.selectedControlType = allFields ? "field" : "multi";
+        builderProps.showMessage("Đang chọn " + list.length + " control. Kéo một control để dời cả nhóm, bấm phím mũi tên để dời từng bước, Delete để xóa. Bấm vào một control để chỉnh thuộc tính của riêng nó.");
 
         this.highlightOutlineSelection();
         this.updateSelectionSizeHint();
+    },
+
+    selectAll: function () {
+        var self = this;
+        var ids = [];
+        this.selectableElements().each(function () {
+            var cfg = self.getControlConfig($(this).attr("data-id"));
+            if (!self.containerOf(cfg)) ids.push(cfg.id);
+        });
+        this.selectControls(ids);
+    },
+
+    pressedControl: function (target) {
+        var $target = $(target);
+        var $root = $target.closest(".canvas-control[data-id], .popup-design[data-id]");
+        if (!$root.length || !$root.closest("#canvas").length) return null;
+        var $content = $target.closest(this.containerContentSelector);
+        if ($content.length && $root[0].contains($content[0])) return null;
+        if (this.isTabBody(target) || $target.closest(this.pressPassSelector).length) return null;
+        return this.getControlConfig($root.attr("data-id")) || null;
+    },
+
+    isTabBody: function (target) {
+        var $target = $(target);
+        return $target.closest(".canvas-tabpage").length > 0 && !$target.closest(".tabpage-tabs, .ub-resize").length;
+    },
+
+    pressPassSelector: ".dx-datagrid, .ess-grid-table-wrapper, .ess-grid-table, .ess-collapsible-icon, [contenteditable=true]",
+
+    pressControl: function (e) {
+        this._pressClick = null;
+        if (e.button !== 0) return;
+        var cfg = this.pressedControl(e.target);
+        if (!cfg) return;
+
+        var ids = this.getAllSelectedControlIds();
+        var at = ids.indexOf(cfg.id);
+
+        if (e.ctrlKey || e.metaKey || e.shiftKey) {
+            if (at >= 0) ids.splice(at, 1);
+            else ids.push(cfg.id);
+            e.stopPropagation();
+            this.hideContextMenu();
+            this.selectControls(ids);
+            return;
+        }
+
+        if (ids.length > 1 && this.isInSelection(cfg.id, ids)) {
+            e.stopPropagation();
+            this.hideContextMenu();
+            this._pressClick = { id: cfg.id, x: e.clientX, y: e.clientY };
+            return;
+        }
+
+        if (ids.length > 1 || (ids.length === 1 && at < 0)) this.clearSelection();
+    },
+
+    isInSelection: function (id, ids) {
+        var cfg = this.getControlConfig(id);
+        while (cfg) {
+            if (ids.indexOf(cfg.id) >= 0) return true;
+            cfg = cfg.parentId ? this.getControlConfig(cfg.parentId) : null;
+        }
+        return false;
+    },
+
+    releaseControl: function (e) {
+        var press = this._pressClick;
+        this._pressClick = null;
+        if (!press) return;
+        if (Math.abs(e.clientX - press.x) > 3 || Math.abs(e.clientY - press.y) > 3) return;
+        this.selectControls([press.id]);
     },
 
 
@@ -1106,16 +1335,13 @@ var builder = {
 
     updateSelectionSizeHint: function () {
         var $els = $();
-        var ids = this.getSelectedFieldIds();
+        var ids = this.getAllSelectedControlIds();
         var self = this;
 
-        if (ids.length) {
-            ids.forEach(function (id) {
-                $els = $els.add($('[data-id="' + id + '"]'));
-            });
-        } else if (this.selectedControlId) {
-            $els = $els.add($('[data-id="' + this.selectedControlId + '"], #' + this.selectedControlId));
-        }
+        ids.forEach(function (id) {
+            $els = $els.add(self.controlElement(self.getControlConfig(id)));
+        });
+        $els = $els.filter(":visible");
 
         if (!$els.length) {
             this.hideSizeHint();
@@ -1166,12 +1392,8 @@ var builder = {
         var centerX = rect.left + (rect.right - rect.left) / 2;
         var bottomY = rect.bottom + 6;
 
-        // Lấy kích thước hint để canh giữa thật
-        var hintW = $hint.outerWidth() || 0;
-        var hintH = $hint.outerHeight() || 0;
-
         $hint.css({
-            left: (centerX - hintW / 2) + "px",
+            left: centerX + "px",
             top: bottomY + "px"
         });
 
@@ -1187,12 +1409,47 @@ var builder = {
 
     // ======== SMART GUIDES (giống Figma) ========
     ensureSmartGuideEls: function () {
-        if (this.smartGuideVEl) return;
-        var $inner = $("#canvas-zoom-inner");
-        if (!$inner.length) return;
-        this.smartGuideVEl = $('<div class="builder-guide-line builder-guide-v"></div>').appendTo($inner).hide();
-        this.smartGuideHEl = $('<div class="builder-guide-line builder-guide-h"></div>').appendTo($inner).hide();
-        this.smartGuideLabelEl = $('<div class="builder-guide-label"></div>').appendTo($inner).hide();
+        var $host = this._dragGuideHost && this._dragGuideHost.length ? this._dragGuideHost : $("#canvas-zoom-inner");
+        if (!$host.length) return;
+        if (!this.smartGuideVEl) {
+            this.smartGuideVEl = $('<div class="builder-guide-line builder-guide-v"></div>').hide();
+            this.smartGuideHEl = $('<div class="builder-guide-line builder-guide-h"></div>').hide();
+            this.smartGuideLabelEl = $('<div class="builder-guide-label"></div>').hide();
+        }
+        if (!this.smartGuideVEl.parent().is($host)) {
+            $host.append(this.smartGuideVEl, this.smartGuideHEl, this.smartGuideLabelEl);
+        }
+    },
+
+    collectGuideTargets: function (ids) {
+        var self = this;
+        var scale = this.cssScale();
+        var parentId, mixed = false;
+        ids.forEach(function (id) {
+            var cfg = self.getControlConfig(id);
+            if (!cfg) return;
+            var pid = cfg.parentId || null;
+            if (parentId === undefined) parentId = pid;
+            else if (parentId !== pid) mixed = true;
+        });
+        this._dragGuideHost = (!mixed && parentId) ? this.containerContent(parentId) : $("#canvas-zoom-inner");
+        if (mixed || parentId === undefined) return [];
+
+        var targets = [];
+        (this.controls || []).forEach(function (c) {
+            if (!c || ids.indexOf(c.id) >= 0 || (c.parentId || null) !== parentId) return;
+            if (c.type === "annotation" || typeof c.left !== "number" || typeof c.top !== "number") return;
+            var $el = self.controlElement(c);
+            if (!$el.length || !$el.is(":visible")) return;
+            var r = $el[0].getBoundingClientRect();
+            targets.push({
+                left: c.left,
+                top: c.top,
+                right: c.left + (c.width || r.width / scale),
+                bottom: c.top + (c.height || r.height / scale)
+            });
+        });
+        return targets;
     },
 
     hideSmartGuides: function () {
@@ -1313,14 +1570,11 @@ var builder = {
         var bestVSpacing = null; // khoảng cách dọc
         var bestHSpacing = null; // khoảng cách ngang
 
-        (this.controls || []).forEach(function (c) {
-            if (!c || ids.indexOf(c.id) >= 0) return;
-            if (typeof c.left !== "number" || typeof c.top !== "number") return;
-
+        (this._dragGuideTargets || []).forEach(function (c) {
             var left = c.left;
             var top = c.top;
-            var right = left + (c.width || 0);
-            var bottom = top + (c.height || 0);
+            var right = c.right;
+            var bottom = c.bottom;
             var cx = (left + right) / 2;
             var cy = (top + bottom) / 2;
 
@@ -1487,12 +1741,302 @@ var builder = {
 
 
     // ========= Mouse drag cho multi-selection (gọi từ control-field.js) =========
+    cssScale: function () {
+        return (this.viewScale && this.viewScale > 0) ? this.viewScale : 1;
+    },
+
+    collectDescendantIds: function (rootId) {
+        var ids = [];
+        var self = this;
+        function walk(pid) {
+            (self.controls || []).forEach(function (c) {
+                if (c && c.parentId === pid) {
+                    ids.push(c.id);
+                    walk(c.id);
+                }
+            });
+        }
+        walk(rootId);
+        return ids;
+    },
+
+    escapeHtml: function (value) {
+        return String(value == null ? "" : value)
+            .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    },
+
+    safeToken: function (value, max) {
+        return typeof value === "string" && value.length > 0 && value.length <= (max || 120) && /^[A-Za-z0-9_.:\-]+$/.test(value);
+    },
+
+    sanitizeControls: function (list) {
+        var self = this;
+        var kept = [], renamed = {}, seed = 0;
+        function fresh(prefix) { return prefix + "_" + Date.now() + "_" + (seed++); }
+
+        (Array.isArray(list) ? list : []).forEach(function (c) {
+            if (!c || typeof c !== "object" || Array.isArray(c) || !self.safeToken(c.type, 40)) return;
+            ["ftype", "uiMode", "dock"].forEach(function (key) {
+                if (c[key] != null && !self.safeToken(String(c[key]), 40)) delete c[key];
+            });
+            if (!self.safeToken(c.id)) {
+                var id = fresh("ctrl");
+                if (typeof c.id === "string") renamed[c.id] = id;
+                c.id = id;
+            }
+            kept.push(c);
+        });
+        kept.forEach(function (c) {
+            ["parentId", "tabPageId", "groupId"].forEach(function (key) {
+                if (c[key] == null) return;
+                if (Object.prototype.hasOwnProperty.call(renamed, c[key])) c[key] = renamed[c[key]];
+                else if (!self.safeToken(String(c[key]))) delete c[key];
+            });
+            [["columns", "col"], ["rowActions", "act"]].forEach(function (pair) {
+                if (!Array.isArray(c[pair[0]])) return;
+                c[pair[0]].forEach(function (item) {
+                    if (item && item.id != null && !self.safeToken(String(item.id))) item.id = fresh(pair[1]);
+                });
+            });
+        });
+        return kept;
+    },
+
+    containerContentSelector: ".popup-body, .page-field-groupbox-content, .page-field-section-content, .ess-collapsible-content",
+
+    controlElement: function (cfg) {
+        if (!cfg) return $();
+        var $el = $("#canvas").find('.canvas-control[data-id="' + cfg.id + '"], .popup-design[data-id="' + cfg.id + '"]');
+        return (cfg.type === "popup" ? $el.filter(".popup-design") : $el.not(".popup-design")).first();
+    },
+
+    isContainerConfig: function (cfg) {
+        return !!cfg && (cfg.type === "popup" || cfg.type === "collapsible-section" ||
+            (cfg.type === "field" && (cfg.ftype === "groupbox" || cfg.ftype === "section")));
+    },
+
+    containerContent: function (parentId) {
+        var cfg = parentId ? this.getControlConfig(parentId) : null;
+        if (!this.isContainerConfig(cfg)) return $();
+        var $el = this.controlElement(cfg);
+        if (cfg.type === "popup") return $el.children(".popup-body").first();
+        if (cfg.type === "collapsible-section") return $el.children(".ess-collapsible-content").first();
+        return $el.children(cfg.ftype === "groupbox" ? ".page-field-groupbox-content" : ".page-field-section-content").first();
+    },
+
+    canNest: function (child, parent) {
+        if (!child || !this.isContainerConfig(parent) || child.id === parent.id) return false;
+        if (child.type === "popup" || child.type === "annotation") return false;
+        if (child.type === "tabpage") return parent.type === "popup";
+        return true;
+    },
+
+    stackingPath: function (el) {
+        var inner = document.getElementById("canvas-zoom-inner");
+        var path = [];
+        for (var node = el; node && node !== inner; node = node.parentElement) path.unshift(node);
+        return path;
+    },
+
+    isStackedAbove: function (a, b) {
+        var pa = this.stackingPath(a), pb = this.stackingPath(b);
+        var i = 0;
+        while (i < pa.length && i < pb.length && pa[i] === pb[i]) i++;
+        if (i >= pb.length) return true;
+        if (i >= pa.length) return false;
+        var za = parseInt(window.getComputedStyle(pa[i]).zIndex, 10) || 0;
+        var zb = parseInt(window.getComputedStyle(pb[i]).zIndex, 10) || 0;
+        if (za !== zb) return za > zb;
+        return !!(pb[i].compareDocumentPosition(pa[i]) & Node.DOCUMENT_POSITION_FOLLOWING);
+    },
+
+    containerAt: function (el, cfg, point) {
+        if (!el) return null;
+        var self = this;
+        var r = el.getBoundingClientRect();
+        var cx = point ? point.x : (r.left + r.right) / 2;
+        var cy = point ? point.y : (r.top + r.bottom) / 2;
+        var best = null;
+        $("#canvas").find(this.containerContentSelector).each(function () {
+            if (el.contains(this) || !$(this).is(":visible")) return;
+            var $owner = $(this).closest(".popup-design, .canvas-control");
+            if (!$owner.length) return;
+            var cr = $owner[0].getBoundingClientRect();
+            if (cx < cr.left || cx > cr.right || cy < cr.top || cy > cr.bottom) return;
+            var owner = self.getControlConfig($owner.attr("data-id"));
+            if (!self.canNest(cfg, owner)) return;
+            if (!best || self.isStackedAbove(this, best.content)) best = { id: owner.id, content: this };
+        });
+        return best ? best.id : null;
+    },
+
+    setControlParent: function (cfg, parentId) {
+        parentId = parentId || null;
+        var $el = this.controlElement(cfg);
+        if (!$el.length) return false;
+        var parentCfg = parentId ? this.getControlConfig(parentId) : null;
+        var docked = cfg.type === "toolbar" && !!parentCfg && parentCfg.type === "popup";
+        var $host = docked ? this.controlElement(parentCfg) : (parentId ? this.containerContent(parentId) : $("#canvas-zoom-inner"));
+        if (!$host.length) return false;
+        if ((cfg.parentId || null) === parentId && $el.parent().is($host)) return false;
+
+        var scale = this.cssScale();
+        var before = $el[0].getBoundingClientRect();
+        $host.append($el);
+        $el.css("position", "absolute");
+        var after = $el[0].getBoundingClientRect();
+        var left = Math.round((parseFloat($el.css("left")) || 0) + (before.left - after.left) / scale);
+        var top = Math.round((parseFloat($el.css("top")) || 0) + (before.top - after.top) / scale);
+        var minTop = 0;
+        if (cfg.type === "toolbar" && parentCfg && parentCfg.type === "field" && parentCfg.ftype === "section") {
+            minTop = Math.min(0, Math.round((this.controlElement(parentCfg)[0].getBoundingClientRect().top - $host[0].getBoundingClientRect().top) / scale));
+        }
+        cfg.parentId = parentId;
+        cfg.left = Math.max(0, left);
+        cfg.top = Math.max(minTop, top);
+        $el.css({ left: cfg.left + "px", top: cfg.top + "px" });
+
+        if (cfg.type === "toolbar") {
+            cfg.dock = docked ? "popup" : null;
+            $el.toggleClass("toolbar-docked-in-popup", docked);
+        }
+
+        if (cfg.type !== "field" && cfg.type !== "tabpage") {
+            var z = cfg.zIndex != null ? cfg.zIndex : 1;
+            if (parentCfg) {
+                var base = parseInt(parentCfg.type === "popup" ? this.controlElement(parentCfg).css("z-index") : parentCfg.zIndex, 10);
+                z = (isNaN(base) ? 0 : base) + 1;
+            }
+            $el.css("z-index", z);
+        }
+        return true;
+    },
+
+    updateTabMembership: function (cfg, point) {
+        var parentCfg = cfg.parentId ? this.getControlConfig(cfg.parentId) : null;
+        if (parentCfg && parentCfg.type !== "popup") {
+            cfg.tabPageId = parentCfg.tabPageId || null;
+            cfg.tabIndex = typeof parentCfg.tabIndex === "number" ? parentCfg.tabIndex : null;
+            return;
+        }
+        var $el = this.controlElement(cfg);
+        if (!$el.length) return;
+        var self = this;
+        var owner = this.containerOf(cfg);
+        var r = $el[0].getBoundingClientRect();
+        var cx = point ? point.x : (r.left + r.right) / 2;
+        var cy = point ? point.y : (r.top + r.bottom) / 2;
+        var tab = null;
+        (this.controls || []).forEach(function (c) {
+            if (!c || c.type !== "tabpage" || c.id === cfg.id || self.containerOf(c) !== owner) return;
+            var $tab = self.controlElement(c);
+            if (!$tab.length || !$tab.is(":visible")) return;
+            var tr = $tab[0].getBoundingClientRect();
+            if (cx >= tr.left && cx <= tr.right && cy >= tr.top && cy <= tr.bottom) tab = c;
+        });
+        cfg.tabPageId = tab ? tab.id : null;
+        cfg.tabIndex = tab ? (tab.activeTabIndex || 0) : null;
+    },
+
+    claimTabMembers: function (tabCfg) {
+        var self = this;
+        var $tab = this.controlElement(tabCfg);
+        if (!$tab.length) return;
+        var tr = $tab[0].getBoundingClientRect();
+        var owner = this.containerOf(tabCfg);
+        (this.controls || []).forEach(function (c) {
+            if (!c || c.tabPageId || c.id === tabCfg.id || self.containerOf(c) !== owner) return;
+            if (c.type === "popup" || c.type === "tabpage" || c.type === "annotation") return;
+            var $el = self.controlElement(c);
+            if (!$el.length || !$el.is(":visible")) return;
+            var r = $el[0].getBoundingClientRect();
+            var cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+            if (cx < tr.left || cx > tr.right || cy < tr.top || cy > tr.bottom) return;
+            c.tabPageId = tabCfg.id;
+            c.tabIndex = tabCfg.activeTabIndex || 0;
+        });
+    },
+
+    placeInContainer: function (cfg, point) {
+        var $el = this.controlElement(cfg);
+        if (!$el.length) return false;
+        var changed = this.setControlParent(cfg, this.containerAt($el[0], cfg, point));
+        if (changed && this.snapEnabled && !this._dropExact) {
+            cfg.left = Math.round(cfg.left / this.snapStep) * this.snapStep;
+            cfg.top = Math.round(cfg.top / this.snapStep) * this.snapStep;
+            $el.css({ left: cfg.left + "px", top: cfg.top + "px" });
+        }
+        return changed;
+    },
+
+    dropControl: function (cfg, point) {
+        if (!cfg || cfg.type === "popup" || cfg.type === "annotation" || cfg.type === "tabpage") return false;
+        if (!this.controlElement(cfg).length) return false;
+        var changed = this.placeInContainer(cfg, point);
+        this.updateTabMembership(cfg, point);
+        if (cfg.type === "toolbar" && window.controlToolbar && controlToolbar.alignToBand) controlToolbar.alignToBand(cfg);
+        return changed;
+    },
+
+    mountInParent: function (cfg) {
+        if (!cfg.parentId || cfg.type === "popup" || (cfg.type === "toolbar" && cfg.dock === "popup")) return;
+        var $host = this.containerContent(cfg.parentId);
+        var $el = this.controlElement(cfg);
+        if (!$host.length || !$el.length || $el.parent().is($host)) return;
+        $host.append($el);
+        $el.css({ position: "absolute", left: (cfg.left || 0) + "px", top: (cfg.top || 0) + "px" });
+    },
+
+    // Control nằm đè lên group (cùng popup) nhưng chưa là con DOM sẽ bị group che khi kéo.
+    // Kéo vào content trước khi drag để nó đi theo group và không biến mất.
+    adoptControlsIntoGroup: function (groupId) {
+        var groupCfg = this.getControlConfig(groupId);
+        if (!groupCfg || (groupCfg.type !== "field" && groupCfg.type !== "collapsible-section")) return;
+        if (groupCfg.type === "field" && groupCfg.ftype !== "groupbox" && groupCfg.ftype !== "section") return;
+
+        var $content = this.containerContent(groupId);
+        if (!$content.length || !$content.is(":visible")) return;
+        var $group = this.controlElement(groupCfg);
+        var contentRect = $group[0].getBoundingClientRect();
+        if (contentRect.width < 4 || contentRect.height < 4) return;
+        var self = this;
+
+        (this.controls || []).slice().forEach(function (c) {
+            if (!c || c.id === groupId || (c.parentId || null) !== (groupCfg.parentId || null)) return;
+            if (!self.canNest(c, groupCfg)) return;
+            var $el = self.controlElement(c);
+            if (!$el.length || !$el.is(":visible") || $el[0].contains($content[0])) return;
+            var rect = $el[0].getBoundingClientRect();
+            if (rect.left < contentRect.left - 2 || rect.right > contentRect.right + 2 ||
+                rect.top < contentRect.top - 2 || rect.bottom > contentRect.bottom + 2) return;
+            if (!self.isStackedAbove($el[0], $group[0])) return;
+            if (self.setControlParent(c, groupId)) self.updateTabMembership(c);
+        });
+    },
+
+    reapplyGroupChildPins: function () {
+        if (!this._dragGroupChildPins) return;
+        var self = this;
+        Object.keys(this._dragGroupChildPins).forEach(function (id) {
+            var pin = self._dragGroupChildPins[id];
+            var c = self.getControlConfig(id);
+            if (!c || !pin) return;
+            c.left = pin.left;
+            c.top = pin.top;
+            $('.canvas-control[data-id="' + id + '"]').css({
+                left: pin.left + "px",
+                top: pin.top + "px"
+            });
+        });
+    },
+
     beginDragSelection: function (baseId) {
-        var ids = this.getSelectedFieldIds();
-        if (!ids.length || ids.indexOf(baseId) === -1) {
+        this._pressClick = null;
+        var ids = this.getAllSelectedControlIds();
+        if (!ids.length || !this.isInSelection(baseId, ids)) {
             ids = [baseId];
         }
-        
+
         // ✅ Nếu control đang drag thuộc group, thêm tất cả controls trong group vào selection
         // Ngoại lệ: groupbox/section không mở rộng theo groupId — chỉ kéo chính nó (con trong DOM đã đi theo), tránh data cũ khiến control bên ngoài bị kéo theo
         var baseCfg = this.getControlConfig(baseId);
@@ -1505,29 +2049,84 @@ var builder = {
                 }
             });
         }
-        
+
+        var pinSelf = this;
+        var carried = {};
+        ids.slice().forEach(function (id) {
+            var tab = pinSelf.getControlConfig(id);
+            if (!tab || tab.type !== "tabpage") return;
+            pinSelf.claimTabMembers(tab);
+            (pinSelf.controls || []).forEach(function (c) {
+                if (!c || c.tabPageId !== tab.id || pinSelf.containerOf(c) !== pinSelf.containerOf(tab) || ids.indexOf(c.id) >= 0) return;
+                ids.push(c.id);
+                carried[c.id] = true;
+            });
+        });
+        this._dragCarriedIds = carried;
+
+        var pins = {};
+        ids.slice().forEach(function (id) {
+            var container = pinSelf.getControlConfig(id);
+            if (!pinSelf.isContainerConfig(container)) return;
+            pinSelf.adoptControlsIntoGroup(id);
+            pinSelf.collectDescendantIds(id).forEach(function (childId) {
+                var child = pinSelf.getControlConfig(childId);
+                if (child) pins[childId] = { left: child.left || 0, top: child.top || 0 };
+            });
+        });
+        var pinnedIds = Object.keys(pins);
+        this._dragGroupChildPins = pinnedIds.length ? pins : null;
+        ids = ids.filter(function (id) { return !pins[id]; });
+        pinnedIds.forEach(function (id) {
+            $('.canvas-control[data-id="' + id + '"]').css("pointer-events", "none");
+        });
+
         this._dragSelectionIds = ids;
+        this._dragSelectionBase = baseId;
         this._dragSelectionStart = {};
         this._dragSelectionDxTotal = 0;
         this._dragSelectionDyTotal = 0;
+        this._dragSelectionRawDx = 0;
+        this._dragSelectionRawDy = 0;
+        this._dragGuideTargets = this.collectGuideTargets(ids);
 
         var self = this;
         ids.forEach(function (id) {
             var cfg = self.getControlConfig(id);
             if (!cfg) return;
-            self._dragSelectionStart[id] = {
-                left: cfg.left || 0,
-                top: cfg.top || 0
-            };
+            var start = { left: cfg.left || 0, top: cfg.top || 0 };
+            if (!carried[id] && cfg.type !== "popup" && cfg.type !== "tabpage") self.liftForDrag(cfg);
+            start.canvasLeft = cfg.left || 0;
+            start.canvasTop = cfg.top || 0;
+            self._dragSelectionStart[id] = start;
         });
+    },
+
+    liftForDrag: function (cfg) {
+        if (cfg.parentId) this.setControlParent(cfg, null);
+        this.controlElement(cfg).addClass("ub-dragging");
     },
 
     dragSelectionMove: function (dx, dy) {
         if (!this._dragSelectionIds || !this._dragSelectionStart) return;
+        var self = this, scale = this.cssScale();
+        var step = this.clampDragDelta(dx * scale, dy * scale);
+        this.startDragScroll(function (movedX, movedY) {
+            var current = self.cssScale();
+            self.shiftDragSelection(movedX / current, movedY / current);
+        });
+        this.shiftDragSelection(step.dx / scale, step.dy / scale);
+        return { dx: step.dx / scale, dy: step.dy / scale };
+    },
+
+    shiftDragSelection: function (dx, dy) {
+        if (!this._dragSelectionIds || !this._dragSelectionStart) return;
 
         // Tính tổng delta dự kiến sau bước drag này
-        var proposedDx = this._dragSelectionDxTotal + dx;
-        var proposedDy = this._dragSelectionDyTotal + dy;
+        this._dragSelectionRawDx += dx;
+        this._dragSelectionRawDy += dy;
+        var proposedDx = this._dragSelectionRawDx;
+        var proposedDy = this._dragSelectionRawDy;
 
         // Tính snap + hiển thị guide (giống Figma)
         var snap = this.computeSmartGuides(proposedDx, proposedDy);
@@ -1543,77 +2142,164 @@ var builder = {
         var totalDy = this._dragSelectionDyTotal;
 
         var self = this;
+        var anchor = this._dragSelectionStart[this._dragSelectionBase] || this._dragSelectionStart[this._dragSelectionIds[0]];
+        if (this.snapEnabled && anchor) {
+            totalDx = Math.round((anchor.left + totalDx) / this.snapStep) * this.snapStep - anchor.left;
+            totalDy = Math.round((anchor.top + totalDy) / this.snapStep) * this.snapStep - anchor.top;
+        }
+
+        var minLeft = Infinity, minTop = Infinity;
+        this._dragSelectionIds.forEach(function (id) {
+            var cfg = self.getControlConfig(id);
+            var st = self._dragSelectionStart[id];
+            if (!cfg || !st || cfg.parentId) return;
+            minLeft = Math.min(minLeft, st.canvasLeft);
+            minTop = Math.min(minTop, st.canvasTop);
+        });
+        if (isFinite(minLeft)) {
+            totalDx = Math.max(totalDx, 20 - minLeft);
+            totalDy = Math.max(totalDy, 20 - minTop);
+        }
 
         this._dragSelectionIds.forEach(function (id) {
             var cfg = self.getControlConfig(id);
             var st = self._dragSelectionStart[id];
             if (!cfg || !st) return;
 
-            // ✅ FIX: Nếu field nằm trong container (popup, groupbox, section, collapsible-section), position là relative — chỉ clamp >= 0, không áp ruler canvas (tránh "bị cản" khi kéo lên)
-            var isInContainer = false;
-            var parentCfg = null;
-            if (cfg.parentId) {
-                parentCfg = self.getControlConfig(cfg.parentId);
-                if (parentCfg && (
-                    parentCfg.type === "collapsible-section" ||
-                    parentCfg.type === "popup" ||
-                    (parentCfg.type === "field" && (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section"))
-                )) {
-                    isInContainer = true;
-                }
-            }
-
-            if (isInContainer && parentCfg) {
-                // Position relative với content/popup-body
-                cfg.left = st.left + totalDx;
-                cfg.top = st.top + totalDy;
-                cfg.left = Math.max(0, cfg.left);
-                cfg.top = Math.max(0, cfg.top);
-                if (self.snapEnabled) {
-                    cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
-                    cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
-                }
-            } else {
-                // Position absolute với canvas (logic cũ)
-                cfg.left = st.left + totalDx;
-                cfg.top = st.top + totalDy;
-                var rulerLeft = 20;
-                var rulerTop = 20;
-                if (cfg.left < rulerLeft) cfg.left = rulerLeft;
-                if (cfg.top < rulerTop) cfg.top = rulerTop;
-                if (self.snapEnabled) {
-                    cfg.left = Math.round(cfg.left / self.snapStep) * self.snapStep;
-                    cfg.top = Math.round(cfg.top / self.snapStep) * self.snapStep;
-                }
-            }
+            var min = cfg.parentId ? 0 : 20;
+            cfg.left = Math.max(min, st.canvasLeft + totalDx);
+            cfg.top = Math.max(min, st.canvasTop + totalDy);
 
             // ✅ Cập nhật DOM cho tất cả loại controls
-            var $el = $('[data-id="' + id + '"], #' + id);
+            var $el = self.controlElement(cfg);
             if ($el.length) {
                 $el.css({
                     left: cfg.left + "px",
                     top: cfg.top + "px"
                 });
             }
-
-            // ✅ Di chuyển descendants cho collapsible-section (children có position absolute relative với content)
-            // groupbox/section: children đã là DOM con nên di chuyển tự động khi kéo parent
-            if (cfg.type === "collapsible-section") {
-                if (window.controlField && typeof controlField.moveDescendants === "function") {
-                    controlField.moveDescendants(cfg.id, dx, dy, false);
-                }
-            }
         });
 
+        this.reapplyGroupChildPins();
         this.updateSelectionSizeHint();
     },
 
 
+    dragSelectionBy: function (id, dx, dy) {
+        if (!this._dragSelectionIds || this._dragSelectionBase !== id) {
+            var ids = this.getAllSelectedControlIds();
+            if (ids.length < 2 || !this.isInSelection(id, ids)) return false;
+            this.beginDragSelection(id);
+        }
+        var scale = this.cssScale();
+        this.dragSelectionMove(dx / scale, dy / scale);
+        return true;
+    },
+
+    finishSelectionDrag: function (id, event) {
+        if (!this._dragSelectionIds || this._dragSelectionBase !== id) return false;
+        this.dropDraggedControls(id, event);
+        this.endDragSelection();
+        return true;
+    },
+
+    dragControlBy: function (cfg, $root, dx, dy) {
+        if (this.dragSelectionBy(cfg.id, dx, dy)) return;
+        var self = this;
+        var step = this.clampDragDelta(dx, dy);
+        this.startDragScroll(function (movedX, movedY) { self.shiftControl(cfg, $root, movedX, movedY); });
+        this.shiftControl(cfg, $root, step.dx, step.dy);
+    },
+
+    shiftControl: function (cfg, $root, dx, dy) {
+        var scale = this.cssScale();
+        if (!$root.hasClass("ub-dragging")) this.liftForDrag(cfg);
+        cfg.left = Math.max(20, (cfg.left || 0) + dx / scale);
+        cfg.top = Math.max(20, (cfg.top || 0) + dy / scale);
+        $root.css({ left: cfg.left + "px", top: cfg.top + "px" });
+        this.updateSelectionSizeHint();
+    },
+
+    dropPoint: function (event) {
+        return event && typeof event.clientX === "number" ? { x: event.clientX, y: event.clientY } : null;
+    },
+
+    finishControlDrag: function (cfg, $root, event) {
+        if (this.finishSelectionDrag(cfg.id, event)) return;
+        this.stopDragScroll();
+        cfg.left = Math.round(cfg.left || 0);
+        cfg.top = Math.round(cfg.top || 0);
+        $root.css({ left: cfg.left + "px", top: cfg.top + "px" }).removeClass("ub-dragging");
+        this.dropControl(cfg, this.dropPoint(event));
+        this.refreshJson();
+    },
+
+    dropDraggedControls: function (baseId, event) {
+        var self = this;
+        var ids = (this._dragSelectionIds || []).slice();
+        if (ids.indexOf(baseId) < 0) ids.push(baseId);
+        var list = ids.map(function (id) { return self.getControlConfig(id); }).filter(Boolean);
+        list.sort(function (a, b) {
+            var rankA = self.isContainerConfig(a) ? 0 : 1, rankB = self.isContainerConfig(b) ? 0 : 1;
+            if (rankA !== rankB) return rankA - rankB;
+            return ((b.width || 0) * (b.height || 0)) - ((a.width || 0) * (a.height || 0));
+        });
+        var point = this.dropPoint(event);
+        var carried = this._dragCarriedIds || {};
+        var pinned = this._dragGroupChildPins || {};
+        list.forEach(function (c) {
+            c.left = Math.round(c.left || 0);
+            c.top = Math.round(c.top || 0);
+            self.controlElement(c).css({ left: c.left + "px", top: c.top + "px" }).removeClass("ub-dragging");
+        });
+        function drop(c, at) {
+            if (c.type === "field" && window.controlField && typeof controlField.updateParent === "function") controlField.updateParent(c, at);
+            else self.dropControl(c, at);
+        }
+
+        var baseCfg = this.getControlConfig(baseId);
+        var shiftX = 0, shiftY = 0;
+        if (baseCfg && !carried[baseId] && !pinned[baseId]) {
+            var $base = this.controlElement(baseCfg);
+            var before = $base[0].getBoundingClientRect();
+            drop(baseCfg, point);
+            var after = $base[0].getBoundingClientRect();
+            var scale = this.cssScale();
+            shiftX = Math.round((after.left - before.left) / scale);
+            shiftY = Math.round((after.top - before.top) / scale);
+        }
+
+        this._dropExact = true;
+        try {
+            list.forEach(function (c) {
+                if (c.id === baseId || pinned[c.id]) return;
+                if (shiftX || shiftY) {
+                    c.left += shiftX;
+                    c.top += shiftY;
+                    self.controlElement(c).css({ left: c.left + "px", top: c.top + "px" });
+                }
+                if (!carried[c.id]) drop(c, null);
+            });
+        } finally {
+            this._dropExact = false;
+        }
+    },
+
     endDragSelection: function () {
+        this.stopDragScroll();
+        if (this._dragGroupChildPins) {
+            Object.keys(this._dragGroupChildPins).forEach(function (id) {
+                $('.canvas-control[data-id="' + id + '"]').css("pointer-events", "");
+            });
+            this.reapplyGroupChildPins();
+            this._dragGroupChildPins = null;
+        }
         if (this._dragSelectionIds) {
             this.refreshJson();
         }
         this._dragSelectionIds = null;
+        this._dragSelectionBase = null;
+        this._dragCarriedIds = null;
         this._dragSelectionStart = null;
         this._dragSelectionDxTotal = 0;
         this._dragSelectionDyTotal = 0;
@@ -1626,46 +2312,50 @@ var builder = {
         if (!dx && !dy) return;
 
         var self = this;
+        var ids = this.getAllSelectedControlIds();
+        var chosen = {};
+        ids.forEach(function (id) { chosen[id] = true; });
+        (this.controls || []).forEach(function (c) {
+            if (!c || !c.tabPageId || !chosen[c.tabPageId] || ids.indexOf(c.id) >= 0) return;
+            if (self.containerOf(c) === self.containerOf(self.getControlConfig(c.tabPageId))) ids.push(c.id);
+        });
 
-        if (this.selectedControlType === "field") {
-            var ids = this.getSelectedFieldIds();
-            ids.forEach(function (id) {
-                var c = self.getControlConfig(id);
-                if (!c) return;
-                c.left = (c.left || 0) + dx;
-                c.top = (c.top || 0) + dy;
-                var parentCfg = c.parentId ? self.getControlConfig(c.parentId) : null;
-                if (parentCfg && (parentCfg.type === "popup" || parentCfg.type === "collapsible-section" || (parentCfg.type === "field" && (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section")))) {
-                    c.left = Math.max(0, c.left);
-                    c.top = Math.max(0, c.top);
-                } else {
-                    var rulerLeft = 20, rulerTop = 20;
-                    if (c.left < rulerLeft) c.left = rulerLeft;
-                    if (c.top < rulerTop) c.top = rulerTop;
-                }
-                if (self.snapEnabled) {
-                    c.left = Math.round(c.left / self.snapStep) * self.snapStep;
-                    c.top = Math.round(c.top / self.snapStep) * self.snapStep;
-                }
-                $('[data-id="' + id + '"]').css({ left: c.left, top: c.top });
-            });
-        } else if (this.selectedControlId) {
-            var cfg = this.getControlConfig(this.selectedControlId);
-            if (cfg) {
-                cfg.left = (cfg.left || 0) + dx;
-                cfg.top = (cfg.top || 0) + dy;
-
-                if (this.snapEnabled) {
-                    cfg.left = Math.round(cfg.left / this.snapStep) * this.snapStep;
-                    cfg.top = Math.round(cfg.top / this.snapStep) * this.snapStep;
-                }
-
-                $('[data-id="' + cfg.id + '"], #' + cfg.id).css({
-                    left: cfg.left,
-                    top: cfg.top
-                });
+        var moving = ids.map(function (id) { return self.getControlConfig(id); }).filter(function (c) {
+            if (!c) return false;
+            var up = c.parentId ? self.getControlConfig(c.parentId) : null;
+            while (up) {
+                if (chosen[up.id]) return false;
+                up = up.parentId ? self.getControlConfig(up.parentId) : null;
             }
+            return true;
+        });
+
+        if (this.snapEnabled && moving.length) {
+            var anchor = moving[0];
+            if (dx) dx = Math.round(((anchor.left || 0) + dx) / this.snapStep) * this.snapStep - (anchor.left || 0);
+            if (dy) dy = Math.round(((anchor.top || 0) + dy) / this.snapStep) * this.snapStep - (anchor.top || 0);
         }
+
+        var minLeft = Infinity, minTop = Infinity;
+        moving.forEach(function (c) {
+            if (self.containerOf(c)) return;
+            minLeft = Math.min(minLeft, c.left || 0);
+            minTop = Math.min(minTop, c.top || 0);
+        });
+        if (isFinite(minLeft)) {
+            if (dx < 0) dx = Math.min(0, Math.max(dx, 20 - minLeft));
+            if (dy < 0) dy = Math.min(0, Math.max(dy, 20 - minTop));
+        }
+
+        moving.forEach(function (c) {
+            c.left = (c.left || 0) + dx;
+            c.top = (c.top || 0) + dy;
+            if (c.type === "field" && self.isContainerConfig(self.getControlConfig(c.parentId))) {
+                c.left = Math.max(0, c.left);
+                c.top = Math.max(0, c.top);
+            }
+            self.controlElement(c).css({ left: c.left, top: c.top });
+        });
 
         this.refreshJson();
         this.updateSelectionSizeHint();
@@ -1902,16 +2592,17 @@ var builder = {
     },
 
     // ✅ Helper: Di chuyển tất cả controls trong group cùng lúc
-    moveGroupControls: function (groupId, dx, dy) {
+    moveGroupControls: function (groupId, dx, dy, exceptId) {
         if (!groupId || !this.groups || !this.groups[groupId]) return;
-        
+
         var group = this.groups[groupId];
         var self = this;
-        
+
         group.controlIds.forEach(function(controlId) {
             var c = self.getControlConfig(controlId);
-            if (!c || c.groupId !== groupId) return;
-            
+            if (!c || c.groupId !== groupId || controlId === exceptId) return;
+            if (self._dragSelectionIds && self._dragSelectionIds.indexOf(controlId) >= 0) return;
+
             // Cập nhật vị trí
             c.left = (c.left || 0) + dx;
             c.top = (c.top || 0) + dy;
@@ -2306,7 +2997,7 @@ var builder = {
 
     copyStyleFromSelection: function () {
         if (this.selectedControlType !== "field") {
-            this.showToast("Copy style hiện chỉ hỗ trợ Field.", "info");
+            this.showToast("Sao chép kiểu hiện chỉ dùng cho field.", "info");
             return;
         }
         var cfg = this.getControlConfig(this.selectedControlId);
@@ -2320,18 +3011,18 @@ var builder = {
         });
 
         this.copiedStyle = { ftype: cfg.ftype, style: style };
-        this.showToast("Copied style từ '" + (cfg.caption || cfg.ftype || cfg.id) + "'", "success");
+        this.showToast("Đã sao chép kiểu của '" + (cfg.caption || cfg.ftype || cfg.id) + "'.", "success");
     },
 
     pasteStyleToSelection: function () {
         if (!this.copiedStyle) {
-            this.showToast("Chưa có style nào được copy.", "warning");
+            this.showToast("Chưa sao chép kiểu nào.", "warning");
             return;
         }
 
         var ids = this.getSelectedFieldIds();
         if (!ids.length) {
-            this.showToast("Chọn ít nhất 1 field để paste style.", "info");
+            this.showToast("Chọn ít nhất 1 field để dán kiểu.", "info");
             return;
         }
 
@@ -2360,6 +3051,9 @@ var builder = {
             // Bold / Italic
             $cap.css("font-weight", cfg.captionBold ? "700" : "normal");
             $cap.css("font-style", cfg.captionItalic ? "italic" : "normal");
+            if (cfg.ftype === "label") {
+                $dom.find(".page-field-editor > span").css({ "font-weight": cfg.captionBold ? "700" : "", "font-style": cfg.captionItalic ? "italic" : "" });
+            }
 
             // Required
             if (cfg.required) {
@@ -2405,7 +3099,7 @@ var builder = {
         }
 
         if (!ids.length) {
-            this.showToast("Chọn control để copy.", "info");
+            this.showToast("Chọn control để sao chép.", "info");
             return;
         }
 
@@ -2419,12 +3113,12 @@ var builder = {
 
         this.clipboardControls = list;
         this.markCopied('control');
-        this.showToast("Đã copy " + list.length + " control.", "success");
+        this.showToast("Đã sao chép " + list.length + " control.", "success");
     },
 
     pasteSelectionControls: function () {
         if (!this.clipboardControls || !this.clipboardControls.length) {
-            this.showToast("Clipboard trống. Hãy Ctrl+C trước.", "info");
+            this.showToast("Chưa sao chép control nào. Hãy bấm Ctrl+C trước.", "info");
             return;
         }
 
@@ -2476,6 +3170,13 @@ var builder = {
             cfg.uiMode = "core";
         }
 
+        var parentCfg = cfg.parentId ? this.getControlConfig(cfg.parentId) : null;
+        if (parentCfg && parentCfg.type === "tabpage") {
+            cfg.tabPageId = parentCfg.id;
+            if (typeof cfg.tabIndex !== "number") cfg.tabIndex = parentCfg.activeTabIndex || 0;
+            cfg.parentId = null;
+        }
+
         if (cfg.type === "grid") {
             controlGrid.renderExisting(cfg);
 
@@ -2499,7 +3200,12 @@ var builder = {
             controlField.renderExisting(cfg);
         } else if (cfg.type === "collapsible-section" && window.controlCollapsibleSection && typeof controlCollapsibleSection.renderExisting === "function") {
             controlCollapsibleSection.renderExisting(cfg);
+        } else if (cfg.type === "annotation" && window.controlAnnotation) {
+            controlAnnotation.renderExisting(cfg);
         }
+        this.mountInParent(cfg);
+        if (cfg.tabPageId && window.controlTabPage && controlTabPage.syncMember) controlTabPage.syncMember(cfg);
+        if (cfg.type === "toolbar" && window.controlToolbar && controlToolbar.alignToBand) controlToolbar.alignToBand(cfg);
     },
 
 
@@ -2531,6 +3237,7 @@ var builder = {
         if (c.type === "popup") return "Popup: " + (c.titleText || c.controlName || c.id);
         if (c.type === "tabpage") return "Tab: " + (c.titleText || c.controlName || c.id);
         if (c.type === "toolbar") return "Toolbar";
+        if (c.type === "annotation" && window.controlAnnotation) return controlAnnotation.label(c);
         if (c.type === "field") {
             var name = c.caption || c.ftype || c.id;
             return "Field: " + name;
@@ -2544,7 +3251,7 @@ var builder = {
         nodes.forEach(function (node) {
             var c = node.cfg;
             html += '<li class="outline-node" data-id="' + c.id + '">';
-            html += '<div class="outline-row">' + self.getOutlineLabel(c) + '</div>';
+            html += '<div class="outline-row">' + self.escapeHtml(self.getOutlineLabel(c)) + '</div>';
             if (node.children && node.children.length) {
                 html += self.buildOutlineHtml(node.children);
             }
@@ -2559,7 +3266,7 @@ var builder = {
         if (!$panel.length) return;
 
         var roots = this.buildOutlineTree();
-        var htmlHeader = '<div class="outline-header">Layers</div>';
+        var htmlHeader = '<div class="outline-header">Danh sách control</div>';
 
         if (!roots.length) {
             $panel.html(htmlHeader + '<div class="outline-empty">Không có control nào.</div>');
@@ -2613,6 +3320,19 @@ var builder = {
 
         this.highlightOutlineSelection();   // dùng outline-row-selected để highlight layer
         this.updateSelectionSizeHint();
+        this.showPropertiesFor(cfg);
+    },
+
+    showPropertiesFor: function (cfg) {
+        if (!cfg) return;
+        if (cfg.type === "field" && window.controlField) controlField.showProperties(cfg);
+        else if (cfg.type === "grid" && window.controlGrid) controlGrid.showProperties(cfg.id);
+        else if (cfg.type === "ess-grid" && window.controlGridEss) controlGridEss.showProperties(cfg);
+        else if (cfg.type === "popup" && window.controlPopup) controlPopup.selectById(cfg.id);
+        else if (cfg.type === "tabpage" && window.controlTabPage && controlTabPage.showProperties) controlTabPage.showProperties(cfg);
+        else if (cfg.type === "toolbar" && window.controlToolbar && controlToolbar.showProperties) controlToolbar.showProperties(cfg);
+        else if (cfg.type === "collapsible-section" && window.controlCollapsibleSection) controlCollapsibleSection.showProperties(cfg);
+        else if (cfg.type === "annotation" && window.controlAnnotation) controlAnnotation.showProperties(cfg);
     },
 
 
@@ -2620,192 +3340,271 @@ var builder = {
     initContextMenu: function () {
         if ($("#builderContextMenu").length) return;
 
-        var html =
-            '<div id="builderContextMenu" class="builder-context-menu" style="display:none;">' +
-            '  <ul>' +
-            '    <li data-cmd="duplicate">Duplicate (Ctrl+D)</li>' +
-            '    <li data-cmd="copy-ctrl">Copy control (Ctrl+C)</li>' +
-            '    <li data-cmd="paste-ctrl">Paste control (Ctrl+V)</li>' +
-            '    <li class="cm-sep"></li>' +
-            '    <li data-cmd="copy-style">Copy style (Ctrl+Alt+C)</li>' +
-            '    <li data-cmd="paste-style">Paste style (Ctrl+Alt+V)</li>' +
-            '    <li class="cm-sep"></li>' +
-            '    <li data-cmd="align-left">Align left</li>' +
-            '    <li data-cmd="align-right">Align right</li>' +
-            '    <li data-cmd="align-top">Align top</li>' +
-            '    <li data-cmd="align-bottom">Align bottom</li>' +
-            '    <li class="cm-sep"></li>' +
-            '    <li data-cmd="delete">Delete (Del)</li>' +
-            '  </ul>' +
-            '</div>';
-
-        $("body").append(html);
+        $("body").append('<div id="builderContextMenu" class="builder-context-menu" style="display:none;"><ul></ul></div>');
 
         var self = this;
-        $("#builderContextMenu").on("click", "li[data-cmd]", function () {
+        var $menu = $("#builderContextMenu");
+        $menu.on("click", "li[data-cmd]", function (e) {
+            e.stopPropagation();
             if ($(this).hasClass("cm-disabled")) return;
-
-            var cmd = $(this).data("cmd");
-            self.handleContextCommand(cmd);
+            var cmd = $(this).attr("data-cmd");
+            var arg = $(this).attr("data-arg") || null;
             self.hideContextMenu();
+            self.handleContextCommand(cmd, arg);
         });
+        $menu.on("mouseenter click", "li.cm-parent", function (e) {
+            if (e.type === "click" && $(e.target).closest("li")[0] !== this) return;
+            $(this).siblings(".cm-open").removeClass("cm-open");
+            $(this).addClass("cm-open");
+            self.placeContextSubmenu($(this));
+        });
+        $menu.on("mouseenter", "> ul > li:not(.cm-parent)", function () {
+            $(this).siblings(".cm-open").removeClass("cm-open");
+        });
+    },
+
+    contextMenuHtml: function (items) {
+        var self = this;
+        return items.map(function (item) {
+            if (item.sep) return '<li class="cm-sep"></li>';
+            var text = $("<span>").text(item.text).html();
+            if (item.label) return '<li class="cm-label">' + text + '</li>';
+            if (item.items) {
+                return '<li class="cm-parent"><span class="cm-text">' + text + '</span><span class="cm-arrow">&#9656;</span>' +
+                    '<ul class="cm-sub">' + self.contextMenuHtml(item.items) + '</ul></li>';
+            }
+            return '<li data-cmd="' + item.cmd + '"' + (item.arg ? ' data-arg="' + item.arg + '"' : '') +
+                (item.disabled ? ' class="cm-disabled"' : '') + '><span class="cm-text">' + text + '</span>' +
+                (item.key ? '<span class="cm-key">' + item.key + '</span>' : '') + '</li>';
+        }).join("");
+    },
+
+    fieldTypeMenu: function (cfg) {
+        var self = this;
+        var isImage = cfg.ftype === "image";
+        var modes = [cfg.uiMode === "ess" ? "ess" : "core"];
+        if (isImage) {
+            var used = {};
+            (this.controls || []).forEach(function (c) {
+                if (c.type === "field" && c.ftype !== "image" && c.ftype !== "groupbox" && c.ftype !== "section") {
+                    used[c.uiMode === "ess" ? "ess" : "core"] = true;
+                }
+            });
+            modes = ["core", "ess"].filter(function (mode) { return used[mode]; });
+            if (!modes.length) modes = ["core", "ess"];
+        }
+        var items = [];
+        modes.forEach(function (mode) {
+            if (modes.length > 1) items.push({ label: true, text: mode === "ess" ? "Control ESS" : "Control Core" });
+            self.fieldTypeChoices[mode].forEach(function (choice) {
+                if (!isImage && choice.ftype === cfg.ftype) return;
+                items.push({ cmd: "change-type", arg: mode + ":" + choice.ftype, text: choice.text });
+            });
+        });
+        return items;
+    },
+
+    contextMenuItems: function (cfg) {
+        var self = this;
+        var ids = this.getAllSelectedControlIds();
+        var isField = !!cfg && cfg.type === "field";
+        var isContainerField = isField && (cfg.ftype === "groupbox" || cfg.ftype === "section");
+        var isImage = isField && cfg.ftype === "image";
+        var isContainer = isContainerField || (!!cfg && (cfg.type === "popup" || cfg.type === "collapsible-section"));
+        var isGrid = !!cfg && (cfg.type === "grid" || cfg.type === "ess-grid");
+        var grouped = ids.some(function (id) {
+            var c = self.getControlConfig(id);
+            return !!(c && c.groupId);
+        });
+        var items = [];
+
+        if (cfg) {
+            items.push({ cmd: "duplicate", text: "Nhân bản", key: "Ctrl+D" });
+            items.push({ cmd: "copy-ctrl", text: "Sao chép", key: "Ctrl+C" });
+        }
+        items.push({ cmd: "paste-ctrl", text: "Dán", key: "Ctrl+V", disabled: !(this.clipboardControls && this.clipboardControls.length) });
+        if (cfg) items.push({ cmd: "delete", text: "Xóa", key: "Del" });
+        items.push({ sep: true });
+
+        if (isImage) {
+            items.push({ text: "Thay ảnh bằng control", items: this.fieldTypeMenu(cfg) });
+            if (cfg.imageData) {
+                items.push({
+                    text: "Tách ảnh thành control", items: [
+                        { cmd: "import-structure-core", text: "Nhận dạng thành control Core…" },
+                        { cmd: "import-structure-ess", text: "Nhận dạng thành control ESS…" },
+                        { cmd: "slice-image", text: "Cắt ảnh thành lát…" }
+                    ]
+                });
+            }
+        } else if (isField && !isContainerField && cfg.ftype !== "language" && cfg.ftype !== "progress") {
+            items.push({ text: "Đổi loại control", items: this.fieldTypeMenu(cfg) });
+        }
+        items.push({
+            text: "Đánh dấu", items: [
+                { cmd: "annot-box", text: "Khoanh đỏ" },
+                { cmd: "annot-highlight", text: "Bôi vàng" },
+                { cmd: "annot-note", text: "Thêm ghi chú" }
+            ]
+        });
+        if (this.getSelectedFieldIds().length > 1) {
+            items.push({
+                text: "Căn chỉnh", items: [
+                    { cmd: "align-left", text: "Căn trái", key: "Alt+←" },
+                    { cmd: "align-right", text: "Căn phải", key: "Alt+→" },
+                    { cmd: "align-top", text: "Căn trên", key: "Alt+↑" },
+                    { cmd: "align-bottom", text: "Căn dưới", key: "Alt+↓" }
+                ]
+            });
+        }
+        if (isField && !isContainerField) {
+            items.push({
+                text: "Kiểu hiển thị", items: [
+                    { cmd: "copy-style", text: "Sao chép kiểu", key: "Ctrl+Alt+C" },
+                    { cmd: "paste-style", text: "Dán kiểu", disabled: !this.copiedStyle }
+                ]
+            });
+        }
+        if (isContainer) {
+            items.push({
+                text: "Tự xếp control bên trong", items: [
+                    { cmd: "autolayout-flow", text: "Xếp ngang (thẻ, chip)" },
+                    { cmd: "autolayout-stack", text: "Xếp dọc (form, section)" },
+                    { cmd: "autolayout-rows", text: "Xếp theo hàng (ảnh chụp form)" },
+                    { cmd: "autolayout-off", text: "Tắt tự xếp" }
+                ]
+            });
+        }
+        if (grouped) items.push({ cmd: "ungroup", text: "Hủy nhóm", key: "Ctrl+Shift+G" });
+        else if (ids.length >= 2) items.push({ cmd: "group", text: "Nhóm", key: "Ctrl+G" });
+        if (isGrid) items.push({ cmd: "move-grid-to-container", text: "Đưa vào Popup / ESS Section…" });
+        if (cfg) {
+            items.push({ sep: true });
+            items.push({
+                text: "Ảnh của vùng chọn", items: [
+                    { cmd: "export-selection", text: "Tải ảnh PNG" },
+                    { cmd: "copy-selection-image", text: "Chép ảnh vào clipboard" }
+                ]
+            });
+            items.push({ cmd: "save-component", text: "Lưu thành component…" });
+        }
+        return items;
+    },
+
+    selectOnly: function (id) {
+        var cfg = this.getControlConfig(id);
+        if (!cfg) return;
+        this.clearSelection();
+        this.selectedControlId = id;
+        this.selectedControlType = cfg.type;
+        var $dom = $("#canvas").find('[data-id="' + id + '"]');
+        $dom.addClass("canvas-control-selected");
+        if (cfg.type === "field") $dom.addClass("page-field-selected");
+        if (cfg.type === "popup") $dom.filter(".popup-design").addClass("popup-selected");
+        this.highlightOutlineSelection();
+        this.updateSelectionSizeHint();
     },
 
     showContextMenu: function (e, target) {
         var $menu = $("#builderContextMenu");
         if (!$menu.length) return;
 
-        var $t = $(target);
-        var id = $t.attr("data-id") || $t.attr("id");
+        var contextStamp = (e.originalEvent || e).timeStamp;
+        if (this._contextStamp === contextStamp) return;
+        this._contextStamp = contextStamp;
+        this._contextPoint = { clientX: e.clientX, clientY: e.clientY };
 
-        // ✅ Tìm id từ các phần tử cha nếu không tìm thấy trực tiếp (cho gridview trong popup)
-        // Gridview có thể có nhiều phần tử con, cần tìm phần tử cha có data-id
-        if (!id) {
-            // Tìm canvas-control cha (cho Core GridView)
-            var $parentControl = $t.closest('.canvas-control[data-id]');
-            if ($parentControl.length) {
-                id = $parentControl.attr("data-id");
-                $t = $parentControl;
-            } else {
-                // Tìm ess-grid-control (cho ESS GridView)
-                var $essGrid = $t.closest('.ess-grid-control[data-id]');
-                if ($essGrid.length) {
-                    id = $essGrid.attr("data-id");
-                    $t = $essGrid;
-                } else {
-                    // Fallback: tìm bất kỳ phần tử cha nào có data-id
-                    var $parent = $t.closest('[data-id]');
-                    if ($parent.length) {
-                        id = $parent.attr("data-id");
-                        $t = $parent;
-                    }
-                }
-            }
-        } else {
-            // Nếu đã có id, nhưng có thể là phần tử con của gridview
-            // Kiểm tra xem có phải DevExtreme grid không
-            if ($t.hasClass("dx-datagrid") || $t.closest(".dx-datagrid").length) {
-                var $parentControl = $t.closest('.canvas-control[data-id]');
-                if ($parentControl.length) {
-                    id = $parentControl.attr("data-id");
-                    $t = $parentControl;
-                }
-            }
+        var $t = $(target);
+        var id = $t.attr("data-id");
+        if (!id || !this.getControlConfig(id) || $t.closest(".dx-datagrid").length) {
+            var $owner = $t.closest(".canvas-control[data-id], .ess-grid-control[data-id]");
+            if (!$owner.length) $owner = $t.closest("[data-id]");
+            id = $owner.length ? $owner.attr("data-id") : null;
         }
 
-        // Comment debug logs
-        // console.log("showContextMenu: target=", target, "id=", id, "element=", $t[0]);
-
-        // ✅ Lấy config và set selection
-        var cfg = null;
-        if (id) {
-            cfg = this.getControlConfig(id);
-            if (cfg) {
+        var cfg = id ? this.getControlConfig(id) : null;
+        this._contextControlId = cfg ? id : null;
+        if (cfg) {
+            if (this.getAllSelectedControlIds().indexOf(id) < 0) {
+                this.selectOnly(id);
+            } else {
                 this.selectedControlId = id;
                 this.selectedControlType = cfg.type;
-                // console.log("showContextMenu: cfg=", cfg, "type=", cfg.type, "parentId=", cfg.parentId);
             }
         }
 
-        // enable/disable theo ngữ cảnh
-        var isField = (this.selectedControlType === "field");
-        var multiFields = this.getSelectedFieldIds().length > 1;
-        var isGrid = (this.selectedControlType === "grid" || this.selectedControlType === "ess-grid");
-        
-        // ✅ Kiểm tra xem control có trong popup không
-        var isInPopup = false;
-        if (cfg && cfg.parentId) {
-            var $parentPopup = $('.popup-design[data-id="' + cfg.parentId + '"]');
-            isInPopup = $parentPopup.length > 0;
-            // console.log("showContextMenu: isInPopup=", isInPopup, "parentId=", cfg.parentId, "popup found=", $parentPopup.length);
-        }
+        $menu.children("ul").html(this.contextMenuHtml(this.contextMenuItems(cfg)));
+        $menu.css({ left: "0px", top: "0px", display: "block" });
+        var left = Math.min(e.clientX, window.innerWidth - $menu.outerWidth() - 8);
+        var top = Math.min(e.clientY, window.innerHeight - $menu.outerHeight() - 8);
+        $menu.css({ left: Math.max(8, left) + "px", top: Math.max(8, top) + "px" });
+    },
 
-        $menu.find("[data-cmd^='align-']").toggleClass("cm-disabled", !multiFields);
-        $menu.find("[data-cmd='copy-style'],[data-cmd='paste-style']").toggleClass("cm-disabled", !isField);
-        $menu.find("[data-cmd='paste-ctrl']").toggleClass("cm-disabled", !this.clipboardControls || !this.clipboardControls.length);
-        
-        // ✅ Xóa các menu items group/ungroup cũ trước khi thêm mới
-        $menu.find("li[data-cmd='group'], li[data-cmd='ungroup']").remove();
-        // Xóa separator trước group menu nếu không còn item nào sau nó
-        var $groupSeps = $menu.find("li.cm-sep");
-        $groupSeps.each(function() {
-            var $sep = $(this);
-            var hasGroupAfter = false;
-            $sep.nextAll().each(function() {
-                if ($(this).attr("data-cmd") === "group" || $(this).attr("data-cmd") === "ungroup") {
-                    hasGroupAfter = true;
-                    return false;
-                }
-            });
-            if (!hasGroupAfter && ($sep.next().length === 0 || $sep.next().hasClass("cm-sep"))) {
-                $sep.remove();
-            }
+    placeContextSubmenu: function ($item) {
+        var $sub = $item.children(".cm-sub");
+        if (!$sub.length) return;
+        $sub.css({ left: "100%", right: "auto", top: "-5px", maxHeight: (window.innerHeight - 16) + "px" });
+        var itemRect = $item[0].getBoundingClientRect();
+        var rect = $sub[0].getBoundingClientRect();
+        if (rect.right > window.innerWidth - 8 && itemRect.left - rect.width > 8) $sub.css({ left: "auto", right: "100%" });
+        var top = itemRect.top - 5;
+        if (top + rect.height > window.innerHeight - 8) top = Math.max(8, window.innerHeight - 8 - rect.height);
+        $sub.css("top", (top - itemRect.top) + "px");
+    },
+
+    changeSelectionType: function (arg) {
+        if (!arg || !window.controlField || typeof controlField.changeType !== "function") return;
+        var parts = String(arg).split(":");
+        var uiMode = parts[0] === "ess" ? "ess" : "core";
+        var choice = (this.fieldTypeChoices[uiMode] || []).filter(function (c) { return c.ftype === parts[1]; })[0];
+        if (!choice) return;
+
+        var ids = this.getAllSelectedControlIds();
+        if (this._contextControlId && ids.indexOf(this._contextControlId) < 0) ids = [this._contextControlId];
+        var changed = [];
+        ids.forEach(function (id) {
+            var next = controlField.changeType(id, choice.ftype, uiMode);
+            if (next) changed.push(next);
         });
-        
-        // ✅ Group/Ungroup menu
-        var allSelectedIds = this.getAllSelectedControlIds();
-        var hasGroupedControls = false;
-        var self = this; // ✅ Fix: Khai báo self để dùng trong forEach
-        if (allSelectedIds.length > 0) {
-            allSelectedIds.forEach(function(id) {
-                var c = self.getControlConfig(id);
-                if (c && c.groupId) {
-                    hasGroupedControls = true;
-                    return false; // break
-                }
-            });
+        if (!changed.length) {
+            this.showToast("Không có control nào đổi được sang " + choice.text + ".", "info");
+            return;
         }
-        
-        // Thêm Group/Ungroup vào menu (sau duplicate, trước separator)
-        if (hasGroupedControls || allSelectedIds.length >= 2) {
-            var $groupSep = $('<li class="cm-sep"></li>');
-            $menu.find("ul").append($groupSep);
-            
-            if (hasGroupedControls) {
-                var $ungroupItem = $('<li data-cmd="ungroup">🔓 Hủy nhóm (Ctrl+Shift+G)</li>');
-                $menu.find("ul").append($ungroupItem);
-            } else if (allSelectedIds.length >= 2) {
-                var $groupItem = $('<li data-cmd="group">🔒 Nhóm (Ctrl+G)</li>');
-                $menu.find("ul").append($groupItem);
-            }
-        }
-        
-        // ✅ GridView menu: Xóa tất cả menu items cũ liên quan đến di chuyển Grid
-        // (các item có data-cmd bắt đầu bằng move-grid-)
-        $menu.find("li").each(function () {
-            var $item = $(this);
-            var cmd = $item.attr("data-cmd") || "";
-            if (cmd.indexOf("move-grid-") === 0) {
-                $item.remove();
-            }
-            if ($item.hasClass("cm-label-grid")) {
-                $item.remove();
-            }
+
+        this.clearSelection();
+        changed.forEach(function (cfg) {
+            $("#canvas").find('[data-id="' + cfg.id + '"]').addClass("canvas-control-selected page-field-selected");
         });
-
-        if (isGrid) {
-            // Thêm separator riêng cho menu Grid
-            var $sep = $('<li class="cm-sep" data-cmd="move-grid-sep"></li>');
-            $menu.find("ul").append($sep);
-
-            // Menu chung: mở dialog chọn Popup / ESS Collapsible Section
-            var $moveItem = $('<li data-cmd="move-grid-to-container">📥 Đưa vào Popup / ESS Section...</li>');
-            $menu.find("ul").append($moveItem);
-        }
-
-        $menu.css({
-            left: e.pageX + "px",
-            top: e.pageY + "px",
-            display: "block"
-        });
+        this.selectedControlId = changed[0].id;
+        this.selectedControlType = "field";
+        if (changed.length === 1 && typeof controlField.showProperties === "function") controlField.showProperties(changed[0]);
+        this.refreshJson();
+        this.highlightOutlineSelection();
+        this.updateSelectionSizeHint();
+        this.showToast(changed.length === 1
+            ? "Đã đổi thành " + choice.text + ". Bấm Ctrl+Z nếu muốn quay lại."
+            : "Đã đổi " + changed.length + " control thành " + choice.text + ". Bấm Ctrl+Z nếu muốn quay lại.", "success");
     },
 
     hideContextMenu: function () {
         $("#builderContextMenu").hide();
     },
 
-    handleContextCommand: function (cmd) {
+    handleContextCommand: function (cmd, arg) {
         switch (cmd) {
+            case "change-type":
+                this.changeSelectionType(arg);
+                break;
+            case "annot-box":
+            case "annot-highlight":
+            case "annot-note":
+                if (window.controlAnnotation) {
+                    var annotIds = this.getAllSelectedControlIds();
+                    if (this._contextControlId && annotIds.indexOf(this._contextControlId) < 0) annotIds = [this._contextControlId];
+                    if (!this._contextControlId && annotIds.length < 2) annotIds = [];
+                    controlAnnotation.addForSelection(cmd.substring("annot-".length), this._contextPoint, annotIds);
+                }
+                break;
             case "duplicate":
                 this.duplicateSelection();
                 break;
@@ -2814,6 +3613,37 @@ var builder = {
                 break;
             case "paste-ctrl":
                 this.pasteSelectionControls();
+                break;
+            case "save-component":
+                if (window.builderSnippet) builderSnippet.saveSelectionAsComponent();
+                break;
+            case "export-selection":
+                this.exportImage({ selection: true });
+                break;
+            case "copy-selection-image":
+                this.exportImage({ selection: true, copy: true });
+                break;
+            case "slice-image":
+                if (window.builderSlice) builderSlice.openForSelection();
+                break;
+            case "autolayout-flow":
+                if (window.builderAutoLayout) builderAutoLayout.setMode("flow");
+                break;
+            case "autolayout-stack":
+                if (window.builderAutoLayout) builderAutoLayout.setMode("stack");
+                break;
+            case "autolayout-rows":
+                if (window.builderAutoLayout) builderAutoLayout.setMode("rows");
+                break;
+            case "import-structure":
+            case "import-structure-core":
+                if (window.builderImport) builderImport.runForSelection("core");
+                break;
+            case "import-structure-ess":
+                if (window.builderImport) builderImport.runForSelection("ess");
+                break;
+            case "autolayout-off":
+                if (window.builderAutoLayout) builderAutoLayout.setMode("off");
                 break;
             case "copy-style":
                 this.copyStyleFromSelection();
@@ -2874,12 +3704,12 @@ var builder = {
             '<div class="ub-modal" style="min-width: 360px;">' +
             '  <div class="ub-modal-header">Đưa GridView vào Popup / ESS Section</div>' +
             '  <div class="ub-modal-body">' +
-            '    <div style="margin-bottom:8px; font-size:12px;">Chọn container muốn chứa GridView "' + (cfg.title || cfg.caption || cfg.id) + '"</div>' +
+            '    <div style="margin-bottom:8px; font-size:12px;">Chọn container muốn chứa GridView "' + this.escapeHtml(cfg.title || cfg.caption || cfg.id) + '"</div>' +
             '    <select class="ub-input-container" style="width:100%; padding:4px 6px; margin-bottom:8px; box-sizing:border-box;">' +
             '    </select>' +
             '  </div>' +
             '  <div class="ub-modal-footer">' +
-            '    <button type="button" class="ub-btn ub-btn-secondary ub-btn-cancel">Cancel</button>' +
+            '    <button type="button" class="ub-btn ub-btn-secondary ub-btn-cancel">Hủy</button>' +
             '    <button type="button" class="ub-btn ub-btn-primary ub-btn-ok">OK</button>' +
             '  </div>' +
             '</div>';
@@ -2963,171 +3793,27 @@ var builder = {
             return;
         }
 
-        // Nếu là popup → dùng logic cũ
-        if (targetCfg.type === "popup") {
-            this.moveGridToPopup(containerId);
+        var $content = this.containerContent(containerId);
+        var $grid = this.controlElement(cfg);
+        if (!$content.length || !$grid.length) {
+            this.showToast("Container không hợp lệ.", "error");
             return;
         }
 
-        // Từ đây là ESS Collapsible Section
-        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
-        if ($oldGrid.length) {
-            $oldGrid.remove();
-        }
-
-        var oldParentId = cfg.parentId || null;
-        var absLeft = cfg.left || 0;
-        var absTop = cfg.top || 0;
-
-        // Nếu đang ở trong popup khác hoặc section khác → convert về absolute canvas
-        if (oldParentId) {
-            var oldParentCfg = this.getControlConfig(oldParentId);
-            if (oldParentCfg) {
-                if (oldParentCfg.type === "popup") {
-                    absLeft = (cfg.left || 0) + (oldParentCfg.left || 0);
-                    absTop = (cfg.top || 0) + (oldParentCfg.top || 0);
-                } else if (oldParentCfg.type === "collapsible-section") {
-                    var headerH = 50;
-                    var pad = oldParentCfg.contentPadding || 12;
-                    absLeft = (cfg.left || 0) + (oldParentCfg.left || 0) + pad;
-                    absTop = (cfg.top || 0) + (oldParentCfg.top || 0) + headerH + pad;
-                }
-            }
-        }
-
-        // Tính vị trí relative với ESS Collapsible Section mới
-        var headerHeight = 50;
-        var padding = targetCfg.contentPadding || 12;
-
-        cfg.parentId = containerId;
-        cfg.left = Math.max(0, absLeft - (targetCfg.left || 0) - padding);
-        cfg.top = Math.max(0, absTop - (targetCfg.top || 0) - headerHeight - padding);
-
-        // Render lại grid trong section
-        if (cfg.type === "grid" && window.controlGrid && typeof controlGrid.renderExisting === "function") {
-            controlGrid.renderExisting(cfg);
-        } else if (cfg.type === "ess-grid" && window.controlGridEss && typeof controlGridEss.renderExisting === "function") {
-            controlGridEss.renderExisting(cfg);
-        }
+        this.setControlParent(cfg, containerId);
+        var scale = this.cssScale();
+        var area = this.controlElement(targetCfg)[0].getBoundingClientRect();
+        cfg.left = Math.max(0, Math.min(cfg.left, Math.round(area.width / scale) - 100));
+        cfg.top = Math.max(0, Math.min(cfg.top, Math.round(area.height / scale) - 100));
+        $grid.css({ left: cfg.left + "px", top: cfg.top + "px" });
+        this.updateTabMembership(cfg);
 
         this.selectedControlId = cfg.id;
         this.selectedControlType = cfg.type;
         this.refreshJson();
-        this.showToast("Đã đưa GridView vào ESS Collapsible Section: " + (targetCfg.caption || targetCfg.title || targetCfg.id), "success");
-    },
-
-    // ✅ Di chuyển GridView vào popup
-    moveGridToPopup: function (popupId) {
-        if (!this.selectedControlId) return;
-        
-        var cfg = this.getControlConfig(this.selectedControlId);
-        if (!cfg || (cfg.type !== "grid" && cfg.type !== "ess-grid")) {
-            this.showToast("Chỉ có thể di chuyển GridView vào popup", "warning");
-            return;
-        }
-        
-        var popupCfg = this.getControlConfig(popupId);
-        if (!popupCfg || popupCfg.type !== "popup") {
-            this.showToast("Popup không tồn tại", "error");
-            return;
-        }
-        
-        // ✅ XÓA DOM element cũ trước khi render mới
-        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
-        if ($oldGrid.length) {
-            $oldGrid.remove();
-        }
-        
-        // Set parentId và tính lại vị trí relative với popup
-        var oldParentId = cfg.parentId;
-        cfg.parentId = popupId;
-        
-        // Convert current position về relative với popup
-        var currentLeft = cfg.left || 0;
-        var currentTop = cfg.top || 0;
-        var popupLeft = popupCfg.left || 0;
-        var popupTop = popupCfg.top || 0;
-        
-        // Tính relative position
-        // Nếu grid đang trong popup khác, cần convert từ popup cũ sang popup mới
-        if (oldParentId && oldParentId !== popupId) {
-            var oldPopupCfg = this.getControlConfig(oldParentId);
-            if (oldPopupCfg) {
-                // Convert từ relative của popup cũ sang absolute, rồi sang relative của popup mới
-                currentLeft = (cfg.left || 0) + (oldPopupCfg.left || 0);
-                currentTop = (cfg.top || 0) + (oldPopupCfg.top || 0);
-            }
-        }
-        
-        // Convert absolute position về relative với popup mới
-        cfg.left = Math.max(10, currentLeft - popupLeft);
-        cfg.top = Math.max(50, currentTop - popupTop); // Tránh header
-        
-        // Đảm bảo nằm trong popup
-        var popupWidth = popupCfg.width || 800;
-        var popupHeight = popupCfg.height || 600;
-        if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
-        if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
-        
-        // Re-render grid
-        if (cfg.type === "grid" && window.controlGrid && typeof controlGrid.renderExisting === "function") {
-            controlGrid.renderExisting(cfg);
-        } else if (cfg.type === "ess-grid" && window.controlGridEss && typeof controlGridEss.renderExisting === "function") {
-            controlGridEss.renderExisting(cfg);
-        }
-        
-        // Update selection
-        this.selectedControlId = cfg.id;
-        this.selectedControlType = cfg.type;
-        
-        this.refreshJson();
-        this.showToast("Đã di chuyển GridView vào popup: " + (popupCfg.headerText || popupCfg.titleText || "Popup"), "success");
-    },
-
-    // ✅ Di chuyển GridView ra khỏi popup
-    moveGridOutOfPopup: function () {
-        if (!this.selectedControlId) return;
-        
-        var cfg = this.getControlConfig(this.selectedControlId);
-        if (!cfg || (cfg.type !== "grid" && cfg.type !== "ess-grid")) {
-            this.showToast("Chỉ có thể di chuyển GridView ra khỏi popup", "warning");
-            return;
-        }
-        
-        if (!cfg.parentId) {
-            this.showToast("GridView không nằm trong popup", "info");
-            return;
-        }
-        
-        // ✅ XÓA DOM element cũ trước khi render mới
-        var $oldGrid = $('.canvas-control[data-id="' + cfg.id + '"]');
-        if ($oldGrid.length) {
-            $oldGrid.remove();
-        }
-        
-        var popupCfg = this.getControlConfig(cfg.parentId);
-        if (popupCfg) {
-            // Convert relative position về absolute position trên canvas
-            cfg.left = (cfg.left || 0) + (popupCfg.left || 0);
-            cfg.top = (cfg.top || 0) + (popupCfg.top || 0);
-        }
-        
-        // Remove parentId
-        cfg.parentId = null;
-        
-        // Re-render grid
-        if (cfg.type === "grid" && window.controlGrid && typeof controlGrid.renderExisting === "function") {
-            controlGrid.renderExisting(cfg);
-        } else if (cfg.type === "ess-grid" && window.controlGridEss && typeof controlGridEss.renderExisting === "function") {
-            controlGridEss.renderExisting(cfg);
-        }
-        
-        // Update selection
-        this.selectedControlId = cfg.id;
-        this.selectedControlType = cfg.type;
-        
-        this.refreshJson();
-        this.showToast("Đã di chuyển GridView ra khỏi popup", "success");
+        this.showToast(targetCfg.type === "popup"
+            ? "Đã di chuyển GridView vào popup: " + (targetCfg.headerText || targetCfg.titleText || "Popup")
+            : "Đã đưa GridView vào ESS Collapsible Section: " + (targetCfg.caption || targetCfg.title || targetCfg.id), "success");
     },
 
     // ========= Bottom toolbar giống thanh Figma =========
@@ -3136,6 +3822,18 @@ var builder = {
         if (!$bar.length) return;
 
         var self = this;
+
+        var shell = document.querySelector(".canvas-shell");
+        if (shell) {
+            var placeBar = function () {
+                var r = shell.getBoundingClientRect();
+                if (r.width < 40) return;
+                $bar.css({ left: Math.round(r.left + r.width / 2) + "px", "max-width": Math.max(180, Math.round(r.width - 12)) + "px" });
+            };
+            placeBar();
+            if (window.ResizeObserver) new ResizeObserver(placeBar).observe(shell);
+            $(window).on("resize.canvasToolbar", placeBar);
+        }
 
         // ✅ Ngăn mất focus khi click vào toolbar
         $bar.on("mousedown", function(e) {
@@ -3158,6 +3856,12 @@ var builder = {
                     self.canvasTranslateX = 0;
                     self.canvasTranslateY = 0;
                     self.applyCanvasTransform();
+                    break;
+                case "zoom-fit":
+                    self.fitZoom(false);
+                    break;
+                case "toggle-panels":
+                    self.togglePanels();
                     break;
                 case "align-left":
                     self.alignSelection("left");
@@ -3200,6 +3904,10 @@ var builder = {
 
                 // option "current" chỉ để hiển thị, không set zoom
                 if (v === "custom") return;
+                if (v === "fit" || v === "fit-width") {
+                    self.fitZoom(v === "fit-width");
+                    return;
+                }
 
                 var scale = parseFloat(v);
                 if (!isNaN(scale) && scale > 0) {
@@ -3445,6 +4153,7 @@ var builder = {
         $(window).on("resize", function () {
             updateRulersDebounced();
         });
+        if (window.ResizeObserver) new ResizeObserver(updateRulersDebounced).observe($canvasShell[0]);
     },
 
     // Cập nhật kích thước và vẽ tick marks cho ruler
@@ -3768,54 +4477,42 @@ var builder = {
 
         if (!fieldIds.length && !nonFieldIds.length) return;
 
-        var msgParts = [];
-        if (fieldIds.length) msgParts.push(fieldIds.length + " field(s)");
-        if (nonFieldIds.length) msgParts.push(nonFieldIds.length + " control(s)");
-        var msgText = "Delete " + allIds.length + " selected " +
-            (msgParts.length ? "(" + msgParts.join(" + ") + ") " : "") +
-            "and their children?";
+        var msgText = "Xóa " + allIds.length + " control đang chọn và mọi control nằm bên trong?";
 
         builder.showConfirm({
-            title: "Delete controls",
+            title: "Xóa control",
             message: msgText,
-            okText: "Delete",
-            cancelText: "Cancel",
+            okText: "Xóa",
+            cancelText: "Hủy",
             onOk: function () {
-                // 1. Xoá các field bằng controlField.deleteWithChildren
-                if (window.controlField && typeof controlField.deleteWithChildren === "function") {
-                    fieldIds.forEach(function (fid) {
-                        controlField.deleteWithChildren(fid);
-                    });
-                }
-
-                // 2. Xoá các control khác (ess-grid, grid, popup, tabpage, toolbar,…)
-                nonFieldIds.forEach(function (id) {
-                    var cfg = self.getControlConfig(id);
-                    if (!cfg) return;
-
-                    // popup / tabpage: xoá cả con bằng deleteWithChildren
-                    if (cfg.type === "tabpage" || cfg.type === "popup") {
-                        if (window.controlField && typeof controlField.deleteWithChildren === "function") {
-                            controlField.deleteWithChildren(id);
-                        }
+                self.asOneStep(function () {
+                    // 1. Xoá các field bằng controlField.deleteWithChildren
+                    if (window.controlField && typeof controlField.deleteWithChildren === "function") {
+                        fieldIds.forEach(function (fid) {
+                            controlField.deleteWithChildren(fid);
+                        });
                     }
 
-                    self.controls = (self.controls || []).filter(function (c) { return c.id !== id; });
-                    $('[data-id="' + id + '"], #' + id).remove();
+                    // 2. Xoá các control khác (ess-grid, grid, popup, tabpage, toolbar,…)
+                    nonFieldIds.forEach(function (id) {
+                        var cfg = self.getControlConfig(id);
+                        if (!cfg) return;
+
+                        // popup / tabpage: xoá cả con bằng deleteWithChildren
+                        if (cfg.type === "tabpage" || cfg.type === "popup") {
+                            if (window.controlField && typeof controlField.deleteWithChildren === "function") {
+                                controlField.deleteWithChildren(id);
+                            }
+                        }
+
+                        self.controls = (self.controls || []).filter(function (c) { return c.id !== id; });
+                        $('[data-id="' + id + '"], #' + id).remove();
+                    });
+
+                    self.syncControlsWithDom();
+                    self.clearSelection();
+                    self.refreshJson();
                 });
-
-                self.syncControlsWithDom();
-
-                self.selectedControlId = null;
-                self.selectedControlType = null;
-
-                if (window.controlField && typeof controlField.clearSelection === "function") {
-                    controlField.clearSelection();
-                }
-
-                $('#propPanel').html('<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>');
-                self.hideSizeHint();
-                self.refreshJson();
             }
         });
     },
@@ -3824,44 +4521,51 @@ var builder = {
     // ✅ Duplicate selected control
     duplicateSelection: function () {
         if (!this.selectedControlId) {
-            this.showToast("Chưa chọn control nào để duplicate", "warning");
+            this.showToast("Chưa chọn control nào để nhân bản.", "warning");
             return;
         }
 
         var cfg = this.getControlConfig(this.selectedControlId);
         if (!cfg) {
-            this.showToast("Không tìm thấy control để duplicate", "error");
+            this.showToast("Không tìm thấy control để nhân bản.", "error");
+            return;
+        }
+
+        if (window.builderSnippet) {
+            var ids = builderSnippet.getSelectionIds();
+            if (ids.indexOf(cfg.id) < 0) ids = [cfg.id];
+            var items = builderSnippet.collectSubtree(ids);
+            builderSnippet.instantiate(items, { keepParent: true, dx: 20, dy: 20 });
+            this.showToast(items.length > 1 ? "Đã nhân bản " + items.length + " control (gồm control con)." : "Đã nhân bản control.", "success");
             return;
         }
 
         // Deep clone config
         var newCfg = JSON.parse(JSON.stringify(cfg));
-        
+
         // Generate new ID
         var newId = "ctrl_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
         newCfg.id = newId;
-        
+
         // Offset position (di chuyển sang phải và xuống dưới 20px)
         newCfg.left = (newCfg.left || 0) + 20;
         newCfg.top = (newCfg.top || 0) + 20;
-        
-        // Clear parentId nếu đang trong popup (duplicate sẽ ra ngoài canvas)
-        // Hoặc giữ nguyên parentId nếu muốn duplicate trong cùng popup
-        // newCfg.parentId = null; // Uncomment nếu muốn duplicate ra ngoài popup
-        
+
         // Add to controls array
         this.controls.push(newCfg);
-        
+
         // Render the duplicated control
+        newCfg._fromRestore = true;
         this.renderControlByConfig(newCfg);
-        
+        delete newCfg._fromRestore;
+
         // Select the new control
         this.selectedControlId = newId;
         this.selectedControlType = newCfg.type;
-        
+
         // Update UI
         this.refreshJson();
-        this.showToast("Đã duplicate control", "success");
+        this.showToast("Đã nhân bản control.", "success");
     },
 
     // ✅ Remove control helper
@@ -3909,7 +4613,7 @@ var builder = {
         }
 
         // Reset panel về thông báo mặc định
-        $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
+        builderProps.showEmpty();
 
         // Không còn selectedControlId nên highlightOutlineSelection sẽ không tô gì nữa
         this.highlightOutlineSelection();
@@ -3922,15 +4626,15 @@ var builder = {
     syncControlsWithDom: function () {
         var self = this;
         this.controls = (this.controls || []).filter(function (c) {
-            return $('[data-id="' + c.id + '"], #' + c.id).length > 0;
+            return self.controlElement(c).length > 0;
         });
     },
 
     // ========= Save dialog / Confirm / Toast (giữ nguyên logic cũ) =========
 
     showSaveDialog: function (options) {
-        var title = options.title || "Save";
-        var nameLabel = options.nameLabel || "Name";
+        var title = options.title || "Lưu";
+        var nameLabel = options.nameLabel || "Tên";
         var defaultName = options.defaultName || "";
         var defaultIsPublic = (options.defaultIsPublic !== false); // mặc định true
         var defaultProjectId = options.defaultProjectId || null;
@@ -3940,26 +4644,28 @@ var builder = {
         var $overlay = $('<div class="ub-modal-backdrop"></div>');
         var html =
             '<div class="ub-modal" style="min-width: 420px;">' +
-            '  <div class="ub-modal-header">' + title + '</div>' +
+            '  <div class="ub-modal-header"></div>' +
             '  <div class="ub-modal-body">' +
-            '    <label>Project:</label>' +
-            '    <select class="ub-input-project" style="width:100%; padding:4px 6px; margin-bottom:8px; box-sizing:border-box;">' +
-            '      <option value="">Loading...</option>' +
+            '    <label class="ub-label-name"></label>' +
+            '    <input type="text" class="ub-input-name" maxlength="200" />' +
+            '    <label style="margin-top:8px;">Dự án:</label>' +
+            '    <select class="ub-input-project" style="width:100%; padding:4px 6px; box-sizing:border-box;">' +
+            '      <option value="">Đang tải...</option>' +
             '    </select>' +
-            '    <label>' + nameLabel + ':</label>' +
-            '    <input type="text" class="ub-input-name" />' +
-            '    <div style="margin-top:6px;">' +
-            '      <label><input type="checkbox" class="ub-input-public" /> Public (share for other BA)</label>' +
+            '    <div style="margin-top:8px;">' +
+            '      <label><input type="checkbox" class="ub-input-public" /> Chia sẻ cho các BA khác cùng xem</label>' +
             '    </div>' +
             '    <div class="ub-modal-error" style="display:none;"></div>' +
             '  </div>' +
             '  <div class="ub-modal-footer">' +
-            '    <button type="button" class="ub-btn ub-btn-secondary ub-btn-cancel">Cancel</button>' +
-            '    <button type="button" class="ub-btn ub-btn-primary ub-btn-ok">OK</button>' +
+            '    <button type="button" class="ub-btn ub-btn-secondary ub-btn-cancel">Hủy</button>' +
+            '    <button type="button" class="ub-btn ub-btn-primary ub-btn-ok">Lưu</button>' +
             '  </div>' +
             '</div>';
 
         var $dlg = $(html);
+        $dlg.find(".ub-modal-header").text(title);
+        $dlg.find(".ub-label-name").text(nameLabel + ":");
         $overlay.append($dlg);
         $("body").append($overlay);
 
@@ -3976,14 +4682,15 @@ var builder = {
             success: function (res) {
                 var projects = res.d || [];
                 $projectSelect.empty();
-                $projectSelect.append('<option value="">-- Select Project --</option>');
+                $projectSelect.append('<option value="">-- Chưa chọn dự án --</option>');
                 projects.forEach(function (p) {
-                    var selected = (defaultProjectId && p.projectId === defaultProjectId) ? ' selected' : '';
-                    $projectSelect.append('<option value="' + p.projectId + '"' + selected + '>' + p.name + '</option>');
+                    $("<option>").val(p.projectId).text(p.name)
+                        .prop("selected", !!defaultProjectId && p.projectId === defaultProjectId)
+                        .appendTo($projectSelect);
                 });
             },
             error: function () {
-                $projectSelect.html('<option value="">Error loading projects</option>');
+                $projectSelect.html('<option value="">Không tải được danh sách dự án</option>');
             }
         });
 
@@ -4007,7 +4714,7 @@ var builder = {
             if (projectId) projectId = parseInt(projectId, 10);
 
             if (!name) {
-                showError("Name is required.");
+                showError("Hãy nhập tên.");
                 $nameInput.focus();
                 return;
             }
@@ -4033,10 +4740,10 @@ var builder = {
     },
 
     showConfirm: function (options) {
-        var title = options.title || "Confirm";
-        var message = options.message || "Are you sure?";
-        var okText = options.okText || "OK";
-        var cancelText = options.cancelText || "Cancel";
+        var title = options.title || "Xác nhận";
+        var message = options.message || "Bạn có chắc không?";
+        var okText = options.okText || "Đồng ý";
+        var cancelText = options.cancelText || "Hủy";
         var onOk = options.onOk || function () { };
         var onCancel = options.onCancel || function () { };
 
@@ -4172,8 +4879,8 @@ var builder = {
         var self = this;
 
         this.showSaveDialog({
-            title: "Save control",
-            nameLabel: "Control name",
+            title: "Lưu control",
+            nameLabel: "Tên control",
             defaultName: defaultName,
             defaultIsPublic: true,
             onOk: function (result) {
@@ -4188,7 +4895,7 @@ var builder = {
                     return;
                 }
 
-                html2canvas(canvasEl, {
+                controlAnnotation.captureWithHighlights(canvasEl, {
                     scale: 2,
                     backgroundColor: "#ffffff"
                 }).then(function (canvas) {
@@ -4222,82 +4929,163 @@ var builder = {
         });
     },
 
-    savePageToServer: function () {
+    canOverwriteDesign: function () {
+        var info = this.currentDesignInfo;
+        return !!(info && info.ControlType === "page" && info.IsOwner && !info.IsClone && parseInt(info.ControlId, 10) > 0);
+    },
+
+    isDirty: function () {
+        return JSON.stringify(this.controls || []) !== this.savedSnapshot;
+    },
+
+    markSaved: function (snapshot, savedNow) {
+        this.savedSnapshot = snapshot != null ? snapshot : JSON.stringify(this.controls || []);
+        this.savedAt = savedNow ? new Date() : null;
+        this.updateSaveState();
+    },
+
+    updateSaveState: function (snapshot) {
+        var $state = $("#lblSaveState");
+        if (!$state.length) return;
+        var current = snapshot != null ? snapshot : JSON.stringify(this.controls || []);
+        var dirty = current !== this.savedSnapshot;
+        var text, cls;
+        if (this.isSaving) {
+            text = "Đang lưu...";
+            cls = "is-saving";
+        } else if (dirty) {
+            text = "Chưa lưu";
+            cls = "is-dirty";
+        } else if (this.savedAt) {
+            var hours = this.savedAt.getHours(), minutes = this.savedAt.getMinutes();
+            text = "Đã lưu lúc " + (hours < 10 ? "0" : "") + hours + ":" + (minutes < 10 ? "0" : "") + minutes;
+            cls = "is-saved";
+        } else if (this.canOverwriteDesign()) {
+            text = "Đã lưu";
+            cls = "is-saved";
+        } else {
+            text = "";
+            cls = "";
+        }
+        $state.text(text).attr("class", "bh-save-state" + (cls ? " " + cls : "")).toggle(!!text);
+        $("#btnSaveDesign").prop("disabled", this.isSaving);
+    },
+
+    ajaxErrorText: function (xhr) {
+        var message = "";
+        try { message = (JSON.parse(xhr.responseText) || {}).Message || ""; } catch (e) { message = ""; }
+        if (!message && xhr && xhr.status === 401) message = "Phiên đăng nhập đã hết. Hãy đăng nhập lại ở tab khác rồi bấm Lưu lần nữa.";
+        return message || "Máy chủ không phản hồi (mã " + (xhr && xhr.status ? xhr.status : 0) + ").";
+    },
+
+    savePageToServer: function (options) {
+        options = options || {};
+        if (this.isSaving) return;
+
         var self = this;
-        var json = JSON.stringify(this.controls || []);
+        var info = this.currentDesignInfo || {};
+        var own = this.canOverwriteDesign();
+        var overwrite = own && !options.saveAs;
 
-        var defaultName = "New Page";
-        if (this.currentDesignInfo &&
-            this.currentDesignInfo.ControlType === "page" &&
-            this.currentDesignInfo.Name) {
-
-            if (this.currentDesignInfo.IsClone) {
-                defaultName = this.currentDesignInfo.Name + " Clone";
-            } else {
-                defaultName = this.currentDesignInfo.Name;
-            }
+        if (overwrite && !options.editInfo) {
+            this.persistPage({
+                controlId: parseInt(info.ControlId, 10),
+                name: info.Name,
+                isPublic: info.IsPublic !== false,
+                projectId: info.ProjectId || null
+            });
+            return;
         }
 
+        var defaultName = info.ControlType === "page" && info.Name ? info.Name : "Thiết kế mới";
+        if (own && options.saveAs) defaultName += " (bản sao)";
+        else if (info.IsClone) defaultName += " Clone";
+
         this.showSaveDialog({
-            title: "Save page design",
-            nameLabel: "Page name",
+            title: overwrite ? "Tên, dự án và chia sẻ" : (own ? "Lưu thành bản mới" : "Lưu thiết kế"),
+            nameLabel: "Tên thiết kế",
             defaultName: defaultName,
-            defaultIsPublic: true,
+            defaultIsPublic: own ? info.IsPublic !== false : false,
+            defaultProjectId: own ? (info.ProjectId || null) : null,
             onOk: function (result) {
-                var pageName = result.name;
-                var isPublic = result.isPublic;
-
-                var controlName = pageName;
-
-                var controlId = parseInt($("#hiddenControlId").val() || "0", 10);
-                var isCloneMode = self.currentDesignInfo && self.currentDesignInfo.IsClone;
-                var controlIdToSave = (controlId > 0 && !isCloneMode) ? controlId : null;
-
-                var canvasEl = document.getElementById("canvas");
-                if (!canvasEl) {
-                    alert("Không tìm thấy vùng canvas để chụp hình.");
-                    return;
-                }
-
-                html2canvas(canvasEl, {
-                    scale: 2,
-                    backgroundColor: "#ffffff"
-                }).then(function (canvas) {
-                    var thumbDataUrl = canvas.toDataURL("image/png");
-
-                    $.ajax({
-                        url: builderServiceUrl + "/SaveDesign",
-                        method: "POST",
-                        contentType: "application/json; charset=utf-8",
-                        data: JSON.stringify({
-                            controlId: controlIdToSave,
-                            pageName: pageName,
-                            controlName: controlName,
-                            controlType: "page",
-                            jsonConfig: json,
-                            isPublic: isPublic,
-                            thumbnailData: thumbDataUrl,
-                            projectId: result.projectId || null
-                        }),
-                        success: function (res) {
-                            var newId = res.d;
-                            $("#hiddenControlId").val(newId);
-
-                            self.setCurrentDesignInfo({
-                                ControlId: newId,
-                                Name: pageName,
-                                ControlType: "page",
-                                IsOwner: true
-                            }, false);
-
-                            builder.showToast("Đã lưu design (ID = " + newId + ")", "success");
-                        },
-                        error: function (xhr) {
-                            builder.showToast("Lỗi khi lưu design: " + xhr.responseText, "error");
-                        }
-                    });
+                self.persistPage({
+                    controlId: overwrite ? parseInt(info.ControlId, 10) : null,
+                    name: result.name,
+                    isPublic: result.isPublic,
+                    projectId: result.projectId || null
                 });
             }
+        });
+    },
+
+    persistPage: function (design) {
+        var self = this;
+        var canvasEl = document.getElementById("canvas");
+        if (!canvasEl) {
+            this.showToast("Không tìm thấy vùng thiết kế để chụp hình.", "error");
+            return;
+        }
+
+        var json = JSON.stringify(this.controls || []);
+        var thumbnailArea = this.thumbnailArea(canvasEl);
+        this.isSaving = true;
+        this.updateSaveState(json);
+
+        function failed(message) {
+            self.isSaving = false;
+            self.updateSaveState();
+            self.showToast("Chưa lưu được thiết kế. " + message, "error");
+        }
+
+        controlAnnotation.captureWithHighlights(canvasEl, {
+            scale: 2,
+            backgroundColor: "#ffffff",
+            onclone: function (doc) {
+                $(doc).find(".canvas-control-selected, .page-field-selected, .popup-field-selected, .popup-selected")
+                    .removeClass("canvas-control-selected page-field-selected popup-field-selected popup-selected");
+                $(doc).find(".ub-diff-ghost").remove();
+                $(doc).find(".ub-diff-added, .ub-diff-changed, .ub-diff-moved").removeClass("ub-diff-added ub-diff-changed ub-diff-moved");
+            }
+        }).then(function (canvas) {
+            $.ajax({
+                url: builderServiceUrl + "/SaveDesign",
+                method: "POST",
+                contentType: "application/json; charset=utf-8",
+                data: JSON.stringify({
+                    controlId: design.controlId,
+                    pageName: design.name,
+                    controlName: design.name,
+                    controlType: "page",
+                    jsonConfig: json,
+                    isPublic: design.isPublic,
+                    thumbnailData: self.designThumbnail(canvas, thumbnailArea, 2),
+                    projectId: design.projectId
+                }),
+                success: function (res) {
+                    var newId = res.d;
+                    self.isSaving = false;
+                    $("#hiddenControlId").val(newId);
+                    $("#hiddenIsClone").val("0");
+                    self.setCurrentDesignInfo({
+                        ControlId: newId,
+                        Name: design.name,
+                        ControlType: "page",
+                        IsOwner: true,
+                        IsPublic: design.isPublic,
+                        ProjectId: design.projectId
+                    }, false);
+                    self.markSaved(json, true);
+                    if (window.history && history.replaceState) {
+                        history.replaceState(null, "", builderEditBaseUrl + "?controlId=" + newId);
+                    }
+                    self.showToast("Đã lưu thiết kế '" + design.name + "'.", "success");
+                },
+                error: function (xhr) {
+                    failed(self.ajaxErrorText(xhr));
+                }
+            });
+        }, function () {
+            failed("Không chụp được hình thu nhỏ của thiết kế.");
         });
     },
 
@@ -4315,7 +5103,7 @@ var builder = {
                 var $box = $("#tplControls").empty();
 
                 var templates = list.filter(function (x) {
-                    return x.ControlType !== "page";
+                    return x.ControlType !== "page" && x.ControlType !== "component";
                 });
 
                 if (!templates.length) {
@@ -4385,6 +5173,12 @@ var builder = {
 
                 var cfg = JSON.parse(dto.JsonConfig);
 
+                // Component nhiều control (do builder-snippet.js lưu) → chèn cả cây
+                if (cfg && cfg.kind === "component" && window.builderSnippet) {
+                    builderSnippet.instantiate(cfg.items || [], {});
+                    return;
+                }
+
                 cfg = $.extend(true, {}, cfg);
                 cfg.controlDbId = null;
                 cfg.id = (cfg.type || "ctrl") + "_" + Date.now();
@@ -4413,10 +5207,10 @@ var builder = {
                 if (dto.ControlType === "page") {
                     builder.setCurrentDesignInfo(dto, !!isClone);
 
-                    var arr = Array.isArray(cfg) ? cfg : [];
+                    var arr = builder.sanitizeControls(Array.isArray(cfg) ? cfg : []);
                     builder.controls = [];
                     $("#canvas-zoom-inner").empty();
-                    $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
+                    builderProps.showEmpty();
 
                     // ✅ Cùng logic loadConfig/restoreFromJson: sắp thứ tự phụ thuộc (parent trước child) + _fromRestore
                     // để control trong popup/groupbox không bị vẽ sai (đẩy lên đầu popup hoặc ra ngoài)
@@ -4444,6 +5238,8 @@ var builder = {
 
                     builder.refreshJson();
                 } else {
+                    cfg = builder.sanitizeControls([cfg])[0];
+                    if (!cfg) { alert("Không đọc được control này"); return; }
                     builder.setCurrentDesignInfo(dto, false);
 
                     cfg.controlDbId = dto.ControlId;
@@ -4454,6 +5250,9 @@ var builder = {
                     builder.controls = [cfg];
                     builder.refreshJson();
                 }
+                builder.resetHistory();
+                builder.markSaved();
+                if (dto.ControlType === "page") builder.fitOnOpen();
             },
             error: function (xhr) {
                 alert("Lỗi load control: " + xhr.responseText);
@@ -4462,136 +5261,68 @@ var builder = {
     },
 
     addControl: function (type, uiMode, dropPoint) {
+        if (type && type.indexOf("screen:") === 0) {
+            if (window.builderTemplates && typeof builderTemplates.insertAt === "function") builderTemplates.insertAt(type.substring(7), dropPoint);
+            return;
+        }
         uiMode = uiMode || "core";
+        this.clearSelection();
 
-        // ✅ Detect popup: Check xem drop point có nằm trong viewport của popup không
-        var popupId = null;
-        var $popups = $(".popup-design");
-        
-        if ($popups.length > 0 && dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
-            var self = this;
-            var foundPopup = null;
-            
-            // Check từng popup xem drop point có nằm trong viewport của nó không
-            $popups.each(function() {
-                var $popup = $(this);
-                var pid = $popup.attr("data-id");
-                if (!pid) return;
-                
-                var popupRect = this.getBoundingClientRect();
-                
-                // Check xem drop point có nằm trong popup viewport không (với tolerance lớn)
-                // Dùng viewport coordinates vì đơn giản và chính xác hơn
-                var tolerance = 150; // Tolerance lớn để bù cho drag hint và các edge cases
-                var inside = (dropPoint.clientX >= (popupRect.left - tolerance) && 
-                             dropPoint.clientX <= (popupRect.right + tolerance) && 
-                             dropPoint.clientY >= (popupRect.top - tolerance) && 
-                             dropPoint.clientY <= (popupRect.bottom + tolerance));
-                
-                if (inside) {
-                    foundPopup = pid;
-                    console.log("Builder.addControl: ✅ Drop point inside popup viewport:", pid, "at", dropPoint.clientX, dropPoint.clientY);
-                    return false; // Break loop
+        var self = this;
+        var existing = {};
+        (this.controls || []).forEach(function (c) { existing[c.id] = true; });
+        this._coalesceHistory = true;
+        this._coalescePushed = false;
+
+        try {
+            if (type === "grid") {
+                controlGrid.addNew(dropPoint);
+
+            } else if (type === "ess-grid") {
+                if (window.controlGridEss && typeof controlGridEss.addNew === "function") {
+                    controlGridEss.addNew(uiMode, dropPoint);
                 }
-            });
-            
-            if (foundPopup) {
-                popupId = foundPopup;
-            } else {
-                // Nếu không tìm thấy, log để debug
-                console.log("Builder.addControl: Drop point not inside any popup viewport:", dropPoint.clientX, dropPoint.clientY);
-                $popups.each(function() {
-                    var r = this.getBoundingClientRect();
-                    console.log("  - Popup", $(this).attr("data-id"), "viewport rect:", r.left, r.top, r.right, r.bottom);
-                });
-            }
-        } else if ($popups.length === 0) {
-            console.log("Builder.addControl: No popup found in DOM");
-        } else {
-            console.log("Builder.addControl: No dropPoint or missing coordinates");
-        }
 
-        // ✅ Detect drop vào collapsible-section (giống groupbox/section)
-        var collapsibleSectionId = null;
-        if (type !== "collapsible-section" && dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
-            var $sections = $(".ess-collapsible-section");
-            $sections.each(function() {
-                var $section = $(this);
-                var sid = $section.attr("data-id");
-                if (!sid) return;
-                var $content = $section.find(".ess-collapsible-content");
-                if (!$content.length || !$content.is(":visible")) return;
-                var contentRect = $content[0].getBoundingClientRect();
-                var inside = (dropPoint.clientX >= contentRect.left &&
-                             dropPoint.clientX <= contentRect.right &&
-                             dropPoint.clientY >= contentRect.top &&
-                             dropPoint.clientY <= contentRect.bottom);
-                if (inside) {
-                    collapsibleSectionId = sid;
-                    return false;
+            } else if (type === "popup") {
+                controlPopup.addNew(dropPoint);
+
+            } else if (type && type.indexOf("field-") === 0) {
+                var ftype = type.substring("field-".length);
+                if (window.controlField && typeof controlField.addNew === "function") {
+                    controlField.addNew(ftype, uiMode, dropPoint);
                 }
-            });
-        }
 
-        // ✅ Detect drop vào groupbox/section - ưu tiên để control không bị nằm dưới groupbox
-        // 1) Thử content area trước; 2) Nếu không trúng thì thử toàn bộ bounds của groupbox (title + border) để tránh miss khi thả lên đầu/viền
-        var groupboxOrSectionId = null;
-        if (type && type.indexOf("field-") === 0 && dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
-            var px = dropPoint.clientX, py = dropPoint.clientY;
-            var $contents = $(".page-field-groupbox-content, .page-field-section-content");
-            $contents.each(function() {
-                var r = this.getBoundingClientRect();
-                if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
-                    var $gb = $(this).closest(".page-field-groupbox, .page-field-section, .popup-groupbox, .popup-section");
-                    if ($gb.length) { var gid = $gb.attr("data-id"); if (gid) groupboxOrSectionId = gid; }
-                    return false;
+            } else if (type === "toolbar") {
+                controlToolbar.addNew(dropPoint);
+            } else if (type === "tabpage") {
+                controlTabPage.addNew(dropPoint);
+            } else if (type === "collapsible-section") {
+                if (window.controlCollapsibleSection && typeof controlCollapsibleSection.addNew === "function") {
+                    controlCollapsibleSection.addNew(dropPoint);
                 }
+            } else if (type && type.indexOf("annot-") === 0) {
+                if (window.controlAnnotation) controlAnnotation.addNew(type.substring("annot-".length), dropPoint);
+            }
+
+            var point = dropPoint && dropPoint.clientX != null ? { x: dropPoint.clientX, y: dropPoint.clientY } : null;
+            var fresh = (this.controls || []).filter(function (c) { return !existing[c.id]; });
+            fresh.forEach(function (added) {
+                if (added.type === "field" && window.controlField && typeof controlField.updateParent === "function") controlField.updateParent(added, point);
+                else if (added.type === "tabpage") self.placeInContainer(added, point);
+                else self.dropControl(added, point);
             });
-            // Nếu chưa trúng content, kiểm tra toàn bộ groupbox/section (kể cả vùng title) → control không bị rơi ra ngoài nằm dưới
-            if (!groupboxOrSectionId) {
-                var $groups = $(".page-field-groupbox, .page-field-section, .popup-groupbox, .popup-section");
-                var best = null, bestArea = Infinity;
-                $groups.each(function() {
-                    var r = this.getBoundingClientRect();
-                    if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
-                        var area = r.width * r.height;
-                        if (area < bestArea) { bestArea = area; best = $(this).attr("data-id"); }
-                    }
-                });
-                if (best) groupboxOrSectionId = best;
+
+            this.refreshJson();
+            if (point && fresh.length) {
+                this.revealControl(fresh[0]);
+                window.setTimeout(function () {
+                    if (!document.body.classList.contains("ub-gesture") && self.getControlConfig(fresh[0].id)) self.revealControl(fresh[0]);
+                }, 350);
             }
+        } finally {
+            this._coalesceHistory = false;
+            this._coalescePushed = false;
         }
-
-        if (type === "grid") {
-            controlGrid.addNew(collapsibleSectionId || popupId, dropPoint);
-
-        } else if (type === "ess-grid") {
-            if (window.controlGridEss && typeof controlGridEss.addNew === "function") {
-                controlGridEss.addNew(uiMode, collapsibleSectionId || popupId, dropPoint);
-            }
-
-        } else if (type === "popup") {
-            controlPopup.addNew();
-
-        } else if (type && type.indexOf("field-") === 0) {
-            var ftype = type.substring("field-".length);
-            if (window.controlField && typeof controlField.addNew === "function") {
-                // Ưu tiên: groupbox/section > collapsible-section > popup (để control luôn vào đúng container, không bị đè)
-                controlField.addNew(ftype, uiMode, groupboxOrSectionId || collapsibleSectionId || popupId, dropPoint);
-            }
-
-        } else if (type === "toolbar") {
-            // Toolbar có thể drop vào collapsible section, nhưng cần xử lý riêng
-            controlToolbar.addNew(dropPoint);
-        } else if (type === "tabpage") {
-            controlTabPage.addNew();
-        } else if (type === "collapsible-section") {
-            if (window.controlCollapsibleSection && typeof controlCollapsibleSection.addNew === "function") {
-                controlCollapsibleSection.addNew(dropPoint);
-            }
-        }
-
-        this.refreshJson();
     },
 
     registerControl: function (cfg) {
@@ -4614,6 +5345,8 @@ var builder = {
             this.pushHistory();
         }
         this.updateOutline();
+        this.updateSaveState();
+        this.updateHistoryButtons();
     },
 
     saveConfig: function () {
@@ -4645,9 +5378,10 @@ var builder = {
                 var json = res.d || "[]";
                 var arr = [];
                 try { arr = JSON.parse(json); } catch (e) { console.warn(e); }
+                arr = self.sanitizeControls(arr);
                 self.controls = [];
                 $("#canvas-zoom-inner").empty();
-                $("#propPanel").html("<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>");
+                builderProps.showEmpty();
 
                 // Cùng logic restoreFromJson: sắp thứ tự phụ thuộc + fromRestore để control trong popup/groupbox không bị vẽ ra ngoài
                 var ordered = [];
@@ -4673,6 +5407,8 @@ var builder = {
                 });
 
                 self.refreshJson();
+                self.resetHistory();
+                self.markSaved();
             }
         });
     },
@@ -4696,15 +5432,113 @@ var builder = {
 
     // ✅ Xuất hình ảnh (dùng html2canvas) - Clone canvas giống preview để capture đầy đủ
     // ✅ Xuất ảnh từ preview canvas đang hiển thị
-    exportImageFromPreview: function($previewCanvas) {
+    exportFileName: function (suffix, extension) {
+        var name = $.trim((this.currentDesignInfo || {}).Name || "");
+        name = name.replace(/[\\\/:*?"<>|\u0000-\u001f]+/g, " ").replace(/\s+/g, " ").replace(/^[ .]+|[ .]+$/g, "").slice(0, 80);
+        return (name || "ui-design") + (suffix ? " - " + suffix : "") + "." + (extension || "png");
+    },
+
+    cropCanvas: function (canvas, crop, scale) {
+        var pad = 8;
+        var x = Math.max(0, Math.floor((crop.left - pad) * scale));
+        var y = Math.max(0, Math.floor((crop.top - pad) * scale));
+        var w = Math.max(1, Math.min(canvas.width - x, Math.ceil((crop.right - crop.left + pad * 2) * scale)));
+        var h = Math.max(1, Math.min(canvas.height - y, Math.ceil((crop.bottom - crop.top + pad * 2) * scale)));
+        var out = document.createElement("canvas");
+        out.width = w;
+        out.height = h;
+        out.getContext("2d").drawImage(canvas, x, y, w, h, 0, 0, w, h);
+        return out;
+    },
+
+    thumbnailLimits: { width: 1600, height: 3200, ratio: 16 / 9 },
+
+    thumbnailArea: function (canvasEl) {
+        var inner = document.getElementById("canvas-zoom-inner");
+        var bounds = this.contentBounds();
+        if (!inner || !bounds) return null;
+        var scale = this.viewScale > 0 ? this.viewScale : 1;
+        var base = canvasEl.getBoundingClientRect();
+        var origin = inner.getBoundingClientRect();
+        var left = origin.left - base.left + bounds.left * scale;
+        var top = origin.top - base.top + bounds.top * scale;
+        return { left: left, top: top, right: left + (bounds.right - bounds.left) * scale, bottom: top + (bounds.bottom - bounds.top) * scale };
+    },
+
+    designThumbnail: function (capture, area, scale) {
+        if (!area) return null;
+        var limits = this.thumbnailLimits;
+        var content = this.cropCanvas(capture, area, scale);
+        var frameHeight = Math.max(content.height, Math.round(content.width / limits.ratio));
+        var shrink = Math.min(1, limits.width / content.width, limits.height / frameHeight);
+        var out = document.createElement("canvas");
+        out.width = Math.max(1, Math.round(content.width * shrink));
+        out.height = Math.max(1, Math.round(frameHeight * shrink));
+        var context = out.getContext("2d");
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, out.width, out.height);
+        context.imageSmoothingQuality = "high";
+        context.drawImage(content, 0, 0, Math.round(content.width * shrink), Math.round(content.height * shrink));
+        return out.toDataURL("image/png");
+    },
+
+    downloadBlob: function (blob, fileName) {
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+    },
+
+    beginImageCopy: function () {
+        var copy = { resolve: null, reject: null, started: null };
+        if (!(window.ClipboardItem && navigator.clipboard && navigator.clipboard.write)) return copy;
+        try {
+            var pending = new Promise(function (resolve, reject) { copy.resolve = resolve; copy.reject = reject; });
+            copy.started = navigator.clipboard.write([new ClipboardItem({ "image/png": pending })]);
+            copy.started.catch(function () { });
+        } catch (e) {
+            copy.started = null;
+        }
+        return copy;
+    },
+
+    finishImageCopy: function (copy, blob, fileName) {
         var self = this;
-        
+        function fallback() {
+            self.downloadBlob(blob, fileName);
+            self.showToast("Trình duyệt không cho chép ảnh vào clipboard ở địa chỉ này. Ảnh đã được tải về: " + fileName, "warning");
+        }
+        function copied() {
+            self.showToast("Đã chép ảnh vào clipboard. Bấm Ctrl+V để dán vào Word, email hoặc khung chat.", "success");
+        }
+        if (copy && copy.started) {
+            copy.started.then(copied, fallback);
+            copy.resolve(blob);
+            return;
+        }
+        if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+            navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]).then(copied, fallback);
+            return;
+        }
+        fallback();
+    },
+
+    exportImageFromPreview: function($previewCanvas, options) {
+        var self = this;
+        options = options || {};
+        var finish = function () { if (typeof options.done === "function") options.done(); };
+
         if (!$previewCanvas || !$previewCanvas.length) {
             this.showToast("Không tìm thấy preview canvas để xuất hình ảnh", "error");
+            if (options.copy && options.copy.reject) options.copy.reject(new Error("no preview"));
+            finish();
             return;
         }
 
-        this.showToast("Đang xuất hình ảnh từ preview...", "info");
+        this.showToast(options.copy ? "Đang tạo ảnh để chép..." : "Đang xuất hình ảnh...", "info");
         
         // Lấy kích thước từ preview canvas
         var finalWidth = parseInt($previewCanvas.css("width")) || $previewCanvas.width();
@@ -4768,7 +5602,7 @@ var builder = {
             // Đợi thêm một chút để đảm bảo DOM đã render xong
             setTimeout(function() {
                 // ✅ Sử dụng html2canvas để chụp preview canvas
-                html2canvas($previewCanvas[0], {
+                controlAnnotation.captureWithHighlights($previewCanvas[0], {
                     backgroundColor: "#ffffff",
                     scale: 2, // Tăng độ phân giải
                     useCORS: true,
@@ -4920,11 +5754,12 @@ var builder = {
                                 clonedCombo.style.setProperty("padding-right", "20px", "important");
                                 clonedCombo.style.setProperty("appearance", "none", "important");
                             } else if (isPageFieldCombo) {
-                                // Combobox nhỏ (page-field) - height 26px
-                                clonedCombo.style.setProperty("padding-top", "2px", "important");
-                                clonedCombo.style.setProperty("padding-bottom", "2px", "important");
+                                var comboHeight = Math.max(26, parseInt(clonedCombo.style.height, 10) || 26);
+                                var comboPad = Math.max(2, Math.round((comboHeight - 22) / 2));
+                                clonedCombo.style.setProperty("padding-top", comboPad + "px", "important");
+                                clonedCombo.style.setProperty("padding-bottom", comboPad + "px", "important");
                                 clonedCombo.style.setProperty("line-height", "22px", "important");
-                                clonedCombo.style.setProperty("height", "26px", "important");
+                                clonedCombo.style.setProperty("height", comboHeight + "px", "important");
                                 clonedCombo.style.setProperty("padding-right", "18px", "important");
                                 clonedCombo.style.setProperty("appearance", "none", "important");
                             }
@@ -4998,34 +5833,67 @@ var builder = {
                         });
                     }
                 }).then(function (canvas) {
-                    // Chuyển canvas thành blob và download
-                    canvas.toBlob(function (blob) {
-                        var a = document.createElement("a");
-                        a.href = URL.createObjectURL(blob);
-                        a.download = "ui-design-" + new Date().getTime() + ".png";
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(a.href);
-                        
-                        self.showToast("Đã xuất hình ảnh thành công từ preview!", "success");
+                    var output = options.crop ? self.cropCanvas(canvas, options.crop, 2) : canvas;
+                    var fileName = self.exportFileName(options.crop ? "vùng chọn" : "");
+                    output.toBlob(function (blob) {
+                        if (options.copy) {
+                            self.finishImageCopy(options.copy, blob, fileName);
+                        } else {
+                            self.downloadBlob(blob, fileName);
+                            self.showToast("Đã tải ảnh '" + fileName + "'.", "success");
+                        }
+                        finish();
                     }, "image/png");
                 }).catch(function (error) {
                     console.error("Export image error:", error);
+                    if (options.copy && options.copy.reject) options.copy.reject(error);
                     self.showToast("Lỗi khi xuất hình ảnh: " + error.message, "error");
+                    finish();
                 });
             }, 100); // Đợi thêm 100ms để đảm bảo DOM đã render xong
         }, 300); // Đợi 300ms ban đầu
     },
 
-    exportImage: function () {
+    previewControlSelector: ".popup-design, .canvas-control, .page-field, .popup-field, .canvas-toolbar, .canvas-tabpage, .ess-grid-control",
+
+    isNestedControl: function ($el) {
+        return $el.parent().closest(this.previewControlSelector).length > 0;
+    },
+
+    shiftTopLevelControls: function ($root, dx, dy) {
+        var self = this;
+        if (!dx && !dy) return;
+        $root.find(this.previewControlSelector).each(function () {
+            var $el = $(this);
+            if (self.isNestedControl($el)) return;
+            var left = parseFloat($el.css("left"));
+            var top = parseFloat($el.css("top"));
+            $el.css({ left: ((isNaN(left) ? 0 : left) + dx) + "px", top: ((isNaN(top) ? 0 : top) + dy) + "px" });
+        });
+    },
+
+    exportImage: function (options) {
         var self = this;
         var $canvas = $("#canvas");
-        
+        options = options || {};
+
         if (!$canvas.length) {
             this.showToast("Không tìm thấy canvas để xuất hình ảnh", "error");
             return;
         }
+
+        var picked = [];
+        if (options.selection) {
+            this.getAllSelectedControlIds().forEach(function (id) {
+                var $el = self.controlElement(self.getControlConfig(id));
+                if ($el.length && $el.is(":visible")) picked.push($el[0]);
+            });
+            if (!picked.length) {
+                this.showToast("Hãy chọn control hoặc quét một vùng trước, rồi mới xuất ảnh vùng đang chọn.", "warning");
+                return;
+            }
+        }
+        var copy = options.copy ? this.beginImageCopy() : null;
 
         // ✅ Xuất trực tiếp từ canvas mà không cần mở preview
         // Tạo preview canvas ẩn và xuất trực tiếp
@@ -5038,6 +5906,7 @@ var builder = {
         
         allControls.each(function() {
             var $el = $(this);
+            if (self.isNestedControl($el)) return;
             var leftStr = $el.css("left");
             var topStr = $el.css("top");
             var left = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
@@ -5120,8 +5989,11 @@ var builder = {
         
         $("body").append($previewCanvas);
 
+        picked.forEach(function (el) { el.setAttribute("data-export-pick", "1"); });
         var $canvasClone = $canvas.clone(false);
-        
+        picked.forEach(function (el) { el.removeAttribute("data-export-pick"); });
+        $canvasClone.find("#canvas-zoom-inner").css("zoom", 1);
+
         $canvasClone.css({
             position: "relative",
             left: "0",
@@ -5130,7 +6002,7 @@ var builder = {
             padding: "0",
             overflow: "visible"
         });
-        
+
         $canvasClone.find("*").each(function() {
             var $el = $(this);
             $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
@@ -5140,78 +6012,44 @@ var builder = {
                 $el.css("pointer-events", "none");
             }
         });
-        
+
         $canvasClone.off();
         $canvasClone.find("*").off();
-        
-        var adjustPosition = function($el, offsetX, offsetY) {
-            var leftStr = $el.css("left");
-            var topStr = $el.css("top");
-            var currentLeft = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
-            var currentTop = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
-            if (isNaN(currentLeft)) currentLeft = 0;
-            if (isNaN(currentTop)) currentTop = 0;
-            
-            $el.css({
-                "left": (currentLeft + offsetX) + "px",
-                "top": (currentTop + offsetY) + "px"
-            });
-        };
-        
-        $canvasClone.find(".popup-design").each(function() {
-            adjustPosition($(this), offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".canvas-control").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) return;
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".page-field").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) return;
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".canvas-toolbar").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) return;
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".canvas-tabpage").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) return;
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".ess-grid-control").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) return;
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".popup-field").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) return;
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
+
+        self.shiftTopLevelControls($canvasClone, offsetX, offsetY);
+
         $previewCanvas.css({
             width: finalWidth + "px",
             height: finalHeight + "px",
             minWidth: finalWidth + "px",
             minHeight: finalHeight + "px"
         });
-        
+
         $previewCanvas.append($canvasClone);
 
         setTimeout(function() {
             $previewCanvas[0].offsetHeight;
-            
+
             setTimeout(function() {
-                self.exportImageFromPreview($previewCanvas);
+                var crop = null;
+                if (options.selection) {
+                    var base = $previewCanvas[0].getBoundingClientRect();
+                    $previewCanvas.find("[data-export-pick]").each(function () {
+                        var r = this.getBoundingClientRect();
+                        if (!r.width || !r.height) return;
+                        var box = { left: r.left - base.left, top: r.top - base.top, right: r.right - base.left, bottom: r.bottom - base.top };
+                        if (!crop) { crop = box; return; }
+                        crop.left = Math.min(crop.left, box.left);
+                        crop.top = Math.min(crop.top, box.top);
+                        crop.right = Math.max(crop.right, box.right);
+                        crop.bottom = Math.max(crop.bottom, box.bottom);
+                    });
+                }
+                self.exportImageFromPreview($previewCanvas, {
+                    crop: crop,
+                    copy: copy,
+                    done: function () { $previewCanvas.remove(); }
+                });
             }, 100);
         }, 100);
     },
@@ -5230,7 +6068,7 @@ var builder = {
         
         // Header với nút đóng và nút xuất ảnh
         var $header = $('<div style="position: sticky; top: 0; background: #0078d4; color: #fff; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; z-index: 100001; box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0;">');
-        $header.append('<h3 style="margin: 0; font-size: 18px; font-weight: 600;">👁️ Preview Design</h3>');
+        $header.append('<h3 style="margin: 0; font-size: 18px; font-weight: 600;">👁️ Xem trước thiết kế</h3>');
         
         // Nút xuất ảnh
         var $exportBtn = $('<button style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.2s; margin-right: 10px;" type="button"><i class="bi bi-download"></i> Xuất ảnh</button>');
@@ -5290,6 +6128,7 @@ var builder = {
         allControls.each(function() {
             var $el = $(this);
             var el = this;
+            if (self.isNestedControl($el)) return;
             
             // ✅ QUAN TRỌNG: Lấy vị trí từ CSS (đã là absolute position trên canvas)
             // CSS left/top đã là relative với canvas, không cần tính scroll
@@ -5458,84 +6297,8 @@ var builder = {
         // Điều này có nghĩa là không có controls ở vị trí 0 hoặc âm
         // Nhưng vẫn cần dịch chuyển để có padding bên trái
         
-        // ✅ Điều chỉnh vị trí của tất cả controls trong clone
-        // QUAN TRỌNG: Điều chỉnh TẤT CẢ controls một cách đơn giản và rõ ràng
-        
-        // Helper function để điều chỉnh vị trí một element
-        var adjustPosition = function($el, offsetX, offsetY) {
-            var leftStr = $el.css("left");
-            var topStr = $el.css("top");
-            var currentLeft = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
-            var currentTop = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
-            if (isNaN(currentLeft)) currentLeft = 0;
-            if (isNaN(currentTop)) currentTop = 0;
-            
-            $el.css({
-                "left": (currentLeft + offsetX) + "px",
-                "top": (currentTop + offsetY) + "px"
-            });
-        };
-        
-        // ✅ Điều chỉnh TẤT CẢ controls một cách rõ ràng
-        // QUAN TRỌNG: Điều chỉnh từng loại control để đảm bảo không bỏ sót
-        
-        // Bước 1: Điều chỉnh popup trước
-        $canvasClone.find(".popup-design").each(function() {
-            adjustPosition($(this), offsetX, offsetY);
-        });
-        
-        // Bước 2: Điều chỉnh tất cả controls trực tiếp trên canvas (không trong popup)
-        // ✅ QUAN TRỌNG: Sử dụng selector cụ thể để đảm bảo không bỏ sót
-        // Điều chỉnh từng loại control một cách rõ ràng
-        $canvasClone.find(".canvas-control").each(function() {
-            var $el = $(this);
-            // Bỏ qua controls bên trong popup-body
-            if ($el.closest(".popup-body").length > 0) {
-                return;
-            }
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".page-field").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) {
-                return;
-            }
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".canvas-toolbar").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) {
-                return;
-            }
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".canvas-tabpage").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) {
-                return;
-            }
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".ess-grid-control").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) {
-                return;
-            }
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
-        $canvasClone.find(".popup-field").each(function() {
-            var $el = $(this);
-            if ($el.closest(".popup-body").length > 0) {
-                return;
-            }
-            adjustPosition($el, offsetX, offsetY);
-        });
-        
+        self.shiftTopLevelControls($canvasClone, offsetX, offsetY);
+
         // Điều chỉnh lại bounds sau khi dịch chuyển
         var adjustedMinLeft = minLeft + offsetX; // Sẽ = padding
         var adjustedMinTop = minTop + offsetY;    // Sẽ = padding
@@ -5561,6 +6324,7 @@ var builder = {
         
         allControlsAfter.each(function() {
             var $el = $(this);
+            if (self.isNestedControl($el)) return;
             var leftStr = $el.css("left");
             var topStr = $el.css("top");
             var left = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
@@ -5624,37 +6388,8 @@ var builder = {
         if (extraPaddingLeft > 0 || extraPaddingTop > 0) {
             console.log("Adjusting extra padding:", { extraPaddingLeft, extraPaddingTop, actualMinLeft, actualMinTop, paddingLeft, paddingTop });
             
-            // Dịch thêm TẤT CẢ elements có position absolute/relative
-            $canvasClone.find("*").each(function() {
-                var $el = $(this);
-                var position = $el.css("position");
-                
-                if (position !== "absolute" && position !== "relative") {
-                    return;
-                }
-                
-                // Bỏ qua controls bên trong popup-body
-                if ($el.closest(".popup-body").length > 0 && !$el.hasClass("popup-design")) {
-                    return;
-                }
-                
-                // Dịch left
-                if (extraPaddingLeft > 0) {
-                    var leftStr = $el.css("left");
-                    var left = (leftStr && leftStr !== "auto" && leftStr !== "none") ? parseFloat(leftStr) : 0;
-                    if (isNaN(left)) left = 0;
-                    $el.css("left", (left + extraPaddingLeft) + "px");
-                }
-                
-                // Dịch top
-                if (extraPaddingTop > 0) {
-                    var topStr = $el.css("top");
-                    var top = (topStr && topStr !== "auto" && topStr !== "none") ? parseFloat(topStr) : 0;
-                    if (isNaN(top)) top = 0;
-                    $el.css("top", (top + extraPaddingTop) + "px");
-                }
-            });
-            
+            self.shiftTopLevelControls($canvasClone, extraPaddingLeft, extraPaddingTop);
+
             // Cập nhật lại actualMinLeft và actualMinTop sau khi dịch
             if (extraPaddingLeft > 0) actualMinLeft += extraPaddingLeft;
             if (extraPaddingTop > 0) actualMinTop += extraPaddingTop;
@@ -5732,26 +6467,52 @@ var builder = {
         this.currentDesignInfo = dto ? $.extend({}, dto) : null;
         if (this.currentDesignInfo) {
             this.currentDesignInfo.IsClone = !!isClone;
+            delete this.currentDesignInfo.JsonConfig;
         }
 
-        var modeText, nameText, footerText;
+        var modeText, nameText;
 
         if (!dto) {
-            modeText = "New design";
-            nameText = "";
-            footerText = "New design (chưa lưu)";
+            modeText = "Thiết kế mới";
+            nameText = "Chưa đặt tên";
+        } else if (!(parseInt(dto.ControlId, 10) > 0)) {
+            modeText = "Thiết kế mới";
+            nameText = dto.Name || "Chưa đặt tên";
         } else {
-            var mode = isClone ? "Clone from public"
-                : (dto.IsOwner ? "Edit my design" : "View");
-
-            modeText = mode + " – " + dto.ControlType;
-            nameText = dto.Name + " (ID: " + dto.ControlId + ")";
-            footerText = mode + ": " + dto.Name + " (ID: " + dto.ControlId + ")";
+            modeText = (isClone ? "Bản sao từ thiết kế được chia sẻ"
+                : (dto.IsOwner ? (dto.ControlType === "page" ? "Thiết kế của tôi" : "Control mẫu của tôi") : "Thiết kế của người khác, lưu sẽ tạo bản của bạn"))
+                + " · ID " + dto.ControlId;
+            nameText = dto.Name;
         }
 
         $("#lblDesignMode").text(modeText);
-        $("#lblDesignName").text(nameText);
-        $("#lblFooterInfo").text(footerText);
+        $("#lblDesignName").text(nameText).attr("title", nameText);
+        document.title = (dto && dto.Name ? dto.Name + " - " : "") + "UI Builder";
+        this.updateSaveState();
+    },
+
+    resetHistory: function () {
+        this._historyImages = null;
+        this.history = [this.packHistory(JSON.stringify(this.controls || []))];
+        this.historyIndex = 0;
+        this._coalescePushed = false;
+        this.updateHistoryButtons();
+    },
+
+    updateHistoryButtons: function () {
+        $("#btnUndo").prop("disabled", this.historyIndex <= 0);
+        $("#btnRedo").prop("disabled", this.historyIndex >= this.history.length - 1);
+    },
+
+    asOneStep: function (work) {
+        this._coalesceHistory = true;
+        this._coalescePushed = false;
+        try {
+            work();
+        } finally {
+            this._coalesceHistory = false;
+            this._coalescePushed = false;
+        }
     },
 
     removeControl: function (controlId) {
@@ -5762,23 +6523,36 @@ var builder = {
 
         var self = this;
 
+        if (cfg.type === "annotation") {
+            this.controls = (this.controls || []).filter(function (c) { return c.id !== controlId; });
+            $("#canvas .ba-annot").filter(function () { return this.getAttribute("data-id") === controlId; }).remove();
+            this.selectedControlId = null;
+            this.selectedControlType = null;
+            builderProps.showEmpty();
+            this.hideSizeHint();
+            this.refreshJson();
+            return;
+        }
+
         if (cfg.type === "field") {
             builder.showConfirm({
-                title: "Delete field",
-                message: "Delete this field (and its children)?",
-                okText: "Delete",
-                cancelText: "Cancel",
+                title: "Xóa control",
+                message: "Xóa control này và mọi control nằm bên trong (nếu có)?",
+                okText: "Xóa",
+                cancelText: "Hủy",
                 onOk: function () {
-                    if (window.controlField && typeof controlField.deleteWithChildren === "function") {
-                        controlField.deleteWithChildren(controlId);
-                    }
+                    self.asOneStep(function () {
+                        if (window.controlField && typeof controlField.deleteWithChildren === "function") {
+                            controlField.deleteWithChildren(controlId);
+                        }
 
-                    self.syncControlsWithDom();
-                    self.selectedControlId = null;
-                    self.selectedControlType = null;
-                    $('#propPanel').html('<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>');
-                    self.hideSizeHint();
-                    self.refreshJson();
+                        self.syncControlsWithDom();
+                        self.selectedControlId = null;
+                        self.selectedControlType = null;
+                        builderProps.showEmpty();
+                        self.hideSizeHint();
+                        self.refreshJson();
+                    });
                 }
             });
             return;
@@ -5786,25 +6560,27 @@ var builder = {
 
         if (cfg.type === "tabpage") {
             builder.showConfirm({
-                title: "Delete tab",
-                message: "Delete this tab page and all controls inside?",
-                okText: "Delete",
-                cancelText: "Cancel",
+                title: "Xóa tab",
+                message: "Xóa tab page này và mọi control nằm bên trong?",
+                okText: "Xóa",
+                cancelText: "Hủy",
                 onOk: function () {
-                    if (window.controlField && typeof controlField.deleteWithChildren === "function") {
-                        controlField.deleteWithChildren(controlId);
-                    }
+                    self.asOneStep(function () {
+                        if (window.controlField && typeof controlField.deleteWithChildren === "function") {
+                            controlField.deleteWithChildren(controlId);
+                        }
 
-                    self.controls = (self.controls || []).filter(function (c) { return c.id !== controlId; });
-                    $('[data-id="' + controlId + '"], #' + controlId).remove();
+                        self.controls = (self.controls || []).filter(function (c) { return c.id !== controlId; });
+                        $('[data-id="' + controlId + '"], #' + controlId).remove();
 
-                    self.syncControlsWithDom();
+                        self.syncControlsWithDom();
 
-                    self.selectedControlId = null;
-                    self.selectedControlType = null;
-                    $('#propPanel').html('<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>');
-                    self.hideSizeHint();
-                    self.refreshJson();
+                        self.selectedControlId = null;
+                        self.selectedControlType = null;
+                        builderProps.showEmpty();
+                        self.hideSizeHint();
+                        self.refreshJson();
+                    });
                 }
             });
             return;
@@ -5812,38 +6588,39 @@ var builder = {
 
         if (cfg.type === "popup") {
             builder.showConfirm({
-                title: "Delete popup",
-                message: "Delete this popup and all its fields?",
-                okText: "Delete",
-                cancelText: "Cancel",
+                title: "Xóa popup",
+                message: "Xóa popup này và mọi control nằm bên trong?",
+                okText: "Xóa",
+                cancelText: "Hủy",
                 onOk: function () {
-                    if (window.controlField && typeof controlField.deleteWithChildren === "function") {
-                        controlField.deleteWithChildren(controlId);
-                    }
+                    self.asOneStep(function () {
+                        if (window.controlField && typeof controlField.deleteWithChildren === "function") {
+                            controlField.deleteWithChildren(controlId);
+                        }
 
-                    self.controls = (self.controls || []).filter(function (c) { return c.id !== controlId; });
-                    $('[data-id="' + controlId + '"], #' + controlId).remove();
+                        self.controls = (self.controls || []).filter(function (c) { return c.id !== controlId; });
+                        $('[data-id="' + controlId + '"], #' + controlId).remove();
 
-                    self.syncControlsWithDom();
+                        self.syncControlsWithDom();
 
-                    self.selectedControlId = null;
-                    self.selectedControlType = null;
-                    $('#propPanel').html('<h3>Thuộc tính</h3><p>Chọn 1 control trên canvas để chỉnh thuộc tính.</p>');
-                    self.hideSizeHint();
-                    self.refreshJson();
+                        self.selectedControlId = null;
+                        self.selectedControlType = null;
+                        builderProps.showEmpty();
+                        self.hideSizeHint();
+                        self.refreshJson();
+                    });
                 }
             });
             return;
         }
 
-        var label = cfg.titleText || cfg.controlName || cfg.id || cfg.type;
-        var msg = "Delete this " + (cfg.type || "control") + " '" + label + "' ?";
+        var msg = "Xóa " + $("<span>").text(this.getOutlineLabel(cfg)).html() + "?";
 
         builder.showConfirm({
-            title: "Delete control",
+            title: "Xóa control",
             message: msg,
-            okText: "Delete",
-            cancelText: "Cancel",
+            okText: "Xóa",
+            cancelText: "Hủy",
             onOk: function () {
                 self.controls = (self.controls || []).filter(function (c) {
                     return c.id !== controlId;

@@ -33,20 +33,4 @@ BEGIN
 END
 GO
 
--- 3. Create default "Uncategorized" project for each existing user
-INSERT INTO dbo.UiProject (OwnerUserId, Name, Description, CreatedAt)
-SELECT DISTINCT OwnerUserId, N'Uncategorized', N'Default project for existing designs', SYSDATETIME()
-FROM dbo.UiBuilderControl
-WHERE IsDeleted = 0
-  AND OwnerUserId NOT IN (SELECT DISTINCT OwnerUserId FROM dbo.UiProject WHERE Name = N'Uncategorized')
-GO
-
--- 4. Update existing controls to use "Uncategorized" project
-UPDATE c
-SET c.ProjectId = p.ProjectId
-FROM dbo.UiBuilderControl c
-INNER JOIN dbo.UiProject p ON c.OwnerUserId = p.OwnerUserId AND p.Name = N'Uncategorized'
-WHERE c.ProjectId IS NULL AND c.IsDeleted = 0
-GO
-
 PRINT 'Project support added successfully!';

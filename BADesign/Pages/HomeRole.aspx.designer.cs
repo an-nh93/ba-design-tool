@@ -123,6 +123,24 @@ namespace BADesign.Pages
 		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureAppSettings;
 
 		/// <summary>
+		/// phFeatureLicenseKey control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.PlaceHolder phFeatureLicenseKey;
+
+		/// <summary>
+		/// lnkFeatureLicenseKey control.
+		/// </summary>
+		/// <remarks>
+		/// Auto-generated field.
+		/// To modify move field declaration from designer file to code-behind file.
+		/// </remarks>
+		protected global::System.Web.UI.WebControls.HyperLink lnkFeatureLicenseKey;
+
+		/// <summary>
 		/// phFeaturePgpTool control.
 		/// </summary>
 		/// <remarks>

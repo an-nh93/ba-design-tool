@@ -14,6 +14,7 @@
     var restoreJobsUpdatedHandlers = [];
     var backupJobsUpdatedHandlers = [];
     var jobsUpdatedHandlers = [];
+    var jobProgressHandlers = [];
 
     function doConnect() {
         if (typeof global.$ === 'undefined' || !global.$.connection || !global.$.connection.hub) return false;
@@ -50,6 +51,13 @@
                 }
             });
         };
+        hub.client.jobProgress = function(payload) {
+            jobProgressHandlers.forEach(function(fn) {
+                try { fn(payload); } catch (e) {
+                    if (global.console && global.console.error) global.console.error('BA_SignalR jobProgress handler:', e);
+                }
+            });
+        };
         return true;
     }
 
@@ -63,6 +71,9 @@
         /** Gọi khi bất kỳ job nào thay đổi (Restore, Backup, HRHelper...). Dùng để refresh chuông và overlay. */
         onJobsUpdated: function(callback) {
             if (typeof callback === 'function') jobsUpdatedHandlers.push(callback);
+        },
+        onJobProgress: function(callback) {
+            if (typeof callback === 'function') jobProgressHandlers.push(callback);
         },
         /**
          * @param {string} baseUrl - ResolveUrl("~/signalr")
@@ -94,6 +105,7 @@
                         return;
                     }
                     global.$.connection.hub.url = baseUrl;
+                    if (global.BA_HUB_TOKEN) global.$.connection.hub.qs = { t: global.BA_HUB_TOKEN };
                     global.$.connection.hub.start().fail(function(err) {
                         if (global.console && global.console.warn) global.console.warn('BA_SignalR start:', err);
                     });

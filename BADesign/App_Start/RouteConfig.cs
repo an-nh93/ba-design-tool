@@ -148,6 +148,12 @@ namespace BADesign
 			);
 
 			routes.MapPageRoute(
+				"LicenseKeyRoute",
+				"LicenseKey",
+				"~/Pages/LicenseKey.aspx"
+			);
+
+			routes.MapPageRoute(
 				"FunctionQueueRoute",
 				"FunctionQueue",
 				"~/Pages/FunctionQueue.aspx"
@@ -184,6 +190,21 @@ namespace BADesign
 				"DevShareEditNewRoute",
 				"DevShare/Edit",
 				"~/Pages/DevShareEdit.aspx"
+			);
+			routes.MapPageRoute(
+				"TemplateRequestsRoute",
+				"TemplateRequests",
+				"~/Pages/TemplateRequests.aspx"
+			);
+			routes.MapPageRoute(
+				"TemplateWorkflowRoute",
+				"TemplateWorkflow",
+				"~/Pages/TemplateWorkflow.aspx"
+			);
+			routes.MapPageRoute(
+				"HrModulesRoute",
+				"HrModules",
+				"~/Pages/HrModules.aspx"
 			);
 
 			// Friendly URLs đăng ký SAU tất cả MapPageRoute để giữ query string

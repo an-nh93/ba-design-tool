@@ -1,7 +1,7 @@
 var controlGrid = {
 
     // Tạo grid mới khi kéo từ toolbox
-    addNew: function (popupId, dropPoint) {
+    addNew: function (dropPoint) {
         var id = "grid_" + new Date().getTime();
         var index = builder.controls.length || 0;
 
@@ -60,67 +60,8 @@ var controlGrid = {
             }
         }
 
-        // ✅ Nếu drop vào popup hoặc collapsible-section → gán parentId và điều chỉnh vị trí
-        if (popupId && dropPoint) {
-            cfg.parentId = popupId;
-            
-            // Check xem là popup hay collapsible-section
-            var parentCfg = (builder.controls || []).find(function(c) { return c.id === popupId; });
-            if (parentCfg) {
-                // Convert drop point về tọa độ canvas
-                var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
-                
-                if (parentCfg.type === "popup") {
-                    // Tính vị trí relative với popup (cả popup và drop point đều là canvas coordinates)
-                    var relativeX = canvasPoint.x - (parentCfg.left || 0);
-                    var relativeY = canvasPoint.y - (parentCfg.top || 0);
-                    
-                    // Lưu relative position (relative với popup body, trừ header ~50px)
-                    cfg.left = Math.max(10, relativeX);
-                    cfg.top = Math.max(50, relativeY); // Tránh header
-                    
-                    // Đảm bảo nằm trong popup
-                    var popupWidth = parentCfg.width || 800;
-                    var popupHeight = parentCfg.height || 600;
-                    if (cfg.left > (popupWidth - 100)) cfg.left = popupWidth - 100;
-                    if (cfg.top > (popupHeight - 100)) cfg.top = popupHeight - 100;
-                } else if (parentCfg.type === "collapsible-section") {
-                    // Tính vị trí relative với collapsible section content area
-                    var headerHeight = 50;
-                    var contentPadding = parentCfg.contentPadding || 12;
-                    var relativeX = canvasPoint.x - (parentCfg.left || 0) - contentPadding;
-                    var relativeY = canvasPoint.y - (parentCfg.top || 0) - headerHeight - contentPadding;
-                    
-                    cfg.left = Math.max(0, relativeX);
-                    cfg.top = Math.max(0, relativeY);
-                }
-                
-                console.log("Grid: Set parentId=" + cfg.parentId + ", type=" + parentCfg.type + ", left=" + cfg.left + ", top=" + cfg.top);
-            }
-        }
-
         this.renderExisting(cfg);
         builder.registerControl(cfg);
-        
-        // ✅ LUÔN LUÔN check popup sau khi render (giống field controls)
-        // Vì tọa độ clientX/clientY có thể không chính xác do drag hint
-        // Đợi một chút để DOM được render xong
-        var self = this;
-        setTimeout(function() {
-            if (!cfg.parentId) {
-                console.log("Grid: Checking for popup after render, cfg.left=" + cfg.left + ", cfg.top=" + cfg.top);
-                var foundPopupId = builder.findParentPopupForControl(cfg);
-                if (foundPopupId) {
-                    cfg.parentId = foundPopupId;
-                    console.log("Grid: ✅ Detected popup after render:", foundPopupId, "- Re-rendering...");
-                    // Re-render với parentId mới
-                    self.renderExisting(cfg);
-                    builder.refreshJson();
-                } else {
-                    console.log("Grid: ❌ No popup found after render");
-                }
-            }
-        }, 50); // Đợi 50ms để DOM render xong
     },
 
     // trạng thái nút theo từng dòng
@@ -134,6 +75,7 @@ var controlGrid = {
     // ====== HEADER VIEW DATA / APPLIED FOR + TITLE / TOOLBAR / LOCAL LANG ======
     renderHeaderAndTitle: function (cfg) {
         var root = $(".canvas-control[data-id='" + cfg.id + "']");
+        root.toggleClass("grid-no-panel", cfg.allowGrouping === false && cfg.showSearchBox === false);
 
         // --- View Data / Applied for ---
         var dataHeader = root.find(".grid-data-header");
@@ -218,6 +160,19 @@ var controlGrid = {
             if (c.width) {
                 col.width = c.width; // giữ width đã lưu trong cfg
             }
+            if (c.type === "tag") {
+                col.cellTemplate = function (container, options) {
+                    var tag = self.tagFor(c, options.value, options.rowIndex);
+                    $("<span>").addClass("grid-cell-tag").text(tag.text).css({ background: tag.backColor, color: tag.textColor }).appendTo(container);
+                };
+            } else if (c.type === "checkbox") {
+                col.alignment = "center";
+                col.cellTemplate = function (container, options) {
+                    var value = options.value;
+                    var on = typeof value === "boolean" ? value : (value === "true" || value === 1 || (value !== "false" && value !== 0 && options.rowIndex % 2 === 0));
+                    $("<span>").addClass("grid-cell-check" + (on ? " checked" : "")).appendTo(container);
+                };
+            }
             return col;
         });
 
@@ -291,7 +246,27 @@ var controlGrid = {
 
         // ========== CÁC CỘT DATA ==========
         dxColumns = dxColumns.concat(dataColumns);
+        dxColumns.push({ type: "buttons", name: "baRowCommands", visible: false });
         return dxColumns;
+    },
+
+    showRowCommands: function (grid, visible) {
+        window.setTimeout(function () {
+            try { grid.columnOption("baRowCommands", "visible", visible); } catch (e) { }
+        }, 0);
+    },
+
+    tagList: function (col) {
+        if (col.tags && col.tags.length) return col.tags;
+        return [{ text: col.tagText || "Pending", backColor: col.tagBackColor || "#0D9EFF", textColor: col.tagTextColor || "#ffffff" }];
+    },
+
+    tagFor: function (col, value, rowIndex) {
+        var list = this.tagList(col), text = value == null ? "" : String(value);
+        for (var i = 0; i < list.length; i++) {
+            if (list[i].text === text) return list[i];
+        }
+        return list[Math.max(0, rowIndex || 0) % list.length];
     },
 
     // ====== RENDER GRID ======
@@ -434,32 +409,16 @@ var controlGrid = {
 
             listeners: {
                 move: function (event) {
-                    var curLeft = parseFloat($root.css("left")) || cfg.left || 0;
-                    var curTop = parseFloat($root.css("top")) || cfg.top || 0;
-
-                    var newLeft = curLeft + event.dx;
-                    var newTop = curTop + event.dy;
-
-                    // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
-                    var rulerLeft = 20;
-                    var rulerTop = 20;
-                    if (newLeft < rulerLeft) newLeft = rulerLeft;
-                    if (newTop < rulerTop) newTop = rulerTop;
-
-                    $root.css({ left: newLeft, top: newTop });
-                    cfg.left = newLeft;
-                    cfg.top = newTop;
+                    var oldLeft = cfg.left || 0;
+                    var oldTop = cfg.top || 0;
+                    builder.dragControlBy(cfg, $root, event.dx, event.dy);
 
                     // ✅ Nếu grid thuộc group, di chuyển tất cả controls trong group cùng lúc
                     if (cfg.groupId && builder && typeof builder.moveGroupControls === "function") {
-                        builder.moveGroupControls(cfg.groupId, event.dx, event.dy);
+                        builder.moveGroupControls(cfg.groupId, cfg.left - oldLeft, cfg.top - oldTop, cfg.id);
                     }
-
-                    if (window.builder && typeof builder.updateSelectionSizeHint === "function") {
-                        builder.updateSelectionSizeHint();
-                    }
-                    builder.refreshJson();
-                }
+                },
+                end: function (event) { builder.finishControlDrag(cfg, $root, event); }        // thả chuột: 1 bước Undo duy nhất (về vị trí trước khi nắm)
             }
         });
 
@@ -467,11 +426,12 @@ var controlGrid = {
 
 
         // resize ngang grid (kéo cạnh phải)
+        $root.append('<div class="ub-resize ub-resize-right"></div>');
         interact($root[0]).resizable({
-            edges: { left: false, right: true, top: false, bottom: false },
+            edges: { right: ".ub-resize-right" },
             listeners: {
                 move: function (event) {
-                    var newW = event.rect.width;
+                    var newW = Math.round(event.rect.width / builder.cssScale());
                     if (newW < 200) newW = 200;
 
                     $root.css("width", newW + "px");
@@ -482,8 +442,9 @@ var controlGrid = {
                         inst.option("width", "100%");
                     }
 
-                    builder.refreshJson();
-                }
+                    builder.refreshJson({ skipHistory: true });
+                },
+                end: function () { builder.refreshJson(); }
             }
         });
 
@@ -504,6 +465,8 @@ var controlGrid = {
         var gridInstance = $("#" + cfg.id + "_dxGrid").dxDataGrid({
             dataSource: sampleData,
             columns: dxColumns,
+            paging: { pageSize: cfg.pageSize || 20 },
+            pager: { visible: cfg.showPager === true, showInfo: true, showNavigationButtons: true, showPageSizeSelector: true, allowedPageSizes: [10, 20, 50], infoText: "Page {0} of {1} ({2} items)", displayMode: "full" },
             filterRow: { visible: cfg.filterRow === true },
             headerFilter: { visible: true },
             searchPanel: {
@@ -557,7 +520,11 @@ var controlGrid = {
             },
             onRowRemoved: function (e) {
                 controlGrid.syncSampleDataFromGrid(cfg, e.component);
-            }
+            },
+            onEditingStart: function (e) { controlGrid.showRowCommands(e.component, true); },
+            onInitNewRow: function (e) { controlGrid.showRowCommands(e.component, true); },
+            onSaved: function (e) { controlGrid.showRowCommands(e.component, false); },
+            onEditCanceled: function (e) { controlGrid.showRowCommands(e.component, false); }
         }).dxDataGrid("instance");
 
 
@@ -696,391 +663,117 @@ var controlGrid = {
         }
         var widthVal = cfg.width;
 
-        // Lưu tab hiện tại nếu không preserve
-        var currentTab = preserveTab;
-        if (!currentTab) {
-            var $activeTab = $("#propPanel").find('.ess-prop-tab.ess-prop-tab-active');
-            if ($activeTab.length) {
-                currentTab = $activeTab.data('tab') || 'general';
-            } else {
-                currentTab = 'general';
+        var P = builderProps;
+        var currentTab = P.validTab(["general", "columns", "toolbar", "actions", "permissions"], preserveTab);
+        var columns = cfg.columns || [];
+        var toolbarItems = cfg.toolbarItems || [];
+        var rowActions = cfg.rowActionColumns || [];
+
+        var general =
+            P.section("Tiêu đề và toolbar",
+                P.line(P.field("Tiêu đề", P.text({ id: "txtGridTitle", value: cfg.titleText || "" }) + P.toggles(
+                    P.toggle({ id: "chkTitleBold", title: "Tiêu đề in đậm" }, { html: "<b>B</b>" }, cfg.titleBold),
+                    P.toggle({ id: "chkTitleItalic", title: "Tiêu đề in nghiêng" }, { html: "<i>I</i>" }, cfg.titleItalic)), null, "txtGridTitle")) +
+                P.checks([
+                    P.check({ id: "chkShowTitle" }, "Hiện tiêu đề", cfg.showTitle),
+                    P.check({ id: "chkShowToolbar" }, "Hiện toolbar", cfg.showToolbar),
+                    P.check({ id: "chkShowLocalLang" }, "Hiện Local Data Language", cfg.showLocalDataLanguage)
+                ])) +
+            P.section("Hiện trên lưới",
+                P.checks([
+                    P.check({ id: "chkFilterRow" }, "Dòng lọc (Filter Row)", cfg.filterRow),
+                    P.check({ id: "chkShowSearch" }, "Ô tìm kiếm", cfg.showSearchBox !== false),
+                    P.check({ id: "chkShowPager" }, "Phân trang (pager)", cfg.showPager === true),
+                    P.check({ id: "chkShowCheckbox" }, "Cột chọn dòng", cfg.showCheckbox !== false),
+                    P.check({ id: "chkShowViewCol" }, "Cột View", getActVisible("view", cfg.showViewColumn)),
+                    P.check({ id: "chkShowEditCol" }, "Cột Edit", getActVisible("edit", cfg.showEditColumn)),
+                    P.check({ id: "chkShowDeleteCol" }, "Cột Delete", getActVisible("delete", cfg.showDeleteColumn))
+                ], "pp-checks--cols2")) +
+            P.section("Cho phép",
+                P.checks([
+                    P.check({ id: "chkAllowAdd" }, "Thêm dòng", cfg.allowAdd),
+                    P.check({ id: "chkAllowEdit" }, "Sửa dòng", cfg.allowEdit),
+                    P.check({ id: "chkAllowGroup" }, "Nhóm theo cột (Group)", cfg.allowGrouping !== false)
+                ], "pp-checks--cols2")) +
+            P.section("View Data / Applied for",
+                P.checks([P.check({ id: "chkShowDataHeader" }, "Hiện dòng View Data", cfg.showDataHeader)]) +
+                P.line(P.field("Nhãn View Data", P.text({ id: "txtDataCaption", value: cfg.dataHeaderCaption || "" }), null, "txtDataCaption")) +
+                P.line(P.field("Giá trị View Data", P.text({ id: "txtDataValue", value: cfg.dataHeaderValue || "" }), null, "txtDataValue"))) +
+            P.section("Kích thước",
+                P.line(P.field("Rộng lưới (px)", P.number({ id: "txtGridWidth", value: widthVal, placeholder: "vd: 900" }), "pp-field--num", "txtGridWidth")));
+
+        var columnRows = columns.map(function (col, idx) {
+            var body = P.line(
+                P.field("Hiển thị", P.select({ "data-col-field": "type", "data-col-index": idx }, [["", "Chữ"], ["tag", "Tag / trạng thái"], ["checkbox", "Checkbox"]], col.type || "")),
+                P.field("Rộng", P.number({ min: 60, max: 1500, "data-col-field": "width", "data-col-index": idx, value: col.width || "", placeholder: "Tự động" }), "pp-field--num"));
+            if (col.type === "tag") {
+                body += P.line(P.field("Tag (mỗi dòng: Chữ|#màu)", P.textarea({ rows: 3, "data-col-field": "tags", "data-col-index": idx },
+                    controlGrid.tagList(col).map(function (t) { return t.text + "|" + t.backColor; }).join("\n")), "pp-field--stack"));
             }
-        }
-
-        var html = [];
-        html.push('<div class="ess-grid-props-wrapper">');
-        html.push('<div class="ess-grid-props-header">');
-        html.push('<h3 style="margin:0 0 8px 0; font-size:14px; font-weight:600;">Core GridView</h3>');
-        html.push('<div class="ess-grid-props-tabs">');
-        var generalActive = currentTab === 'general' ? ' ess-prop-tab-active' : '';
-        var columnsActive = currentTab === 'columns' ? ' ess-prop-tab-active' : '';
-        var toolbarActive = currentTab === 'toolbar' ? ' ess-prop-tab-active' : '';
-        var actionsActive = currentTab === 'actions' ? ' ess-prop-tab-active' : '';
-        var permissionsActive = currentTab === 'permissions' ? ' ess-prop-tab-active' : '';
-        html.push('<button type="button" class="ess-prop-tab' + generalActive + '" data-tab="general">⚙️ General</button>');
-        html.push('<button type="button" class="ess-prop-tab' + columnsActive + '" data-tab="columns">📊 Columns (' + (cfg.columns ? cfg.columns.length : 0) + ')</button>');
-        html.push('<button type="button" class="ess-prop-tab' + toolbarActive + '" data-tab="toolbar">🔧 Toolbar (' + (cfg.toolbarItems ? cfg.toolbarItems.length : 0) + ')</button>');
-        html.push('<button type="button" class="ess-prop-tab' + actionsActive + '" data-tab="actions">🔘 Actions (' + (cfg.rowActionColumns ? cfg.rowActionColumns.length : 0) + ')</button>');
-        html.push('<button type="button" class="ess-prop-tab' + permissionsActive + '" data-tab="permissions">🔐 Permissions</button>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('<div class="ess-grid-props-content">');
-
-        // GENERAL TAB
-        var generalTabActive = currentTab === 'general' ? ' ess-prop-tab-active' : '';
-        html.push('<div class="ess-prop-tab-content' + generalTabActive + '" data-tab-content="general">');
-        html.push('<div style="font-size:11px;color:#666;margin-bottom:8px;"><b>ID:</b> ' + cfg.id + '</div>');
-
-        // Checkboxes - 2 cột để tiết kiệm diện tích
-        html.push('<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkFilterRow" ' + (cfg.filterRow ? "checked" : "") + '/> Show Filter Row</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkAllowAdd" ' + (cfg.allowAdd ? "checked" : "") + '/> Allow Add Row</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkAllowEdit" ' + (cfg.allowEdit ? "checked" : "") + '/> Allow Edit</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowSearch" ' + ((cfg.showSearchBox !== false) ? "checked" : "") + '/> Show search box</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowCheckbox" ' + ((cfg.showCheckbox !== false) ? "checked" : "") + '/> Show select checkbox</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowViewCol" ' + (getActVisible("view", cfg.showViewColumn) ? "checked" : "") + '/> Show View column</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowEditCol" ' + (getActVisible("edit", cfg.showEditColumn) ? "checked" : "") + '/> Show Edit column</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowDeleteCol" ' + (getActVisible("delete", cfg.showDeleteColumn) ? "checked" : "") + '/> Show Delete column</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkAllowGroup" ' + ((cfg.allowGrouping !== false) ? "checked" : "") + '/> Allow Group</label>');
-        html.push('</div>');
-        html.push('</div>'); // Close grid container
-        html.push('<div class="mt-1">');
-        html.push('<label>Grid width (px):</label><br/>');
-        html.push('<input type="number" id="txtGridWidth" value="' + widthVal + '" style="width:100%;" placeholder="vd: 900" />');
-        html.push('</div>');
-        html.push('<hr style="margin:12px 0;"/>');
-        html.push('<h4 style="margin:8px 0 4px 0; font-size:13px;">View Data / Applied for</h4>');
-        // Checkbox này chỉ có 1 nên không cần grid
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowDataHeader" ' + (cfg.showDataHeader ? "checked" : "") + '/> Show View Data header</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label>View data caption:</label><br/>');
-        html.push('<input type="text" id="txtDataCaption" value="' + (cfg.dataHeaderCaption || "") + '" style="width:100%;" />');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label>View data value:</label><br/>');
-        html.push('<input type="text" id="txtDataValue" value="' + (cfg.dataHeaderValue || "") + '" style="width:100%;" />');
-        html.push('</div>');
-        html.push('<hr style="margin:12px 0;"/>');
-        html.push('<h4 style="margin:8px 0 4px 0; font-size:13px;">Title & Toolbar</h4>');
-        // Checkboxes - 2 cột
-        html.push('<div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-top:8px;">');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowTitle" ' + (cfg.showTitle ? "checked" : "") + '/> Show title</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowToolbar" ' + (cfg.showToolbar ? "checked" : "") + '/> Show toolbar menu</label>');
-        html.push('</div>');
-        html.push('<div class="mt-1">');
-        html.push('<label><input type="checkbox" id="chkShowLocalLang" ' + (cfg.showLocalDataLanguage ? "checked" : "") + '/> Show Local Data Language</label>');
-        html.push('</div>');
-        html.push('</div>'); // Close grid container
-        // Title text input - riêng 1 dòng
-        html.push('<div class="mt-1" style="margin-top:8px;">');
-        html.push('<label>Title text:</label><br/>');
-        html.push('<input type="text" id="txtGridTitle" value="' + (cfg.titleText || "") + '" style="width:100%;" />');
-        html.push('</div>');
-        // Title formatting checkboxes - riêng 1 dòng
-        html.push('<div class="mt-1" style="margin-top:8px;">');
-        html.push('<label><input type="checkbox" id="chkTitleBold" ' + (cfg.titleBold ? "checked" : "") + '/> <b>Bold</b></label>&nbsp;&nbsp;');
-        html.push('<label><input type="checkbox" id="chkTitleItalic" ' + (cfg.titleItalic ? "checked" : "") + '/> <i>Italic</i></label>');
-        html.push('</div>');
-        html.push('</div>'); // ess-prop-tab-content general
-
-        // COLUMNS TAB - Compact card view
-        var columnsTabActive = currentTab === 'columns' ? ' ess-prop-tab-active' : '';
-        html.push('<div class="ess-prop-tab-content' + columnsTabActive + '" data-tab-content="columns">');
-        html.push('<div class="ess-col-header">');
-        html.push('<input type="text" class="ess-search-input" id="coreColSearch" placeholder="🔍 Search columns..." style="width:100%; margin-bottom:8px; padding:6px 8px; border:1px solid #ddd; border-radius:4px; font-size:12px;"/>');
-        html.push('<button type="button" class="ess-btn-primary" id="btnAddCol" style="width:100%; margin-bottom:12px;">＋ Add Column</button>');
-        html.push('</div>');
-        html.push('<div class="ess-columns-list-wrapper">');
-        html.push('<div class="ess-columns-list" id="gridColumnsPanel">');
-        
-        // Render columns as compact cards với styling chuyên nghiệp
-        (cfg.columns || []).forEach(function (col, idx) {
-            html.push('<div class="ess-col-card" data-col-index="' + idx + '">');
-            html.push('<div class="ess-col-card-header">');
-            html.push('<span class="ess-col-number">' + (idx + 1) + '</span>');
-            html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
-            html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">📋 Field:</span>');
-            html.push('<input type="text" class="ess-col-caption" data-col-field="name" data-col-index="' + idx + '" value="' + (col.name || "") + '" placeholder="Field name (e.g. Code, Name)"/>');
-            html.push('</div>');
-            html.push('<button type="button" class="ess-col-expand" data-cmd="toggle-col-expand" title="Expand/Collapse">▼</button>');
-            html.push('<button type="button" class="ess-col-delete btnDelCol" data-col-index="' + idx + '" title="Delete">🗑</button>');
-            html.push('</div>');
-            html.push('<div class="ess-col-card-body">');
-            html.push('<div class="ess-col-row">');
-            html.push('<div class="ess-col-field ess-col-field-full">');
-            html.push('<label><span style="color:#0078d4;">📝</span><strong>Caption:</strong></label>');
-            html.push('<input type="text" class="ess-col-input" data-col-field="caption" data-col-index="' + idx + '" value="' + (col.caption || "") + '" placeholder="Column caption"/>');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('<div class="ess-col-row">');
-            html.push('<div class="ess-col-field ess-col-field-width">');
-            html.push('<label><span style="color:#0078d4;">📏</span><strong>Width:</strong></label>');
-            html.push('<input type="number" min="60" max="1500" class="ess-col-input" data-col-field="width" data-col-index="' + idx + '" value="' + (col.width || "") + '" placeholder="Auto"/>');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>'); // ess-col-card-body
-            html.push('</div>'); // ess-col-card
-        });
-        
-        html.push('</div>'); // ess-columns-list
-        html.push('</div>'); // ess-columns-list-wrapper
-        html.push('</div>'); // ess-prop-tab-content columns
-
-        // Icon options HTML - dùng chung cho toolbar và actions
-        var iconOptionsHtml = (window.MENU_ICON_LIST || []).map(function (ic) {
-            return '<option value="' + ic.value + '">' + ic.text + '</option>';
+            return P.row({
+                attrs: { "class": "pp-cols-2", "data-col-index": idx },
+                open: P.isRowOpen(cfg.id, "col", idx),
+                head: P.rowNo(idx + 1) +
+                    P.text({ "data-col-field": "name", "data-col-index": idx, value: col.name || "", placeholder: "Tên field", title: "Tên field (vd: Code, Name)" }) +
+                    P.text({ "data-col-field": "caption", "data-col-index": idx, value: col.caption || "", placeholder: "Tiêu đề", title: "Tiêu đề cột" }),
+                tools: P.iconButton({ "class": "btnMoveCol", "data-col-index": idx, "data-dir": "-1", title: "Đưa cột này lên trước", disabled: idx === 0 }, "↑") +
+                    P.iconButton({ "class": "btnMoveCol", "data-col-index": idx, "data-dir": "1", title: "Đưa cột này ra sau", disabled: idx === columns.length - 1 }, "↓") +
+                    P.iconButton({ "class": "btnInsertCol", "data-col-index": idx, title: "Chèn một cột mới ngay sau cột này" }, "＋") +
+                    P.rowToggle("Kiểu hiển thị và độ rộng") +
+                    P.iconButton({ "class": "pp-icon-btn--danger btnDelCol", "data-col-index": idx, title: "Xóa cột" }, "×"),
+                body: body
+            });
         }).join("");
 
-        // TOOLBAR TAB - Compact card view
-        var toolbarTabActive = currentTab === 'toolbar' ? ' ess-prop-tab-active' : '';
-        html.push('<div class="ess-prop-tab-content' + toolbarTabActive + '" data-tab-content="toolbar">');
-        html.push('<div class="ess-col-header">');
-        html.push('<button type="button" class="ess-btn-primary" id="btnAddToolbarItem" style="width:100%; margin-bottom:12px;">＋ Add Toolbar Item</button>');
-        html.push('</div>');
-        html.push('<div class="ess-actions-list-wrapper">');
-        html.push('<div class="ess-actions-list" id="toolbarItemsPanel">');
-        
-        // Render toolbar items as cards với styling chuyên nghiệp
-        (cfg.toolbarItems || []).forEach(function (item, idx) {
-            var preview = item.icon ? "<img src='" + item.icon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />" : "";
-            html.push('<div class="ess-action-card" data-toolbar-index="' + idx + '">');
-            html.push('<div class="ess-action-card-header">');
-            html.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
-            html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
-            //html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔧 Menu:</span>');
-            html.push('<input type="text" class="ess-action-caption" data-toolbar-field="text" data-toolbar-index="' + idx + '" value="' + (item.text || "") + '" placeholder="Menu text"/>');
-            html.push('<span class="toolbar-icon-preview" data-toolbar-index="' + idx + '">' + preview + '</span>');
-            html.push('</div>');
-            html.push('<button type="button" class="ess-action-expand" data-cmd="toggle-toolbar-expand" title="Expand/Collapse">▼</button>');
-            html.push('<button type="button" class="ess-action-delete btnDelToolbar" data-toolbar-index="' + idx + '" title="Delete">🗑</button>');
-            html.push('</div>');
-            html.push('<div class="ess-action-card-body">');
-            html.push('<div class="ess-action-row">');
-            html.push('<div class="ess-action-field ess-action-field-icon ess-action-field-full">');
-            html.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
-            // Icon picker UI for toolbar items in gridview title
-            var currentIcon = item.icon || "";
-            var iconType = item.iconType || ""; // "menu" or "glyphicon" or ""
-            var iconPreview = "";
-            var iconTypeText = "";
-            var iconName = "";
-            
-            if (currentIcon && iconType) {
-                if (iconType === "glyphicon") {
-                    var iconColor = item.iconColor || "#333333";
-                    iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
-                    iconTypeText = "Bootstrap Glyphicon";
-                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
-                        return icon.class === currentIcon;
-                    });
-                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
-                } else if (iconType === "menu") {
-                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                    iconTypeText = "Menu Icons";
-                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                        return icon.value === currentIcon;
-                    });
-                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-                }
-            } else if (currentIcon) {
-                // Legacy: if icon exists but no iconType, assume it's menu icon
-                iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                iconTypeText = "Menu Icons";
-                var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                    return icon.value === currentIcon;
-                });
-                iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-            }
-            
-            var iconColor = item.iconColor || "#333333";
-            html.push('<div class="toolbar-icon-picker-wrapper" data-toolbar-index="' + idx + '" style="display:flex; align-items:center; gap:8px;">');
-            html.push('<div class="toolbar-icon-preview-full" style="flex:1; padding:6px 8px; background:#f5f5f5; border-radius:4px; min-height:32px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:8px;">');
-            html.push(iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>');
-            html.push(iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : '');
-            html.push('</div>');
-            html.push('<button type="button" class="ess-btn-primary toolbar-browse-icon" data-toolbar-index="' + idx + '" style="padding:6px 12px; white-space:nowrap; flex-shrink:0;">Browse...</button>');
-            html.push('</div>');
-            html.push('</div>'); // Close ess-action-field
-            html.push('</div>'); // Close ess-action-row for Icon
-            // Color picker for Glyphicon (only show when iconType is glyphicon) - separate row
-            if (iconType === "glyphicon" && currentIcon) {
-                html.push('<div class="ess-action-row" style="margin-top:8px;">');
-                html.push('<div class="ess-action-field ess-action-field-full" style="flex:1;">');
-                html.push('<label><span style="color:#0078d4;">🎨</span><strong>Icon Color:</strong></label>');
-                html.push('<div style="display:flex; align-items:center; gap:8px;">');
-                html.push('<input type="color" class="toolbar-icon-color-picker" data-toolbar-index="' + idx + '" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + iconColor + '">');
-                html.push('<input type="text" class="toolbar-icon-color-text ess-col-input" data-toolbar-index="' + idx + '" style="flex:1;" value="' + iconColor + '">');
-                html.push('</div>');
-                html.push('</div>');
-                html.push('</div>');
-            }
-            html.push('</div>'); // ess-action-card-body
-            html.push('</div>'); // ess-action-card
-        });
-        
-        html.push('</div>'); // ess-actions-list
-        html.push('</div>'); // ess-actions-list-wrapper
-        html.push('</div>'); // ess-prop-tab-content toolbar
+        var toolbarRows = toolbarItems.map(function (item, idx) {
+            return P.row({
+                attrs: { "class": "pp-cols-1", "data-toolbar-index": idx },
+                open: P.isRowOpen(cfg.id, "toolbar", idx),
+                head: P.rowNo(idx + 1) +
+                    P.text({ "data-toolbar-field": "text", "data-toolbar-index": idx, value: item.text || "", placeholder: "Chữ trên nút" }) +
+                    P.iconCell(item, idx),
+                tools: P.rowToggle("Biểu tượng và màu") + P.iconButton({ "class": "pp-icon-btn--danger btnDelToolbar", "data-toolbar-index": idx, title: "Xóa nút" }, "×"),
+                body: P.iconEditor(item, idx)
+            });
+        }).join("");
 
-        // ACTIONS TAB - Compact card view
-        var actionsTabActive = currentTab === 'actions' ? ' ess-prop-tab-active' : '';
-        html.push('<div class="ess-prop-tab-content' + actionsTabActive + '" data-tab-content="actions">');
-        html.push('<div class="ess-col-header">');
-        html.push('<button type="button" class="ess-btn-primary" id="btnAddRowActionCol" style="width:100%; margin-bottom:12px;">＋ Add Action Column</button>');
-        html.push('</div>');
-        html.push('<div class="ess-actions-list-wrapper">');
-        html.push('<div class="ess-actions-list" id="rowActionColsPanel">');
-        
-        // Render row action columns as cards với styling chuyên nghiệp
-        (cfg.rowActionColumns || []).forEach(function (ac, idx) {
-            var preview = ac.icon ? "<img src='" + ac.icon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />" : "";
-            html.push('<div class="ess-action-card" data-action-index="' + idx + '">');
-            html.push('<div class="ess-action-card-header">');
-            html.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
-            html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
-            //html.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">🔘 Action:</span>');
-            html.push('<input type="text" class="ess-action-caption" data-action-field="text" data-action-index="' + idx + '" value="' + (ac.text || "") + '" placeholder="Action text"/>');
-            html.push('<span class="rowact-icon-preview" data-action-index="' + idx + '">' + preview + '</span>');
-            html.push('</div>');
-            html.push('<button type="button" class="ess-action-expand" data-cmd="toggle-action-expand" title="Expand/Collapse">▼</button>');
-            html.push('<button type="button" class="ess-action-delete btnDelRowAction" data-action-index="' + idx + '" title="Delete">🗑</button>');
-            html.push('</div>');
-            html.push('<div class="ess-action-card-body">');
-            html.push('<div class="ess-action-row">');
-            html.push('<div class="ess-action-field ess-action-field-key">');
-            html.push('<label><span style="color:#0078d4;">🔑</span><strong>Key:</strong></label>');
-            html.push('<input type="text" class="ess-action-input" data-action-field="key" data-action-index="' + idx + '" value="' + (ac.key || "") + '" placeholder="key"/>');
-            html.push('</div>');
-            html.push('<div class="ess-action-field ess-action-field-width">');
-            html.push('<label><span style="color:#0078d4;">📏</span><strong>Width:</strong></label>');
-            html.push('<input type="number" class="ess-action-input" data-action-field="width" data-action-index="' + idx + '" value="' + (ac.width || "") + '" placeholder="40"/>');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('<div class="ess-action-row">');
-            html.push('<div class="ess-action-field ess-action-field-icon ess-action-field-full">');
-            html.push('<label><span style="color:#0078d4;">🖼️</span><strong>Icon:</strong></label>');
-            // Icon picker UI (similar to button icon picker, but without Remove button for action columns)
-            var currentIcon = ac.icon || "";
-            var iconType = ac.iconType || ""; // "menu" or "glyphicon" or ""
-            var iconPreview = "";
-            var iconTypeText = "";
-            var iconName = "";
-            
-            if (currentIcon && iconType) {
-                if (iconType === "glyphicon") {
-                    var iconColor = ac.iconColor || "#333333";
-                    iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
-                    iconTypeText = "Bootstrap Glyphicon";
-                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
-                        return icon.class === currentIcon;
-                    });
-                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
-                } else if (iconType === "menu") {
-                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                    iconTypeText = "Menu Icons";
-                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                        return icon.value === currentIcon;
-                    });
-                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-                }
-            } else if (currentIcon) {
-                // Legacy: if icon exists but no iconType, assume it's menu icon
-                iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                iconTypeText = "Menu Icons";
-                var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                    return icon.value === currentIcon;
-                });
-                iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-            }
-            
-            var iconColor = ac.iconColor || "#333333";
-            html.push('<div class="rowact-icon-picker-wrapper" data-action-index="' + idx + '" style="display:flex; align-items:center; gap:8px;">');
-            html.push('<div class="rowact-icon-preview-full" style="flex:1; padding:6px 8px; background:#f5f5f5; border-radius:4px; min-height:32px; display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:8px;">');
-            html.push(iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>');
-            html.push(iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : '');
-            html.push('</div>');
-            html.push('<button type="button" class="ess-btn-primary rowact-browse-icon" data-action-index="' + idx + '" style="padding:6px 12px; white-space:nowrap; flex-shrink:0;">Browse...</button>');
-            html.push('</div>');
-            html.push('</div>'); // Close ess-action-field
-            html.push('</div>'); // Close ess-action-row for Icon
-            
-            // Color picker for Glyphicon (only show when iconType is glyphicon) - separate row
-            if (iconType === "glyphicon" && currentIcon) {
-                html.push('<div class="ess-action-row" style="margin-top:8px;">');
-                html.push('<div class="ess-action-field ess-action-field-full" style="flex:1;">');
-                html.push('<label><span style="color:#0078d4;">🎨</span><strong>Icon Color:</strong></label>');
-                html.push('<div style="display:flex; align-items:center; gap:8px;">');
-                html.push('<input type="color" class="rowact-icon-color-picker" data-action-index="' + idx + '" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + iconColor + '">');
-                html.push('<input type="text" class="rowact-icon-color-text ess-col-input" data-action-index="' + idx + '" style="flex:1;" value="' + iconColor + '">');
-                html.push('</div>');
-                html.push('</div>');
-                html.push('</div>');
-            }
-            html.push('<div class="ess-action-row">');
-            html.push('<div class="ess-action-field">');
-            html.push('<label style="display:flex; align-items:center; gap:6px;"><input type="checkbox" data-action-field="visible" data-action-index="' + idx + '" ' + ((ac.visible !== false) ? "checked" : "") + '/><span style="color:#0078d4;">👁️</span><strong>Show</strong></label>');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>'); // ess-action-card-body
-            html.push('</div>'); // ess-action-card
-        });
-        
-        html.push('</div>'); // ess-actions-list
-        html.push('</div>'); // ess-actions-list-wrapper
-        html.push('</div>'); // ess-prop-tab-content actions
+        var actionRows = rowActions.map(function (ac, idx) {
+            return P.row({
+                attrs: { "class": "pp-cols-1", "data-action-index": idx },
+                open: P.isRowOpen(cfg.id, "action", idx),
+                head: P.rowNo(idx + 1) +
+                    P.text({ "data-action-field": "text", "data-action-index": idx, value: ac.text || "", placeholder: "Tên nút" }) +
+                    P.iconCell(ac, idx),
+                tools: P.rowToggle("Mã, độ rộng, biểu tượng, ẩn hiện") + P.iconButton({ "class": "pp-icon-btn--danger btnDelRowAction", "data-action-index": idx, title: "Xóa cột nút" }, "×"),
+                body: P.line(
+                        P.field("Mã", P.text({ "data-action-field": "key", "data-action-index": idx, value: ac.key || "", placeholder: "key" })),
+                        P.field("Rộng", P.number({ "data-action-field": "width", "data-action-index": idx, value: ac.width || "", placeholder: "40" }), "pp-field--num")) +
+                    P.iconEditor(ac, idx) +
+                    P.checks([P.check({ "data-action-field": "visible", "data-action-index": idx }, "Hiện cột nút này", ac.visible !== false)])
+            });
+        }).join("");
 
-        // PERMISSIONS TAB - Card view cho row permissions
-        var permissionsTabActive = currentTab === 'permissions' ? ' ess-prop-tab-active' : '';
-        html.push('<div class="ess-prop-tab-content' + permissionsTabActive + '" data-tab-content="permissions">');
-        html.push('<div class="ess-col-header">');
-        html.push('<div style="font-size:12px; color:#666; margin-bottom:8px; padding:8px; background:#f8f9fa; border-radius:4px;">');
-        html.push('🔐 <strong>Row Permissions:</strong> Configure permissions for each row based on action columns');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('<div class="ess-columns-list-wrapper">');
-        html.push('<div class="ess-columns-list" id="rowPermPanel">');
-        // Permissions sẽ được render bằng hàm renderRowPerm() sau
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>'); // ess-prop-tab-content permissions
-        html.push('</div>'); // ess-grid-props-content
-        html.push('</div>'); // ess-grid-props-wrapper
-
-        var htmlStr = html.join('');
-
-        $("#propPanel").html(htmlStr);
-
-        // Tab switching logic
-        $("#propPanel").off("click.coreGridTab").on("click.coreGridTab", ".ess-prop-tab", function(e) {
-            e.stopPropagation();
-            var tab = $(this).data('tab');
-            $("#propPanel").find('.ess-prop-tab').removeClass('ess-prop-tab-active');
-            $("#propPanel").find('.ess-prop-tab-content').removeClass('ess-prop-tab-active');
-            $(this).addClass('ess-prop-tab-active');
-            $("#propPanel").find('.ess-prop-tab-content[data-tab-content="' + tab + '"]').addClass('ess-prop-tab-active');
-        });
+        P.render(P.tabbedPanel("Core GridView", "ID: " + cfg.id, [
+                { key: "general", text: "Chung" },
+                { key: "columns", text: "Cột", count: columns.length },
+                { key: "toolbar", text: "Toolbar", count: toolbarItems.length },
+                { key: "actions", text: "Nút dòng", count: rowActions.length },
+                { key: "permissions", text: "Quyền", title: "Quyền theo dòng" }
+            ], currentTab,
+            P.tabPanel("general", currentTab, general) +
+            P.tabPanel("columns", currentTab,
+                P.bar(P.text({ id: "coreColSearch", "class": "pp-search", placeholder: "Tìm cột..." }), P.button({ id: "btnAddCol", "class": "pp-btn--primary" }, "＋ Thêm cột")) +
+                P.listHead("pp-cols-2", ["#", "Tên field", "Tiêu đề", ""]) +
+                P.list({ id: "gridColumnsPanel", "data-pp-owner": cfg.id, "data-pp-kind": "col" }, columnRows), "pp-tab-panel--list") +
+            P.tabPanel("toolbar", currentTab,
+                P.bar(P.button({ id: "btnAddToolbarItem", "class": "pp-btn--primary" }, "＋ Thêm nút"), P.barHint("Nút trên dải tiêu đề của lưới")) +
+                P.list({ id: "toolbarItemsPanel", "data-pp-owner": cfg.id, "data-pp-kind": "toolbar" }, toolbarRows), "pp-tab-panel--list") +
+            P.tabPanel("actions", currentTab,
+                P.bar(P.button({ id: "btnAddRowActionCol", "class": "pp-btn--primary" }, "＋ Thêm cột nút"), P.barHint("Cột nút ở đầu mỗi dòng")) +
+                P.list({ id: "rowActionColsPanel", "data-pp-owner": cfg.id, "data-pp-kind": "action" }, actionRows), "pp-tab-panel--list") +
+            P.tabPanel("permissions", currentTab,
+                P.bar(P.barHint("Quyền của từng cột nút trên 5 dòng dữ liệu mẫu")) +
+                P.scroll({ id: "rowPermPanel" }, ""), "pp-tab-panel--list")));
 
         var self = this;
 
@@ -1095,6 +788,10 @@ var controlGrid = {
         });
         $("#chkAllowEdit").on("change", function () {
             cfg.allowEdit = this.checked;
+            self.refreshGrid(cfg);
+        });
+        $("#chkShowPager").on("change", function () {
+            cfg.showPager = this.checked;
             self.refreshGrid(cfg);
         });
         $("#chkShowSearch").on("change", function () {
@@ -1176,194 +873,25 @@ var controlGrid = {
 
         // ==== toolbar items ==== - Card view đã được render trong HTML, chỉ wire events
         function renderToolbarItems() {
-            // Card view đã được render trong HTML, chỉ cần wire events
-            // Set giá trị icon cho các select đã render
-            // Wire events cho toolbar items
             $("#toolbarItemsPanel input[data-toolbar-field='text']").off("change.coreGridToolbar").on("change.coreGridToolbar", function () {
                 var idx = parseInt($(this).data('toolbar-index'), 10);
                 cfg.toolbarItems[idx].text = $(this).val();
                 self.refreshGrid(cfg);
             });
 
-            // Wire up icon picker for toolbar items in gridview title
-            // Use event delegation on #propPanel to ensure it works even if elements are re-rendered
-            $("#propPanel").off("click.coreGridToolbarIcon", ".toolbar-browse-icon").on("click.coreGridToolbarIcon", ".toolbar-browse-icon", function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                console.log("Core GridView Toolbar: Browse icon clicked");
-                var idx = parseInt($(this).data("toolbar-index"), 10);
-                var item = cfg.toolbarItems[idx];
-                if (!item) {
-                    console.warn("Core GridView Toolbar: Item not found for index:", idx);
-                    return;
-                }
-                
-                // Use the icon picker from control-field.js
-                if (window.controlField && typeof controlField.showIconPicker === "function") {
-                    // Save current tab to restore after icon selection
-                    var $panel = $("#propPanel");
-                    var currentTab = $panel.find('.ess-prop-tab.ess-prop-tab-active').data('tab') || 'toolbar';
-                    console.log("Core GridView Toolbar: Opening icon picker, currentTab:", currentTab);
-                    controlField.showIconPicker(item.iconType || "menu", function(selectedIcon, selectedIconType) {
-                        console.log("Core GridView Toolbar: Icon selected:", selectedIcon, selectedIconType);
-                        if (selectedIcon && selectedIconType) {
-                            item.icon = selectedIcon;
-                            item.iconType = selectedIconType;
-                            // Set default color for Glyphicon if not set
-                            if (selectedIconType === "glyphicon" && !item.iconColor) {
-                                item.iconColor = "#333333";
-                            }
-                            // Update preview
-                            updateToolbarIconPreview(idx, item);
-                            self.refreshGrid(cfg);
-                            // Re-show properties to update preview, but keep the same tab
-                            self.showProperties(cfg.id, currentTab);
-                        }
-                    });
-                } else {
-                    console.error("Core GridView Toolbar: controlField.showIconPicker is not available");
-                }
-            });
-            
-            // Update icon previews on load
-            function updateToolbarIconPreview(idx, item) {
-                var $wrapper = $("#toolbarItemsPanel .toolbar-icon-picker-wrapper[data-toolbar-index='" + idx + "']");
-                if (!$wrapper.length) return;
-                
-                var currentIcon = item.icon || "";
-                var iconType = item.iconType || "";
-                var iconPreview = "";
-                var iconTypeText = "";
-                var iconName = "";
-                
-                if (currentIcon && iconType) {
-                    if (iconType === "glyphicon") {
-                        var iconColor = item.iconColor || "#333333";
-                        iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
-                        iconTypeText = "Bootstrap Glyphicon";
-                        var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
-                            return icon.class === currentIcon;
-                        });
-                        iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
-                    } else if (iconType === "menu") {
-                        iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                        iconTypeText = "Menu Icons";
-                        var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                            return icon.value === currentIcon;
-                        });
-                        iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-                    }
-                } else if (currentIcon) {
-                    // Legacy: if icon exists but no iconType, assume it's menu icon
-                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                    iconTypeText = "Menu Icons";
-                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                        return icon.value === currentIcon;
-                    });
-                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-                }
-                
-                var $preview = $wrapper.find('.toolbar-icon-preview-full');
-                var $headerPreview = $("#toolbarItemsPanel .toolbar-icon-preview[data-toolbar-index='" + idx + "']");
-                
-                if (iconPreview) {
-                    $preview.html(iconPreview + (iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : ''));
-                    // Update header preview too
-                    if ($headerPreview.length) {
-                        if (iconType === "glyphicon") {
-                            var iconColor = item.iconColor || "#333333";
-                            $headerPreview.html('<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>');
-                } else {
-                            $headerPreview.html("<img src='" + currentIcon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
-                        }
-                    }
-                } else {
-                    $preview.html('<span style="color:#999; font-size:11px;">No icon selected</span>');
-                    if ($typeLabel.length) {
-                        $typeLabel.hide();
-                    }
-                    if ($headerPreview.length) {
-                        $headerPreview.empty();
-                    }
-                }
-            }
-            
-            // Initialize icon previews for all toolbar items
-            (cfg.toolbarItems || []).forEach(function(item, idx) {
-                updateToolbarIconPreview(idx, item);
-            });
-            
-            // Color picker handlers for toolbar items
-            function bindToolbarColorPair(pickerSel, textSel, idx) {
-                var $picker = $(pickerSel);
-                var $text = $(textSel);
-                
-                function normalizeColor(val) {
-                    if (!val) return "#333333";
-                    val = $.trim(val);
-                    if (/^[0-9a-f]{3}$/i.test(val)) {
-                        var r = val[0], g = val[1], b = val[2];
-                        return ("#" + r + r + g + g + b + b).toUpperCase();
-                    }
-                    if (/^[0-9a-f]{6}$/i.test(val)) {
-                        return ("#" + val).toUpperCase();
-                    }
-                    if (/^#[0-9a-f]{3}$/i.test(val)) {
-                        var r2 = val[1], g2 = val[2], b2 = val[3];
-                        return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
-                    }
-                    if (/^#[0-9a-f]{6}$/i.test(val)) {
-                        return val.toUpperCase();
-                    }
-                    return val;
-                }
-                
-                if ($text.length) {
-                    $text.off("change.coreGridToolbarColor blur.coreGridToolbarColor").on("change.coreGridToolbarColor blur.coreGridToolbarColor", function () {
-                        var v = normalizeColor($(this).val());
-                        var item = cfg.toolbarItems[idx];
-                        if (item && item.iconType === "glyphicon") {
-                            item.iconColor = v;
-                            if ($picker.length && /^#[0-9a-f]{6}$/i.test(v)) {
-                                $picker.val(v);
-                            }
-                            updateToolbarIconPreview(idx, item);
-                            self.refreshGrid(cfg);
-                            builder.refreshJson();
-                        }
-                    });
-                }
-                
-                if ($picker.length) {
-                    $picker.off("input.coreGridToolbarColor change.coreGridToolbarColor").on("input.coreGridToolbarColor change.coreGridToolbarColor", function () {
-                        var v = normalizeColor($(this).val());
-                        var item = cfg.toolbarItems[idx];
-                        if (item && item.iconType === "glyphicon") {
-                            item.iconColor = v;
-                            if ($text.length) $text.val(v);
-                            updateToolbarIconPreview(idx, item);
-                            self.refreshGrid(cfg);
-                            builder.refreshJson();
-                        }
-                    });
-                }
-            }
-            
-            // Wire color pickers for all toolbar items
-            (cfg.toolbarItems || []).forEach(function(item, idx) {
-                if (item.iconType === "glyphicon" && item.icon) {
-                    bindToolbarColorPair(
-                        ".toolbar-icon-color-picker[data-toolbar-index='" + idx + "']",
-                        ".toolbar-icon-color-text[data-toolbar-index='" + idx + "']",
-                        idx
-                    );
+            builderProps.bindIcons("#toolbarItemsPanel", {
+                defaultColor: true,
+                item: function (key) { return cfg.toolbarItems[key]; },
+                changed: function (structural) {
+                    self.refreshGrid(cfg);
+                    if (structural) self.showProperties(cfg.id);
                 }
             });
 
             $("#toolbarItemsPanel .btnDelToolbar").off("click.coreGridToolbar").on("click.coreGridToolbar", function () {
                 var idx = parseInt($(this).data('toolbar-index'), 10);
                 cfg.toolbarItems.splice(idx, 1);
-                // Re-render properties để cập nhật card view
+                builderProps.rowRemoved(cfg.id, 'toolbar', idx);
                 self.showProperties(cfg.id, 'toolbar');
                 self.refreshGrid(cfg);
             });
@@ -1372,12 +900,23 @@ var controlGrid = {
         // ==== columns ==== - Card view đã được render trong HTML, chỉ wire events
         function renderColumns() {
             // Card view đã được render trong HTML, chỉ cần wire events
-            $("#gridColumnsPanel").find("input[data-col-field]").off("change.coreGridCol").on("change.coreGridCol", function () {
+            $("#gridColumnsPanel").find("input[data-col-field], select[data-col-field], textarea[data-col-field]").off("change.coreGridCol").on("change.coreGridCol", function () {
                 var idx = parseInt($(this).data('col-index'), 10);
                 var field = $(this).data('col-field');
                 if (field === "width") {
                     var val = parseFloat($(this).val());
                     cfg.columns[idx].width = isNaN(val) || val <= 0 ? null : val;
+                } else if (field === "type") {
+                    var kind = $(this).val();
+                    if (kind) cfg.columns[idx].type = kind; else delete cfg.columns[idx].type;
+                    if (kind === "tag" && !(cfg.columns[idx].tags && cfg.columns[idx].tags.length)) cfg.columns[idx].tags = self.tagList(cfg.columns[idx]);
+                    self.showProperties(cfg.id, 'columns');
+                } else if (field === "tags") {
+                    var tags = String($(this).val() || "").split("\n").map(function (line) {
+                        var parts = line.split("|"), text = (parts[0] || "").trim(), color = (parts[1] || "").trim();
+                        return text ? { text: text.slice(0, 40), backColor: /^#[0-9a-fA-F]{6}$/.test(color) ? color : "#0D9EFF", textColor: "#ffffff" } : null;
+                    }).filter(Boolean).slice(0, 12);
+                    cfg.columns[idx].tags = tags.length ? tags : self.tagList({});
                 } else {
                     cfg.columns[idx][field] = $(this).val();
                 }
@@ -1387,8 +926,35 @@ var controlGrid = {
             $("#gridColumnsPanel").find(".btnDelCol").off("click.coreGridCol").on("click.coreGridCol", function () {
                 var idx = parseInt($(this).data('col-index'), 10);
                 cfg.columns.splice(idx, 1);
-                // Re-render properties để cập nhật card view
-                self.showProperties(cfg.id, 'columns');
+                builderProps.rowRemoved(cfg.id, 'col', idx);
+                builderProps.keepListScroll(0, function () { self.showProperties(cfg.id, 'columns'); });
+                self.refreshGrid(cfg);
+            });
+
+            $("#gridColumnsPanel").find(".btnMoveCol").off("click.coreGridCol").on("click.coreGridCol", function () {
+                var idx = parseInt($(this).data('col-index'), 10);
+                var dir = parseInt($(this).data('dir'), 10);
+                var to = idx + dir;
+                if (!(to >= 0 && to < cfg.columns.length)) return;
+                var $card = $(this).closest(".pp-row");
+                var shift = dir * (dir > 0 ? $card.next() : $card.prev()).outerHeight(true);
+                cfg.columns.splice(to, 0, cfg.columns.splice(idx, 1)[0]);
+                builderProps.rowMoved(cfg.id, 'col', idx, to);
+                builderProps.keepListScroll(shift, function () { self.showProperties(cfg.id, 'columns'); });
+                builderProps.flashRow($("#gridColumnsPanel > .pp-row").eq(to), ".btnMoveCol[data-dir='" + dir + "']");
+                self.refreshGrid(cfg);
+            });
+
+            $("#gridColumnsPanel").find(".btnInsertCol").off("click.coreGridCol").on("click.coreGridCol", function () {
+                var idx = parseInt($(this).data('col-index'), 10);
+                var used = {};
+                cfg.columns.forEach(function (c) { used[c.name] = true; });
+                var n = cfg.columns.length + 1;
+                while (used["Field" + n]) n++;
+                cfg.columns.splice(idx + 1, 0, { name: "Field" + n, caption: "Column " + n, width: 150 });
+                builderProps.rowInserted(cfg.id, 'col', idx + 1);
+                builderProps.keepListScroll(0, function () { self.showProperties(cfg.id, 'columns'); });
+                builderProps.flashRow($("#gridColumnsPanel > .pp-row").eq(idx + 1));
                 self.refreshGrid(cfg);
             });
         }
@@ -1406,55 +972,31 @@ var controlGrid = {
 
         // ==== row permission: dynamic theo rowActionColumns ==== - Card view
         function renderRowPerm() {
+            var P = builderProps;
             var maxRows = 5;
             var actions = cfg.rowActionColumns || [];
-            var html = [];
+            var shown = [];
+            actions.forEach(function (act, idx) {
+                if (act.visible === false) return;
+                var key = act.key || ("action" + (idx + 1));
+                shown.push({ key: key, label: act.text || key });
+            });
 
-            if (!actions.length) {
-                html.push('<div class="ess-col-card" style="padding:20px; text-align:center; color:#999;">');
-                html.push('🔐 <strong>No row action columns.</strong><br/>');
-                html.push('<span style="font-size:11px;">Add action columns in the Actions tab first.</span>');
-                html.push('</div>');
-                $("#rowPermPanel").html(html.join(''));
+            if (!shown.length) {
+                $("#rowPermPanel").html(P.empty(actions.length
+                    ? "Các cột nút đang bị ẩn. Hãy bật Hiện ở tab Nút dòng trước."
+                    : "Chưa có cột nút theo dòng. Hãy thêm cột nút ở tab Nút dòng trước."));
                 return;
             }
 
-            for (var i = 0; i < maxRows; i++) {
-                var rp = cfg.rowPermissions[i] || {};
-
-                html.push('<div class="ess-col-card" data-row-index="' + i + '">');
-                html.push('<div class="ess-col-card-header">');
-                html.push('<span class="ess-col-number">' + (i + 1) + '</span>');
-                html.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
-                html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">🔐 Row ' + (i + 1) + ' Permissions</span>');
-                html.push('</div>');
-                html.push('</div>');
-                html.push('<div class="ess-col-card-body">');
-
-                actions.forEach(function (act, idx) {
-                    if (act.visible === false) return;
-
-                    var key = act.key || ("action" + (idx + 1));
-                    var label = act.text || key;
-                    var state = rp[key] || "enabled";
-
-                    html.push('<div class="ess-col-row">');
-                    html.push('<div class="ess-col-field ess-col-field-full">');
-                    html.push('<label><span style="color:#0078d4;">🔘</span><strong>' + label + ':</strong></label>');
-                    html.push('<select class="ess-col-input" data-row="' + i + '" data-key="' + key + '">');
-                    html.push('<option value="enabled"' + (state === "enabled" ? " selected" : "") + '>✅ Enabled</option>');
-                    html.push('<option value="disabled"' + (state === "disabled" ? " selected" : "") + '>❌ Disabled</option>');
-                    html.push('<option value="hidden"' + (state === "hidden" ? " selected" : "") + '>👁️‍🗨️ Hidden</option>');
-                    html.push('</select>');
-                    html.push('</div>');
-                    html.push('</div>');
-                });
-                
-                html.push('</div>'); // ess-col-card-body
-                html.push('</div>'); // ess-col-card
-            }
-
-            $("#rowPermPanel").html(html.join(''));
+            var rowTitles = [];
+            for (var i = 0; i < maxRows; i++) rowTitles.push("Dòng " + (i + 1));
+            $("#rowPermPanel").html(P.matrix(shown.map(function (item) { return item.label; }), rowTitles, function (rowIndex, columnIndex) {
+                var item = shown[columnIndex];
+                var state = (cfg.rowPermissions[rowIndex] || {})[item.key] || "enabled";
+                return P.select({ "data-row": rowIndex, "data-key": item.key, "data-state": state, title: rowTitles[rowIndex] + " - " + item.label },
+                    [["enabled", "Bật"], ["disabled", "Khóa"], ["hidden", "Ẩn"]], state);
+            }));
 
             $("#rowPermPanel select").off("change.rowPerm").on("change.rowPerm", function () {
                 var rowIndex = parseInt($(this).data('row'), 10);
@@ -1463,225 +1005,45 @@ var controlGrid = {
 
                 cfg.rowPermissions[rowIndex] = cfg.rowPermissions[rowIndex] || {};
                 cfg.rowPermissions[rowIndex][key] = val;
+                $(this).attr("data-state", val);
 
                 self.refreshGrid(cfg);
             });
         }
 
         function renderRowActionCols() {
-            // Card view đã được render trong HTML, chỉ cần wire events
-            // Icon picker is now used instead of select dropdown, so this is no longer needed
-            // $("#rowActionColsPanel .rowact-icon-select").each(function () {
-            //     var idx = parseInt($(this).closest('.ess-action-card').data('action-index'), 10);
-            //     var icon = (cfg.rowActionColumns[idx] && cfg.rowActionColumns[idx].icon) || "";
-            //     $(this).val(icon);
-            // });
-
-            // Wire events cho row action columns
-            $("#rowActionColsPanel input[data-action-field!='visible']").off("change.coreGridAction").on("change.coreGridAction", function () {
-                var idx = parseInt($(this).data('action-index'), 10);
+            $("#rowActionColsPanel input[data-action-field]").off("change.coreGridAction").on("change.coreGridAction", function () {
+                var action = cfg.rowActionColumns[parseInt($(this).data('action-index'), 10)];
                 var field = $(this).data('action-field');
-                if (field === "width") {
+                if (field === "visible") {
+                    action.visible = $(this).is(':checked');
+                } else if (field === "width") {
                     var val = parseFloat($(this).val());
-                    cfg.rowActionColumns[idx].width = isNaN(val) || val <= 0 ? null : val;
+                    action.width = isNaN(val) || val <= 0 ? null : val;
                 } else {
-                    cfg.rowActionColumns[idx][field] = $(this).val();
+                    action[field] = $(this).val();
                 }
                 self.refreshGrid(cfg);
                 renderRowPerm();
             });
 
-            $("#rowActionColsPanel input[data-action-field='visible']").off("change.coreGridAction").on("change.coreGridAction", function () {
-                var idx = parseInt($(this).data('action-index'), 10);
-                cfg.rowActionColumns[idx].visible = $(this).is(':checked');
-                self.refreshGrid(cfg);
-                renderRowPerm();
-            });
-
-            // Wire up icon picker for core gridview action columns
-            // Use event delegation on #propPanel to ensure it works even if elements are re-rendered
-            $("#propPanel").off("click.coreGridActionIcon", ".rowact-browse-icon").on("click.coreGridActionIcon", ".rowact-browse-icon", function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                console.log("Core GridView Action: Browse icon clicked");
-                var idx = parseInt($(this).data("action-index"), 10);
-                var ac = cfg.rowActionColumns[idx];
-                if (!ac) {
-                    console.warn("Core GridView: Action column not found for index:", idx);
-                    return;
-                }
-                
-                // Use the icon picker from control-field.js
-                if (window.controlField && typeof controlField.showIconPicker === "function") {
-                    // Save current tab to restore after icon selection
-                    var $panel = $("#propPanel");
-                    var currentTab = $panel.find('.ess-prop-tab.ess-prop-tab-active').data('tab') || 'actions';
-                    console.log("Core GridView Action: Opening icon picker, currentTab:", currentTab);
-                    controlField.showIconPicker(ac.iconType || "menu", function(selectedIcon, selectedIconType) {
-                        console.log("Core GridView Action: Icon selected:", selectedIcon, selectedIconType);
-                        if (selectedIcon && selectedIconType) {
-                            ac.icon = selectedIcon;
-                            ac.iconType = selectedIconType;
-                            // Set default color for Glyphicon if not set
-                            if (selectedIconType === "glyphicon" && !ac.iconColor) {
-                                ac.iconColor = "#333333";
-                            }
-                            // Update preview
-                            updateCoreGridActionIconPreview(idx, ac);
-                            self.refreshGrid(cfg);
-            renderRowPerm();
-                            // Re-show properties to update preview, but keep the same tab
-                            self.showProperties(cfg.id, currentTab);
-                        }
-                    });
-                } else {
-                    console.error("Core GridView: controlField.showIconPicker is not available");
-                }
-            });
-            
-            // Update icon previews on load
-            function updateCoreGridActionIconPreview(idx, ac) {
-                var $wrapper = $("#rowActionColsPanel .rowact-icon-picker-wrapper[data-action-index='" + idx + "']");
-                if (!$wrapper.length) return;
-                
-                var currentIcon = ac.icon || "";
-                var iconType = ac.iconType || "";
-                var iconPreview = "";
-                var iconTypeText = "";
-                var iconName = "";
-                
-                if (currentIcon && iconType) {
-                    if (iconType === "glyphicon") {
-                        var iconColor = ac.iconColor || "#333333";
-                        iconPreview = '<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>';
-                        iconTypeText = "Bootstrap Glyphicon";
-                        var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
-                            return icon.class === currentIcon;
-                        });
-                        iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
-                    } else if (iconType === "menu") {
-                        iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                        iconTypeText = "Menu Icons";
-                        var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                            return icon.value === currentIcon;
-                        });
-                        iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-                    }
-                } else if (currentIcon) {
-                    // Legacy: if icon exists but no iconType, assume it's menu icon
-                    iconPreview = '<img src="' + currentIcon + '" style="width:16px;height:16px;" />';
-                    iconTypeText = "Menu Icons";
-                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                        return icon.value === currentIcon;
-                    });
-                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-                }
-                
-                var $preview = $wrapper.find('.rowact-icon-preview-full');
-                var $headerPreview = $("#rowActionColsPanel .rowact-icon-preview[data-action-index='" + idx + "']");
-                
-                if (iconPreview) {
-                    $preview.html(iconPreview + (iconName ? '<span style="font-size:11px; color:#666;">' + iconName + '</span>' : ''));
-                    // Update header preview too
-                    if ($headerPreview.length) {
-                        if (iconType === "glyphicon") {
-                            var iconColor = ac.iconColor || "#333333";
-                            $headerPreview.html('<span class="' + currentIcon + '" style="font-size:16px; color:' + iconColor + ';"></span>');
-                } else {
-                            $headerPreview.html("<img src='" + currentIcon + "' style='width:16px;height:16px;vertical-align:middle; margin-left:4px;' />");
-                        }
-                    }
-                } else {
-                    $preview.html('<span style="color:#999; font-size:11px;">No icon selected</span>');
-                    if ($typeLabel.length) {
-                        $typeLabel.hide();
-                    }
-                    if ($headerPreview.length) {
-                        $headerPreview.empty();
-                    }
-                }
-            }
-            
-            // Initialize icon previews for all action columns
-            (cfg.rowActionColumns || []).forEach(function(ac, idx) {
-                updateCoreGridActionIconPreview(idx, ac);
-            });
-            
-            // Color picker handlers for action columns
-            function bindActionColorPair(pickerSel, textSel, idx) {
-                var $picker = $(pickerSel);
-                var $text = $(textSel);
-                
-                function normalizeColor(val) {
-                    if (!val) return "#333333";
-                    val = $.trim(val);
-                    if (/^[0-9a-f]{3}$/i.test(val)) {
-                        var r = val[0], g = val[1], b = val[2];
-                        return ("#" + r + r + g + g + b + b).toUpperCase();
-                    }
-                    if (/^[0-9a-f]{6}$/i.test(val)) {
-                        return ("#" + val).toUpperCase();
-                    }
-                    if (/^#[0-9a-f]{3}$/i.test(val)) {
-                        var r2 = val[1], g2 = val[2], b2 = val[3];
-                        return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
-                    }
-                    if (/^#[0-9a-f]{6}$/i.test(val)) {
-                        return val.toUpperCase();
-                    }
-                    return val;
-                }
-                
-                if ($text.length) {
-                    $text.off("change.coreGridActionColor blur.coreGridActionColor").on("change.coreGridActionColor blur.coreGridActionColor", function () {
-                        var v = normalizeColor($(this).val());
-                        var ac = cfg.rowActionColumns[idx];
-                        if (ac && ac.iconType === "glyphicon") {
-                            ac.iconColor = v;
-                            if ($picker.length && /^#[0-9a-f]{6}$/i.test(v)) {
-                                $picker.val(v);
-                            }
-                            updateCoreGridActionIconPreview(idx, ac);
-                            self.refreshGrid(cfg);
-                            builder.refreshJson();
-                        }
-                    });
-                }
-                
-                if ($picker.length) {
-                    $picker.off("input.coreGridActionColor change.coreGridActionColor").on("input.coreGridActionColor change.coreGridActionColor", function () {
-                        var v = normalizeColor($(this).val());
-                        var ac = cfg.rowActionColumns[idx];
-                        if (ac && ac.iconType === "glyphicon") {
-                            ac.iconColor = v;
-                            if ($text.length) $text.val(v);
-                            updateCoreGridActionIconPreview(idx, ac);
-                            self.refreshGrid(cfg);
-                            builder.refreshJson();
-                        }
-                    });
-                }
-            }
-            
-            // Wire color pickers for all action columns
-            (cfg.rowActionColumns || []).forEach(function(ac, idx) {
-                if (ac.iconType === "glyphicon" && ac.icon) {
-                    bindActionColorPair(
-                        ".rowact-icon-color-picker[data-action-index='" + idx + "']",
-                        ".rowact-icon-color-text[data-action-index='" + idx + "']",
-                        idx
-                    );
+            builderProps.bindIcons("#rowActionColsPanel", {
+                defaultColor: true,
+                item: function (key) { return cfg.rowActionColumns[key]; },
+                changed: function (structural) {
+                    self.refreshGrid(cfg);
+                    if (structural) self.showProperties(cfg.id);
                 }
             });
 
             $("#rowActionColsPanel .btnDelRowAction").off("click.coreGridAction").on("click.coreGridAction", function () {
                 var idx = parseInt($(this).data('action-index'), 10);
                 cfg.rowActionColumns.splice(idx, 1);
-                // Re-render properties để cập nhật card view
+                builderProps.rowRemoved(cfg.id, 'action', idx);
                 self.showProperties(cfg.id, 'actions');
                 self.refreshGrid(cfg);
             });
-            
+
             renderRowPerm();
         }
 
@@ -1717,13 +1079,12 @@ var controlGrid = {
         renderColumns();
         renderRowActionCols();
         
-        // Wire expand/collapse buttons
-        $("#propPanel").off("click.coreGridExpand").on("click.coreGridExpand", "[data-cmd='toggle-col-expand'], [data-cmd='toggle-action-expand'], [data-cmd='toggle-toolbar-expand']", function(e) {
-            e.stopPropagation();
-            var $card = $(this).closest('.ess-col-card, .ess-action-card');
-            $card.toggleClass('ess-col-card-collapsed ess-action-card-collapsed');
-            var isCollapsed = $card.hasClass('ess-col-card-collapsed') || $card.hasClass('ess-action-card-collapsed');
-            $(this).text(isCollapsed ? '▶' : '▼');
+        $("#coreColSearch").off("input.coreGridCol").on("input.coreGridCol", function () {
+            var query = $.trim(this.value).toLowerCase();
+            $("#gridColumnsPanel > .pp-row").each(function () {
+                var text = ($(this).find("[data-col-field='name']").val() + " " + $(this).find("[data-col-field='caption']").val()).toLowerCase();
+                $(this).toggle(!query || text.indexOf(query) >= 0);
+            });
         });
     },
 
@@ -1755,6 +1116,8 @@ var controlGrid = {
             columns: dxColumns,
             selection: selectionOpt,
             'filterRow.visible': cfg.filterRow === true,
+            'pager.visible': cfg.showPager === true,
+            'paging.pageSize': cfg.pageSize || 20,
             'groupPanel.visible': cfg.allowGrouping !== false,
             'editing.allowAdding': cfg.allowAdd === true,
             'editing.allowUpdating': cfg.allowEdit === true,

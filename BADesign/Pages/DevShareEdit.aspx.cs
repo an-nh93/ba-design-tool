@@ -25,7 +25,7 @@ namespace BADesign.Pages
         {
             UiAuthHelper.RequireLogin();
             ucBaSidebar.ActiveSection = "DevShare";
-            ucBaTopBar.PageTitle = "Community Share - " + (Request.QueryString["id"] != null ? "Chỉnh sửa" : "Viết bài");
+            ucBaTopBar.PageTitle = "Chia sẻ cộng đồng - " + (Request.QueryString["id"] != null ? "Chỉnh sửa" : "Viết bài");
             if (!IsPostBack)
             {
                 int id;

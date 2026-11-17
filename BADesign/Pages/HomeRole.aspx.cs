@@ -22,11 +22,12 @@ namespace BADesign.Pages
 			// tránh ViewState giữ Visible=false sau khi Super Admin vừa cấp quyền hoặc đổi Role.
 			phFeatureEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
 			phFeaturePgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
+			phFeatureLicenseKey.Visible = LicenseKeyAccess.IsAllowed();
 			lnkFeatureUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
 			lnkFeatureDbSearch.Visible = UiAuthHelper.HasFeature("DatabaseTools");
 			phSuperAdminCards.Visible = UiAuthHelper.IsSuperAdmin;
 			phFeatureAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
-			phNoFeatures.Visible = !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("UIBuilder") && !UiAuthHelper.HasFeature("DatabaseTools") && !UiAuthHelper.HasFeature("EncryptDecrypt") && !UiAuthHelper.HasFeature("PGPTool") && !UiAuthHelper.HasFeature("Settings");
+			phNoFeatures.Visible = !UiAuthHelper.IsSuperAdmin && !UiAuthHelper.HasFeature("UIBuilder") && !UiAuthHelper.HasFeature("DatabaseTools") && !UiAuthHelper.HasFeature("EncryptDecrypt") && !UiAuthHelper.HasFeature("PGPTool") && !UiAuthHelper.HasFeature("Settings") && !LicenseKeyAccess.IsAllowed();
 
 			if (!IsPostBack)
 			{
@@ -34,31 +35,31 @@ namespace BADesign.Pages
 				// Page title (header) and welcome based on role.
 				if (roleUpper == "DEV")
 				{
-					ucBaTopBar.PageTitle = "Developer Home";
+					ucBaTopBar.PageTitle = "Trang chủ Developer";
 					litWelcomeTitle.Text = "Chào mừng Developer";
 					litWelcomeDesc.Text = "Trang chủ dành cho Developer. Bạn có thể sử dụng các công cụ HR Helper để hỗ trợ cho công việc tại Cadena.";
 				}
 				else if (roleUpper == "CONS")
 				{
-					ucBaTopBar.PageTitle = "Consultant Home";
+					ucBaTopBar.PageTitle = "Trang chủ Consultant";
 					litWelcomeTitle.Text = "Chào mừng Consultant";
 					litWelcomeDesc.Text = "Trang chủ dành cho Consultant. Bạn có thể sử dụng HR Helper để hỗ trợ cho công việc tại Cadena.";
 				}
 				else if (roleUpper == "QC")
 				{
-					ucBaTopBar.PageTitle = "Quality Control Home";
+					ucBaTopBar.PageTitle = "Trang chủ Quality Control";
 					litWelcomeTitle.Text = "Chào mừng Quality Control";
 					litWelcomeDesc.Text = "Trang chủ dành cho Quality Control. Bạn có thể sử dụng HR Helper để hỗ trợ cho công việc tại Cadena.";
 				}
-				else if (roleUpper == "BA")
+				else if (roleUpper == "BA" || roleUpper == "BA_PROJECT")
 				{
-					ucBaTopBar.PageTitle = "Business Analyst Home";
+					ucBaTopBar.PageTitle = "Trang chủ Business Analyst";
 					litWelcomeTitle.Text = "Chào mừng Business Analyst";
-					litWelcomeDesc.Text = "Trang chủ dành cho Business Analyst. Bạn có thể sử dụng UI Builder để thiết kế giao diện và HR Helper để hỗ trợ cho công việc tại Cadena.";
+					litWelcomeDesc.Text = "Trang chủ dành cho Business Analyst. Bạn có thể dùng Thiết kế giao diện để vẽ màn hình và Trợ lý HR để hỗ trợ cho công việc tại Cadena.";
 				}
 				else
 				{
-					ucBaTopBar.PageTitle = "Home";
+					ucBaTopBar.PageTitle = "Trang chủ";
 					litWelcomeTitle.Text = "Chào mừng";
 					litWelcomeDesc.Text = "Bạn chưa được gán role (BA/CONS/DEV/QC/CSS/Other). Liên hệ Super Admin để được cấp quyền.";
 				}
@@ -78,7 +79,7 @@ namespace BADesign.Pages
 					cmd.CommandText = @"
 SELECT u.UserId, u.UserName, ISNULL(u.FullName, '') AS FullName, 
        ISNULL(u.Email, '') AS Email, ISNULL(u.AvatarPath, '') AS AvatarPath,
-       u.IsSuperAdmin, u.IsActive, ISNULL(r.Code, '') AS RoleCode
+       u.IsSuperAdmin, u.IsActive, ISNULL(r.Code, '') AS RoleCode, ISNULL(r.Name, '') AS RoleName
 FROM UiUser u
 LEFT JOIN UiRole r ON r.RoleId = u.RoleId
 WHERE u.UserId = @id";
@@ -109,7 +110,8 @@ WHERE u.UserId = @id";
 								avatarPath = avatarPathAbsolute,
 								isSuperAdmin = (bool)rd["IsSuperAdmin"],
 								isActive = (bool)rd["IsActive"],
-								roleCode = roleCode
+								roleCode = roleCode,
+								roleName = rd["RoleName"].ToString()
 							};
 						}
 					}

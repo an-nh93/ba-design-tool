@@ -2,44 +2,21 @@
     Inherits="UiBuilderFull.Admin.RolePermission" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Role Permission - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
+    <title>Phân quyền - HR Helper</title>
+    <uc:BaHead runat="server" />
     <style>
-        :root {
-            --primary: #0078d4;
-            --primary-hover: #006bb3;
-            --bg-main: #1e1e1e;
-            --bg-card: #2d2d30;
-            --bg-darker: #161616;
-            --bg-hover: #3e3e42;
-            --text-primary: #ffffff;
-            --text-secondary: #cccccc;
-            --text-muted: #969696;
-            --border: #3e3e42;
-            --success: #10b981;
-            --danger: #ef4444;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg-main);
-            color: var(--text-primary);
-            line-height: 1.6;
-        }
         .rp-content { padding: 0; }
         .rp-card {
             background: var(--bg-card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
+            padding: 0.75rem 1rem;
+            margin-bottom: 0.75rem;
         }
         .rp-card { position: relative; }
         .rp-card.collapsed .rp-card-body { display: none; }
@@ -51,25 +28,25 @@
             user-select: none;
         }
         .rp-card-header:hover { opacity: 0.9; }
-        .rp-card-header .rp-toggle { color: var(--text-muted); font-size: 1rem; transition: transform 0.2s; flex-shrink: 0; }
+        .rp-card-header .rp-toggle { color: var(--text-muted); font-size: 0.75rem; transition: transform 0.2s; flex-shrink: 0; }
         .rp-card.collapsed .rp-card-header .rp-toggle { transform: rotate(-90deg); }
-        .rp-card-header h2 { font-size: 1.25rem; margin: 0; color: var(--text-primary); }
-        .rp-card-body { margin-top: 1rem; }
+        .rp-card-header h2 { font-size: 0.9375rem; font-weight: 600; line-height: 1.4; margin: 0; color: var(--text-primary); }
+        .rp-card-body { margin-top: 0.5rem; }
         .rp-table { width: 100%; border-collapse: collapse; }
-        .rp-table-wrap { max-height: 360px; overflow-y: auto; margin-bottom: 0.5rem; }
+        .rp-table-wrap { max-height: max(360px, calc(100vh - 320px)); overflow-y: auto; margin-bottom: 0.5rem; }
         .rp-table-wrap .rp-table th { position: sticky; top: 0; background: var(--bg-darker); z-index: 1; }
         .rp-table th.rp-sortable { cursor: pointer; user-select: none; }
         .rp-table th.rp-sortable:hover { background: var(--bg-hover); }
         .rp-table th .rp-sort-icon { margin-left: 4px; opacity: 0.6; }
-        .rp-table th, .rp-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
-        .rp-table th { background: var(--bg-darker); color: var(--text-secondary); font-weight: 600; }
+        .rp-table th, .rp-table td { padding: 0.375rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.8125rem; }
+        .rp-table th { background: var(--bg-darker); color: var(--text-secondary); font-size: 0.75rem; font-weight: 600; }
         .rp-table td { color: var(--text-primary); }
         .rp-table tbody tr:hover { background: var(--bg-hover); }
-        .rp-table input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary); }
+        .rp-table input[type="checkbox"] { width: 15px; height: 15px; cursor: pointer; accent-color: var(--primary); }
         .rp-btn {
-            padding: 0.5rem 1rem;
+            padding: 0.3125rem 0.75rem;
             border-radius: 6px;
-            font-size: 0.875rem;
+            font-size: 0.8125rem;
             font-weight: 500;
             cursor: pointer;
             border: none;
@@ -78,29 +55,13 @@
             align-items: center;
             gap: 0.5rem;
         }
+        .rp-toolbar { display: flex; justify-content: flex-end; align-items: center; margin-bottom: 0.5rem; }
+        .rp-search-wrap { margin-bottom: 0.5rem; }
+        .rp-search { max-width: 280px; }
         .rp-btn-primary { background: var(--primary); color: white; }
         .rp-btn-primary:hover { background: var(--primary-hover); }
         .rp-btn-secondary { background: var(--bg-hover); color: var(--text-primary); border: 1px solid var(--border); }
-        .rp-btn-secondary:hover { background: var(--bg-card); }
-        .toast-container { position: fixed; top: 20px; right: 20px; z-index: 10002; display: flex; flex-direction: column; gap: 0.5rem; }
-        .toast {
-            background: var(--bg-card);
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 0.75rem 1rem;
-            min-width: 260px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-            opacity: 0;
-            transform: translateX(100%);
-            transition: opacity 0.3s, transform 0.3s;
-        }
-        .toast.show { opacity: 1; transform: translateX(0); }
-        .toast { position: relative; padding-right: 2rem; padding-top: 0.25rem; }
-        .toast .toast-close { position: absolute; top: 0.5rem; right: 0.5rem; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0 4px; margin: 0; font-size: 1.25rem; line-height: 1; }
-        .toast .toast-close:hover { color: var(--text-primary); }
-        .toast.success { border-left: 4px solid var(--success); }
-        .toast.error { border-left: 4px solid var(--danger); }
-        .rp-perm-info-btn {
+        .rp-btn-secondary:hover { background: var(--bg-card); }        .rp-perm-info-btn {
             background: none; border: none; color: var(--primary); cursor: pointer; padding: 0 4px; margin-right: 6px;
             font-size: 1rem; line-height: 1; vertical-align: middle; border-radius: 4px;
         }
@@ -109,11 +70,16 @@
         .rp-modal { display: none; position: fixed; inset: 0; z-index: 10003; align-items: center; justify-content: center; padding: 1rem; background: rgba(0,0,0,0.6); }
         .rp-modal.show { display: flex; }
         .rp-modal-content { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; max-width: 480px; width: 100%; max-height: 85vh; overflow: hidden; display: flex; flex-direction: column; }
-        .rp-modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-        .rp-modal-title { font-size: 1.125rem; font-weight: 600; color: var(--text-primary); margin: 0; }
+        .rp-modal-header { padding: 0.5rem 0.75rem 0.5rem 1rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .rp-modal-title { font-size: 1rem; line-height: 1.3; font-weight: 600; color: var(--text-primary); margin: 0; }
         .rp-modal-close { background: none; border: none; color: var(--text-muted); font-size: 1.5rem; cursor: pointer; line-height: 1; padding: 0 4px; }
         .rp-modal-close:hover { color: var(--text-primary); }
-        .rp-modal-body { padding: 1.25rem; overflow-y: auto; font-size: 0.9375rem; color: var(--text-secondary); line-height: 1.6; }
+        .rp-modal-body { padding: 0.75rem 1rem; overflow-y: auto; font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.6; }
+        .rp-mgr-none { color: var(--text-muted); }
+        .rp-mgr-pick { display: flex; flex-wrap: wrap; gap: 0.375rem 0.75rem; align-items: center; }
+        .rp-mgr-pick select { flex: 0 1 360px; min-width: 0; }
+        .rp-mgr-note { color: var(--warning); font-size: 0.8125rem; }
+        .rp-mgr-role { width: 200px; }
     </style>
 </head>
 <body>
@@ -123,7 +89,7 @@
             <div class="admin-main ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <div class="admin-content ba-content">
-                    <div style="display:flex; justify-content:flex-end; align-items:center; margin-bottom:1rem;">
+                    <div class="rp-toolbar">
                         <button type="button" class="rp-btn rp-btn-primary" id="btnSave" onclick="saveRolePermissions(); return false;">Lưu cấu hình</button>
                     </div>
                     <div class="rp-content">
@@ -133,13 +99,13 @@
                             <h2>Định nghĩa quyền theo Role</h2>
                         </div>
                         <div class="rp-card-body">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
+                        <p class="ba-section-hint">
                             Chọn quyền cho từng role. User được gán role sẽ có đủ các quyền của role (không thể bỏ). Có thể thêm quyền riêng lẻ khi Edit User.
                         </p>
-                        <div class="rp-search-wrap" style="margin-bottom: 0.75rem;">
-                            <input type="text" id="searchPermissionsRp" class="rp-input" placeholder="Tìm chức năng..." style="max-width: 280px; padding: 0.5rem 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem;" />
+                        <div class="rp-search-wrap">
+                            <input type="text" id="searchPermissionsRp" class="ba-input rp-input rp-search" placeholder="Tìm chức năng..." />
                         </div>
-                        <div class="rp-table-wrap" id="permissionsTableWrap" style="max-height: 360px; overflow-y: auto; margin-bottom: 0.5rem;">
+                        <div class="rp-table-wrap" id="permissionsTableWrap">
                         <table class="rp-table" id="tblRolePermission">
                             <thead>
                                 <tr id="trRolePermissionHead">
@@ -158,11 +124,11 @@
                             <h2>Server Access theo Role</h2>
                         </div>
                         <div class="rp-card-body">
-                        <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem;">
+                        <p class="ba-section-hint">
                             Chọn server mà mỗi role được phép sử dụng khi quét database. Nếu không chọn server nào, role đó không thấy server nào (trừ khi có quyền Database Manage Servers). Super Admin và user có Database Manage Servers thấy tất cả.
                         </p>
-                        <div class="rp-search-wrap" style="margin-bottom: 0.75rem;">
-                            <input type="text" id="searchServersRp" class="rp-input" placeholder="Tìm server..." style="max-width: 280px; padding: 0.5rem 0.75rem; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 0.875rem;" />
+                        <div class="rp-search-wrap">
+                            <input type="text" id="searchServersRp" class="ba-input rp-input rp-search" placeholder="Tìm server..." />
                         </div>
                         <div class="rp-table-wrap" id="serverAccessTableWrap">
                         <table class="rp-table" id="tblRoleServerAccess">
@@ -176,10 +142,31 @@
                         </div>
                         </div>
                     </div>
+                    <div class="rp-card" id="cardRoleManagers">
+                        <div class="rp-card-header" onclick="toggleRpCard('cardRoleManagers'); return false;">
+                            <span class="rp-toggle" title="Thu gọn / Mở rộng">▼</span>
+                            <h2>Sếp của từng Role</h2>
+                        </div>
+                        <div class="rp-card-body">
+                        <p class="ba-section-hint">
+                            Mỗi role có một sếp. Quy trình duyệt mẫu UI dùng người này cho bước "Sếp của role người gửi". Bấm Lưu cấu hình để ghi lại.
+                        </p>
+                        <div id="roleManagersWrap">
+                        <table class="rp-table" id="tblRoleManagers">
+                            <thead>
+                                <tr>
+                                    <th class="rp-mgr-role">Role</th>
+                                    <th>Sếp</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tbodyRoleManagers"></tbody>
+                        </table>
+                        </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div id="toastContainer" class="toast-container"></div>
         <div id="rpPermDetailModal" class="rp-modal">
             <div class="rp-modal-content">
                 <div class="rp-modal-header">
@@ -190,13 +177,16 @@
             </div>
         </div>
     </form>
-    <script src="../Scripts/ba-layout.js"></script>
     <script>
         var permissions = [];
         var roles = [];
         var rolePermissions = {}; // roleId -> [permissionId]
         var servers = [];
         var roleServerAccess = {}; // roleId -> [serverId]
+        var roleManagers = {};
+        var managerUsers = [];
+        var managersInstalled = true;
+        var managersMessage = '';
         var serverSortCol = 'server';
         var serverSortDir = 1;
         var permSortCol = 'name';
@@ -205,16 +195,16 @@
             'UIBuilder': 'Thiết kế giao diện người dùng: tạo controls, forms và các component UI. Dùng cho BA/DEV để thiết kế màn hình.',
             'DatabaseTools': 'Quét server, xem danh sách database, copy connection string. Cho phép kết nối và thao tác với database (backup, restore, v.v. tùy quyền chi tiết).',
             'EncryptDecrypt': 'Mã hóa và giải mã dữ liệu nhạy cảm (SĐT, email, lương). Tạo script Demo Reset theo nhân viên.',
-            'HRHelper': 'Truy cập HR Helper: quản lý User, Employee, Company trong database HR. Dùng cho BA/CONS/DEV/QC khi cần thao tác dữ liệu HR.',
-            'DatabaseBackup': 'Được phép thực hiện backup database từ trang Database Tools (tạo file .bak).',
-            'DatabaseRestore': 'Được phép thực hiện restore database từ trang Database Tools (khôi phục từ file .bak).',
-            'DatabaseDelete': 'Được phép xóa database từ trang Database Tools. Thao tác nguy hiểm, cần cẩn trọng.',
+            'HRHelper': 'Truy cập Trợ lý HR: quản lý User, Employee, Company trong database HR. Dùng cho BA/CONS/DEV/QC khi cần thao tác dữ liệu HR.',
+            'DatabaseBackup': 'Được phép thực hiện backup database từ trang Công cụ Database (tạo file .bak).',
+            'DatabaseRestore': 'Được phép thực hiện restore database từ trang Công cụ Database (khôi phục từ file .bak).',
+            'DatabaseDelete': 'Được phép xóa database từ trang Công cụ Database. Thao tác nguy hiểm, cần cẩn trọng.',
             'DatabaseBulkReset': 'Được phép chạy Bulk Reset: reset dữ liệu hàng loạt database (theo kịch bản).',
-            'DatabaseManageServers': 'Quản lý cấu hình server: thêm, sửa, xóa server trong Database Tools; thấy tất cả server (bỏ qua Server Access theo Role). Dùng cho manager.',
-            'DatabaseConnectAny': 'Được Connect và dùng HR Helper trên mọi database (không chỉ database do mình restore). Dùng cho BA/QC/DEV cần truy cập nhiều DB.',
-            'DatabaseShrinkLog': 'Được phép Shrink log file của database từ trang Database Tools.',
-            'Settings': 'Truy cập App Settings: cấu hình Email Server, SFTP, Telegram, Public URL và các thiết lập hệ thống khác.',
-            'PGPTool': 'Sử dụng PGP Tool: xuất key .asc, mã hóa và giải mã file PGP.',
+            'DatabaseManageServers': 'Quản lý cấu hình server: thêm, sửa, xóa server trong Công cụ Database; thấy tất cả server (bỏ qua Server Access theo Role). Dùng cho manager.',
+            'DatabaseConnectAny': 'Được Connect và dùng Trợ lý HR trên mọi database (không chỉ database do mình restore). Dùng cho BA/QC/DEV cần truy cập nhiều DB.',
+            'DatabaseShrinkLog': 'Được phép Shrink log file của database từ trang Công cụ Database.',
+            'Settings': 'Truy cập Cài đặt ứng dụng: cấu hình Email Server, SFTP, Telegram, Public URL và các thiết lập hệ thống khác.',
+            'PGPTool': 'Sử dụng Công cụ PGP: xuất key .asc, mã hóa và giải mã file PGP.',
             'FeedbackManage': 'Quản lý góp ý: xem và cập nhật trạng thái, ghi chú, comment cho feedback/bug từ người dùng.',
             'LeaveManager': 'Quản lý nghỉ phép: xem và phê duyệt đơn nghỉ của nhân viên.'
         };
@@ -225,15 +215,7 @@
             localStorage.setItem(key, $('#' + id).hasClass('collapsed') ? '1' : '0');
         }
 
-        function showToast(msg, type) {
-            type = type || 'info';
-            var $t = $('<div class="toast ' + type + '"><button type="button" class="toast-close" title="Đóng">&times;</button>' + msg + '</div>');
-            $('#toastContainer').append($t);
-            $t[0].offsetHeight;
-            setTimeout(function() { $t.addClass('show'); }, 10);
-            var tmr = setTimeout(function() { $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); }, 4000);
-            $t.find('.toast-close').on('click', function() { clearTimeout(tmr); $t.removeClass('show'); setTimeout(function() { $t.remove(); }, 300); });
-        }
+        function showToast(msg, type) { BaToast.show(msg, type); }
 
         function load() {
             var reqPerm = $.ajax({
@@ -286,7 +268,27 @@
                 var d = res.d || res;
                 if (d && d.success && d.roleServerAccess) roleServerAccess = d.roleServerAccess;
             });
-            $.when(reqPerm, reqRoles, reqRp, reqServers, reqRsa).always(function() {
+            var reqMgr = $.ajax({
+                url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/LoadRoleManagers") %>',
+                type: 'POST',
+                contentType: 'application/json; charset=utf-8',
+                data: '{}',
+                dataType: 'json'
+            }).done(function(res) {
+                var d = res.d || res;
+                if (d && d.success) {
+                    roleManagers = d.roleManagers || {};
+                    managerUsers = d.users || [];
+                    managersInstalled = true;
+                } else {
+                    managersInstalled = false;
+                    managersMessage = d && d.message ? d.message : 'Không tải được danh sách sếp của role.';
+                }
+            }).fail(function() {
+                managersInstalled = false;
+                managersMessage = 'Không tải được danh sách sếp của role.';
+            });
+            $.when(reqPerm, reqRoles, reqRp, reqServers, reqRsa, reqMgr).always(function() {
                 render();
             }).fail(function() {
                 showToast('Không tải được dữ liệu.', 'error');
@@ -307,7 +309,7 @@
             var $trPermHead = $('#trRolePermissionHead');
             $trPermHead.find('th:not(:first)').remove();
             roles.forEach(function(r) {
-                var code = (r.code || r.name || String(r.id)).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+                var code = (r.name || r.code || String(r.id)).replace(/&/g, '&amp;').replace(/</g, '&lt;');
                 $trPermHead.append('<th class="rp-role-col-head" title="RoleId ' + r.id + '">' + code + '</th>');
             });
             var $tb = $('#tbodyRolePermission');
@@ -343,7 +345,7 @@
             $trHead.find('th:not(:first)').remove();
             $trHead.find('th:first').replaceWith('<th class="rp-sortable" data-col="server"><span>Server <span class="rp-sort-icon"></span></span></th>');
             roles.forEach(function(r) {
-                $trHead.append('<th>' + (r.code || r.name || r.id) + '</th>');
+                $trHead.append($('<th></th>').text(r.name || r.code || r.id));
             });
             var sorted = servers.slice().sort(function(a, b) {
                 var va = ((a.serverName || '') + (a.port != null ? ':' + a.port : '') + (a.username || '')).toLowerCase();
@@ -353,7 +355,7 @@
             var $tbSrv = $('#tbodyRoleServerAccess');
             $tbSrv.empty();
             if (!servers.length) {
-                $tbSrv.append('<tr><td colspan="' + (roles.length + 1) + '" style="color: var(--text-muted);">Chưa có server. Thêm server trong Database Tools.</td></tr>');
+                $tbSrv.append('<tr><td colspan="' + (roles.length + 1) + '" style="color: var(--text-muted);">Chưa có server. Thêm server trong Công cụ Database.</td></tr>');
             } else {
                 sorted.forEach(function(s) {
                     var disp = (s.serverName || '') + (s.port != null ? ':' + s.port : '') + ' (' + (s.username || '') + ')';
@@ -373,6 +375,39 @@
             $('#tblRoleServerAccess th.rp-sortable .rp-sort-icon').text('');
             $('#tblRoleServerAccess th.rp-sortable[data-col="' + serverSortCol + '"] .rp-sort-icon').text(serverSortDir === 1 ? '↑' : '↓');
             filterServerRows();
+            renderRoleManagers();
+        }
+
+        function managerUser(id) {
+            for (var i = 0; i < managerUsers.length; i++) if (managerUsers[i].id === id) return managerUsers[i];
+            return null;
+        }
+
+        function renderRoleManagers() {
+            var $tb = $('#tbodyRoleManagers');
+            $tb.empty();
+            if (!managersInstalled) {
+                $tb.append($('<tr></tr>').append($('<td colspan="2" class="rp-mgr-none"></td>').text(managersMessage)));
+                return;
+            }
+            roles.forEach(function(r) {
+                var current = roleManagers[String(r.id)] || 0;
+                var user = current ? managerUser(current) : null;
+                var $tr = $('<tr></tr>').attr('data-role-id', r.id);
+                $tr.append($('<td translate="no"></td>').text(r.name || r.code || r.id));
+                var $select = $('<select class="ba-input rp-input rp-mgr-select" translate="no"></select>');
+                $select.append($('<option value="" translate="yes"></option>').text('Chưa khai sếp'));
+                managerUsers.forEach(function(item) {
+                    $select.append($('<option></option>').val(item.id).text(item.name + (item.roleName ? ' (' + item.roleName + ')' : '')));
+                });
+                if (current && !user) $select.append($('<option translate="yes"></option>').val(current).text('Tài khoản đã khóa (#' + current + ')'));
+                $select.val(current ? String(current) : '');
+                var $pick = $('<div class="rp-mgr-pick"></div>').append($select);
+                if (current && !user) $pick.append($('<span class="rp-mgr-note"></span>').text('Tài khoản này đã bị khóa nên không duyệt được.'));
+                else if (user && !user.hasEmail) $pick.append($('<span class="rp-mgr-note"></span>').text('Người này chưa có email nên sẽ không nhận được thư báo.'));
+                $tr.append($('<td></td>').append($pick));
+                $tb.append($tr);
+            });
         }
 
         function syncRoleServerAccessFromDom() {
@@ -416,17 +451,19 @@
                 byRoleServer[rk].push(s);
             });
 
-            var total = roles.length * 2;
+            var per = managersInstalled ? 3 : 2;
+            var total = roles.length * per;
             var done = 0;
             function next() {
                 if (done >= total) {
-                    showToast('Đã lưu cấu hình quyền và server access theo Role.', 'success');
+                    showToast(managersInstalled ? 'Đã lưu cấu hình quyền, server access và sếp theo Role.' : 'Đã lưu cấu hình quyền và server access theo Role.', 'success');
                     load();
                     return;
                 }
                 var idx = done;
-                var r = roles[Math.floor(idx / 2)];
-                if (idx % 2 === 0) {
+                var r = roles[Math.floor(idx / per)];
+                var kind = idx % per;
+                if (kind === 0) {
                     var pids = byRole[String(r.id)] || [];
                     $.ajax({
                         url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/SaveRolePermissions") %>',
@@ -439,7 +476,7 @@
                         if (!d || !d.success) showToast(d && d.message ? d.message : 'Lỗi lưu role ' + r.code, 'error');
                     }).fail(function() { showToast('Lỗi lưu role ' + r.code, 'error'); })
                       .always(function() { done++; next(); });
-                } else {
+                } else if (kind === 1) {
                     var sids = byRoleServer[String(r.id)] || [];
                     $.ajax({
                         url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/SaveRoleServerAccess") %>',
@@ -451,6 +488,18 @@
                         var d = res.d || res;
                         if (!d || !d.success) showToast(d && d.message ? d.message : 'Lỗi lưu server access role ' + r.code, 'error');
                     }).fail(function() { showToast('Lỗi lưu server access role ' + r.code, 'error'); })
+                      .always(function() { done++; next(); });
+                } else {
+                    $.ajax({
+                        url: '<%= ResolveUrl("~/Pages/RolePermission.aspx/SaveRoleManagers") %>',
+                        type: 'POST',
+                        contentType: 'application/json; charset=utf-8',
+                        data: JSON.stringify({ roleId: r.id, userId: roleManagers[String(r.id)] || 0 }),
+                        dataType: 'json'
+                    }).done(function(res) {
+                        var d = res.d || res;
+                        if (!d || !d.success) showToast(d && d.message ? d.message : 'Lỗi lưu sếp của role ' + r.code, 'error');
+                    }).fail(function() { showToast('Lỗi lưu sếp của role ' + r.code, 'error'); })
                       .always(function() { done++; next(); });
                 }
             }
@@ -468,6 +517,14 @@
         $(function() {
             if (localStorage.getItem('rpCard_cardPermissions') === '1') $('#cardPermissions').addClass('collapsed');
             if (localStorage.getItem('rpCard_cardServerAccess') === '1') $('#cardServerAccess').addClass('collapsed');
+            if (localStorage.getItem('rpCard_cardRoleManagers') === '1') $('#cardRoleManagers').addClass('collapsed');
+            $('#tbodyRoleManagers').on('change', '.rp-mgr-select', function() {
+                var key = String($(this).closest('tr').attr('data-role-id'));
+                var id = parseInt($(this).val(), 10);
+                if (id > 0) roleManagers[key] = id;
+                else delete roleManagers[key];
+                renderRoleManagers();
+            });
             $('#searchServersRp').on('input', filterServerRows);
             $('#searchPermissionsRp').on('input', filterPermissionRows);
             $('#tblRolePermission').on('click', '.rp-perm-info-btn', function(e) {
@@ -495,80 +552,6 @@
             });
             load();
         });
-    </script>
-    <script>
-    (function() {
-        if (!$('#restoreJobsBellWrap').length) return;
-        var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-        var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-        var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
-        var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-        var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
-        function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = (typeof v === 'string') ? v : String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); return isNaN(Date.parse(s)) ? null : new Date(s); }
-        var DISMISSED_KEY = 'baDismissedJobIds';
-        function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? (JSON.parse(r) || []) : []; } catch (e) { return []; } }
-        function addDismissed(id, type) { var k = (type === 'Backup' ? 'b:' : 'r:') + id; var a = getDismissed(); if (a.indexOf(k) < 0) { a.push(k); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
-        function isDismissed(j) { return getDismissed().indexOf((j.type === 'Backup' ? 'b:' : 'r:') + (j.id || '')) >= 0; }
-        function fmtTime(v) { var d = parseDateSafe(v); return d ? d.toLocaleString() : '—'; }
-        function loadPanel() {
-            var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-            if (!$list.length) return;
-            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                success: function(res) {
-                    var d = res.d || res;
-                    if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                    var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                    var newBugs = d.newBugs || [];
-                    var total = jobs.length + newBugs.length;
-                    if (!total) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                    var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                    $badge.text(total).addClass('visible');
-                    window.__notifJobsList = jobs;
-                    var bugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
-                    var jobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
-                    var html = '';
-                    if (newBugs.length > 0) {
-                        html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;"><span class="ba-notif-group-arrow">' + (bugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (bugsCollapsed ? 'display:none;' : '') + '">';
-                        newBugs.forEach(function(b) { var bugUrl = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + fmtTime(b.createdAt) + '</div><a class="ba-notif-detail-link" href="' + bugUrl + '">Xem / Xử lý</a></div>'; });
-                        html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">';
-                    }
-                    jobs.forEach(function(j, idx) {
-                        var st = j.status || '', type = j.type || 'Restore', typeLabel = j.typeLabel || (type === 'Backup' ? 'Backup' : type === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore');
-                        var badge = (type === 'Backup') ? 'ba-notif-type-backup' : (type === 'Restore') ? 'ba-notif-type-restore' : 'ba-notif-type-hr-analyze';
-                        var dbName = (j.databaseName || j.DatabaseName || '').trim();
-                        var hasReset = type === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                        var resetTag = (type === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có Reset">Có Reset' : 'ba-notif-no-reset-tag">Không Reset') + '</span> ') : '';
-                        var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0;
-                        var phase = (j.message || (type === 'Restore' ? 'Restore' : '')).toString().trim();
-                        var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                        var canCancel = (type === 'Restore' || type === 'Backup' || type === 'HRHelperMultiDbAnalyze' || type === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                        var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đánh dấu đã đọc">×</button><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badge + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime), st);
-                        if (st === 'Running' || st === 'Pending') {
-                            var progressLabel = (type === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (type === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
-                            row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                            if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                        } else if (st === 'Completed') row += BaNotif.completedBadgeRow() + '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                        else if (st === 'Failed') row += BaNotif.failedBadgeRow() + '<div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                        row += '</div>';
-                        html += row;
-                    });
-                    if (newBugs.length > 0) html += '</div></div>';
-                    else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;"><span class="ba-notif-group-arrow">' + (jobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (jobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
-                    $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                    $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function() { var g = $(this).data('group'); var $b = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); if ($b.is(':visible')) { $b.slideUp(200); $(this).find('.ba-notif-group-arrow').text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $b.slideDown(200); $(this).find('.ba-notif-group-arrow').text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                    $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                    $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $i = $(this).closest('.ba-notif-item'); var id = parseInt($i.data('job-id'), 10); var typ = $i.data('job-type') || 'Restore'; if (id) { addDismissed(id, typ); $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) }); $i.slideUp(200, function() { $(this).remove(); var n = $('#restoreJobsList').find('.ba-notif-item').length; if (n > 0) $('#restoreJobsBadge').text(n).addClass('visible'); else { $('#restoreJobsBadge').removeClass('visible'); $('#restoreJobsList').html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } }); } });
-                    $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function(e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(); var dbName = (job.databaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function() { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function(r) { var d = r.d || r; if (d && d.success) loadPanel(); else $btn.prop('disabled', false); }, error: function() { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
-                }
-            });
-        }
-        $(function() {
-            $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); }); var total = jobs.length + (d.newBugs || []).length; if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-            $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) $p.hide(); else { loadPanel(); $p.show(); } });
-            $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
-            $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
-        });
-    })();
     </script>
 </body>
 </html>

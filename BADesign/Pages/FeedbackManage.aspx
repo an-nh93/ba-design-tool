@@ -1,33 +1,16 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="FeedbackManage.aspx.cs" Inherits="BADesign.Pages.FeedbackManage" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
     <title>Quản lý góp ý - HR Helper</title>
-    <link href="../Content/bootstrap.min.css" rel="stylesheet" />
-    <link href="../Content/ba-layout.css" rel="stylesheet" />
-    <link href="../Content/ba-notification-bell.css" rel="stylesheet" />
-    <script src="../Scripts/jquery-1.10.2.min.js"></script>
-    <script src="../Scripts/bootstrap.min.js"></script>
-    <script src="../Scripts/ba-layout.js"></script>
+    <uc:BaHead runat="server" />
     <style>
-        .ba-content { padding: 0.5rem; }
-        .ba-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; }
-        .ba-card-title { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.5rem; }
-        .ba-card-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem; }
-        .ba-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1rem; align-items: end; }
-        .ba-form-group { display: flex; flex-direction: column; gap: 0.35rem; }
-        .ba-form-label { font-size: 0.875rem; font-weight: 500; color: var(--text-secondary); }
-        .ba-input { background: var(--bg-darker); border: 1px solid var(--border); border-radius: 6px; padding: 0.5rem 0.75rem; color: var(--text-primary); font-size: 0.875rem; width: 100%; }
-        /* Nút + modal dùng chung từ ba-layout.css */
-        .ba-table-wrap { overflow: auto; max-height: 60vh; border: 1px solid var(--border); border-radius: 8px; }
-        .ba-table { width: 100%; border-collapse: collapse; }
-        .ba-table thead { background: var(--bg-darker); position: sticky; top: 0; z-index: 2; }
-        .ba-table th, .ba-table td { padding: 0.6rem 0.75rem; text-align: left; font-size: 0.875rem; border-bottom: 1px solid var(--border); }
-        .ba-table tbody tr:hover { background: var(--bg-hover); }
-        .ba-table .col-title { max-width: 220px; word-break: break-word; }
+.ba-card-desc { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 1rem; }
+        .ba-form-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }.ba-table-wrap { max-height: 60vh; }.ba-table th, .ba-table td { text-align: left; border-bottom: 1px solid var(--border); }        .ba-table .col-title { max-width: 220px; word-break: break-word; }
         .ba-table .col-date { white-space: nowrap; width: 140px; }
         .ba-link { color: var(--primary); cursor: pointer; text-decoration: none; }
         .ba-link:hover { text-decoration: underline; }
@@ -62,9 +45,7 @@
         #detailPaneView { overflow-y: auto; }
         .ba-detail-edit-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 1rem; margin-bottom: 1rem; }
         .ba-detail-edit-grid .ba-form-group { margin-bottom: 0; }
-        .ba-collapse-header { font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); cursor: pointer; padding: 0.5rem 0; display: flex; align-items: center; gap: 0.35rem; user-select: none; }
-        .ba-collapse-header:hover { color: var(--primary); }
-        .ba-collapse-header::before { content: '▶'; font-size: 0.7rem; transition: transform 0.2s; }
+        .ba-collapse-header { font-size: 0.875rem; font-weight: 600; color: var(--text-secondary); padding: 0.5rem 0; }        .ba-collapse-header::before { content: '▶'; font-size: 0.7rem; transition: transform 0.2s; }
         .ba-collapse-header.open::before { transform: rotate(90deg); }
         .ba-collapse-body { display: none; margin-bottom: 1rem; }
         .ba-collapse-body.open { display: block; }
@@ -90,7 +71,7 @@
                                 <option value="InProgress">Đang xử lý</option>
                                 <option value="Reopen">Mở lại</option>
                                 <option value="Resolved">Đã xử lý</option>
-                                <option value="Closed">Đóng</option>
+                                <option value="Closed" data-i18n-ctx="status">Đóng</option>
                                 <option value="NotABug">Đã đóng (không phải bug)</option>
                             </select>
                         </div>
@@ -158,7 +139,7 @@
                                     <option value="InProgress">Đang xử lý</option>
                                     <option value="Reopen">Mở lại</option>
                                     <option value="Resolved">Đã xử lý</option>
-                                    <option value="Closed">Đóng</option>
+                                    <option value="Closed" data-i18n-ctx="status">Đóng</option>
                                     <option value="NotABug">Đã đóng (không phải bug)</option>
                                     </select>
                             </div>
@@ -215,7 +196,7 @@
                 if (st === 'InProgress') return '<span class="' + c + 'ba-badge-inprogress">Đang xử lý</span>';
                 if (st === 'Reopen') return '<span class="' + c + 'ba-badge-reopen">Mở lại</span>';
                 if (st === 'Resolved') return '<span class="' + c + 'ba-badge-resolved">Đã xử lý</span>';
-                if (st === 'Closed') return '<span class="' + c + 'ba-badge-read">Đóng</span>';
+                if (st === 'Closed') return '<span class="' + c + 'ba-badge-read" data-i18n-ctx="status">Đóng</span>';
                 if (st === 'NotABug') return '<span class="' + c + 'ba-badge-notabug">Đã đóng (không phải bug)</span>';
                 return '<span class="' + c + '">' + (st || '') + '</span>';
             }
@@ -247,7 +228,7 @@
                         rows.forEach(function (r) {
                             var created = r.createdAt ? new Date(r.createdAt).toLocaleString() : '—';
                             var tagsStr = (r.tags || '').replace(/</g, '&lt;');
-                            html += '<tr><td>' + (r.id || '') + '</td><td class="col-title">' + (r.title || '').replace(/</g, '&lt;') + '</td><td>' + (r.category || '—').replace(/</g, '&lt;') + '</td><td>' + statusBadge(r.status) + '</td><td style="max-width:120px;word-break:break-word;">' + tagsStr + '</td><td>' + (r.userName || '—').replace(/</g, '&lt;') + '</td><td class="col-date">' + created + '</td><td><a href="#" class="ba-link view-detail" data-id="' + (r.id || '') + '">Xem</a></td></tr>';
+                            html += '<tr><td>' + (r.id || '') + '</td><td class="col-title" translate="no">' + (r.title || '').replace(/</g, '&lt;') + '</td><td>' + (r.category || '—').replace(/</g, '&lt;') + '</td><td>' + statusBadge(r.status) + '</td><td style="max-width:120px;word-break:break-word;">' + tagsStr + '</td><td>' + (r.userName || '—').replace(/</g, '&lt;') + '</td><td class="col-date">' + created + '</td><td><a href="#" class="ba-link view-detail" data-id="' + (r.id || '') + '">Xem</a></td></tr>';
                         });
                         $('#feedbackListBody').html(html);
                     }
@@ -317,7 +298,7 @@
                         var i = d.item;
                         $('#detailModalTitle').text((i.title || '').replace(/</g, '&lt;'));
                         var meta = 'Gửi bởi: ' + (i.userName || '—').replace(/</g, '&lt;') + ' · ' + (i.createdAt ? new Date(i.createdAt).toLocaleString() : '') + (i.pageUrl ? ' · <a href="' + (i.pageUrl || '').replace(/"/g, '&quot;').replace(/</g, '&lt;') + '" target="_blank" rel="noopener">Trang gửi</a>' : '');
-                        var bodyHtml = '<div class="ba-feedback-detail-meta">' + meta + '</div><div class="ba-feedback-detail-label">Nội dung</div><div class="ba-feedback-detail-content" style="max-height: 35vh;">' + (i.content || '') + '</div>';
+                        var bodyHtml = '<div class="ba-feedback-detail-meta">' + meta + '</div><div class="ba-feedback-detail-label">Nội dung</div><div class="ba-feedback-detail-content" translate="no" style="max-height: 35vh;">' + (i.content || '') + '</div>';
                         bodyHtml += '<div class="ba-collapse-header" data-collapse="history">Lịch sử trạng thái</div><div id="detailHistorySection" class="ba-collapse-body"><ul class="ba-history-list"><li style="color:var(--text-muted);">Đang tải...</li></ul></div>';
                         bodyHtml += '<div class="ba-collapse-header open" data-collapse="comments">Comment</div><div class="ba-collapse-body open"><ul id="detailCommentsList" class="ba-comments-list"><li style="color:var(--text-muted);">Đang tải...</li></ul><div class="ba-comment-add"><textarea id="detailNewComment" placeholder="Thêm phản hồi..."></textarea><button type="button" id="btnAddComment" class="ba-btn ba-btn-primary" style="margin-top:6px;">Thêm comment</button></div></div>';
                         $('#feedbackDetailBody').html(bodyHtml);
@@ -393,95 +374,6 @@
             loadList();
             var m = location.search.match(/[?&]id=(\d+)/);
             if (m) { var id = parseInt(m[1], 10); if (id) openDetail(id); }
-
-            // Chuông thông báo (badge + panel) giống trang Feedback
-            (function () {
-                var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-                var cancelJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/CancelRestoreJob") %>';
-                var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-                var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
-                var DISMISSED_JOBS_KEY = 'baDismissedJobIds';
-                function getDismissedJobIds() { try { var raw = localStorage.getItem(DISMISSED_JOBS_KEY); if (!raw) return []; var arr = JSON.parse(raw); return Array.isArray(arr) ? arr : []; } catch (e) { return []; } }
-                function isJobDismissed(job) { var key = (job.type === 'Backup' ? 'b:' : 'r:') + (job.id || ''); return getDismissedJobIds().indexOf(key) >= 0; }
-                function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = (typeof v === 'string') ? v : String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); var n = Date.parse(s); return isNaN(n) ? null : new Date(n); }
-                function formatNotifTime(v) { var dt = parseDateSafe(v); return dt ? dt.toLocaleString() : '—'; }
-                function loadBellBadge() {
-                    if (!$('#restoreJobsBellWrap').length) return;
-                    $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                        success: function (res) {
-                            var d = res.d || res;
-                            if (d && (d.jobs || d.newBugs)) {
-                                var jobs = (d.jobs || []).map(function (j) { j.type = j.type || 'Restore'; return j; }).filter(function (j) { return j.id != null && !isJobDismissed(j); });
-                                var newBugs = d.newBugs || [];
-                                var total = jobs.length + newBugs.length;
-                                if (total > 0) $('#restoreJobsBadge').text(total).addClass('visible');
-                            }
-                        }
-                    });
-                }
-                function loadBellPanel() {
-                    var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-                    if (!$list.length) return;
-                    $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                        success: function (res) {
-                            var d = res.d || res;
-                            if (!d || !d.jobs) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                            var jobs = (d.jobs || []).map(function (j) { j.type = j.type || 'Restore'; return j; }).filter(function (j) { return j.id != null && !isJobDismissed(j); }).sort(function (a, b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                            var newBugs = d.newBugs || [];
-                            var totalCount = jobs.length + newBugs.length;
-                            if (totalCount === 0) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                            var currentUserId = (d.currentUserId != null) ? parseInt(d.currentUserId, 10) : 0;
-                            $badge.text(totalCount).addClass('visible');
-                            window.__notifJobsList = jobs;
-                            var notifBugsCollapsed = sessionStorage.getItem('ba_notif_bugs_collapsed') === '1';
-                            var notifJobsCollapsed = sessionStorage.getItem('ba_notif_jobs_collapsed') === '1';
-                            var html = '';
-                            if (newBugs.length > 0) {
-                                html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifBugsCollapsed ? '▶' : '▼') + '</span> 🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs" style="' + (notifBugsCollapsed ? 'display:none;' : '') + '">';
-                                newBugs.forEach(function (b) { var created = formatNotifTime(b.createdAt); var url = feedbackManageUrl + (b.id ? '?id=' + encodeURIComponent(b.id) : ''); html += '<div class="ba-notif-item ba-notif-bug"><div style="font-weight:500;"><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);margin-top:4px;font-size:0.8125rem;">' + (b.userName || '—').replace(/</g, '&lt;') + ' · ' + created + '</div><a class="ba-notif-detail-link" href="' + url + '" data-action="bug">Xem / Xử lý</a></div>'; });
-                                html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">';
-                            }
-                            jobs.forEach(function (j, idx) {
-                                var st = j.status || '', jobType = j.type || 'Restore', typeLabel = (j.typeLabel || (jobType === 'Backup' ? 'Backup' : jobType === 'HRHelperMultiDbAnalyze' ? 'Phân tích Multi-DB' : 'Restore'));
-                                var badgeClass = (jobType === 'Backup') ? 'ba-notif-type-backup' : (jobType === 'Restore') ? 'ba-notif-type-restore' : 'ba-notif-type-restore';
-                                var dbName = (j.databaseName || j.DatabaseName || '').trim();
-                                var hasReset = jobType === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0));
-                                var resetTag = (jobType === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag" title="Restore có Reset">Có Reset' : 'ba-notif-no-reset-tag">Không Reset') + '</span> ') : '';
-                                var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0;
-                                var phase = (j.message || (jobType === 'Restore' ? 'Restore' : '')).toString().trim();
-                                var startedByUid = (j.startedByUserId != null) ? parseInt(j.startedByUserId, 10) : 0;
-                                var canCancel = (jobType === 'Restore' || jobType === 'Backup' || jobType === 'HRHelperMultiDbAnalyze' || jobType === 'HRHelperMultiDbReset') && currentUserId && startedByUid === currentUserId;
-                                var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + jobType + '"><div style="font-weight:500;"><span class="ba-notif-type-badge ' + badgeClass + '">' + (typeLabel.replace(/</g, '&lt;')) + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div>' + BaNotif.wrapMetaWithBadge((j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + formatNotifTime(j.startTime), st);
-                                if (st === 'Running' || st === 'Pending') {
-                                    var progressLabel = (jobType === 'Restore' && phase) ? (pct + '% - ' + BaNotif.restorePhaseDisplay(phase)) : (jobType === 'HRHelperMultiDbAnalyze' ? (pct + '% - Phân tích') : (pct + '%'));
-                                    row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt,var(--bg-darker));height:6px;border-radius:3px;overflow:hidden;"><div class="ba-notif-progress-bar" style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span class="ba-notif-progress-pct">' + progressLabel + '</span></div>';
-                                    row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                    if (canCancel) row += ' <button type="button" class="ba-notif-cancel-btn" data-job-id="' + (j.id || '') + '" title="Chỉ người thực hiện job mới có thể hủy">Hủy</button>';
-                                } else if (st === 'Completed') row += '<div style="margin-top:4px;"><span class="ba-notif-status-badge ba-notif-status-completed">Đã xong</span></div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                else if (st === 'Failed') row += '<div style="margin-top:4px;"><span class="ba-notif-status-badge ba-notif-status-failed">Lỗi</span></div><div class="ba-notif-msg ba-notif-msg-error">' + (j.message || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a>';
-                                row += '</div>';
-                                html += row;
-                            });
-                            if (newBugs.length > 0) html += '</div></div>';
-                            else if (jobs.length > 0) html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;color:var(--text-muted);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px;"><span class="ba-notif-group-arrow" style="transition:transform 0.2s;">' + (notifJobsCollapsed ? '▶' : '▼') + '</span> Thông báo job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs" style="' + (notifJobsCollapsed ? 'display:none;' : '') + '">' + html + '</div></div>';
-                            $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                            $list.off('click.baNotifGroup').on('click.baNotifGroup', '.ba-notif-group-toggle', function (e) { var g = $(this).data('group'); var $body = $list.find('.ba-notif-group-body[data-group="' + g + '"]'); var $arrow = $(this).find('.ba-notif-group-arrow'); if ($body.is(':visible')) { $body.slideUp(200); $arrow.text('▶'); sessionStorage.setItem('ba_notif_' + g + '_collapsed', '1'); } else { $body.slideDown(200); $arrow.text('▼'); sessionStorage.removeItem('ba_notif_' + g + '_collapsed'); } });
-                            $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function (e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                            $list.off('click.baNotifCancel').on('click.baNotifCancel', '.ba-notif-cancel-btn', function (e) { e.preventDefault(); var $item = $(this).closest('.ba-notif-item'); var jobId = parseInt($(this).data('job-id'), 10); if (!jobId) return; var idx = parseInt($item.data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || {}; var serverName = (job.serverName || '').trim(); var dbName = (job.databaseName || '').trim(); var jobType = (job.type || job.typeLabel || 'Restore').toString(); var jobDesc = (serverName || dbName) ? (serverName + ' → ' + dbName) : ('Job #' + jobId); var msg = 'Bạn có chắc muốn hủy job:\n' + jobDesc + '\nLoại: ' + jobType + '\n\nHành động không thể hoàn tác.'; var $btn = $(this); if (typeof baConfirm === 'function') baConfirm(msg, function () { $btn.prop('disabled', true); $.ajax({ url: cancelJobUrl, type: 'POST', contentType: 'application/json; charset=utf-8', dataType: 'json', data: JSON.stringify({ jobId: jobId }), success: function (r) { var d = r.d || r; if (d && d.success) loadBellPanel(); else $btn.prop('disabled', false); }, error: function () { $btn.prop('disabled', false); } }); }, null, 'Đồng ý', 'Thoát'); });
-                        }
-                    });
-                }
-                $(function () {
-                    loadBellBadge();
-                    $('#restoreJobsBellBtn').on('click', function (e) {
-                        e.stopPropagation();
-                        var $p = $('#restoreJobsPanel');
-                        if ($p.is(':visible')) { $p.hide(); } else { loadBellPanel(); $p.show(); }
-                    });
-                    $(document).on('click', function () { $('#restoreJobsPanel').hide(); });
-                    $('#restoreJobsPanel').on('click', function (e) { e.stopPropagation(); });
-                });
-            })();
         })();
     </script>
 </body>

@@ -17,16 +17,16 @@ var controlField = (function () {
                 '<div style="display:flex; gap:16px; align-items:center;">' +
                 '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
                 '<input type="radio" name="iconPickerType" value="menu" checked style="cursor:pointer;" />' +
-                '<span>Icon Cadena (Menu Icons)</span>' +
+                '<span>Biểu tượng Cadena (Menu Icons)</span>' +
                 '</label>' +
                 '<label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">' +
                 '<input type="radio" name="iconPickerType" value="glyphicon" style="cursor:pointer;" />' +
-                '<span>Icon Glyphicon</span>' +
+                '<span>Biểu tượng Glyphicon</span>' +
                 '</label>' +
                 '</div>' +
                 '</div>' +
                 '<div>' +
-                '<input type="text" id="iconPickerSearchInput" class="ess-col-input" placeholder="Search icon by name or class (e.g., add, delete, search)..." style="width:100%; padding:8px;" />' +
+                '<input type="text" id="iconPickerSearchInput" class="ess-col-input" placeholder="Tìm biểu tượng theo tên hoặc class (vd: add, delete, search)..." style="width:100%; padding:8px;" />' +
                 '</div>' +
                 '</div>' +
                 '<div id="iconPickerIconList" style="flex:1; overflow-y:auto; display:grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap:8px; padding:16px; border:1px solid #e0e0e0; border-radius:4px; background:#fafafa; min-height:0; align-items:start;">' +
@@ -35,7 +35,7 @@ var controlField = (function () {
                 '.icon-picker-item { height: auto !important; min-height: 70px !important; max-height: 70px !important; }' +
                 '</style>' +
                 '<div class="ess-modal-footer" style="padding:12px 16px; border-top:1px solid #e0e0e0; display:flex; justify-content:flex-end; gap:8px; flex-shrink:0;">' +
-                '<button type="button" id="iconPickerCancel" class="ess-btn-secondary" style="padding:6px 16px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px;">Cancel</button>' +
+                '<button type="button" id="iconPickerCancel" class="ess-btn-secondary" style="padding:6px 16px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer; font-size:13px;">Hủy</button>' +
                 '<button type="button" id="iconPickerOk" class="ess-btn-primary" style="padding:6px 16px; background:#0078d4; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px;">OK</button>' +
                 '</div>' +
                 '</div>' +
@@ -85,14 +85,14 @@ var controlField = (function () {
             }
             
             if (filteredIcons.length === 0) {
-                $iconList.html('<div style="grid-column:1/-1; text-align:center; padding:20px; color:#999;">No icons found</div>');
+                $iconList.html('<div style="grid-column:1/-1; text-align:center; padding:20px; color:#999;">Không tìm thấy biểu tượng</div>');
                 return;
             }
             
             filteredIcons.forEach(function(icon) {
                 var $item;
                 if (iconType === "menu") {
-                    var iconHtml = icon.value ? '<img src="' + icon.value + '" style="width:20px;height:20px;" />' : '<span style="font-size:11px; color:#999;">(No icon)</span>';
+                    var iconHtml = icon.value ? '<img src="' + icon.value + '" style="width:20px;height:20px;" />' : '<span style="font-size:11px; color:#999;">(Không có biểu tượng)</span>';
                     $item = $('<div class="icon-picker-item" data-type="menu" data-value="' + (icon.value || "") + '" style="padding:8px; border:1px solid #ddd; border-radius:4px; text-align:center; cursor:pointer; background:#fff; transition:all 0.2s; display:flex; flex-direction:column; min-height:70px; max-height:70px; height:70px;">' +
                         '<div style="margin-bottom:4px; min-height:28px; max-height:28px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">' + iconHtml + '</div>' +
                         '<span style="font-size:9px; color:#666; display:block; word-break:break-word; line-height:1.2; height:32px; overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; flex-shrink:0;">' + icon.text + '</span>' +
@@ -303,78 +303,6 @@ var controlField = (function () {
                     }, 100);
                     
                     return; // Exit early - callback will handle the rest
-                } else if (currentCfg && currentCfg.uiMode === "ess" && currentCfg.ftype === "button") {
-                    // Default behavior: update button icon
-                    currentCfg.btnIcon = selectedIcon;
-                    currentCfg.btnIconType = selectedIconType;
-                    
-                    // Update preview
-                    var $preview = $("#btnIconPreview");
-                    var $iconTypeLabel = $("#btnIconTypeLabel");
-                    var iconHtml = "";
-                    var iconTypeText = "";
-                    var iconName = "";
-                    
-                    if (selectedIconType === "glyphicon") {
-                        iconHtml = '<span class="' + selectedIcon + '" style="font-size:24px;"></span>';
-                        iconTypeText = "Bootstrap Glyphicon";
-                        // Find icon name from BOOTSTRAP_GLYPHICON_LIST
-                        var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
-                            return icon.class === selectedIcon;
-                        });
-                        iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : selectedIcon;
-                    } else if (selectedIconType === "menu" && selectedIcon) {
-                        iconHtml = '<img src="' + selectedIcon + '" style="width:24px;height:24px;" />';
-                        iconTypeText = "Menu Icons";
-                        // Find icon name from MENU_ICON_LIST
-                        var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                            return icon.value === selectedIcon;
-                        });
-                        iconName = menuItem ? menuItem.text : (selectedIcon.split('/').pop() || selectedIcon);
-                    } else {
-                        iconHtml = '<span style="color:#999; font-size:11px;">No icon selected</span>';
-                    }
-                    
-                    // Update icon type label
-                    if ($iconTypeLabel.length) {
-                        $iconTypeLabel.text(iconTypeText).show();
-                    }
-                    
-                    $preview.html(iconHtml + (iconName ? '<span style="font-size:10px; color:#666; margin-top:4px; text-align:center;">' + iconName + '</span>' : ''));
-                    
-                    // Show Remove button
-                    var $removeBtn = $("#btnRemoveIcon");
-                    if (!$removeBtn.length) {
-                        // Add Remove button if not exists
-                        $("#btnBrowseIcon").after('<button type="button" id="btnRemoveIcon" class="ess-btn-secondary" style="padding:6px 12px; background:#ff4444; color:#fff; border:none;">Remove</button>');
-                    } else {
-                        $removeBtn.show();
-                    }
-                    
-                    // Update button icon
-                    var $btn = $(".canvas-control[data-id='" + currentCfg.id + "']").find(".page-field-editor button");
-                    $btn.find("img, span.glyphicon").remove();
-                    if (selectedIcon && selectedIconType) {
-                        if (selectedIconType === "glyphicon") {
-                            var $icon = $('<span class="' + selectedIcon + '"></span>');
-                            $icon.css({
-                                "font-size": "14px",
-                                "margin-right": "4px"
-                            });
-                            $btn.prepend($icon);
-                        } else if (selectedIconType === "menu" && selectedIcon) {
-                            var $icon = $('<img src="' + selectedIcon + '" />');
-                            $icon.css({
-                                "width": "16px",
-                                "height": "16px",
-                                "vertical-align": "middle",
-                                "margin-right": "4px"
-                            });
-                            $btn.prepend($icon);
-                        }
-                    }
-                    
-                    builder.refreshJson();
                 }
             } else {
                 console.warn("No icon selected or invalid selection");
@@ -570,17 +498,41 @@ var controlField = (function () {
             var $img = $('<img class="ess-image-img" />').attr("src", cfg.imageData);
             $inner.append($img);
         } else {
-            $inner.append('<span class="ess-image-placeholder">Drop / paste image</span>');
+            $inner.append('<span class="ess-image-placeholder">Thả hoặc dán ảnh vào đây</span>');
         }
+    }
+
+    function setFieldImage(cfg, dataUrl) {
+        var base = newConfig("image", cfg.uiMode || "ess");
+        var fit = !cfg.imageData && cfg.width === base.width && cfg.height === base.height;
+        cfg.imageData = dataUrl;
+        applyImageDomForField(cfg);
+        if (!fit) { builder.refreshJson(); return; }
+        var probe = new Image();
+        probe.onload = function () {
+            var $field = $('.canvas-control.page-field[data-id="' + cfg.id + '"]');
+            var $inner = $field.find(".ess-image-inner");
+            if ($field.length && $inner.length && probe.naturalWidth && probe.naturalHeight) {
+                var padX = Math.max(0, Math.round($field.outerWidth() - $inner.width()));
+                var padY = Math.max(0, Math.round($field.outerHeight() - $inner.height()));
+                cfg.width = probe.naturalWidth + padX;
+                cfg.height = probe.naturalHeight + padY;
+                $field.css({ width: cfg.width + "px", height: cfg.height + "px" });
+                applyLayout($field, cfg);
+                applyEssInnerHeight($field, cfg);
+                builder.updateSelectionSizeHint();
+            }
+            builder.refreshJson();
+        };
+        probe.onerror = function () { builder.refreshJson(); };
+        probe.src = dataUrl;
     }
 
     function loadImageFileToField(file, cfg) {
         if (!file) return;
         var reader = new FileReader();
         reader.onload = function (re) {
-            cfg.imageData = re.target.result;
-            applyImageDomForField(cfg);
-            builder.refreshJson();
+            setFieldImage(cfg, re.target.result);
         };
         reader.readAsDataURL(file);
     }
@@ -594,6 +546,10 @@ var controlField = (function () {
 
         // Click -> chọn file
         $drop.on("click.essImage", function (e) {
+            if ($(e.target).is("input.ess-image-file")) {
+                e.stopPropagation();
+                return;
+            }
             e.preventDefault();
             e.stopPropagation();
 
@@ -607,7 +563,8 @@ var controlField = (function () {
                 var f = this.files && this.files[0];
                 if (f) loadImageFileToField(f, cfg);
                 this.value = "";
-            }).trigger("click");
+            });
+            $input[0].click();
         });
 
         // Drag & drop
@@ -708,9 +665,6 @@ var controlField = (function () {
         reader.onload = function (ev) {
             var dataUrl = ev.target.result;
 
-            // Lưu vào config
-            cfg.imageData = dataUrl;
-
             // Xoá style nền cũ nếu còn
             $drop
                 .removeClass("ess-image-has-image")
@@ -720,10 +674,7 @@ var controlField = (function () {
                     "background-position": ""
                 });
 
-            // Dựng lại DOM bên trong đúng chuẩn mới (img / placeholder)
-            applyImageDomForField(cfg);
-
-            builder.refreshJson();
+            setFieldImage(cfg, dataUrl);
         };
         reader.readAsDataURL(file);
     }
@@ -829,11 +780,13 @@ var controlField = (function () {
         }
 
         // 2. Nếu chưa chọn hoặc không phải image -> tự tạo 1 ESS Image mới
+        var created = false;
         if (!cfg || cfg.type !== "field" || cfg.ftype !== "image") {
             if (window.controlField && typeof controlField.addNew === "function") {
                 controlField.addNew("image", "ess");
                 if (builder.selectedControlId) {
                     cfg = builder.getControlConfig(builder.selectedControlId) || null;
+                    created = !!cfg;
                 }
             }
         }
@@ -845,6 +798,13 @@ var controlField = (function () {
         var $field = $('.canvas-control.page-field[data-id="' + cfg.id + '"]');
         var $drop = $field.find(".ess-image-drop").first();
         if (!$drop.length) return;
+
+        if (created && window.builderSnippet && typeof builderSnippet.viewOrigin === "function") {
+            var origin = builderSnippet.viewOrigin();
+            cfg.left = origin.left;
+            cfg.top = origin.top;
+            $field.css({ left: cfg.left + "px", top: cfg.top + "px" });
+        }
 
         handleEssImageFiles(files, $drop);
 
@@ -896,7 +856,7 @@ var controlField = (function () {
         if (ftype === "checkbox" || ftype === "radio") {
             defaultCaptionPosition = "right";
             // ↑ sửa thành đúng value của option "Right of control"
-            //   vd <option value="right">Right of control</option>
+            //   vd <option value="right">Bên phải control</option>
         }
 
 
@@ -912,6 +872,10 @@ var controlField = (function () {
         if (ftype === "button") {
             defWidth = 50;   // nút vuông nhỏ kiểu "..."
             defHeight = 24;  // chiều cao chuẩn của nút
+        }
+        if (ftype === "tree") {
+            defWidth = 382;
+            defHeight = 252;
         }
         if (uiMode === "core") {
             // các control core cũ
@@ -1046,7 +1010,86 @@ var controlField = (function () {
             cfg.imageData = cfg.imageData || null; // base64 hoặc url
         }
 
+        if (ftype === "tree") {
+            cfg.caption = "";
+            cfg.defaultValue = "";
+            cfg.labelWidth = 0;
+            controlTree.ensure(cfg);
+        }
+
         return cfg;
+    }
+
+    var TEXT_ONLY_TYPES = { label: 1, button: 1, tag: 1 };
+    var TOGGLE_TYPES = { checkbox: 1, radio: 1 };
+    var PLAIN_VALUE_TYPES = { text: 1, memo: 1 };
+    var CARRIED_KEYS = ["left", "top", "parentId", "tabPageId", "tabIndex", "zIndex", "groupId", "groupOffsetX", "groupOffsetY", "required", "disabled", "captionBold", "captionItalic"];
+
+    function fieldDisplayText(cfg) {
+        return (TEXT_ONLY_TYPES[cfg.ftype] ? cfg.defaultValue : cfg.caption) || "";
+    }
+
+    function convertedConfig(old, ftype, uiMode) {
+        var next = newConfig(ftype, uiMode);
+        var defaultHeight = next.height;
+        var oldHeight = old.height || defaultHeight;
+        var text = fieldDisplayText(old);
+        var oldHasEditor = !TEXT_ONLY_TYPES[old.ftype] && !TOGGLE_TYPES[old.ftype] && old.ftype !== "image" && old.ftype !== "progress";
+        var value = old.ftype === "combo" && (old.items || []).length === 1 ? old.items[0]
+            : (PLAIN_VALUE_TYPES[old.ftype] ? old.defaultValue : "");
+
+        next.id = old.id;
+        CARRIED_KEYS.forEach(function (key) {
+            if (old[key] !== undefined) next[key] = old[key];
+        });
+        next.width = old.width || next.width;
+        next.height = ftype === "memo" ? Math.max(oldHeight, 40)
+            : (oldHeight > defaultHeight * 1.6 || oldHeight < defaultHeight * 0.5 ? defaultHeight : oldHeight);
+
+        if (TEXT_ONLY_TYPES[ftype]) {
+            next.caption = "";
+            next.labelWidth = 0;
+            next.defaultValue = text || value || (ftype === "label" ? "Label" : next.defaultValue);
+        } else if (TOGGLE_TYPES[ftype]) {
+            next.caption = text || next.caption;
+            if (TOGGLE_TYPES[old.ftype]) {
+                next.captionPosition = old.captionPosition || next.captionPosition;
+                next.labelWidth = old.labelWidth != null ? old.labelWidth : next.labelWidth;
+            }
+        } else if (oldHasEditor) {
+            next.caption = old.caption || "";
+            next.labelWidth = old.labelWidth != null ? old.labelWidth : next.labelWidth;
+            next.captionPosition = old.captionPosition || next.captionPosition;
+            if (value && ftype === "combo") next.items = [value];
+            else if (value && PLAIN_VALUE_TYPES[ftype]) next.defaultValue = value;
+        } else if (text) {
+            next.caption = text;
+            next.labelWidth = Math.max(60, Math.min(260, (old.width || 100) + 6));
+            next.width = next.labelWidth + 160;
+        } else {
+            next.caption = "";
+            next.labelWidth = 0;
+        }
+        return next;
+    }
+
+    function changeFieldType(fieldId, ftype, uiMode) {
+        var old = builder.getControlConfig(fieldId);
+        if (!old || old.type !== "field" || !ftype) return null;
+        if (old.ftype === "groupbox" || old.ftype === "section") return null;
+        uiMode = uiMode || old.uiMode || "core";
+        if (old.ftype === ftype && (old.uiMode || "core") === uiMode) return null;
+
+        var next = convertedConfig(old, ftype, uiMode);
+        var index = builder.controls.indexOf(old);
+        if (index < 0) return null;
+        builder.controls[index] = next;
+        $('#canvas [data-id="' + old.id + '"]').remove();
+        next._fromRestore = true;
+        render(next);
+        delete next._fromRestore;
+        if (next.tabPageId && window.controlTabPage && controlTabPage.syncMember) controlTabPage.syncMember(next);
+        return next;
     }
 
 
@@ -1116,298 +1159,51 @@ var controlField = (function () {
 
 
 
-    // Di chuyển tất cả field con/cháu của rootId
-    function moveDescendants(rootId, dx, dy, includeRoot) {
-        var ids = getDescendantFieldIds(rootId, includeRoot);
-
-        ids.forEach(function (id) {
-            var c = builder.controls.find(function (x) { return x.id === id; });
-            if (!c) return;
-
-            var $dom = $('.canvas-control[data-id="' + id + '"]');
-            if (!$dom.length) return;
-            
-            var curL = parseFloat($dom.css("left")) || c.left || 0;
-            var curT = parseFloat($dom.css("top")) || c.top || 0;
-            var nl = curL + dx;
-            var nt = curT + dy;
-
-            $dom.css({ left: nl, top: nt });
-            c.left = nl;
-            c.top = nt;
-        });
-        
-        // Cũng di chuyển các control con khác (grid, ess-grid, toolbar, collapsible-section, v.v.)
-        (builder.controls || []).forEach(function (c) {
-            if (c && c.parentId === rootId && c.type !== "field") {
-                c.left = (c.left || 0) + dx;
-                c.top = (c.top || 0) + dy;
-                var $child = $('.canvas-control[data-id="' + c.id + '"]');
-                if ($child.length) {
-                    var curL = parseFloat($child.css("left")) || c.left || 0;
-                    var curT = parseFloat($child.css("top")) || c.top || 0;
-                    $child.css({
-                        left: (curL + dx) + "px",
-                        top: (curT + dy) + "px"
-                    });
-                }
-            }
-        });
-    }
-
     // Hiển thị/ẩn field theo Tab đang active
     function applyTabVisibilityFor(tabCfg) {
         var tabId = tabCfg.id;
         var activeIndex = tabCfg.activeTabIndex || 0;
 
         (builder.controls || []).forEach(function (c) {
-            if (!c || c.type !== "field") return;
-            if (c.tabPageId !== tabId) return;
+            if (!c || c.tabPageId !== tabId) return;
 
-            var $dom = $('.canvas-control.page-field[data-id="' + c.id + '"]');
+            var $dom = c.type === "field"
+                ? $('.canvas-control.page-field[data-id="' + c.id + '"]')
+                : $('.canvas-control[data-id="' + c.id + '"]');
             var idx = (typeof c.tabIndex === "number") ? c.tabIndex : 0;
             if (idx === activeIndex) $dom.show();
             else $dom.hide();
         });
     }
 
-    function findParentContainerFor(fieldCfg) {
-        var left = fieldCfg.left;
-        var top = fieldCfg.top;
-        var right = fieldCfg.left + fieldCfg.width;
-        var bottom = fieldCfg.top + fieldCfg.height;
-
-        var best = null;
-
-        (builder.controls || []).forEach(function (c) {
-            if (!c) return;
-            if (c.id === fieldCfg.id) return;
-
-            var isFieldContainer = (c.type === "field" &&
-                (c.ftype === "groupbox" || c.ftype === "section"));
-            var isCollapsibleSection = (c.type === "collapsible-section");
-            var isTabPage = (c.type === "tabpage");
-            var isPopup = (c.type === "popup");
-
-            if (!isFieldContainer && !isCollapsibleSection && !isTabPage && !isPopup) return;
-
-            var cRight = c.left + c.width;
-            var cBottom = c.top + c.height;
-
-            // Đối với collapsible-section, chỉ check content area (không tính header)
-            if (isCollapsibleSection) {
-                var $section = $('.ess-collapsible-section[data-id="' + c.id + '"]');
-                if ($section.length) {
-                    var $content = $section.find(".ess-collapsible-content");
-                    if ($content.length && $content.is(":visible")) {
-                        var contentRect = $content[0].getBoundingClientRect();
-                        var sectionRect = $section[0].getBoundingClientRect();
-                        // Convert content rect to canvas coordinates
-                        var contentLeft = c.left;
-                        var contentTop = c.top + 50; // 50 = header height
-                        var contentRight = contentLeft + c.width;
-                        var contentBottom = contentTop + (c.height - 50);
-                        
-                        // Check nếu field nằm trong content area
-                        if (left >= contentLeft && top >= contentTop && right <= contentRight && bottom <= contentBottom) {
-                            if (!best || (c.left >= best.left && c.top >= best.top &&
-                                c.width <= best.width && c.height <= best.height)) {
-                                best = c;
-                            }
-                        }
-                    }
-                }
-            } else if (isFieldContainer) {
-                // Groupbox/Section: chỉ coi là "trong group" nếu nằm trong VÙNG NỘI DUNG (trừ title + padding), tránh control ngoài group bị gán nhầm parentId
-                var headerH = 28;
-                var pad = 8;
-                var contentLeft = (c.left || 0) + pad;
-                var contentTop = (c.top || 0) + headerH + pad;
-                var contentRight = cRight - pad;
-                var contentBottom = cBottom - pad;
-                if (left >= contentLeft && top >= contentTop && right <= contentRight && bottom <= contentBottom) {
-                    if (!best || (c.left >= best.left && c.top >= best.top &&
-                        c.width <= best.width && c.height <= best.height)) {
-                        best = c;
-                    }
-                }
-            } else {
-                // Popup / tabpage: dùng full bounds
-                if (left >= c.left && top >= c.top && right <= cRight && bottom <= cBottom) {
-                    if (!best || (c.left >= best.left && c.top >= best.top &&
-                        c.width <= best.width && c.height <= best.height)) {
-                        best = c;
-                    }
-                }
-            }
-        });
-
-        return best ? best.id : null;
+    function applyParentZIndex(fieldCfg, $dom) {
+        var isContainer = fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section";
+        var parentCfg = fieldCfg.parentId ? builder.getControlConfig(fieldCfg.parentId) : null;
+        var z = isContainer ? 0 : 1;
+        if (parentCfg) {
+            var base = parseInt(parentCfg.type === "popup" ? builder.controlElement(parentCfg).css("z-index") : parentCfg.zIndex, 10);
+            z = (isNaN(base) ? 0 : base) + 1;
+        }
+        fieldCfg.zIndex = z;
+        $dom.css("z-index", z);
+        if (isContainer && parentCfg) updateDescendantsZIndex(fieldCfg.id, z + 1);
     }
 
-    function updateFieldParent(fieldCfg) {
-        // Lưu lại parent cũ để biết khi nào field vừa được đưa vào container mới
-        var oldParentId = fieldCfg.parentId || null;
-
-        var pid = findParentContainerFor(fieldCfg);
-        fieldCfg.parentId = pid || null;
-
-        // reset info tab
-        fieldCfg.tabPageId = null;
-        fieldCfg.tabIndex = null;
-
-        var $dom = $('.canvas-control.page-field[data-id="' + fieldCfg.id + '"]');
-
-        // Không nằm trong container nào → dùng z-index mặc định
-        if (!pid) {
-            var defZ = (fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section") ? 0 : 1;
-            fieldCfg.zIndex = defZ;
-            $dom.css("z-index", defZ);
-            return;
-        }
-
-        var parentCfg = (builder.controls || []).find(function (c) { return c.id === pid; });
-        if (!parentCfg) return;
-
-        if (parentCfg.type === "tabpage") {
-            fieldCfg.tabPageId = parentCfg.id;
-            fieldCfg.tabIndex = parentCfg.activeTabIndex || 0;
-        } else if (parentCfg.type === "field") {
-            fieldCfg.tabPageId = parentCfg.tabPageId || null;
-            if (typeof parentCfg.tabIndex === "number") {
-                fieldCfg.tabIndex = parentCfg.tabIndex;
-            }
-
-            // ✅ Nếu parent là groupbox/section - đưa field vào content để di chuyển cùng
-            if (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section") {
-                var $gb = $('.page-field-groupbox[data-id="' + pid + '"], .popup-groupbox[data-id="' + pid + '"], .page-field-section[data-id="' + pid + '"], .popup-section[data-id="' + pid + '"]');
-                if ($gb.length && $dom.length) {
-                    var contentSel = parentCfg.ftype === "groupbox" ? ".page-field-groupbox-content" : ".page-field-section-content";
-                    var $content = $gb.find(contentSel).first();
-                    if ($content.length) {
-                        $dom.appendTo($content);
-                        if (oldParentId !== pid) {
-                            var parentLeft = parentCfg.left || 0;
-                            var parentTop = parentCfg.top || 0;
-                            var headerH = 28;
-                            var pad = 8;
-                            fieldCfg.left = Math.max(0, (fieldCfg.left || 0) - parentLeft - pad);
-                            fieldCfg.top = Math.max(0, (fieldCfg.top || 0) - parentTop - headerH - pad);
-                        }
-                        $dom.css({
-                            position: "absolute",
-                            left: fieldCfg.left + "px",
-                            top: fieldCfg.top + "px"
-                        });
-                    }
-                }
-            }
-
-            // ✅ FIX Z-INDEX: con phải nằm trên parent container
-            var pz = parseInt(parentCfg.zIndex || "0", 10);
-            if (isNaN(pz)) pz = 0;
-
-            var childZ = pz + 1;
-            fieldCfg.zIndex = childZ;
-            $dom.css("z-index", childZ);
-
-            // nếu bản thân fieldCfg cũng là container -> nâng luôn con của nó
-            if (fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section") {
-                updateDescendantsZIndex(fieldCfg.id, childZ + 1);
-            }
-        } else if (parentCfg.type === "collapsible-section") {
-            // Field là con của collapsible section (giống groupbox/section)
-            var $parent = $('.ess-collapsible-section[data-id="' + parentCfg.id + '"]');
-            if ($parent.length && $dom.length) {
-                // Đưa DOM field vào content area của collapsible section
-                var $content = $parent.find(".ess-collapsible-content");
-                if ($content.length) {
-                    $dom.appendTo($content);
-
-                    // Chỉ convert từ canvas → relative NẾU field vừa được đưa vào section lần đầu
-                    if (oldParentId !== parentCfg.id) {
-                        var parentLeft = parentCfg.left || 0;
-                        var parentTop = parentCfg.top || 0;
-                        var headerHeight = 50; // Header height
-                        var contentPadding = parentCfg.contentPadding || 12;
-
-                        // Convert từ canvas absolute position sang relative với content
-                        var relativeLeft = fieldCfg.left - parentLeft - contentPadding;
-                        var relativeTop = fieldCfg.top - parentTop - headerHeight - contentPadding;
-
-                        // Đảm bảo không âm
-                        fieldCfg.left = Math.max(0, relativeLeft);
-                        fieldCfg.top = Math.max(0, relativeTop);
-                    }
-
-                    // Update DOM position (relative với content)
-                    $dom.css({
-                        position: "absolute",
-                        left: fieldCfg.left + "px",
-                        top: fieldCfg.top + "px"
-                    });
-                }
-
-                // ✅ FIX Z-INDEX: con phải nằm trên parent container
-                var pz = parseInt(parentCfg.zIndex || "0", 10);
-                if (isNaN(pz)) pz = 0;
-
-                var childZ = pz + 1;
-                fieldCfg.zIndex = childZ;
-                $dom.css("z-index", childZ);
-
-                // nếu bản thân fieldCfg cũng là container -> nâng luôn con của nó
-                if (fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section") {
-                    updateDescendantsZIndex(fieldCfg.id, childZ + 1);
-                }
-            }
-        } else if (parentCfg.type === "popup") {
-            // Field là con của popup - GIỮ BÊN TRONG popup-body để di chuyển theo popup
-            var $popup = $('.popup-design[data-id="' + parentCfg.id + '"]');
-            var $popupBody = $popup.find(".popup-body").first();
-            if ($popup.length && $dom.length && $popupBody.length) {
-                // Append vào popup-body (KHÔNG insertAfter) - control sẽ di chuyển cùng popup
-                $popupBody.append($dom);
-
-                // Chuyển tọa độ từ canvas sang relative với popup khi vừa vào popup
-                if (oldParentId !== parentCfg.id) {
-                    var popupLeft = parentCfg.left || 0;
-                    var popupTop = parentCfg.top || 0;
-                    var headerH = (parentCfg.headerHeight || 34) + 30; // header + titlebar
-                    fieldCfg.left = Math.max(0, (fieldCfg.left || 0) - popupLeft);
-                    fieldCfg.top = Math.max(0, (fieldCfg.top || 0) - popupTop - headerH);
-                }
-
-                $dom.css({
-                    position: "absolute",
-                    left: fieldCfg.left + "px",
-                    top: fieldCfg.top + "px"
-                });
-
-                var popupZ = parseInt($popup.css("z-index") || "0", 10);
-                if (isNaN(popupZ)) popupZ = 0;
-
-                // z-index của chính field (section/group/textbox, ...)
-                var newZ = popupZ + 1;
-                fieldCfg.zIndex = newZ;
-                $dom.css("z-index", newZ);
-
-                // ✅ FIX: nếu chính nó là container (groupbox/section)
-                // thì tăng luôn z-index cho toàn bộ field con bên trong
-                if (fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section") {
-                    updateDescendantsZIndex(fieldCfg.id, newZ + 1);
-                }
-            }
-        }
+    function updateFieldParent(fieldCfg, point) {
+        var $dom = builder.controlElement(fieldCfg);
+        if (!$dom.length) return;
+        builder.dropControl(fieldCfg, point);
+        applyParentZIndex(fieldCfg, $dom);
     }
 
     function collectDescendants(rootId) {
         var result = [];
 
         function dfs(parentId) {
+            var owner = builder.containerOf(builder.getControlConfig(parentId));
             (builder.controls || []).forEach(function (c) {
                 if (!c || c.type !== "field") return;
-                if (c.parentId === parentId) {
+                if (c.parentId === parentId || (c.tabPageId === parentId && builder.containerOf(c) === owner)) {
                     result.push(c.id);
                     dfs(c.id);
                 }
@@ -1429,6 +1225,16 @@ var controlField = (function () {
 
         builder.controls = (builder.controls || []).filter(function (c) {
             return !(c && c.type === "field" && idsToRemove.indexOf(c.id) >= 0);
+        });
+
+        var looseIds = builder.controls.filter(function (c) {
+            return c && c.type !== "field" && c.tabPageId === fieldId;
+        }).map(function (c) { return c.id; });
+        looseIds.forEach(function (id) {
+            $('.canvas-control[data-id="' + id + '"]').remove();
+        });
+        builder.controls = builder.controls.filter(function (c) {
+            return !(c && looseIds.indexOf(c.id) >= 0);
         });
 
         multiSelectedIds = [];
@@ -1456,7 +1262,7 @@ var controlField = (function () {
         var isTag = (cfg.ftype === "tag");
         var isProgress = (cfg.ftype === "progress");
         var isImage = (cfg.ftype === "image");
-        var isButtonLike = isButton || isTag || isProgress || isImage;
+        var isButtonLike = isButton || isTag || isProgress || isImage || cfg.ftype === "tree";
 
         var isCheck = (cfg.ftype === "checkbox" || cfg.ftype === "radio");
         var pos = cfg.captionPosition || "left";
@@ -1534,7 +1340,9 @@ var controlField = (function () {
 
                 $editor.css({
                     width: "auto",
-                    display: "inline-block"
+                    display: "inline-block",
+                    flex: isEss ? "0 0 auto" : "",
+                    "align-self": isEss ? "center" : ""
                 });
 
                 $cap.css({
@@ -1586,7 +1394,10 @@ var controlField = (function () {
 
     // ESS: set height cho input/select/textarea/button bên trong theo height field
     function applyEssInnerHeight($field, cfg) {
-        if (cfg.uiMode !== "ess") return;
+        if (cfg.uiMode !== "ess") {
+            if (cfg.ftype === "memo" && cfg.height) $field.find(".page-field-editor textarea").css("max-height", Math.max(22, cfg.height - 4) + "px");
+            return;
+        }
         if (cfg.ftype === "groupbox" || cfg.ftype === "section" || cfg.ftype === "language") return;
 
         var h = cfg.height || $field.outerHeight() || 0;
@@ -1603,9 +1414,12 @@ var controlField = (function () {
                 height: "auto",
                 "line-height": "1.2",
                 "padding-top": "2px",
-                "padding-bottom": "2px"
+                "padding-bottom": "2px",
+                "align-self": cfg.ftype === "memo" ? "" : "center"
             });
         }
+
+        if (TOGGLE_TYPES[cfg.ftype]) return;
 
         // ==== ESS DATE: input-group + icon calendar ====
         if (cfg.ftype === "date") {
@@ -1614,15 +1428,9 @@ var controlField = (function () {
                 $grp.css("height", innerH + "px");
 
                 var $input = $grp.find("input.form-control");
-                var $addon = $grp.find(".ess-date-addon");
 
                 $input.css({
                     height: innerH + "px",
-                    "line-height": innerH + "px"
-                });
-
-                $addon.css({
-                    height: (innerH - 2) + "px",
                     "line-height": innerH + "px"
                 });
 
@@ -1695,7 +1503,7 @@ var controlField = (function () {
         });
         
         // Checkbox change handler
-        $dropdown.on('change', 'input[type="checkbox"]', function() {
+        $dropdown.on('change', 'tbody input[type="checkbox"]', function() {
             var value = $(this).val();
             var selected = cfg.multiselectSelectedValues || [];
             if ($(this).is(':checked')) {
@@ -1729,7 +1537,7 @@ var controlField = (function () {
         $thead.empty();
         $thead.append('<th style="width: 30px;"><input type="checkbox" class="core-multiselect-select-all" /></th>');
         columns.forEach(function(col) {
-            $thead.append('<th style="width: ' + (col.width || 150) + 'px;">' + (col.caption || col.name) + '</th>');
+            $thead.append('<th style="width: ' + (parseInt(col.width, 10) || 150) + 'px;">' + builder.escapeHtml(col.caption || col.name) + '</th>');
         });
         
         // Build body
@@ -1737,13 +1545,13 @@ var controlField = (function () {
         $tbody.empty();
         items.forEach(function(item) {
             var $row = $('<tr></tr>');
-            var value = item.value || item[columns[0]?.name] || '';
+            var value = multiSelectItemValue(cfg, item);
             var isSelected = selectedValues.indexOf(value) !== -1;
             
-            $row.append('<td><input type="checkbox" value="' + value + '" ' + (isSelected ? 'checked' : '') + ' /></td>');
+            $row.append('<td><input type="checkbox" value="' + builder.escapeHtml(value) + '" ' + (isSelected ? 'checked' : '') + ' /></td>');
             columns.forEach(function(col) {
                 var cellValue = item[col.name] || '';
-                $row.append('<td>' + cellValue + '</td>');
+                $row.append('<td>' + builder.escapeHtml(cellValue) + '</td>');
             });
             $tbody.append($row);
         });
@@ -1754,7 +1562,7 @@ var controlField = (function () {
             $dropdown.find('tbody input[type="checkbox"]').prop('checked', checked);
             if (checked) {
                 cfg.multiselectSelectedValues = items.map(function(item) {
-                    return item.value || item[columns[0]?.name] || '';
+                    return multiSelectItemValue(cfg, item);
                 });
             } else {
                 cfg.multiselectSelectedValues = [];
@@ -1764,23 +1572,37 @@ var controlField = (function () {
         });
     }
     
-    function updateMultiSelectButton($button, cfg) {
-        var selectedValues = cfg.multiselectSelectedValues || [];
-        var items = cfg.multiselectItems || [];
+    var MULTISELECT_ALL_VALUE = "all";
+    var MULTISELECT_SEPARATOR = "; ";
+
+    function multiSelectItemValue(cfg, item) {
         var columns = cfg.multiselectColumns || [];
-        var displayColumn = columns[0]?.name || 'label';
-        
-        if (selectedValues.length === 0) {
-            $button.find('.core-multiselect-text').text('Select...');
-        } else if (selectedValues.length === 1) {
-            var item = items.find(function(it) {
-                return (it.value || it[columns[0]?.name] || '') === selectedValues[0];
-            });
-            var text = item ? (item[displayColumn] || item.value || selectedValues[0]) : selectedValues[0];
-            $button.find('.core-multiselect-text').text(text);
-        } else {
-            $button.find('.core-multiselect-text').text(selectedValues.length + ' items selected');
+        return item.value || (columns[0] ? item[columns[0].name] : "") || "";
+    }
+
+    function multiSelectItemLabel(cfg, item) {
+        var columns = cfg.multiselectColumns || [];
+        var fields = ["label"].concat(columns.slice(1, 2).map(function (col) { return col.name; }), columns.slice(0, 1).map(function (col) { return col.name; }));
+        for (var i = 0; i < fields.length; i++) {
+            if (item[fields[i]]) return item[fields[i]];
         }
+        return multiSelectItemValue(cfg, item);
+    }
+
+    function multiSelectText(cfg) {
+        var selectedValues = cfg.multiselectSelectedValues || [];
+        var chosen = (cfg.multiselectItems || []).filter(function (item) {
+            return selectedValues.indexOf(multiSelectItemValue(cfg, item)) !== -1;
+        });
+        var all = chosen.filter(function (item) {
+            return String(multiSelectItemValue(cfg, item)).toLowerCase() === MULTISELECT_ALL_VALUE;
+        })[0];
+        if (all) return multiSelectItemLabel(cfg, all);
+        return chosen.map(function (item) { return multiSelectItemLabel(cfg, item); }).join(MULTISELECT_SEPARATOR);
+    }
+
+    function updateMultiSelectButton($button, cfg) {
+        $button.find('.core-multiselect-text').text(multiSelectText(cfg) || 'Select...');
     }
 
     function render(cfg) {
@@ -1799,21 +1621,21 @@ var controlField = (function () {
 
         if (cfg.ftype === "groupbox") {
             $field = $(`
-<div class="canvas-control page-field page-field-groupbox${extraClass}" data-id="${cfg.id}">
-  <div class="page-field-groupbox-title">${cfg.caption != null ? cfg.caption : "Group"}</div>
+<div class="canvas-control page-field page-field-groupbox${extraClass}${cfg.bare ? ' page-field-groupbox-bare' : ''}" data-id="${cfg.id}">
+  <div class="page-field-groupbox-title">${builder.escapeHtml(cfg.caption != null ? cfg.caption : "Group")}</div>
   <div class="page-field-groupbox-content"></div>
   <div class="page-field-resizer"></div>
 </div>`);
         } else if (cfg.ftype === "section") {
             $field = $(`
 <div class="canvas-control page-field page-field-section${extraClass}" data-id="${cfg.id}">
-  <div class="page-field-section-header">${cfg.caption != null ? cfg.caption : "Section"}</div>
+  <div class="page-field-section-header">${builder.escapeHtml(cfg.caption != null ? cfg.caption : "Section")}</div>
   <div class="page-field-section-content"></div>
   <div class="page-field-resizer"></div>
 </div>`);
         } else {
             $field = $(`
-<div class="canvas-control page-field${extraClass}" data-id="${cfg.id}">
+<div class="canvas-control page-field${extraClass}${cfg.ftype === "tree" ? " page-field-tree" : ""}" data-id="${cfg.id}">
   <label class="page-field-caption"></label>
   <div class="page-field-editor"></div>
   <div class="page-field-resizer"></div>
@@ -1850,7 +1672,11 @@ var controlField = (function () {
     </span>
 </div>`);
                     } else {
-                        $editor = $('<input type="date" class="core-date-input" />');
+                        $editor = $(`
+<div class="core-date">
+    <input type="text" class="core-date-input" />
+    <span class="core-date-button"><i class="bi bi-calendar3"></i></span>
+</div>`);
                     }
                     break;
 
@@ -1887,11 +1713,11 @@ var controlField = (function () {
                     break;
                 case "checkbox":
                     $editor = $('<label><input type="checkbox" /> <span>' +
-                        (cfg.defaultValue || "") + '</span></label>');
+                        builder.escapeHtml(cfg.defaultValue || "") + '</span></label>');
                     break;
                 case "radio":
                     $editor = $('<label><input type="radio" /> <span>' +
-                        (cfg.defaultValue || "") + '</span></label>');
+                        builder.escapeHtml(cfg.defaultValue || "") + '</span></label>');
                     break;
                 case "language":
                     $editor = $('<select class="page-lang-select-en"><option>English</option></select>');
@@ -1903,7 +1729,7 @@ var controlField = (function () {
                     // Add icon if exists
                     if (cfg.uiMode === "ess" && cfg.btnIcon && cfg.btnIconType && cfg.btnIconType !== "none") {
                         if (cfg.btnIconType === "glyphicon") {
-                            var $icon = $('<span class="' + cfg.btnIcon + '"></span>');
+                            var $icon = $('<span></span>').addClass(cfg.btnIcon);
                             // Set color for Glyphicon icon to match button border color
                             var iconColor = cfg.btnBorderColor || "#0A75BA";
                             $icon.css({
@@ -1913,7 +1739,7 @@ var controlField = (function () {
                             });
                             $editor.append($icon);
                         } else if (cfg.btnIconType === "menu" && cfg.btnIcon) {
-                            var $icon = $('<img src="' + cfg.btnIcon + '" />');
+                            var $icon = $('<img />').attr("src", cfg.btnIcon);
                             $icon.css({
                                 "width": "16px",
                                 "height": "16px",
@@ -1979,8 +1805,8 @@ var controlField = (function () {
                 case "image":
                     var mode = getImageMode(cfg);
                     var innerHtml = cfg.imageData
-                        ? '<img class="ess-image-img" src="' + cfg.imageData + '" />'
-                        : '<span class="ess-image-placeholder">Drop / paste image</span>';
+                        ? '<img class="ess-image-img" src="' + builder.escapeHtml(cfg.imageData) + '" />'
+                        : '<span class="ess-image-placeholder">Thả hoặc dán ảnh vào đây</span>';
 
                     $editor = $(`
 <div class="ess-image-drop">
@@ -1990,7 +1816,9 @@ var controlField = (function () {
 </div>`);
                     break;
 
-
+                case "tree":
+                    $editor = controlTree.build(cfg);
+                    break;
 
                 default:
                     $editor = $('<input type="text" />');
@@ -1998,6 +1826,9 @@ var controlField = (function () {
             }
 
             // Gán defaultValue cho vài loại đặc biệt
+            if (cfg.ftype === "label") {
+                $editor.css({ "font-weight": cfg.captionBold ? "700" : "", "font-style": cfg.captionItalic ? "italic" : "" });
+            }
             if (cfg.ftype === "label" && cfg.defaultValue) {
                 $editor.text(cfg.defaultValue);
             } else if ((cfg.ftype === "checkbox" || cfg.ftype === "radio") && cfg.defaultValue) {
@@ -2007,11 +1838,7 @@ var controlField = (function () {
             } else if (cfg.ftype === "button" && cfg.defaultValue) {
                 $editor.text(cfg.defaultValue);
             } else if (cfg.ftype === "date" && cfg.defaultValue) {
-                if (cfg.uiMode === "ess") {
-                    $editor.find("input[type='text']").val(cfg.defaultValue);
-                } else {
-                    $editor.val(cfg.defaultValue);
-                }
+                $editor.find("input").val(cfg.defaultValue);
             } else if (!["combo", "multiselect", "checkbox", "radio", "language", "label", "button", "tag", "image", "progress"].includes(cfg.ftype) && cfg.defaultValue) {
                 $editor.val(cfg.defaultValue);
             }
@@ -2063,16 +1890,6 @@ var controlField = (function () {
                     if ($popup.length) {
                         $container = $popup.find(".popup-body").first();
                         if ($container.length) {
-                            // Chỉ convert canvas→relative khi KHÔNG phải restore (khi restore, cfg đã là popup-relative)
-                            var fromRestore = (cfg._fromRestore === true);
-                            if (!fromRestore) {
-                                var popupLeft = parentCfg.left || 0;
-                                var popupTop = parentCfg.top || 0;
-                                var headerH = (parentCfg.headerHeight || 34) + 30;
-                                cfg.left = Math.max(0, (cfg.left || 0) - popupLeft);
-                                cfg.top = Math.max(0, (cfg.top || 0) - popupTop - headerH);
-                            }
-                            delete cfg._fromRestore;
                             $field.css({
                                 position: "absolute",
                                 left: (cfg.left || 0) + "px",
@@ -2098,14 +1915,6 @@ var controlField = (function () {
                         var $content = $gb.find(contentSel).first();
                         if ($content.length) {
                             $container = $content;
-                            if (!cfg._fromRestore) {
-                                var parentLeft = parentCfg.left || 0;
-                                var parentTop = parentCfg.top || 0;
-                                var headerH = 28;
-                                var pad = 8;
-                                cfg.left = Math.max(0, (cfg.left || 0) - parentLeft - pad);
-                                cfg.top = Math.max(0, (cfg.top || 0) - parentTop - headerH - pad);
-                            }
                             $field.css({
                                 position: "absolute",
                                 left: (cfg.left || 0) + "px",
@@ -2167,6 +1976,7 @@ var controlField = (function () {
 
         var fieldInteractable = interact($field[0]);
         var isResizing = false;
+        var resizeStart = null;
         var dragStartTime = 0;
         var dragStartPos = null;
 
@@ -2189,6 +1999,10 @@ var controlField = (function () {
                     
                     dragStartTime = Date.now();
                     dragStartPos = { x: ev.clientX, y: ev.clientY };
+                    if ((cfg.ftype === "groupbox" || cfg.ftype === "section") &&
+                        builder.adoptControlsIntoGroup) {
+                        builder.adoptControlsIntoGroup(cfg.id);
+                    }
                     $field.addClass("page-field-dragging");
                     builder.beginDragSelection(cfg.id);
                 },
@@ -2196,56 +2010,28 @@ var controlField = (function () {
                     // Nếu đang resize thì không drag
                     if (isResizing) return;
 
-                    var dx = ev.dx;
-                    var dy = ev.dy;
-
-                    // --- Không cho kéo ra ngoài top/left của canvas (ruler boundary) ---
-                    var $sel = $("#canvas .page-field.page-field-selected");
-                    if ($sel.length) {
-                        var minLeft = Infinity;
-                        var minTop = Infinity;
-
-                        $sel.each(function () {
-                            var l = parseFloat($(this).css("left")) || 0;
-                            var t = parseFloat($(this).css("top")) || 0;
-                            if (l < minLeft) minLeft = l;
-                            if (t < minTop) minTop = t;
-                        });
-
-                        // Ruler boundary: left >= 20px, top >= 20px (theo margin của canvas)
-                        var rulerLeft = 20;
-                        var rulerTop = 20;
-                        if (minLeft + dx < rulerLeft) dx = rulerLeft - minLeft;
-                        if (minTop + dy < rulerTop) dy = rulerTop - minTop;
-                    } else {
-                        // Nếu không có selection, restrict cho field hiện tại
-                        var curLeft = parseFloat($field.css("left")) || cfg.left || 0;
-                        var curTop = parseFloat($field.css("top")) || cfg.top || 0;
-                        var rulerLeft = 20;
-                        var rulerTop = 20;
-                        if (curLeft + dx < rulerLeft) dx = rulerLeft - curLeft;
-                        if (curTop + dy < rulerTop) dy = rulerTop - curTop;
-                    }
-                    // --------------------------------------------------------
+                    var scale = builder.cssScale();
+                    var dx = ev.dx / scale;
+                    var dy = ev.dy / scale;
 
                     // Di chuyển selection (builder sẽ lo phần auto-extend canvas)
-                    builder.dragSelectionMove(dx, dy);
-                    
+                    var moved = builder.dragSelectionMove(dx, dy) || { dx: dx, dy: dy };
+
                     // ✅ Nếu field thuộc group nhưng không được chọn, di chuyển cả group
                     if (cfg.groupId && builder && typeof builder.moveGroupControls === "function") {
                         // Kiểm tra xem field này có trong _dragSelectionIds không
                         var isInDragSelection = builder._dragSelectionIds && builder._dragSelectionIds.indexOf(cfg.id) >= 0;
                         if (!isInDragSelection) {
                             // Field này không được chọn nhưng thuộc group → di chuyển cả group
-                            builder.moveGroupControls(cfg.groupId, dx, dy);
+                            builder.moveGroupControls(cfg.groupId, moved.dx, moved.dy);
                         }
                     }
                     
                     builder.updateSelectionSizeHint();
                 },
-                end: function () {
+                end: function (ev) {
                     $field.removeClass("page-field-dragging");
-                    updateFieldParent(cfg);
+                    builder.dropDraggedControls(cfg.id, ev);
                     builder.endDragSelection();
                     isResizing = false;
                     dragStartTime = 0;
@@ -2256,34 +2042,33 @@ var controlField = (function () {
 
         // RESIZE - chỉ cho phép từ resize handles
         fieldInteractable.resizable({
-            edges: { left: false, top: false, right: true, bottom: true },
-            // Chỉ cho resize từ các handles
-            allowFrom: ".page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom",
-            // Tăng margin để dễ bắt
-            margin: 5,
+            edges: {
+                right: ".page-field-resizer, .page-field-resize-handle-right",
+                bottom: ".page-field-resizer, .page-field-resize-handle-bottom"
+            },
             listeners: {
                 start: function (ev) {
                     isResizing = true;
+                    resizeStart = { width: cfg.width || $field[0].offsetWidth, height: cfg.height || $field[0].offsetHeight, dw: 0, dh: 0 };
+                    // Khối tự xếp: người dùng chủ động đổi kích thước → thôi tự co giãn chiều cao, nếu không auto-layout sẽ trả về cỡ cũ khi buông chuột.
+                    if (cfg.autoLayout && cfg.autoLayout.autoHeight !== false) {
+                        cfg.autoLayout.autoHeight = false;
+                    }
                 },
                 move: function (ev) {
                     var target = ev.target;
                     var id = $(target).attr("data-id");
                     var cfg = builder.getControlConfig(id);
-                    if (!cfg) return;
+                    if (!cfg || !resizeStart) return;
 
-                    var newW = (cfg.width || target.offsetWidth) + ev.deltaRect.width;
-                    var newH = (cfg.height || target.offsetHeight) + ev.deltaRect.height;
-
-                    if (newW < 40) newW = 40;
-                    if (newH < 20) newH = 20;
-
-                    if (builder.snapEnabled) {
-                        newW = Math.round(newW / builder.snapStep) * builder.snapStep;
-                        newH = Math.round(newH / builder.snapStep) * builder.snapStep;
-                    } else {
-                        newW = Math.round(newW);
-                        newH = Math.round(newH);
-                    }
+                    var scale = builder.cssScale();
+                    resizeStart.dw += ev.deltaRect.width / scale;
+                    resizeStart.dh += ev.deltaRect.height / scale;
+                    var step = builder.snapEnabled ? builder.snapStep : 1;
+                    var newW = resizeStart.width;
+                    var newH = resizeStart.height;
+                    if (resizeStart.dw) newW = Math.max(40, Math.round((resizeStart.width + resizeStart.dw) / step) * step);
+                    if (resizeStart.dh) newH = Math.max(20, Math.round((resizeStart.height + resizeStart.dh) / step) * step);
 
                     cfg.width = newW;
                     cfg.height = newH;
@@ -2368,358 +2153,62 @@ var controlField = (function () {
         var isTag = (cfg.ftype === "tag");
         var isProgress = (cfg.ftype === "progress");
         var isImage = (cfg.ftype === "image");
+        var isTree = (cfg.ftype === "tree");
         var isEssButton = isButton && (cfg.uiMode === "ess");
         var isEssTag = isTag && (cfg.uiMode === "ess");
 
 
-        var imageModeHtml = "";
-        if (isImage) {
-            var imode = cfg.imageMode || "fit";
-            imageModeHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
-                '<div class="ess-col-card-header">' +
-                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🖼️ Image Mode</span>' +
-                '</div>' +
-                '<div class="ess-col-card-body">' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">🖼️</span><strong>Mode:</strong></label>' +
-                '<select id="pfImageMode" class="ess-col-input">' +
-                '<option value="fit"' + (imode === "fit" ? " selected" : "") + '>Fit (contain)</option>' +
-                '<option value="fill"' + (imode === "fill" ? " selected" : "") + '>Fill (cover)</option>' +
-                '<option value="stretch"' + (imode === "stretch" ? " selected" : "") + '>Stretch (distort)</option>' +
-                '<option value="center"' + (imode === "center" ? " selected" : "") + '>Center (original)</option>' +
-                '</select>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
-        }
+        var P = builderProps;
 
         if (isCheckRadio && !cfg.captionPosition) {
             cfg.captionPosition = "left";
         }
 
-        var capPosHtml = "";
+        function hexOr(value, fallback) {
+            return P.hexColor(P.normalizeColor(value), fallback);
+        }
+
+        var general = "";
+        if (!(isButton || isTag || isImage || isProgress || isTree)) {
+            general += P.line(P.field("Nhãn", P.text({ id: "pfCaption", value: cfg.caption != null ? cfg.caption : "" }) + P.toggles(
+                P.toggle({ id: "pfBold", title: "Nhãn in đậm" }, { html: "<b>B</b>" }, cfg.captionBold),
+                P.toggle({ id: "pfItalic", title: "Nhãn in nghiêng" }, { html: "<i>I</i>" }, cfg.captionItalic)), null, "pfCaption"));
+        }
         if (isCheckRadio) {
-            var capPos = cfg.captionPosition || "left";
-            capPosHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
-                '<div class="ess-col-card-header">' +
-                '<span style="font-size:12px; color:#0078d4; font-weight:600;">📍 Caption Position</span>' +
-                '</div>' +
-                '<div class="ess-col-card-body">' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">📍</span><strong>Position:</strong></label>' +
-                '<select id="pfCapPos" class="ess-col-input">' +
-                '<option value="left"' + (capPos === "left" ? " selected" : "") + '>Left of control</option>' +
-                '<option value="right"' + (capPos === "right" ? " selected" : "") + '>Right of control</option>' +
-                '</select>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
+            general += P.line(P.field("Vị trí nhãn", P.select({ id: "pfCapPos" }, [["left", "Bên trái control"], ["right", "Bên phải control"]], cfg.captionPosition || "left"), null, "pfCapPos"));
         }
-
-        var defaultLabel;
-        if (isButton) defaultLabel = "Button text:";
-        else if (isTag) defaultLabel = "Tag text:";
-        else defaultLabel = "Default value:";
-
-        var hideDefaultSection = isContainer || isImage;
-
-        var buttonColorHtml = "";
-        var tagColorHtml = "";
-
-        function normalizeColor(val, fallback) {
-            if (!val) return fallback;
-            val = $.trim(val);
-
-            // "fff" -> "#FFFFFF"
-            if (/^[0-9a-f]{3}$/i.test(val)) {
-                var r = val[0], g = val[1], b = val[2];
-                return ("#" + r + r + g + g + b + b).toUpperCase();
-            }
-
-            // "ffffff" -> "#FFFFFF"
-            if (/^[0-9a-f]{6}$/i.test(val)) {
-                return ("#" + val).toUpperCase();
-            }
-
-            // "#fff" -> "#FFFFFF"
-            if (/^#[0-9a-f]{3}$/i.test(val)) {
-                var r2 = val[1], g2 = val[2], b2 = val[3];
-                return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
-            }
-
-            // "#ffffff" -> "#FFFFFF"
-            if (/^#[0-9a-f]{6}$/i.test(val)) {
-                return val.toUpperCase();
-            }
-
-            return fallback;
+        if (!(isContainer || isImage || isTree)) {
+            general += P.line(P.field(isButton ? "Chữ trên nút" : (isTag ? "Chữ trên tag" : "Giá trị mặc định"),
+                P.text({ id: "pfDefault", value: (cfg.defaultValue !== undefined && cfg.defaultValue !== null) ? cfg.defaultValue : "" }), null, "pfDefault"));
         }
-
-        if (isEssButton) {
-            var back = normalizeColor(cfg.btnBackColor, "#ed120b");
-            var text = normalizeColor(cfg.btnTextColor, "#ffffff");
-            var border = normalizeColor(cfg.btnBorderColor, "#0A75BA");
-
-            cfg.btnBackColor = back;
-            cfg.btnTextColor = text;
-            cfg.btnBorderColor = border;
-
-            buttonColorHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
-                '<div class="ess-col-card-header">' +
-                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🎨 Button Colors</span>' +
-                '</div>' +
-                '<div class="ess-col-card-body">' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">🎨</span><strong>Background:</strong></label>' +
-                '<div style="display:flex; gap:8px; align-items:center;">' +
-                '<input id="pfBtnBackColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + back + '">' +
-                '<input id="pfBtnBackColor" type="text" class="ess-col-input" style="flex:1;" value="' + back + '">' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">🎨</span><strong>Text:</strong></label>' +
-                '<div style="display:flex; gap:8px; align-items:center;">' +
-                '<input id="pfBtnTextColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + text + '">' +
-                '<input id="pfBtnTextColor" type="text" class="ess-col-input" style="flex:1;" value="' + text + '">' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">🎨</span><strong>Border:</strong></label>' +
-                '<div style="display:flex; gap:8px; align-items:center;">' +
-                '<input id="pfBtnBorderColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + border + '">' +
-                '<input id="pfBtnBorderColor" type="text" class="ess-col-input" style="flex:1;" value="' + border + '">' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
+        if (isImage) {
+            general += P.line(P.field("Kiểu hiện ảnh", P.select({ id: "pfImageMode" },
+                [["fit", "Vừa khung (giữ tỉ lệ)"], ["fill", "Lấp đầy (cắt bớt)"], ["stretch", "Kéo giãn"], ["center", "Giữa (cỡ gốc)"]], cfg.imageMode || "fit"), null, "pfImageMode"));
         }
-
-        if (isEssTag) {
-            var tBack = normalizeColor(cfg.tagBackColor, "#0D9EFF");
-            var tText = normalizeColor(cfg.tagTextColor, "#ffffff");
-
-            cfg.tagBackColor = tBack;
-            cfg.tagTextColor = tText;
-
-            tagColorHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
-                '<div class="ess-col-card-header">' +
-                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🏷️ Tag Colors</span>' +
-                '</div>' +
-                '<div class="ess-col-card-body">' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">🏷️</span><strong>Background:</strong></label>' +
-                '<div style="display:flex; gap:8px; align-items:center;">' +
-                '<input id="pfTagBackColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + tBack + '">' +
-                '<input id="pfTagBackColor" type="text" class="ess-col-input" style="flex:1;" value="' + tBack + '">' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">🏷️</span><strong>Text:</strong></label>' +
-                '<div style="display:flex; gap:8px; align-items:center;">' +
-                '<input id="pfTagTextColorPicker" type="color" style="width:50px; height:32px; border:1px solid #ddd; border-radius:4px; cursor:pointer;" value="' + tText + '">' +
-                '<input id="pfTagTextColor" type="text" class="ess-col-input" style="flex:1;" value="' + tText + '">' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
-        }
-
-        var progressHtml = "";
         if (isProgress) {
-            var val = (typeof cfg.progressValue === "number") ? cfg.progressValue : 0;
-            val = Math.max(0, Math.min(100, val));
-            cfg.progressValue = val;
-            progressHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
-                '<div class="ess-col-card-header">' +
-                '<span style="font-size:12px; color:#0078d4; font-weight:600;">📊 Progress</span>' +
-                '</div>' +
-                '<div class="ess-col-card-body">' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                '<label><span style="color:#0078d4;">📊</span><strong>Progress (%):</strong></label>' +
-                '<input id="pfProgressValue" type="number" min="0" max="100" class="ess-col-input" style="max-width:150px;" value="' + val + '" />' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
+            cfg.progressValue = Math.max(0, Math.min(100, typeof cfg.progressValue === "number" ? cfg.progressValue : 0));
+            general += P.line(P.field("Tiến độ (%)", P.number({ id: "pfProgressValue", min: 0, max: 100, value: cfg.progressValue }), "pp-field--num", "pfProgressValue"));
         }
-
-        // Cải cách Properties panel với style chuyên nghiệp
-        var html = [];
-        html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
-        html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Field Properties</h3>');
-        
-        // Basic Info Card
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div style="display:grid; grid-template-columns: auto 1fr; gap:8px 12px; font-size:11px;">');
-        html.push('<span style="color:#666;">ID:</span><span style="color:#333; font-weight:500;">' + cfg.id + '</span>');
-        html.push('<span style="color:#666;">Type:</span><span style="color:#333; font-weight:500;">' + cfg.ftype + '</span>');
-        html.push('<span style="color:#666;">UI mode:</span><span style="color:#333; font-weight:500;">' + (cfg.uiMode || "core") + '</span>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        
-        // Caption Section
-        if (!(isButton || isTag || isImage || isProgress)) {
-            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-            html.push('<div class="ess-col-card-header">');
-            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📝 Caption</span>');
-            html.push('</div>');
-            html.push('<div class="ess-col-card-body">');
-            // Caption input - label và input cùng hàng
-            html.push('<div class="ess-col-row">');
-            html.push('<div class="ess-col-field ess-col-field-full">');
-            html.push('<label><span style="color:#0078d4;">📝</span><strong>Caption:</strong></label>');
-            html.push('<input id="pfCaption" type="text" class="ess-col-input" value="' + (cfg.caption != null ? cfg.caption : "") + '" />');
-            html.push('</div>');
-            html.push('</div>');
-            // Bold và Italic cùng hàng
-            html.push('<div class="ess-col-row" style="margin-top:8px;">');
-            html.push('<div class="ess-col-field">');
-            html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfBold" ' + (cfg.captionBold ? "checked" : "") + '/><strong>Bold</strong></label>');
-            html.push('</div>');
-            html.push('<div class="ess-col-field">');
-            html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfItalic" ' + (cfg.captionItalic ? "checked" : "") + '/><i>Italic</i></label>');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>');
-        }
-        
-        // Options Section - Required và Disabled cùng hàng
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">⚙️ Options</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div class="ess-col-row">');
-        if (!(isButton || isTag || isImage || isProgress || isContainer)) {
-            html.push('<div class="ess-col-field">');
-            html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfRequired" ' + (cfg.required ? "checked" : "") + '/><strong>Required</strong></label>');
-            html.push('</div>');
-        }
-        html.push('<div class="ess-col-field">');
-        html.push('<label style="display:flex; align-items:center; gap:6px; padding:8px; background:#fafafa; border-radius:4px; cursor:pointer;"><input type="checkbox" id="pfDisabled" ' + (cfg.disabled ? "checked" : "") + '/><strong>Disabled</strong></label>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        
-        // Caption Position (for checkbox/radio)
-        if (capPosHtml) {
-            html.push(capPosHtml);
-        }
-        
-        // Default Value Section - Label và input cùng hàng
-        if (!hideDefaultSection) {
-            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-            html.push('<div class="ess-col-card-header">');
-            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">💬 Default Value</span>');
-            html.push('</div>');
-            html.push('<div class="ess-col-card-body">');
-            html.push('<div class="ess-col-row">');
-            html.push('<div class="ess-col-field ess-col-field-full">');
-            html.push('<label><span style="color:#0078d4;">💬</span><strong>' + defaultLabel + '</strong></label>');
-            html.push('<input id="pfDefault" type="text" class="ess-col-input" value="' + ((cfg.defaultValue !== undefined && cfg.defaultValue !== null) ? cfg.defaultValue : "") + '" />');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>');
-        }
-        
-        // ESS Button Icon Selection
-        var buttonIconHtml = "";
-        if (isEssButton) {
-            var currentIcon = cfg.btnIcon || "";
-            var iconType = cfg.btnIconType || ""; // "menu" or "glyphicon" or ""
-            var iconPreview = "";
-            var iconTypeText = "";
-            var iconName = ""; // Original icon name
-            
-            if (currentIcon && iconType) {
-                if (iconType === "glyphicon") {
-                    iconPreview = '<span class="' + currentIcon + '" style="font-size:24px;"></span>';
-                    iconTypeText = "Bootstrap Glyphicon";
-                    // Find icon name from BOOTSTRAP_GLYPHICON_LIST
-                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
-                        return icon.class === currentIcon;
-                    });
-                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : currentIcon;
-                } else if (iconType === "menu") {
-                    iconPreview = '<img src="' + currentIcon + '" style="width:24px;height:24px;" />';
-                    iconTypeText = "Menu Icons";
-                    // Find icon name from MENU_ICON_LIST
-                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                        return icon.value === currentIcon;
-                    });
-                    iconName = menuItem ? menuItem.text : (currentIcon.split('/').pop() || currentIcon);
-                }
-            }
-            
-            buttonIconHtml = '<div class="ess-col-card" style="margin-bottom:12px;">' +
-                '<div class="ess-col-card-header">' +
-                '<span style="font-size:12px; color:#0078d4; font-weight:600;">🖼️ Button Icon</span>' +
-                '</div>' +
-                '<div class="ess-col-card-body">' +
-                '<div class="ess-col-row">' +
-                '<div class="ess-col-field ess-col-field-full">' +
-                (iconTypeText ? '<div id="btnIconTypeLabel" style="margin-bottom:6px; font-size:11px; color:#0078d4; font-weight:600;">' + iconTypeText + '</div>' : '<div id="btnIconTypeLabel" style="margin-bottom:6px; font-size:11px; color:#0078d4; font-weight:600; display:none;"></div>') +
-                '<div id="btnIconPreview" style="margin-bottom:8px; padding:12px; background:#f5f5f5; border-radius:4px; min-height:48px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;">' +
-                (iconPreview || '<span style="color:#999; font-size:11px;">No icon selected</span>') +
-                (iconName ? '<span style="font-size:10px; color:#666; margin-top:4px; text-align:center;">' + iconName + '</span>' : '') +
-                '</div>' +
-                '<div style="display:flex; gap:8px;">' +
-                '<button type="button" id="btnBrowseIcon" class="ess-btn-primary" style="flex:1; padding:6px 12px;">Browse...</button>' +
-                (currentIcon ? '<button type="button" id="btnRemoveIcon" class="ess-btn-secondary" style="padding:6px 12px; background:#ff4444; color:#fff; border:none;">Remove</button>' : '') +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>' +
-                '</div>';
-        }
-        
-        // Image Mode, Progress, Items
-        if (imageModeHtml) html.push(imageModeHtml);
-        if (progressHtml) html.push(progressHtml);
-        if (buttonIconHtml) html.push(buttonIconHtml);
         if (isCombo) {
-            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-            html.push('<div class="ess-col-card-header">');
-            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📋 Items</span>');
-            html.push('</div>');
-            html.push('<div class="ess-col-card-body">');
-            html.push('<label style="display:block; margin-bottom:6px; font-size:11px; color:#666;">Items (one per line):</label>');
-            var itemsText = (cfg.items || []).map(function(item) {
-                return typeof item === "string" ? item : (item.text || item.value || "");
-            }).join("\n");
-            html.push('<textarea id="pfItems" class="ess-col-input" style="min-height:80px; resize:vertical; font-family:monospace;">' + itemsText + '</textarea>');
-            html.push('</div>');
-            html.push('</div>');
+            general += P.line(P.field("Danh sách giá trị (mỗi dòng một giá trị)", P.textarea({ id: "pfItems", rows: 4, "class": "pp-input--mono" },
+                (cfg.items || []).map(function (item) { return typeof item === "string" ? item : (item.text || item.value || ""); }).join("\n")), "pp-field--stack", "pfItems"));
         }
-        
+        var states = [];
+        if (!(isButton || isTag || isImage || isProgress || isContainer || isTree)) states.push(P.check({ id: "pfRequired" }, "Bắt buộc", cfg.required));
+        states.push(P.check({ id: "pfDisabled" }, "Khóa", cfg.disabled));
+        general += P.checks(states);
+
+        var sections = P.section("Chung", general);
+
+        var buttonIcon = { icon: cfg.btnIcon || "", iconType: cfg.btnIconType || "" };
+        if (isEssButton) sections += P.section("Biểu tượng nút", P.iconEditor(buttonIcon, "button", { color: false }));
+        if (isTree) sections += controlTree.propertiesHtml(cfg);
+
         // Multi-select configuration - User-friendly form for BA
         if (isMultiSelect) {
             var columns = cfg.multiselectColumns || [];
             var items = cfg.multiselectItems || [];
-            
+
             // Ensure all columns have auto-generated names
             columns.forEach(function(col, idx) {
                 if (!col.name || col.name === '') {
@@ -2736,137 +2225,82 @@ var controlField = (function () {
                     col.name = 'name-' + (maxNum + idx + 1);
                 }
             });
-            
-            // Columns section with form inputs (only Caption and Width visible)
-            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-            html.push('<div class="ess-col-card-header" style="display:flex; justify-content:space-between; align-items:center;">');
-            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📊 Columns</span>');
-            html.push('<button type="button" id="btnAddColumn" class="ess-btn-primary" style="padding:4px 12px; font-size:11px;">＋ Add Column</button>');
-            html.push('</div>');
-            html.push('<div class="ess-col-card-body">');
-            html.push('<div id="multiselectColumnsList" style="max-height:300px; overflow-y:auto;">');
-            columns.forEach(function(col, idx) {
-                html.push('<div class="multiselect-column-item" data-index="' + idx + '" style="border:1px solid #e0e0e0; border-radius:4px; padding:8px; margin-bottom:8px; background:#fafafa;">');
-                html.push('<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">');
-                html.push('<strong style="font-size:11px; color:#0078d4;">Column ' + (idx + 1) + '</strong>');
-                html.push('<button type="button" class="btnDeleteColumn" data-index="' + idx + '" style="background:#ff4444; color:white; border:none; padding:2px 8px; border-radius:3px; cursor:pointer; font-size:10px;">Delete</button>');
-                html.push('</div>');
-                html.push('<div class="ess-col-row" style="margin-bottom:6px;">');
-                html.push('<div class="ess-col-field" style="flex:1; margin-right:6px;">');
-                html.push('<label style="font-size:11px; color:#666;">Caption:</label>');
-                html.push('<input type="text" class="ess-col-input column-caption" data-index="' + idx + '" value="' + (col.caption || '').replace(/"/g, '&quot;') + '" placeholder="Column caption" style="font-size:11px; padding:4px;" />');
-                html.push('</div>');
-                html.push('<div class="ess-col-field" style="flex:0 0 100px;">');
-                html.push('<label style="font-size:11px; color:#666;">Width:</label>');
-                html.push('<input type="number" class="ess-col-input column-width" data-index="' + idx + '" value="' + (col.width || 150) + '" placeholder="150" style="font-size:11px; padding:4px;" />');
-                html.push('</div>');
-                html.push('</div>');
-                // Hidden field to store auto-generated name
-                html.push('<input type="hidden" class="column-name" data-index="' + idx + '" value="' + (col.name || '').replace(/"/g, '&quot;') + '" />');
-                html.push('</div>');
-            });
-            if (columns.length === 0) {
-                html.push('<div style="padding:12px; text-align:center; color:#999; font-size:11px;">No columns yet. Click "Add Column" to add one.</div>');
-            }
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>');
-            
-            // Items section with form inputs
-            html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-            html.push('<div class="ess-col-card-header" style="display:flex; justify-content:space-between; align-items:center;">');
-            html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📋 Items</span>');
-            html.push('<button type="button" id="btnAddItem" class="ess-btn-primary" style="padding:4px 12px; font-size:11px;">＋ Add Item</button>');
-            html.push('</div>');
-            html.push('<div class="ess-col-card-body">');
-            html.push('<div id="multiselectItemsList" style="max-height:400px; overflow-y:auto;">');
-            items.forEach(function(item, idx) {
-                html.push('<div class="multiselect-item-item" data-index="' + idx + '" style="border:1px solid #e0e0e0; border-radius:4px; padding:8px; margin-bottom:8px; background:#fafafa;">');
-                html.push('<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">');
-                html.push('<strong style="font-size:11px; color:#0078d4;">Item ' + (idx + 1) + '</strong>');
-                html.push('<button type="button" class="btnDeleteItem" data-index="' + idx + '" style="background:#ff4444; color:white; border:none; padding:2px 8px; border-radius:3px; cursor:pointer; font-size:10px;">Delete</button>');
-                html.push('</div>');
-                // Dynamic fields based on columns
-                columns.forEach(function(col) {
-                    html.push('<div class="ess-col-row" style="margin-bottom:6px;">');
-                    html.push('<div class="ess-col-field ess-col-field-full">');
-                    html.push('<label style="font-size:11px; color:#666;">' + (col.caption || col.name) + ':</label>');
-                    html.push('<input type="text" class="ess-col-input item-field" data-index="' + idx + '" data-field="' + col.name + '" value="' + (item[col.name] || '') + '" placeholder="' + (col.caption || col.name) + '" style="font-size:11px; padding:4px;" />');
-                    html.push('</div>');
-                    html.push('</div>');
-                });
-                // If no columns, show default value and label fields
-                if (columns.length === 0) {
-                    html.push('<div class="ess-col-row" style="margin-bottom:6px;">');
-                    html.push('<div class="ess-col-field" style="flex:1; margin-right:6px;">');
-                    html.push('<label style="font-size:11px; color:#666;">Value:</label>');
-                    html.push('<input type="text" class="ess-col-input item-field" data-index="' + idx + '" data-field="value" value="' + (item.value || '') + '" placeholder="value" style="font-size:11px; padding:4px;" />');
-                    html.push('</div>');
-                    html.push('<div class="ess-col-field" style="flex:1;">');
-                    html.push('<label style="font-size:11px; color:#666;">Label:</label>');
-                    html.push('<input type="text" class="ess-col-input item-field" data-index="' + idx + '" data-field="label" value="' + (item.label || '') + '" placeholder="Label" style="font-size:11px; padding:4px;" />');
-                    html.push('</div>');
-                    html.push('</div>');
-                }
-                html.push('</div>');
-            });
-            if (items.length === 0) {
-                html.push('<div style="padding:12px; text-align:center; color:#999; font-size:11px;">No items yet. Click "Add Item" to add one.</div>');
-            }
-            html.push('</div>');
-            html.push('</div>');
-            html.push('</div>');
-        }
-        
-        // Size & Position Section
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Size & Position</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        // Width và Height cùng hàng
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-width">');
-        html.push('<label><span style="color:#0078d4;">📐</span><strong>Width:</strong></label>');
-        html.push('<input id="pfWidth" type="number" class="ess-col-input" value="' + cfg.width + '" />');
-        html.push('</div>');
-        html.push('<div class="ess-col-field ess-col-field-width">');
-        html.push('<label><span style="color:#0078d4;">📐</span><strong>Height:</strong></label>');
-        html.push('<input id="pfHeight" type="number" class="ess-col-input" value="' + cfg.height + '" />');
-        html.push('</div>');
-        html.push('</div>');
-        // Caption Width và Z-index cùng hàng
-        html.push('<div class="ess-col-row">');
-        if (!(isContainer || cfg.ftype === "language" || isButton || isTag || isImage || isProgress)) {
-            html.push('<div class="ess-col-field ess-col-field-width">');
-            html.push('<label><span style="color:#0078d4;">📏</span><strong>Caption width:</strong></label>');
-            html.push('<input id="pfLabelWidth" type="number" class="ess-col-input" value="' + (cfg.labelWidth || 120) + '" />');
-            html.push('</div>');
-        }
-        html.push('<div class="ess-col-field ess-col-field-width">');
-        html.push('<label><span style="color:#0078d4;">🔢</span><strong>Z-index:</strong></label>');
-        html.push('<input id="pfZIndex" type="number" class="ess-col-input" value="' + (cfg.zIndex != null ? cfg.zIndex : "") + '" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        
-        // Button/Tag Colors
-        if (buttonColorHtml) html.push(buttonColorHtml);
-        if (tagColorHtml) html.push(tagColorHtml);
-        
-        // Save Button
-        html.push('<div class="ess-col-card">');
-        html.push('<button type="button" class="ess-btn-primary" style="width:100%;" onclick="builder.saveControlToServer(\'' + cfg.id + '\')">💾 Lưu control này vào DB</button>');
-        html.push('</div>');
-        
-        html.push('</div>'); // Close ess-prop-tab-content
-        
-        var htmlStr = html.join('');
 
-        $("#propPanel").html(htmlStr);
+            var columnRows = columns.map(function (col, idx) {
+                return P.row({
+                    attrs: { "class": "pp-cols-ms multiselect-column-item", "data-index": idx },
+                    head: P.rowNo(idx + 1) +
+                        P.text({ "class": "column-caption", "data-index": idx, value: col.caption || "", placeholder: "Tiêu đề cột" }) +
+                        P.number({ "class": "column-width", "data-index": idx, value: col.width || 150, placeholder: "150", title: "Độ rộng cột" }) +
+                        '<input type="hidden" class="column-name" data-index="' + idx + '" value="' + P.esc(col.name || "") + '" />',
+                    tools: P.iconButton({ "class": "pp-icon-btn--danger btnDeleteColumn", "data-index": idx, title: "Xóa cột" }, "×")
+                });
+            }).join("");
+
+            var itemLabels = columns.length ? columns.map(function (col) { return col.caption || col.name; }) : ["Giá trị", "Nhãn"];
+            var itemRows = items.map(function (item, idx) {
+                var fields = columns.length
+                    ? columns.map(function (col) {
+                        return P.text({ "class": "item-field", "data-index": idx, "data-field": col.name, value: item[col.name] || "", placeholder: col.caption || col.name, title: col.caption || col.name });
+                    }).join("")
+                    : P.text({ "class": "item-field", "data-index": idx, "data-field": "value", value: item.value || "", placeholder: "value", title: "Giá trị" }) +
+                      P.text({ "class": "item-field", "data-index": idx, "data-field": "label", value: item.label || "", placeholder: "Nhãn", title: "Nhãn" });
+                return P.row({
+                    attrs: { "class": "pp-row--fluid multiselect-item-item", "data-index": idx },
+                    head: P.rowNo(idx + 1) + fields,
+                    tools: P.iconButton({ "class": "pp-icon-btn--danger btnDeleteItem", "data-index": idx, title: "Xóa dòng" }, "×")
+                });
+            }).join("");
+
+            sections += P.section("Cột",
+                P.rows({ id: "multiselectColumnsList", "class": "pp-list--scroll" },
+                    columns.length ? P.listHead("pp-cols-ms", ["#", "Tiêu đề cột", "Rộng", ""]) + columnRows : P.empty('Chưa có cột. Bấm "Thêm cột" để thêm.')),
+                { count: columns.length, action: P.button({ id: "btnAddColumn", "class": "pp-btn--primary pp-btn--small" }, "＋ Thêm cột") });
+            sections += P.section("Danh sách giá trị",
+                P.rows({ id: "multiselectItemsList", "class": "pp-list--scroll" },
+                    items.length ? P.listHead("pp-row--fluid", ["#"].concat(itemLabels, [""])) + itemRows : P.empty('Chưa có dòng. Bấm "Thêm dòng" để thêm.')),
+                { count: items.length, action: P.button({ id: "btnAddItem", "class": "pp-btn--primary pp-btn--small" }, "＋ Thêm dòng") });
+        }
+
+        var size = [
+            P.field("Rộng", P.number({ id: "pfWidth", value: cfg.width }), "pp-field--num", "pfWidth"),
+            P.field("Cao", P.number({ id: "pfHeight", value: cfg.height }), "pp-field--num", "pfHeight")
+        ];
+        if (!(isContainer || cfg.ftype === "language" || isButton || isTag || isImage || isProgress || isTree)) {
+            size.push(P.field("Rộng nhãn", P.number({ id: "pfLabelWidth", value: cfg.labelWidth || 120 }), "pp-field--num", "pfLabelWidth"));
+        }
+        size.push(P.field("Z-index", P.number({ id: "pfZIndex", value: cfg.zIndex != null ? cfg.zIndex : "" }), "pp-field--num", "pfZIndex"));
+        sections += P.section("Kích thước và vị trí", P.grid.apply(null, size));
+
+        if (isEssButton) {
+            cfg.btnBackColor = hexOr(cfg.btnBackColor, "#ed120b");
+            cfg.btnTextColor = hexOr(cfg.btnTextColor, "#ffffff");
+            cfg.btnBorderColor = hexOr(cfg.btnBorderColor, "#0A75BA");
+            sections += P.section("Màu nút", P.grid(
+                P.field("Nền", P.color({ id: "pfBtnBackColorPicker" }, { id: "pfBtnBackColor" }, cfg.btnBackColor)),
+                P.field("Chữ", P.color({ id: "pfBtnTextColorPicker" }, { id: "pfBtnTextColor" }, cfg.btnTextColor)),
+                P.field("Viền", P.color({ id: "pfBtnBorderColorPicker" }, { id: "pfBtnBorderColor" }, cfg.btnBorderColor))));
+        }
+        if (isEssTag) {
+            cfg.tagBackColor = hexOr(cfg.tagBackColor, "#0D9EFF");
+            cfg.tagTextColor = hexOr(cfg.tagTextColor, "#ffffff");
+            sections += P.section("Màu tag", P.grid(
+                P.field("Nền", P.color({ id: "pfTagBackColorPicker" }, { id: "pfTagBackColor" }, cfg.tagBackColor)),
+                P.field("Chữ", P.color({ id: "pfTagTextColorPicker" }, { id: "pfTagTextColor" }, cfg.tagTextColor))));
+        }
+
+        P.render(P.panel("Thuộc tính field", "Loại: " + cfg.ftype + " · Giao diện: " + (cfg.uiMode || "core") + " · ID: " + cfg.id, sections, P.saveButton(cfg.id)));
 
         var $dom = $('.canvas-control[data-id="' + cfg.id + '"]');
+
+        function bindColor(textSelector, key, apply) {
+            P.onColor(textSelector, function (value) {
+                if (!value) return;
+                cfg[key] = value;
+                apply();
+                builder.refreshJson();
+            });
+        }
 
         // ====== ESS BUTTON COLOR BINDING ======
         if (isEssButton) {
@@ -2898,63 +2332,9 @@ var controlField = (function () {
                 }
             }
 
-            function bindColorPair(txtSel, pickSel, cfgKey) {
-                var $txt = $(txtSel);
-                var $pick = $(pickSel);
-
-                function normalize(val) {
-                    if (!val) return "";
-                    val = $.trim(val);
-
-                    // "fff" / "ffffff"
-                    if (/^[0-9a-f]{3}$/i.test(val)) {
-                        var r = val[0], g = val[1], b = val[2];
-                        return ("#" + r + r + g + g + b + b).toUpperCase();
-                    }
-                    if (/^[0-9a-f]{6}$/i.test(val)) {
-                        return ("#" + val).toUpperCase();
-                    }
-
-                    // "#fff" / "#ffffff"
-                    if (/^#[0-9a-f]{3}$/i.test(val)) {
-                        var r2 = val[1], g2 = val[2], b2 = val[3];
-                        return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
-                    }
-                    if (/^#[0-9a-f]{6}$/i.test(val)) {
-                        return val.toUpperCase();
-                    }
-
-                    return val; // format lạ thì để nguyên
-                }
-
-                if ($txt.length) {
-                    $txt.on("change blur", function () {
-                        var v = normalize($(this).val());
-                        if (!v) return;
-                        cfg[cfgKey] = v;
-                        if ($pick.length && /^#[0-9a-f]{6}$/i.test(v)) {
-                            $pick.val(v);
-                        }
-                        applyEssBtnColors();
-                        builder.refreshJson();
-                    });
-                }
-
-                if ($pick.length) {
-                    $pick.on("input change", function () {
-                        var v = normalize($(this).val());
-                        if (!v) return;
-                        cfg[cfgKey] = v;
-                        if ($txt.length) $txt.val(v);
-                        applyEssBtnColors();
-                        builder.refreshJson();
-                    });
-                }
-            }
-
-            bindColorPair("#pfBtnBackColor", "#pfBtnBackColorPicker", "btnBackColor");
-            bindColorPair("#pfBtnTextColor", "#pfBtnTextColorPicker", "btnTextColor");
-            bindColorPair("#pfBtnBorderColor", "#pfBtnBorderColorPicker", "btnBorderColor");
+            bindColor("#pfBtnBackColor", "btnBackColor", applyEssBtnColors);
+            bindColor("#pfBtnTextColor", "btnTextColor", applyEssBtnColors);
+            bindColor("#pfBtnBorderColor", "btnBorderColor", applyEssBtnColors);
 
             // áp màu lần đầu
             applyEssBtnColors();
@@ -2993,80 +2373,15 @@ var controlField = (function () {
                 builder.refreshJson();
             }
             
-            function updateIconPreview() {
-                var iconType = cfg.btnIconType || "";
-                var iconValue = cfg.btnIcon || "";
-                var $preview = $("#btnIconPreview");
-                var $iconTypeLabel = $("#btnIconTypeLabel");
-                
-                if (!iconValue || !iconType) {
-                    $preview.html('<span style="color:#999; font-size:11px;">No icon selected</span>');
-                    if ($iconTypeLabel.length) {
-                        $iconTypeLabel.hide();
-                    }
-                    // Hide Remove button if no icon
-                    $("#btnRemoveIcon").hide();
-                    return;
+            P.bindIcons("#propPanel .pp-body", {
+                item: function () { return buttonIcon; },
+                changed: function () {
+                    cfg.btnIcon = buttonIcon.icon;
+                    cfg.btnIconType = buttonIcon.iconType;
+                    updateButtonIcon();
+                    showProperties(cfg);
                 }
-                
-                var iconHtml = "";
-                var iconTypeText = "";
-                var iconName = "";
-                
-                if (iconType === "glyphicon") {
-                    iconHtml = '<span class="' + iconValue + '" style="font-size:24px;"></span>';
-                    iconTypeText = "Bootstrap Glyphicon";
-                    // Find icon name from BOOTSTRAP_GLYPHICON_LIST
-                    var glyphiconItem = (window.BOOTSTRAP_GLYPHICON_LIST || []).find(function(icon) {
-                        return icon.class === iconValue;
-                    });
-                    iconName = glyphiconItem ? (glyphiconItem.description || glyphiconItem.class) : iconValue;
-                } else if (iconType === "menu" && iconValue) {
-                    iconHtml = '<img src="' + iconValue + '" style="width:24px;height:24px;" />';
-                    iconTypeText = "Menu Icons";
-                    // Find icon name from MENU_ICON_LIST
-                    var menuItem = (window.MENU_ICON_LIST || []).find(function(icon) {
-                        return icon.value === iconValue;
-                    });
-                    iconName = menuItem ? menuItem.text : (iconValue.split('/').pop() || iconValue);
-                }
-                
-                // Update icon type label
-                if ($iconTypeLabel.length) {
-                    $iconTypeLabel.text(iconTypeText).show();
-                }
-                
-                $preview.html(iconHtml + (iconName ? '<span style="font-size:10px; color:#666; margin-top:4px; text-align:center;">' + iconName + '</span>' : ''));
-                // Show Remove button if has icon
-                $("#btnRemoveIcon").show();
-            }
-            
-            // Browse Icon button
-            $("#btnBrowseIcon").off("click").on("click", function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                showIconPicker();
             });
-            
-            // Remove Icon button
-            $("#btnRemoveIcon").off("click").on("click", function(e) {
-                e.stopPropagation();
-                e.preventDefault();
-                cfg.btnIcon = "";
-                cfg.btnIconType = "";
-                
-                // Hide icon type label when removing icon
-                var $iconTypeLabel = $("#btnIconTypeLabel");
-                if ($iconTypeLabel.length) {
-                    $iconTypeLabel.hide();
-                }
-                
-                updateIconPreview();
-                updateButtonIcon();
-            });
-            
-            // Update preview on load
-            updateIconPreview();
         }
 
         // ====== ESS TAG COLOR BINDING ======
@@ -3082,58 +2397,8 @@ var controlField = (function () {
                 });
             }
 
-            function bindTagColorPair(txtSel, pickSel, cfgKey) {
-                var $txt = $(txtSel);
-                var $pick = $(pickSel);
-
-                function normalize(val) {
-                    if (!val) return "";
-                    val = $.trim(val);
-
-                    if (/^[0-9a-f]{3}$/i.test(val)) {
-                        var r = val[0], g = val[1], b = val[2];
-                        return ("#" + r + r + g + g + b + b).toUpperCase();
-                    }
-                    if (/^[0-9a-f]{6}$/i.test(val)) {
-                        return ("#" + val).toUpperCase();
-                    }
-                    if (/^#[0-9a-f]{3}$/i.test(val)) {
-                        var r2 = val[1], g2 = val[2], b2 = val[3];
-                        return ("#" + r2 + r2 + g2 + g2 + b2 + b2).toUpperCase();
-                    }
-                    if (/^#[0-9a-f]{6}$/i.test(val)) {
-                        return val.toUpperCase();
-                    }
-                    return val;
-                }
-
-                if ($txt.length) {
-                    $txt.on("change blur", function () {
-                        var v = normalize($(this).val());
-                        if (!v) return;
-                        cfg[cfgKey] = v;
-                        if ($pick.length && /^#[0-9a-f]{6}$/i.test(v)) {
-                            $pick.val(v);
-                        }
-                        applyEssTagColors();
-                        builder.refreshJson();
-                    });
-                }
-
-                if ($pick.length) {
-                    $pick.on("input change", function () {
-                        var v = normalize($(this).val());
-                        if (!v) return;
-                        cfg[cfgKey] = v;
-                        if ($txt.length) $txt.val(v);
-                        applyEssTagColors();
-                        builder.refreshJson();
-                    });
-                }
-            }
-
-            bindTagColorPair("#pfTagBackColor", "#pfTagBackColorPicker", "tagBackColor");
-            bindTagColorPair("#pfTagTextColor", "#pfTagTextColorPicker", "tagTextColor");
+            bindColor("#pfTagBackColor", "tagBackColor", applyEssTagColors);
+            bindColor("#pfTagTextColor", "tagTextColor", applyEssTagColors);
 
             applyEssTagColors();
         }
@@ -3160,6 +2425,7 @@ var controlField = (function () {
             cfg.captionBold = this.checked;
             $dom.find(".page-field-caption")
                 .css("font-weight", cfg.captionBold ? "700" : "normal");
+            if (cfg.ftype === "label") $dom.find(".page-field-editor > span").css("font-weight", cfg.captionBold ? "700" : "");
             builder.refreshJson();
         });
 
@@ -3167,6 +2433,7 @@ var controlField = (function () {
             cfg.captionItalic = this.checked;
             $dom.find(".page-field-caption")
                 .css("font-style", cfg.captionItalic ? "italic" : "normal");
+            if (cfg.ftype === "label") $dom.find(".page-field-editor > span").css("font-style", cfg.captionItalic ? "italic" : "");
             builder.refreshJson();
         });
 
@@ -3383,6 +2650,8 @@ var controlField = (function () {
             });
         }
 
+        if (isTree) controlTree.bindProperties(cfg);
+
         if (isImage) {
             $("#pfImageMode").on("change", function () {
                 cfg.imageMode = this.value || "fit";
@@ -3453,53 +2722,14 @@ var controlField = (function () {
     }
 
     return {
-        addNew: function (ftype, uiMode, parentId, dropPoint) {
+        addNew: function (ftype, uiMode, dropPoint) {
             if (!ftype) ftype = "text";
             uiMode = uiMode || "core";
 
             var cfg = newConfig(ftype, uiMode);
             
-            // ✅ Nếu có dropPoint, convert về tọa độ canvas và set vị trí
-            if (dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
-                if (window.builder && typeof builder.clientToCanvasPoint === "function") {
-                    var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
-                    cfg.left = canvasPoint.x;
-                    cfg.top = canvasPoint.y;
-                }
-            }
-            
-            // ✅ Nếu drop vào container → gán parentId và điều chỉnh vị trí (groupbox/section > collapsible-section > popup)
-            if (parentId) {
-                var parentCfg = (builder.controls || []).find(function(c) { return c.id === parentId; });
-                if (parentCfg && parentCfg.type === "field" &&
-                    (parentCfg.ftype === "groupbox" || parentCfg.ftype === "section") && dropPoint) {
-                    // Drop vào groupbox/section → control nằm trong content, không bị popup đè
-                    cfg.parentId = parentId;
-                    var $content = $('.page-field-groupbox[data-id="' + parentId + '"], .page-field-section[data-id="' + parentId + '"], .popup-groupbox[data-id="' + parentId + '"], .popup-section[data-id="' + parentId + '"]')
-                        .find(".page-field-groupbox-content, .page-field-section-content").first();
-                    if ($content.length) {
-                        var contentRect = $content[0].getBoundingClientRect();
-                        cfg.left = Math.max(0, dropPoint.clientX - contentRect.left);
-                        cfg.top = Math.max(0, dropPoint.clientY - contentRect.top);
-                    }
-                } else if (parentCfg && parentCfg.type === "collapsible-section" && dropPoint) {
-                    cfg.parentId = parentId;
-                    var headerHeight = 50;
-                    var contentPadding = parentCfg.contentPadding || 12;
-                    if (window.builder && typeof builder.clientToCanvasPoint === "function") {
-                        var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
-                        cfg.left = Math.max(0, canvasPoint.x - (parentCfg.left || 0) - contentPadding);
-                        cfg.top = Math.max(0, canvasPoint.y - (parentCfg.top || 0) - headerHeight - contentPadding);
-                    }
-                } else if (parentCfg && parentCfg.type === "popup" && dropPoint) {
-                    cfg.parentId = parentId;
-                    var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
-                    var headerH = (parentCfg.headerHeight || 34) + 30;
-                    cfg.left = Math.max(0, canvasPoint.x - (parentCfg.left || 0));
-                    cfg.top = Math.max(0, canvasPoint.y - (parentCfg.top || 0) - headerH);
-                }
-            }
-            
+            builder.placeAtDropPoint(cfg, dropPoint);
+
             render(cfg);
             builder.registerControl(cfg);
 
@@ -3514,8 +2744,11 @@ var controlField = (function () {
             render(cfg);
         },
 
+        changeType: changeFieldType,
+        showProperties: showProperties,
+        updateParent: updateFieldParent,
+
         deleteWithChildren: deleteFieldWithChildren,
-        moveDescendants: moveDescendants,
         applyTabVisibilityFor: applyTabVisibilityFor,
 
         // ==== multi-select helpers ====

@@ -4,7 +4,7 @@
 <html>
 <head runat="server">
     <title>Quên mật khẩu - HR Helper</title>
-    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.1") %>" />
+    <link rel="stylesheet" href="<%= ResolveUrl("~/Content/login.css?v=1.0.0.3") %>" />
     <style>
         .btn-submit { background: rgba(10, 117, 186, 1) !important; color: #fff; width: 100%; padding: 11px 16px; border-radius: 3px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: opacity 0.15s; }
         .btn-submit:hover:not(:disabled) { opacity: 0.95; }
@@ -20,6 +20,7 @@
         .loading-overlay .spinner-full { width: 48px; height: 48px; border: 4px solid rgba(10, 117, 186, 0.2); border-top-color: rgba(10, 117, 186, 1); border-radius: 50%; animation: spin 0.8s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
     </style>
+    <script src="<%= ResolveUrl("~/Scripts/ba-i18n.js") %>?v=20261132"></script>
 </head>
 <body class="login-body">
     <form id="form1" runat="server">
@@ -28,6 +29,7 @@
         </div>
         <div class="login-wrapper">
             <div class="login-left">
+                <div class="login-lang"><span class="ba-lang-switch" data-ba-lang-switch></span></div>
                 <div class="login-content">
                     <h1 class="login-title">Quên mật khẩu</h1>
                     <p class="login-subtitle">

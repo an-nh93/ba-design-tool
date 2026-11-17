@@ -5,6 +5,7 @@ using System.Web.Services;
 using System.Web.Script.Services;
 using System.Web.UI;
 using BADesign;
+using BADesign.Helpers;
 
 namespace UiBuilderFull.Admin
 {
@@ -21,7 +22,7 @@ namespace UiBuilderFull.Admin
 			if (!IsPostBack)
 			{
 				ucBaSidebar.ActiveSection = "RolePermission";
-				ucBaTopBar.PageTitle = "Role Permission";
+				ucBaTopBar.PageTitle = "Phân quyền";
 			}
 		}
 
@@ -260,6 +261,50 @@ namespace UiBuilderFull.Admin
 						tr.Commit();
 					}
 				}
+				return new { success = true };
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object LoadRoleManagers()
+		{
+			try
+			{
+				if (!UiAuthHelper.IsSuperAdmin)
+					return new { success = false, message = "Unauthorized." };
+
+				var users = new List<object>();
+				foreach (var user in UiTemplateLibrary.GetActiveUsers())
+					users.Add(new { id = user.UserId, name = user.Name, roleName = user.RoleName ?? "", hasEmail = user.HasEmail });
+				return new { success = true, roleManagers = UiRoleManagers.GetAll(), users = users };
+			}
+			catch (SqlException ex)
+			{
+				if (UiTemplateLibrary.IsMissingSchema(ex))
+					return new { success = false, notInstalled = true, message = "Chưa cài phần sếp của role: cần chạy script AddUiRoleManagers.sql trên database của tool." };
+				return new { success = false, message = ex.Message };
+			}
+			catch (Exception ex)
+			{
+				return new { success = false, message = ex.Message };
+			}
+		}
+
+		[WebMethod(EnableSession = true)]
+		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+		public static object SaveRoleManagers(int roleId, int userId)
+		{
+			try
+			{
+				if (!UiAuthHelper.IsSuperAdmin)
+					return new { success = false, message = "Unauthorized." };
+				var error = UiRoleManagers.Save(roleId, userId > 0 ? userId : (int?)null);
+				if (error != null) return new { success = false, message = error };
 				return new { success = true };
 			}
 			catch (Exception ex)

@@ -103,13 +103,6 @@ var controlCollapsibleSection = (function () {
         if (parentCfg && parentCfg.type === "popup") {
             var $popup = $('.popup-design[data-id="' + parentCfg.id + '"]');
             if ($popup.length && $container.length) {
-                if (!cfg._fromRestore) {
-                    var popupLeft = parentCfg.left || 0;
-                    var popupTop = parentCfg.top || 0;
-                    var headerH = (parentCfg.headerHeight || 34) + 30;
-                    cfg.left = Math.max(0, (cfg.left || 0) - popupLeft);
-                    cfg.top = Math.max(0, (cfg.top || 0) - popupTop - headerH);
-                }
                 $root.css({ left: (cfg.left || 0) + "px", top: (cfg.top || 0) + "px" });
                 $container.append($root);
             }
@@ -193,7 +186,7 @@ var controlCollapsibleSection = (function () {
         // Toggle expand/collapse - chỉ toggle khi click vào icon hoặc title, không toggle khi drag
         var isDragging = false;
 
-        function applyExpandedState(expanded) {
+        function applyExpandedState(expanded, silent) {
             cfg.expanded = expanded;
 
             if (expanded) {
@@ -207,13 +200,13 @@ var controlCollapsibleSection = (function () {
                 $root.css("minHeight", headerHeight + "px");
             }
 
-            if (window.builder && typeof builder.refreshJson === "function") {
+            if (!silent && window.builder && typeof builder.refreshJson === "function") {
                 builder.refreshJson();
             }
         }
 
         // Áp trạng thái ban đầu
-        applyExpandedState(cfg.expanded !== false);
+        applyExpandedState(cfg.expanded !== false, true);
 
         $icon.on("click", function(e) {
             e.stopPropagation();
@@ -245,34 +238,20 @@ var controlCollapsibleSection = (function () {
                     $header.css("cursor", "grabbing");
                     $dragHandle.css("cursor", "grabbing");
                     $root.css("opacity", "0.8"); // Visual feedback khi đang drag
+                    builder.adoptControlsIntoGroup(cfg.id);
                 },
                 move: function(event) {
                     // Chỉ di chuyển bản thân ESS Collapsible Section,
                     // các control con đã position:absolute relative với content nên KHÔNG cần cộng dx/dy cho con.
                     isDragging = true; // Set flag để prevent toggle
-                    var curLeft = parseFloat($root.css("left")) || cfg.left || 0;
-                    var curTop = parseFloat($root.css("top")) || cfg.top || 0;
-                    var newLeft = curLeft + event.dx;
-                    var newTop = curTop + event.dy;
-
-                    // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
-                    var rulerLeft = 20;
-                    var rulerTop = 20;
-                    if (newLeft < rulerLeft) newLeft = rulerLeft;
-                    if (newTop < rulerTop) newTop = rulerTop;
-                    $root.css({ left: newLeft + "px", top: newTop + "px" });
-                    cfg.left = newLeft;
-                    cfg.top = newTop;
-                    
-                    if (builder && typeof builder.refreshJson === "function") {
-                        builder.refreshJson();
-                    }
+                    builder.dragControlBy(cfg, $root, event.dx, event.dy);
                 },
                 end: function(event) {
                     // Restore cursor và opacity
                     $header.css("cursor", "grab");
                     $dragHandle.css("cursor", "grab");
                     $root.css("opacity", "1");
+                    builder.finishControlDrag(cfg, $root, event);
                     // Reset flag sau một chút để cho phép toggle lại
                     setTimeout(function() {
                         isDragging = false;
@@ -282,12 +261,14 @@ var controlCollapsibleSection = (function () {
         });
 
         // Make resizable
+        $root.append('<div class="ub-resize ub-resize-right"></div><div class="ub-resize ub-resize-bottom"></div><div class="ub-resize ub-resize-corner"></div>');
         interact($root[0]).resizable({
-            edges: { right: true, bottom: true },
+            edges: { right: ".ub-resize-right, .ub-resize-corner", bottom: ".ub-resize-bottom, .ub-resize-corner" },
             listeners: {
                 move: function(event) {
-                    var newWidth = event.rect.width;
-                    var newHeight = event.rect.height;
+                    var scale = builder.cssScale();
+                    var newWidth = Math.max(200, Math.round(event.rect.width / scale));
+                    var newHeight = Math.max(80, Math.round(event.rect.height / scale));
                     $root.css({
                         width: newWidth + "px",
                         minHeight: newHeight + "px"
@@ -295,15 +276,11 @@ var controlCollapsibleSection = (function () {
                     cfg.width = newWidth;
                     cfg.height = newHeight;
                     $content.css("minHeight", (newHeight - 50) + "px");
+                },
+                end: function () {
                     builder.refreshJson();
                 }
-            },
-            modifiers: [
-                interact.modifiers.restrictRect({
-                    restriction: document.getElementById("canvas"),
-                    endOnly: true
-                })
-            ]
+            }
         });
 
         // Append to container (nếu chưa append trong phần popup handling)
@@ -351,87 +328,18 @@ var controlCollapsibleSection = (function () {
     }
 
     function showProperties(cfg) {
-        var html = [];
-        html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
-        html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">ESS Collapsible Section</h3>');
-
-        // Basic Info
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">📝</span><strong>Caption:</strong></label>');
-        html.push('<input type="text" id="csCaption" class="ess-col-input" value="' + (cfg.caption || "").replace(/"/g, '&quot;') + '" placeholder="Section title" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">📏</span><strong>Width:</strong></label>');
-        html.push('<input type="number" id="csWidth" class="ess-col-input" value="' + (cfg.width || 400) + '" style="width:100%;" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">📏</span><strong>Height:</strong></label>');
-        html.push('<input type="number" id="csHeight" class="ess-col-input" value="' + (cfg.height || 200) + '" style="width:100%;" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-
-        // Appearance
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">🎨 Appearance</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">🎨</span><strong>Header Background:</strong></label>');
-        html.push('<input type="color" id="csBgColor" class="ess-col-input" value="' + (cfg.backgroundColor || "#f5f5f5") + '" style="width:100%;" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">🎨</span><strong>Header Text Color:</strong></label>');
-        html.push('<input type="color" id="csHeaderColor" class="ess-col-input" value="' + (cfg.headerColor || "#0078d4") + '" style="width:100%;" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">🎨</span><strong>Border Color:</strong></label>');
-        html.push('<input type="color" id="csBorderColor" class="ess-col-input" value="' + (cfg.borderColor || "#e0e0e0") + '" style="width:100%;" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">📐</span><strong>Content Padding:</strong></label>');
-        html.push('<input type="number" id="csPadding" class="ess-col-input" value="' + (cfg.contentPadding || 12) + '" min="0" style="width:100%;" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-
-        // State
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">⚙️ State</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><input type="checkbox" id="csExpanded" ' + (cfg.expanded !== false ? "checked" : "") + ' /> Expanded by default</label>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-
-        html.push('</div>'); // Close ess-prop-tab-content
-
-        $("#propPanel").html(html.join(""));
+        var P = builderProps;
+        P.render(P.panel("ESS Collapsible Section", "ID: " + cfg.id,
+            P.section("Nội dung", P.line(P.field("Tiêu đề", P.text({ id: "csCaption", value: cfg.caption || "", placeholder: "Tiêu đề section" }), null, "csCaption"))) +
+            P.section("Kích thước", P.grid(
+                P.field("Rộng", P.number({ id: "csWidth", value: cfg.width || 400 }), "pp-field--num", "csWidth"),
+                P.field("Cao", P.number({ id: "csHeight", value: cfg.height || 200 }), "pp-field--num", "csHeight"),
+                P.field("Lề trong", P.number({ id: "csPadding", value: cfg.contentPadding || 12, min: 0 }), "pp-field--num", "csPadding"))) +
+            P.section("Màu sắc", P.grid(
+                P.field("Nền tiêu đề", P.colorPick({ id: "csBgColor", value: cfg.backgroundColor || "#f5f5f5" }), null, "csBgColor"),
+                P.field("Chữ tiêu đề", P.colorPick({ id: "csHeaderColor", value: cfg.headerColor || "#0078d4" }), null, "csHeaderColor"),
+                P.field("Viền", P.colorPick({ id: "csBorderColor", value: cfg.borderColor || "#e0e0e0" }), null, "csBorderColor"))) +
+            P.section("Trạng thái", P.checks([P.check({ id: "csExpanded" }, "Mở sẵn", cfg.expanded !== false)]))));
 
         // Wire up handlers
         $("#csCaption").on("change blur", function() {
@@ -513,66 +421,7 @@ var controlCollapsibleSection = (function () {
     return {
         addNew: function(dropPoint) {
             var cfg = createDefaultConfig();
-            
-            // Detect drop vào groupbox/section/collapsible-section (giống logic trong builder.js)
-            var parentId = null;
-            if (dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
-                var $groups = $(".page-field-groupbox, .popup-groupbox, .page-field-section, .popup-section, .ess-collapsible-section");
-                $groups.each(function() {
-                    var $group = $(this);
-                    var gid = $group.attr("data-id");
-                    if (!gid) return;
-                    
-                    var rect = this.getBoundingClientRect();
-                    var tolerance = 50;
-                    var inside = (dropPoint.clientX >= (rect.left - tolerance) && 
-                                 dropPoint.clientX <= (rect.right + tolerance) && 
-                                 dropPoint.clientY >= (rect.top - tolerance) && 
-                                 dropPoint.clientY <= (rect.bottom + tolerance));
-                    
-                    if (inside) {
-                        var $content = $group.find(".page-field-editor, .ess-collapsible-content").first();
-                        if ($content.length) {
-                            var contentRect = $content[0].getBoundingClientRect();
-                            var insideContent = (dropPoint.clientX >= contentRect.left && 
-                                               dropPoint.clientX <= contentRect.right && 
-                                               dropPoint.clientY >= contentRect.top && 
-                                               dropPoint.clientY <= contentRect.bottom);
-                            if (insideContent) {
-                                parentId = gid;
-                                return false; // Break
-                            }
-                        }
-                    }
-                });
-            }
-            
-            if (dropPoint && dropPoint.clientX != null && dropPoint.clientY != null) {
-                if (window.builder && typeof builder.clientToCanvasPoint === "function") {
-                    var canvasPoint = builder.clientToCanvasPoint(dropPoint.clientX, dropPoint.clientY);
-                    cfg.left = canvasPoint.x;
-                    cfg.top = canvasPoint.y;
-                    
-                    // Nếu drop vào collapsible section, adjust position relative to content
-                    if (parentId) {
-                        var $parent = $('.ess-collapsible-section[data-id="' + parentId + '"]');
-                        if ($parent.length) {
-                            var parentCfg = builder.getControlConfig(parentId);
-                            if (parentCfg) {
-                                var $content = $parent.find(".ess-collapsible-content");
-                                if ($content.length) {
-                                    var contentRect = $content[0].getBoundingClientRect();
-                                    var parentRect = $parent[0].getBoundingClientRect();
-                                    cfg.left = parentCfg.left + (dropPoint.clientX - contentRect.left);
-                                    cfg.top = parentCfg.top + 50 + (dropPoint.clientY - contentRect.top); // 50 = header height
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            
-            cfg.parentId = parentId;
+            builder.placeAtDropPoint(cfg, dropPoint);
             render(cfg);
             builder.registerControl(cfg);
             builder.refreshJson();

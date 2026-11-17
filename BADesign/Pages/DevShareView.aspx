@@ -1,21 +1,15 @@
 <%@ Page Language="C#" AutoEventWireup="true" CodeBehind="DevShareView.aspx.cs" Inherits="BADesign.Pages.DevShareView" %>
 <%@ Register Src="~/BaSidebar.ascx" TagName="BaSidebar" TagPrefix="uc" %>
 <%@ Register Src="~/BaTopBar.ascx" TagName="BaTopBar" TagPrefix="uc" %>
+<%@ Register Src="~/BaHead.ascx" TagName="BaHead" TagPrefix="uc" %>
 <!DOCTYPE html>
 <html>
 <head runat="server">
     <meta charset="utf-8" />
-    <title>Community Share - Xem bài</title>
-    <link href="<%= ResolveUrl("~/Content/bootstrap.min.css") %>" rel="stylesheet" />
-    <link href="<%= ResolveUrl("~/Content/ba-layout.css") %>" rel="stylesheet" />
-    <link href="<%= ResolveUrl("~/Content/ba-notification-bell.css") %>" rel="stylesheet" />
-    <link href="<%= ResolveUrl("~/Content/devshare.css") %>" rel="stylesheet" />
+    <title>Chia sẻ cộng đồng - Xem bài</title>
+    <uc:BaHead runat="server" />
+    <link href="<%= ResolveUrl("~/Content/devshare.css") %>?v=20261123" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
-    <script src="<%= ResolveUrl("~/Scripts/jquery-1.10.2.min.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/jquery.signalR.min.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/ba-signalr.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/bootstrap.min.js") %>"></script>
-    <script src="<%= ResolveUrl("~/Scripts/ba-layout.js") %>"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
@@ -142,14 +136,7 @@
                     }
                 });
             }
-            function showToast(msg) {
-                var t = document.createElement('div');
-                t.className = 'ba-toast';
-                t.textContent = msg;
-                t.style.cssText = 'position:fixed;bottom:24px;right:24px;padding:10px 16px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;font-size:0.875rem;z-index:9999;';
-                document.body.appendChild(t);
-                setTimeout(function () { t.remove(); }, 2000);
-            }
+            function showToast(msg) { BaToast.show(msg); }
 
             function loadPost() {
                 if (!postId) {
@@ -176,7 +163,7 @@
                     var postHasVoted = !!(p.hasVoted);
                     var tags = (p.languageTags || '').split(',').filter(Boolean).map(function (t) { return t.trim(); });
                     var tagHtml = tags.map(function (t) { return '<span class="devshare-tag">' + escapeHtml(t) + '</span>'; }).join(' ');
-                    var headerHtml = '<div class="devshare-header"><h1>' + escapeHtml(p.title) + '</h1><div class="devshare-meta">' + tagHtml + ' · ' + escapeHtml(p.authorName) + ' · ' + formatDate(p.updatedAt) + ' · ' + (p.viewCount || 0) + ' lượt xem · ' + (p.usefulCount || 0) + ' hữu ích</div></div>';
+                    var headerHtml = '<div class="devshare-header"><h1 translate="no">' + escapeHtml(p.title) + '</h1><div class="devshare-meta">' + tagHtml + ' · ' + escapeHtml(p.authorName) + ' · ' + formatDate(p.updatedAt) + ' · ' + (p.viewCount || 0) + ' lượt xem · ' + (p.usefulCount || 0) + ' hữu ích</div></div>';
                     var rawBody = (p.body || '').trim();
                     var bodyHtml;
                     if (rawBody.indexOf('<') === 0 && rawBody.indexOf('>') !== -1) {
@@ -193,7 +180,7 @@
                         actionsHtml = '<div class="devshare-actions"><a href="' + listUrl + '" class="ba-btn ba-btn-secondary">← Danh sách</a> <a href="' + editUrl + p.id + '" class="ba-btn ba-btn-primary">Chỉnh sửa</a> <button type="button" id="devshareUsefulBtn" class="' + usefulBtnClass + '" data-useful="' + (postHasVoted ? '1' : '0') + '">' + thumbIcon + ' Hữu ích (' + (p.usefulCount || 0) + ')</button> <button type="button" id="devshareDeleteBtn" class="ba-btn ba-btn-danger">Xóa</button></div>';
                     else
                         actionsHtml += '</div>';
-                    $('#devshareViewContent').html(headerHtml + '<div class="devshare-body">' + bodyHtml + '</div>' + actionsHtml).show();
+                    $('#devshareViewContent').html(headerHtml + '<div class="devshare-body" translate="no">' + bodyHtml + '</div>' + actionsHtml).show();
                     $('#devshareViewLoading').hide();
                     Prism.highlightAllUnder(document.getElementById('devshareViewContent'));
                     bindCopyButtons(document.getElementById('devshareViewContent'));
@@ -302,7 +289,7 @@
                         list.forEach(function (c) {
                             var voted = !!(c.hasVoted);
                             var usefulBtnClass = voted ? 'ba-btn ba-btn-sm ba-btn-primary devshare-comment-useful-active' : 'ba-btn ba-btn-sm ba-btn-secondary';
-                            html += '<div class="devshare-comment" data-id="' + c.id + '"><div class="devshare-comment-meta">' + escapeHtml(c.authorName) + ' · ' + formatDate(c.createdAt) + '<span class="devshare-comment-useful-wrap"><button type="button" class="devshare-comment-useful ' + usefulBtnClass + '" data-id="' + c.id + '" data-useful="' + (voted ? '1' : '0') + '" data-count="' + (c.usefulCount || 0) + '">👍 ' + (c.usefulCount || 0) + '</button></span></div><div class="devshare-comment-body">' + renderCommentBody(c.body) + '</div></div>';
+                            html += '<div class="devshare-comment" data-id="' + c.id + '"><div class="devshare-comment-meta">' + escapeHtml(c.authorName) + ' · ' + formatDate(c.createdAt) + '<span class="devshare-comment-useful-wrap"><button type="button" class="devshare-comment-useful ' + usefulBtnClass + '" data-id="' + c.id + '" data-useful="' + (voted ? '1' : '0') + '" data-count="' + (c.usefulCount || 0) + '">👍 ' + (c.usefulCount || 0) + '</button></span></div><div class="devshare-comment-body" translate="no">' + renderCommentBody(c.body) + '</div></div>';
                         });
                         $('#devshareCommentsList').html(html);
                         Prism.highlightAllUnder(document.getElementById('devshareCommentsList'));
@@ -411,49 +398,6 @@
                         error: function () { $('#devshareCommentSubmit').prop('disabled', false); }
                     });
                 });
-            });
-        })();
-    </script>
-    <script>
-        (function() {
-            var getJobsUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/GetJobs") %>';
-            var dismissJobUrl = '<%= ResolveUrl("~/Pages/DatabaseSearch.aspx/DismissJob") %>';
-            var feedbackManageUrl = '<%= ResolveUrl("~/FeedbackManage") %>';
-            var functionQueueUrl = '<%= ResolveUrl("~/FunctionQueue") %>';
-            var DISMISSED_KEY = 'baDismissedJobIds';
-            function getDismissed() { try { var r = localStorage.getItem(DISMISSED_KEY); return r ? JSON.parse(r) : []; } catch (e) { return []; } }
-            function addDismissed(id, type) { var k = (type === 'Backup' ? 'b:' : 'r:') + id; var a = getDismissed(); if (a.indexOf(k) < 0) { a.push(k); localStorage.setItem(DISMISSED_KEY, JSON.stringify(a)); } }
-            function isDismissed(j) { return getDismissed().indexOf((j.type === 'Backup' ? 'b:' : 'r:') + (j.id || '')) >= 0; }
-            function parseDateSafe(v) { if (v == null || v === '') return null; if (typeof v === 'number') return new Date(v); var s = String(v); var m = s.match(/\/Date\((\d+)\)\//); if (m) return new Date(parseInt(m[1], 10)); return isNaN(Date.parse(s)) ? null : new Date(s); }
-            function fmtTime(v) { var d = parseDateSafe(v); return d ? d.toLocaleString() : '—'; }
-            function loadBellPanel() {
-                var $list = $('#restoreJobsList'), $badge = $('#restoreJobsBadge');
-                if (!$list.length) return;
-                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}',
-                    success: function(res) {
-                        var d = res.d || res;
-                        if (!d) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        var jobs = (d.jobs || []).map(function(j) { j.type = j.type || 'Restore'; return j; }).filter(function(j) { return j.id != null && !isDismissed(j); }).sort(function(a,b) { var ta = parseDateSafe(a.startTime); var tb = parseDateSafe(b.startTime); return (tb && ta) ? (tb - ta) : 0; });
-                        var newBugs = d.newBugs || [], total = jobs.length + newBugs.length;
-                        if (!total) { $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); $badge.removeClass('visible'); return; }
-                        $badge.text(total).addClass('visible');
-                        window.__notifJobsList = jobs;
-                        var html = '';
-                        if (newBugs.length > 0) { html += '<div class="ba-notif-group" data-group="bugs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="bugs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">🐛 Bugs mới (' + newBugs.length + ')</div><div class="ba-notif-group-body" data-group="bugs">'; newBugs.forEach(function(b) { html += '<div class="ba-notif-item ba-notif-bug"><div><span class="ba-notif-type-badge ba-notif-type-bug">Bug</span> ' + (b.title || '').replace(/</g, '&lt;') + '</div><a class="ba-notif-detail-link" href="' + feedbackManageUrl + '">Xem</a></div>'; }); html += '</div></div><div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">Job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs">'; }
-                        jobs.forEach(function(j, idx) { var st = j.status || '', type = j.type || 'Restore', typeLabel = j.typeLabel || (type === 'Backup' ? 'Backup' : type === 'HRHelperMultiDbAnalyze' ? 'Phân tích' : 'Restore'); var badge = type === 'Backup' ? 'ba-notif-type-backup' : 'ba-notif-type-restore'; var dbName = (j.databaseName || j.DatabaseName || '').trim(); var hasReset = type === 'Restore' && (j.withAutoReset === true || (j.withAutoReset == null && dbName.indexOf('_RESET') >= 0 && dbName.indexOf('_NO_RESET') < 0)); var resetTag = (type === 'Restore') ? ('<span class="ba-notif-type-badge ' + (hasReset ? 'ba-notif-reset-tag">Có Reset' : 'ba-notif-no-reset-tag">Không Reset') + '</span> ') : ''; var pct = (j.percentComplete != null) ? Number(j.percentComplete) : 0; var phase = (j.message || '').toString().trim(); var row = '<div class="ba-notif-item" data-notif-index="' + idx + '" data-job-id="' + (j.id || '') + '" data-job-type="' + type + '"><button type="button" class="ba-notif-dismiss" title="Đã đọc">×</button><div><span class="ba-notif-type-badge ' + badge + '">' + typeLabel.replace(/</g, '&lt;') + '</span> ' + resetTag + (j.serverName || '').replace(/</g, '&lt;') + ' → ' + (j.databaseName || '').replace(/</g, '&lt;') + '</div><div style="color:var(--text-muted);font-size:0.8125rem;">' + (j.startedByUserName || '').replace(/</g, '&lt;') + ' · ' + fmtTime(j.startTime) + '</div>'; if (st === 'Running') row += '<div class="ba-notif-progress-wrap" style="margin-top:6px;"><div style="background:var(--surface-alt);height:6px;border-radius:3px;overflow:hidden;"><div style="height:100%;width:' + pct + '%;background:var(--primary);"></div></div><span>' + (pct + '%' + (phase ? ' - ' + phase : '')) + '</span></div>'; else if (st === 'Completed') row += '<div style="color:var(--success);">Đã xong</div>'; row += '<a class="ba-notif-detail-link" href="#" data-action="detail">Xem chi tiết</a></div>'; html += row; });
-                        if (newBugs.length > 0) html += '</div></div>'; else html = '<div class="ba-notif-group" data-group="jobs"><div class="ba-notif-section-title ba-notif-group-toggle" data-group="jobs" style="padding:8px 12px;font-size:0.75rem;font-weight:600;cursor:pointer;">Job (' + jobs.length + ')</div><div class="ba-notif-group-body" data-group="jobs">' + html + '</div></div>';
-                        $list.html(html || '<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>');
-                        $list.off('click.detail').on('click.detail', '.ba-notif-detail-link[data-action="detail"]', function(e) { e.preventDefault(); var idx = parseInt($(this).closest('.ba-notif-item').data('notif-index'), 10); var job = (window.__notifJobsList && window.__notifJobsList[idx]) || null; if (job && typeof window.showNotificationDetail === 'function') window.showNotificationDetail(job); });
-                        $list.off('click.dismiss').on('click.dismiss', '.ba-notif-dismiss', function(e) { e.preventDefault(); e.stopPropagation(); var $i = $(this).closest('.ba-notif-item'); var id = parseInt($i.data('job-id'), 10); var typ = $i.data('job-type') || 'Restore'; if (id) { addDismissed(id, typ); $.ajax({ url: dismissJobUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: JSON.stringify({ jobId: id }) }); $i.slideUp(200); var n = $list.find('.ba-notif-item').length; if (n > 0) $badge.text(n).addClass('visible'); else { $badge.removeClass('visible'); $list.html('<div style="padding:12px;color:var(--text-muted);">Không có thông báo.</div>'); } } });
-                    }
-                });
-            }
-            $(function() {
-                if (!$('#restoreJobsBellWrap').length) return;
-                $.ajax({ url: getJobsUrl, type: 'POST', contentType: 'application/json', dataType: 'json', data: '{}', success: function(res) { var d = res.d || res; if (d && (d.jobs || d.newBugs)) { var jobs = (d.jobs || []).filter(function(j) { return j.id != null && !isDismissed(j); }); var total = jobs.length + (d.newBugs || []).length; if (total) $('#restoreJobsBadge').text(total).addClass('visible'); } } });
-                $('#restoreJobsBellBtn').on('click', function(e) { e.stopPropagation(); var $p = $('#restoreJobsPanel'); if ($p.is(':visible')) $p.hide(); else { loadBellPanel(); $p.show(); } });
-                $(document).on('click', function() { $('#restoreJobsPanel').hide(); });
-                $('#restoreJobsPanel').on('click', function(e) { e.stopPropagation(); });
             });
         })();
     </script>

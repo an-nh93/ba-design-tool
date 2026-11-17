@@ -9,43 +9,75 @@ namespace BADesign
         /// <summary>Section hiện tại để tô active (Home, DatabaseSearch, EncryptDecrypt, AppSettings, PGPTool, Users, RolePermission, LeaveManager).</summary>
         public string ActiveSection { get; set; }
 
+        public bool AllowAnonymous { get; set; }
+
         protected void Page_Load(object sender, System.EventArgs e)
         {
-            UiAuthHelper.RequireLogin();
+            if (!AllowAnonymous) UiAuthHelper.RequireLogin();
+            var anonymous = UiAuthHelper.IsAnonymous;
             // Luôn áp dụng quyền theo DB mỗi request (không bỏ qua PostBack) để đồng bộ sau khi đổi Role/Permission.
             phNavEncryptDecrypt.Visible = UiAuthHelper.HasFeature("EncryptDecrypt");
-            phNavPgpTool.Visible = UiAuthHelper.HasFeature("PGPTool");
+            phNavLicenseKey.Visible = !anonymous && LicenseKeyAccess.IsAllowed();
+            phNavPgpTool.Visible = anonymous || UiAuthHelper.HasFeature("PGPTool");
             phNavAppSettings.Visible = UiAuthHelper.HasFeature("Settings");
             lnkNavUIBuilder.Visible = UiAuthHelper.HasFeature("UIBuilder");
-            lnkNavDatabaseSearch.Visible = UiAuthHelper.HasFeature("DatabaseTools");
+            lnkNavDatabaseSearch.Visible = anonymous || UiAuthHelper.HasFeature("DatabaseTools");
+            lnkNavHRHelper.Visible = lnkNavDatabaseSearch.Visible;
             lnkNavFunctionQueue.Visible = UiAuthHelper.HasFeature("DatabaseTools");
+            lnkNavHome.Visible = !anonymous;
+            lnkNavDevShare.Visible = !anonymous;
+            lnkNavFeedback.Visible = !anonymous;
             phNavSuperAdmin.Visible = UiAuthHelper.IsSuperAdmin;
+
+            var templateAdmin = !anonymous && Helpers.UiTemplateLibrary.IsAdmin();
+            phNavTemplateAdmin.Visible = templateAdmin;
+            lnkNavTemplateRequests.Visible = !anonymous && (lnkNavUIBuilder.Visible || templateAdmin || Helpers.UiTemplateLibrary.IsApproverSomewhere());
+            if (lnkNavTemplateRequests.Visible)
+            {
+                var todo = Helpers.UiTemplateLibrary.CountTodo();
+                litTemplateTodo.Text = todo > 0 ? "<b class=\"ba-nav-badge\">" + todo + "</b>" : "";
+            }
+        }
+
+        private static string ItemClass(bool active)
+        {
+            return active ? "ba-nav-item active" : "ba-nav-item";
         }
 
         protected override void OnPreRender(System.EventArgs e)
         {
             base.OnPreRender(e);
             var active = ActiveSection ?? "";
-            lnkNavHome.CssClass = (active == "HomeRole") ? "ba-nav-item active" : "ba-nav-item";
-            lnkNavUIBuilder.CssClass = (active == "Home") ? "ba-nav-item active" : "ba-nav-item";
-            lnkNavDatabaseSearch.CssClass = (active == "DatabaseTools") ? "ba-nav-item active" : "ba-nav-item";
-            lnkNavFunctionQueue.CssClass = (active == "FunctionQueue") ? "ba-nav-item active" : "ba-nav-item";
-            lnkNavFeedback.CssClass = (active == "Feedback") ? "ba-nav-item active" : "ba-nav-item";
-            lnkNavDevShare.CssClass = (active == "DevShare") ? "ba-nav-item active" : "ba-nav-item";
+            lnkNavHome.CssClass = ItemClass(active == "HomeRole");
+            lnkNavUIBuilder.CssClass = ItemClass(active == "Home");
+            if (lnkNavTemplateRequests.Visible)
+                lnkNavTemplateRequests.CssClass = ItemClass(active == "TemplateRequests");
+            if (phNavTemplateAdmin.Visible)
+            {
+                lnkNavTemplateWorkflow.CssClass = ItemClass(active == "TemplateWorkflow");
+                lnkNavHrModules.CssClass = ItemClass(active == "HrModules");
+            }
+            lnkNavDatabaseSearch.CssClass = ItemClass(active == "DatabaseTools" || active == "DatabaseSearch");
+            lnkNavHRHelper.CssClass = ItemClass(active == "HRHelper");
+            lnkNavFunctionQueue.CssClass = ItemClass(active == "FunctionQueue");
+            lnkNavFeedback.CssClass = ItemClass(active == "Feedback");
+            lnkNavDevShare.CssClass = ItemClass(active == "DevShare");
             if (phNavEncryptDecrypt.Visible)
-                lnkNavEncryptDecrypt.CssClass = (active == "EncryptDecrypt") ? "ba-nav-item active" : "ba-nav-item";
+                lnkNavEncryptDecrypt.CssClass = ItemClass(active == "EncryptDecrypt");
+            if (phNavLicenseKey.Visible)
+                lnkNavLicenseKey.CssClass = ItemClass(active == "LicenseKey");
             if (phNavAppSettings.Visible)
-                lnkNavAppSettings.CssClass = (active == "AppSettings") ? "ba-nav-item active" : "ba-nav-item";
+                lnkNavAppSettings.CssClass = ItemClass(active == "AppSettings");
             if (phNavPgpTool.Visible)
-                lnkNavPgpTool.CssClass = (active == "PGPTool") ? "ba-nav-item active" : "ba-nav-item";
+                lnkNavPgpTool.CssClass = ItemClass(active == "PGPTool");
             if (phNavSuperAdmin.Visible)
             {
-                lnkNavUserManagement.CssClass = (active == "Users") ? "ba-nav-item active" : "ba-nav-item";
-                lnkNavRolePermission.CssClass = (active == "RolePermission") ? "ba-nav-item active" : "ba-nav-item";
-                lnkNavAuditLog.CssClass = (active == "AuditLog") ? "ba-nav-item active" : "ba-nav-item";
-                lnkNavServerMonitor.CssClass = (active == "ServerMonitor") ? "ba-nav-item active" : "ba-nav-item";
-                lnkNavFeedbackManage.CssClass = (active == "FeedbackManage") ? "ba-nav-item active" : "ba-nav-item";
-                lnkNavLeaveManager.CssClass = (active == "LeaveManager") ? "ba-nav-item active" : "ba-nav-item";
+                lnkNavUserManagement.CssClass = ItemClass(active == "Users");
+                lnkNavRolePermission.CssClass = ItemClass(active == "RolePermission");
+                lnkNavAuditLog.CssClass = ItemClass(active == "AuditLog");
+                lnkNavServerMonitor.CssClass = ItemClass(active == "ServerMonitor");
+                lnkNavFeedbackManage.CssClass = ItemClass(active == "FeedbackManage");
+                lnkNavLeaveManager.CssClass = ItemClass(active == "LeaveManager");
             }
         }
     }

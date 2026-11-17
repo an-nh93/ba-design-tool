@@ -22,6 +22,27 @@ var controlTabPage = (function () {
         return $('.canvas-control.canvas-tabpage[data-id="' + cfg.id + '"]');
     }
 
+    function moveMembers(cfg, dx, dy) {
+        if (!dx && !dy) return;
+        var owner = builder.containerOf(cfg);
+        (builder.controls || []).forEach(function (c) {
+            if (!c || c.tabPageId !== cfg.id || builder.containerOf(c) !== owner) return;
+            c.left = (c.left || 0) + dx;
+            c.top = (c.top || 0) + dy;
+            $('.canvas-control[data-id="' + c.id + '"]').css({ left: c.left + "px", top: c.top + "px" });
+        });
+    }
+
+    function syncMember(cfg) {
+        if (!cfg || !cfg.tabPageId) return;
+        var tab = (builder.controls || []).find(function (c) { return c && c.id === cfg.tabPageId && c.type === "tabpage"; });
+        if (!tab) return;
+        var index = (typeof cfg.tabIndex === "number") ? cfg.tabIndex : 0;
+        var $dom = $('.canvas-control[data-id="' + cfg.id + '"]');
+        if (index === (tab.activeTabIndex || 0)) $dom.show();
+        else $dom.hide();
+    }
+
     function applyActiveTab(cfg) {
         var $dom = getDom(cfg);
         var $lis = $dom.find(".tabpage-tab");
@@ -53,6 +74,7 @@ var controlTabPage = (function () {
 
             $li.on("click", function (e) {
                 e.stopPropagation();
+                if ($dom.data("tabDragged")) return;
                 cfg.activeTabIndex = idx;
                 applyActiveTab(cfg);
 
@@ -76,7 +98,9 @@ var controlTabPage = (function () {
 <div class="canvas-control canvas-tabpage" data-id="${cfg.id}">
   <ul class="tabpage-tabs"></ul>
   <div class="tabpage-body"></div>
-  <div class="page-field-resizer"></div>
+  <div class="ub-resize ub-resize-right"></div>
+  <div class="ub-resize ub-resize-bottom"></div>
+  <div class="ub-resize ub-resize-corner"></div>
 </div>`);
 
         $tab.css({
@@ -94,9 +118,11 @@ var controlTabPage = (function () {
 
         // Drag tab page + di chuyển luôn con/cháu field
         var tabInteract = interact($tab[0]);
+        var dragLeft = 0;
+        var dragTop = 0;
 
         tabInteract.draggable({
-            ignoreFrom: ".tabpage-tabs, .page-field-resizer",
+            allowFrom: ".tabpage-tabs",
             modifiers: [
                 interact.modifiers.restrictRect({
                     restriction: document.getElementById("canvas"),
@@ -104,30 +130,38 @@ var controlTabPage = (function () {
                 })
             ],
             listeners: {
+                start: function () {
+                    dragLeft = cfg.left || 0;
+                    dragTop = cfg.top || 0;
+                    builder.claimTabMembers(cfg);
+                },
                 move: function (ev) {
-                    var dx = ev.dx;
-                    var dy = ev.dy;
+                    $tab.data("tabDragged", true);
+                    if (builder.dragSelectionBy(cfg.id, ev.dx, ev.dy)) return;
+                    var shift = function (stepX, stepY) {
+                        var scale = builder.cssScale();
+                        dragLeft += stepX / scale;
+                        dragTop += stepY / scale;
 
-                    var curL = parseFloat($tab.css("left")) || cfg.left || 0;
-                    var curT = parseFloat($tab.css("top")) || cfg.top || 0;
-                    var nl = curL + dx;
-                    var nt = curT + dy;
+                        // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
+                        var edge = builder.containerOf(cfg) ? 0 : 20;
+                        var nl = Math.max(edge, Math.round(dragLeft));
+                        var nt = Math.max(edge, Math.round(dragTop));
+                        var dx = nl - (cfg.left || 0);
+                        var dy = nt - (cfg.top || 0);
 
-                    // Không cho kéo ra ngoài top/left của canvas (ruler boundary: 20px)
-                    var rulerLeft = 20;
-                    var rulerTop = 20;
-                    if (nl < rulerLeft) nl = rulerLeft;
-                    if (nt < rulerTop) nt = rulerTop;
+                        $tab.css({ left: nl, top: nt });
+                        cfg.left = nl;
+                        cfg.top = nt;
 
-                    $tab.css({ left: nl, top: nt });
-                    cfg.left = nl;
-                    cfg.top = nt;
-
-                    // Move toàn bộ field con/cháu của tab
-                    if (window.controlField && typeof controlField.moveDescendants === "function") {
-                        controlField.moveDescendants(cfg.id, dx, dy, false);
-                    }
-
+                        moveMembers(cfg, dx, dy);
+                    };
+                    var step = builder.dragStep(ev.dx, ev.dy, shift);
+                    shift(step.dx, step.dy);
+                },
+                end: function (ev) {
+                    setTimeout(function () { $tab.removeData("tabDragged"); }, 0);
+                    if (builder.finishSelectionDrag(cfg.id, ev)) return;
                     builder.refreshJson();
                 }
             }
@@ -135,25 +169,19 @@ var controlTabPage = (function () {
 
         // Resize tab page (phải + đáy)
         tabInteract.resizable({
-            edges: { right: true, bottom: true },
-            allowFrom: ".page-field-resizer, .canvas-tabpage",
-            modifiers: [
-                interact.modifiers.restrictEdges({
-                    outer: document.getElementById("canvas")
-                }),
-                interact.modifiers.restrictSize({
-                    min: { width: 300, height: 150 }
-                })
-            ],
+            edges: { right: ".ub-resize-right, .ub-resize-corner", bottom: ".ub-resize-bottom, .ub-resize-corner" },
             listeners: {
                 move: function (ev) {
-                    var newW = ev.rect.width;
-                    var newH = ev.rect.height;
+                    var scale = builder.cssScale();
+                    var newW = Math.max(300, Math.round(ev.rect.width / scale));
+                    var newH = Math.max(150, Math.round(ev.rect.height / scale));
 
                     cfg.width = newW;
                     cfg.height = newH;
 
                     $tab.css({ width: newW, height: newH });
+                },
+                end: function () {
                     builder.refreshJson();
                 }
             }
@@ -161,8 +189,7 @@ var controlTabPage = (function () {
 
         // Chọn tab page
         $tab.on("mousedown", function (e) {
-            // nếu click tab header thì đã xử lý ở trên rồi
-            if ($(e.target).closest(".tabpage-tab").length) return;
+            if (builder.isTabBody(e.target)) return;
 
             e.stopPropagation();
             $(".canvas-control").removeClass("canvas-control-selected");
@@ -182,97 +209,29 @@ var controlTabPage = (function () {
         $(".canvas-control").removeClass("canvas-control-selected");
         getDom(cfg).addClass("canvas-control-selected");
 
-        var htmlTabs = [];
-        (cfg.tabs || []).forEach(function (t, idx) {
-            htmlTabs.push('<div class="ess-action-card" style="margin-bottom:8px; padding:8px;" data-tab-index="' + idx + '">');
-            htmlTabs.push('<div style="display:flex; align-items:center; gap:8px;">');
-            htmlTabs.push('<span class="ess-action-number">' + (idx + 1) + '</span>');
-            htmlTabs.push('<div style="display:flex; align-items:center; gap:6px; flex:1; min-width:0;">');
-            htmlTabs.push('<span style="font-size:11px; color:#0078d4; font-weight:600; white-space:nowrap; flex-shrink:0;">📑 Tab:</span>');
-            htmlTabs.push('<input type="text" class="ess-action-caption tpCaption" data-idx="' + idx + '" value="' + (t.caption || "") + '" placeholder="Tab caption" style="flex:1;"/>');
-            htmlTabs.push('</div>');
-            htmlTabs.push('<button type="button" class="ess-action-delete btnTpRemove" data-idx="' + idx + '" title="Delete">🗑</button>');
-            htmlTabs.push('</div>');
-            htmlTabs.push('</div>');
+        var P = builderProps;
+        var tabCount = (cfg.tabs || []).length;
+        var rows = (cfg.tabs || []).map(function (t, idx) {
+            return P.row({
+                attrs: { "class": "pp-cols-0", "data-tab-index": idx },
+                head: P.rowNo(idx + 1) + P.text({ "class": "tpCaption", "data-idx": idx, value: t.caption || "", placeholder: "Tên tab" }),
+                tools: P.iconButton({ "class": "pp-icon-btn--danger btnTpRemove", "data-idx": idx, title: "Xóa tab" }, "×")
+            });
+        }).join("");
+        var activeOptions = (cfg.tabs || []).map(function (t, idx) {
+            return [idx, (idx + 1) + " - " + (t.caption || ("Tab " + (idx + 1)))];
         });
 
-        var activeOptions = (cfg.tabs || []).map(function (t, idx) {
-            var text = (idx + 1) + " - " + (t.caption || ("Tab " + (idx + 1)));
-            var sel = (cfg.activeTabIndex === idx) ? "selected" : "";
-            return `<option value="${idx}" ${sel}>${text}</option>`;
-        }).join("");
-
-        var html = [];
-        html.push('<div class="ess-prop-tab-content ess-prop-tab-active" style="padding:12px;">');
-        html.push('<h3 style="margin:0 0 12px 0; font-size:14px; font-weight:600; color:#0078d4;">Tab Page</h3>');
-        
-        // Basic Info Card
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">ℹ️ Basic Info</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div style="display:grid; grid-template-columns: auto 1fr; gap:8px 12px; font-size:11px;">');
-        html.push('<span style="color:#666;">ID:</span><span style="color:#333; font-weight:500;">' + cfg.id + '</span>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        
-        // Size Card
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📏 Size</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-width">');
-        html.push('<label><span style="color:#0078d4;">📐</span><strong>Width:</strong></label>');
-        html.push('<input id="tpWidth" type="number" class="ess-col-input" value="' + cfg.width + '" />');
-        html.push('</div>');
-        html.push('<div class="ess-col-field ess-col-field-width">');
-        html.push('<label><span style="color:#0078d4;">📐</span><strong>Height:</strong></label>');
-        html.push('<input id="tpHeight" type="number" class="ess-col-input" value="' + cfg.height + '" />');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        
-        // Tabs Card
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">📑 Tabs (' + (cfg.tabs ? cfg.tabs.length : 0) + ')</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div id="tpTabsPanel">');
-        html.push(htmlTabs.join(''));
-        html.push('</div>');
-        html.push('<button type="button" id="btnTpAddTab" class="ess-btn-primary" style="width:100%; margin-top:8px;">＋ Add tab</button>');
-        html.push('</div>');
-        html.push('</div>');
-        
-        // Active Tab Card
-        html.push('<div class="ess-col-card" style="margin-bottom:12px;">');
-        html.push('<div class="ess-col-card-header">');
-        html.push('<span style="font-size:12px; color:#0078d4; font-weight:600;">🎯 Active Tab</span>');
-        html.push('</div>');
-        html.push('<div class="ess-col-card-body">');
-        html.push('<div class="ess-col-row">');
-        html.push('<div class="ess-col-field ess-col-field-full">');
-        html.push('<label><span style="color:#0078d4;">🎯</span><strong>Select active tab:</strong></label>');
-        html.push('<select id="tpActiveTab" class="ess-col-input">' + activeOptions + '</select>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        html.push('</div>');
-        
-        // Save Button
-        html.push('<div class="ess-col-card">');
-        html.push('<button type="button" class="ess-btn-primary" style="width:100%;" onclick="builder.saveControlToServer(\'' + cfg.id + '\')">💾 Lưu control này vào DB</button>');
-        html.push('</div>');
-        
-        html.push('</div>'); // Close ess-prop-tab-content
-
-        $("#propPanel").html(html.join(''));
+        P.render(P.panel("Tab Page", "ID: " + cfg.id,
+            P.section("Kích thước", P.grid(
+                P.field("Rộng", P.number({ id: "tpWidth", value: cfg.width }), "pp-field--num", "tpWidth"),
+                P.field("Cao", P.number({ id: "tpHeight", value: cfg.height }), "pp-field--num", "tpHeight"))) +
+            P.section("Tab", P.rows({ id: "tpTabsPanel" }, rows), {
+                count: tabCount,
+                action: P.button({ id: "btnTpAddTab", "class": "pp-btn--primary pp-btn--small" }, "＋ Thêm tab")
+            }) +
+            P.section("Tab đang mở", P.line(P.field("Chọn tab", P.select({ id: "tpActiveTab" }, activeOptions, cfg.activeTabIndex), null, "tpActiveTab"))),
+            P.saveButton(cfg.id)));
 
         // Width / height
         $("#tpWidth").off("change.tp").on("change.tp", function () {
@@ -294,21 +253,21 @@ var controlTabPage = (function () {
 
         // Caption change
         $(".tpCaption").off("input.tp change.tp").on("input.tp change.tp", function () {
-            var idx = parseInt($(this).closest('.ess-action-card').data('tab-index'), 10);
+            var idx = parseInt($(this).closest('.pp-row').data('tab-index'), 10);
             var t = cfg.tabs[idx];
             if (!t) return;
             t.caption = $(this).val();
             renderTabsHeader(getDom(cfg), cfg);
 
             // Cập nhật lại dropdown Active tab
-            showProperties(cfg);
+            $("#tpActiveTab option").eq(idx).text((idx + 1) + " - " + (t.caption || ("Tab " + (idx + 1))));
             builder.refreshJson();
         });
 
         // Remove tab
         $(".btnTpRemove").off("click.tp").on("click.tp", function () {
-            var idx = parseInt($(this).closest('.ess-action-card').data('tab-index'), 10);
-            if (!confirm("Remove tab " + (idx + 1) + " ?")) return;
+            var idx = parseInt($(this).closest('.pp-row').data('tab-index'), 10);
+            if (!confirm("Xóa tab " + (idx + 1) + "?")) return;
             cfg.tabs.splice(idx, 1);
             if (cfg.activeTabIndex >= cfg.tabs.length) cfg.activeTabIndex = cfg.tabs.length - 1;
             renderTabsHeader(getDom(cfg), cfg);
@@ -337,8 +296,9 @@ var controlTabPage = (function () {
 
     // ====== PUBLIC API ======
     return {
-        addNew: function () {
+        addNew: function (dropPoint) {
             var cfg = newConfig();
+            builder.placeAtDropPoint(cfg, dropPoint);
             render(cfg);
             builder.registerControl(cfg);
             builder.refreshJson();
@@ -350,6 +310,8 @@ var controlTabPage = (function () {
             cfg.tabs = cfg.tabs || [{ caption: "General" }];
             cfg.activeTabIndex = cfg.activeTabIndex || 0;
             render(cfg);
-        }
+        },
+        syncMember: syncMember,
+        showProperties: showProperties
     };
 })();
