@@ -6,7 +6,8 @@
 
 - Xuất public/private key dạng `.asc`, từ chuỗi Base64 dán vào hoặc từ cấu hình đã chọn trong DB. Đổi nguồn chỉ ẩn / hiện ô dán và ô mã tên file, không ghi đè nội dung đã nhập; khi lấy từ cấu hình, tên file dùng mã của cấu hình.
 - Mã hóa một file bằng public key.
-- Giải mã file PGP bằng private key.
+- Giải mã file PGP bằng private key. File tải về mang tên file đã chọn, bỏ đuôi `.pgp` / `.gpg` / `.asc` (`Helpers/Security/PgpFileNames.cs`): `APAC-VNM_QAA_QAA_Outbound_20261118172157.xls.pgp` → `APAC-VNM_QAA_QAA_Outbound_20261118172157.xls`. Chỉ khi tên file không có các đuôi đó mới dùng tên ghi bên trong gói PGP, rồi tới `decrypted_file`. Tên bên trong là tên lúc mã hóa: HRM mã hóa một file tạm nên tên bên trong có dạng `a7e847dd-e02b-4bd8-8f8a-ef14f1bc6eec.txt`, vì vậy không dùng nó làm tên chính.
+- Nạp key của một cấu hình: nếu Public Key và Private Key lưu trong cấu hình không cùng một cặp, trang báo ngay dưới nút Nạp key, nêu key ID và ngày tạo của từng key (`PgpKeyInspector.DescribeConfigKeyPairProblem`, trả về trong `keyPairWarning` của `GetFolderConfigKeys`).
 
 ## Ý tưởng
 
@@ -15,6 +16,8 @@ PGP là mã hóa file trao đổi. Encrypt/Decrypt Data là mã hóa giá trị 
 ## Lỗi thường gặp
 
 - "File được mã hóa cho key X, nhưng private key đang dùng là key Y" (thư viện PgpCore gọi lỗi này là `Secret key for message not found`): file được mã hóa cho một cặp key khác với private key đang dùng. Mỗi file PGP ghi mã key (key ID) của public key đã dùng để mã hóa; private key phải cùng cặp. Trước khi giải mã, `DecryptPgp` đọc key ID của file và của private key bằng `Helpers/Security/PgpKeyInspector.cs` và báo câu trên khi không key nào khớp; không đọc được thì để PgpCore tự báo lỗi. Lỗi này xảy ra trước khi kiểm tra passphrase, nên đổi passphrase không giúp được. Mọi cặp key do HRM sinh (Folder Configuration) có cùng tên chủ key `cadena-hrmseries.com`, nên nhìn file `.asc` không phân biệt được; muốn biết key trong một file `.asc` là key nào thì đọc key ID (BouncyCastle: `PgpObjectFactory`, `PgpPublicKeyRing.GetPublicKeys()`, `KeyId`).
+- Mã hóa bằng key của cấu hình rồi giải mã bằng key của chính cấu hình đó vẫn báo câu trên: hai cột `EncryptionPublicKey` và `EncryptionPrimaryKey` của dòng cấu hình đang giữ key của hai cặp khác nhau (đã gặp: public key tạo năm 2023, private key do HRM tạo sau và chỉ cột private key được thay). Đây là lỗi dữ liệu, không phải lỗi mã hóa; trang báo ngay lúc Nạp key. Sửa bằng cách lưu lại đúng một cặp key vào cấu hình. Màn hình Generate Key của công cụ luôn lưu cả hai key cùng lúc.
+- Trang hiện nguyên câu tiếng Anh `Secret key for message not found` thay vì câu tiếng Việt ở trên: site đang chạy bản DLL cũ chưa có `PgpKeyInspector` (bản deploy chưa cập nhật). So ngày của `bin\BADesign.dll` ở site đó.
 - Passphrase sai với đúng cặp key: trang báo "Passphrase không đúng với Passphrase lúc key được generate...".
 - Nhập sai loại dữ liệu: trước khi gọi thư viện, `PgpKeyInspector` xác định dữ liệu là public key, private key, file đã mã hóa hay không phải PGP (`GetKind`) và báo câu tiếng Việt, thay cho thông báo của BouncyCastle / PgpCore:
 
@@ -30,4 +33,4 @@ PGP là mã hóa file trao đổi. Encrypt/Decrypt Data là mã hóa giá trị 
 
 ## Kiểm tra
 
-`Tools/page-checks/pgp-tool.js` (cách chạy ở `Tools/page-checks/README.md`). Unit test của phần đọc key ID: `BADesign.Tests/PgpKeyInspectorTests.cs`.
+`Tools/page-checks/pgp-tool.js` (cách chạy ở `Tools/page-checks/README.md`). Unit test của phần đọc key ID và kiểm tra cặp key của cấu hình: `BADesign.Tests/PgpKeyInspectorTests.cs`; tên file giải mã: `BADesign.Tests/PgpFileNamesTests.cs`.

@@ -72,7 +72,7 @@ namespace BADesign.Pages
 		/// <summary>Giải mã file PGP – nhận file mã hóa + private key (Base64) + passphrase, trả về file giải mã.</summary>
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static object DecryptPgp(string encryptedFileBase64, string privateKeyBase64, string passphrase)
+		public static object DecryptPgp(string encryptedFileBase64, string encryptedFileName, string privateKeyBase64, string passphrase)
 		{
 			try
 			{
@@ -116,10 +116,10 @@ namespace BADesign.Pages
 					}
 				}).GetAwaiter().GetResult();
 
-				string outFileName;
-
 				// Lấy tên file từ PGP message nếu có (cần truyền key để Inspect không bị NullReferenceException)
-				outFileName = GetDecryptedFileName(encBytes, keyBytes, passphrase ?? "") ?? "decrypted_file";
+				var outFileName = PgpFileNames.WithoutEncryptedExtension(encryptedFileName)
+					?? GetDecryptedFileName(encBytes, keyBytes, passphrase ?? "")
+					?? "decrypted_file";
 
 				return new { success = true, fileBase64 = Convert.ToBase64String(outBytes), fileName = outFileName };
 			}
@@ -372,7 +372,7 @@ namespace BADesign.Pages
 				if (string.IsNullOrEmpty(encryptionPublicKey) && string.IsNullOrEmpty(encryptionPrimaryKey))
 					return new { success = false, message = "Cấu hình này chưa có Public Key hoặc Private Key." };
 
-				return new { success = true, encryptionPublicKey = encryptionPublicKey ?? "", encryptionPrimaryKey = encryptionPrimaryKey ?? "", code = codeOut ?? code };
+				return new { success = true, encryptionPublicKey = encryptionPublicKey ?? "", encryptionPrimaryKey = encryptionPrimaryKey ?? "", code = codeOut ?? code, keyPairWarning = DescribeStoredKeyPairProblem(encryptionPublicKey, encryptionPrimaryKey) };
 			}
 			catch (Exception ex)
 			{
@@ -491,6 +491,21 @@ namespace BADesign.Pages
 				}).GetAwaiter().GetResult();
 			}
 			catch
+			{
+				return null;
+			}
+		}
+
+		private static string DescribeStoredKeyPairProblem(string publicKeyBase64, string privateKeyBase64)
+		{
+			if (string.IsNullOrWhiteSpace(publicKeyBase64) || string.IsNullOrWhiteSpace(privateKeyBase64)) return null;
+			try
+			{
+				var publicKey = Convert.FromBase64String(Regex.Replace(publicKeyBase64, @"\s+", ""));
+				var privateKey = Convert.FromBase64String(Regex.Replace(privateKeyBase64, @"\s+", ""));
+				return PgpKeyInspector.DescribeConfigKeyPairProblem(publicKey, privateKey);
+			}
+			catch (FormatException)
 			{
 				return null;
 			}

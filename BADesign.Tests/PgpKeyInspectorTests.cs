@@ -203,6 +203,37 @@ namespace BADesign.Tests
         }
 
         [TestMethod]
+        public void ConfigKeyPair_OfOnePair_HasNoProblem()
+        {
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(first.PublicKey, first.PrivateKey));
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(second.PublicKey, second.PrivateKey));
+        }
+
+        [TestMethod]
+        public void ConfigKeyPair_OfTwoPairs_NamesBothKeysAndTheirCreationDates()
+        {
+            var text = PgpKeyInspector.DescribeConfigKeyPairProblem(first.PublicKey, second.PrivateKey);
+            var publicKey = PgpKeyInspector.FormatKeyId(PgpKeyInspector.GetSecretKeyIds(first.PrivateKey)[0]);
+            var privateKey = PgpKeyInspector.FormatKeyId(PgpKeyInspector.GetSecretKeyIds(second.PrivateKey)[0]);
+            var today = DateTime.Now.ToString("dd/MM/yyyy", System.Globalization.CultureInfo.InvariantCulture);
+            Assert.AreEqual(
+                "Public Key (key " + publicKey + ", tạo ngày " + today + ") và Private Key (key " + privateKey + ", tạo ngày " + today + ") của cấu hình này không cùng một cặp: file mã hóa bằng Public Key này không giải mã được bằng Private Key này. Cần lưu lại đúng cặp key vào cấu hình.",
+                text);
+        }
+
+        [TestMethod]
+        public void ConfigKeyPair_IsNotCheckedWhenTheDataIsNotAPublicKeyAndAPrivateKey()
+        {
+            var junk = Encoding.UTF8.GetBytes("not a key");
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(first.PrivateKey, second.PublicKey));
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(first.PublicKey, second.PublicKey));
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(junk, second.PrivateKey));
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(first.PublicKey, junk));
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(new byte[0], second.PrivateKey));
+            Assert.IsNull(PgpKeyInspector.DescribeConfigKeyPairProblem(null, null));
+        }
+
+        [TestMethod]
         public void FormatKeyId_IsSixteenUpperCaseHexDigits()
         {
             Assert.AreEqual("1297B8EBDE0FFF65", PgpKeyInspector.FormatKeyId(0x1297B8EBDE0FFF65L));

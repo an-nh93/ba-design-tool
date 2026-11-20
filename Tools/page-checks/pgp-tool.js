@@ -5,19 +5,23 @@ async (page, options) => {
   const onError = (e) => pageErrors.push(String(e).slice(0, 200));
   page.on('pageerror', onError);
   let downloads = 0;
-  const onDownload = () => { downloads++; };
+  const downloadNames = [];
+  const onDownload = (download) => { downloads++; downloadNames.push(download.suggestedFilename()); };
   page.on('download', onDownload);
   let keyWrites = 0;
   const onRequest = (r) => { if (r.url().indexOf('/PgpTool.aspx/UpdateFolderConfigKeys') >= 0) keyWrites++; };
   page.on('request', onRequest);
 
   const mismatchPattern = /^File được mã hóa cho key ([0-9A-F]{16}(?:, [0-9A-F]{16})*), nhưng private key đang dùng là key ([0-9A-F]{16}(?:, [0-9A-F]{16})*)[.] Hãy dùng private key cùng cặp với public key đã mã hóa file[.]$/;
+  const pairPattern = /^Public Key \(key ([0-9A-F]{16}), tạo ngày [0-9]{2}\/[0-9]{2}\/[0-9]{4}\) và Private Key \(key ([0-9A-F]{16}), tạo ngày [0-9]{2}\/[0-9]{2}\/[0-9]{4}\) của cấu hình này không cùng một cặp: file mã hóa bằng Public Key này không giải mã được bằng Private Key này[.] Cần lưu lại đúng cặp key vào cấu hình[.]$/;
+  const withoutPgpExtension = (name) => { const m = /^(.+)[.](pgp|gpg|asc)$/i.exec(String(name).trim()); return m ? m[1] : null; };
   const wrongPassphrase = 'Passphrase không đúng';
   const fileKeys = {};
   const keysInUse = {};
   const remember = (map, pair, value) => { (map[pair] = map[pair] || {})[value] = true; };
   const newline = String.fromCharCode(10);
   let expectedDownloads = 0;
+  const expectedNames = [];
 
   const check = (title, got, want) => {
     const ok = String(got) === String(want);
@@ -73,7 +77,10 @@ async (page, options) => {
     const json = await (await wait).json().catch(() => null);
     await idle();
     const d = json && json.d !== undefined ? json.d : json;
-    if (d && d.success && d.fileBase64) expectedDownloads++;
+    if (d && d.success && d.fileBase64) {
+      expectedDownloads++;
+      expectedNames.push(d.fileName);
+    }
     return d;
   };
 
@@ -88,8 +95,23 @@ async (page, options) => {
     const list = await api('/Pages/PgpTool.aspx/GetFolderConfigList', { tokenK: tokenK });
     const item = list.list[parseInt(await page.inputValue('#folderConfigSelect'), 10)];
     const stored = await api('/Pages/PgpTool.aspx/GetFolderConfigKeys', { tokenK: tokenK, tenantId: item.tenantId || '', code: item.code || '' });
-    const db = { name: 'DB', pub: strip(stored.encryptionPublicKey), priv: strip(stored.encryptionPrimaryKey) };
+    const db = { pub: strip(stored.encryptionPublicKey), priv: strip(stored.encryptionPrimaryKey) };
     if (!check('the selected configuration has both keys', !!(db.pub && db.priv), true)) return results.join(newline);
+    const pairWarning = stored.keyPairWarning || '';
+    const pairMatch = pairPattern.exec(pairWarning);
+    const shownPairWarning = await page.evaluate(() => {
+      const box = document.getElementById('configKeyPairWarn');
+      return box.getBoundingClientRect().width > 0 ? box.textContent : '';
+    });
+    if (pairWarning) {
+      note('the stored public key and private key are not a pair: ' + pairWarning);
+      check('keys of two pairs: the warning names both keys and their creation dates', !!pairMatch, true);
+      check('keys of two pairs: the warning is shown under Nạp key', shownPairWarning, pairWarning);
+    } else {
+      check('keys of one pair: no pair warning is shown', shownPairWarning, '');
+    }
+    const dbPub = { name: pairWarning ? 'DB public' : 'DB', pub: db.pub };
+    const dbPriv = { name: pairWarning ? 'DB private' : 'DB', priv: db.priv };
 
     await tab('generate');
     await page.setChecked('#genSaveToDb', false);
@@ -123,12 +145,12 @@ async (page, options) => {
     const freshPriv = await exportKey('pasted private key', 'paste', 'private', wrap(fresh.priv), 'pgpcheck');
     check('export pasted private key: file holds the pasted key', freshPriv.fileBase64 === fresh.priv, true);
     check('export pasted private key: file name', namePattern('Private Key', 'pgpcheck').test(freshPriv.fileName), true);
-    const dbPub = await exportKey('configuration public key', 'config', 'public');
-    check('export configuration public key: file holds the stored key', dbPub.fileBase64 === db.pub, true);
-    check('export configuration public key: file name', namePattern('Public Key', item.code).test(dbPub.fileName), true);
-    const dbPriv = await exportKey('configuration private key', 'config', 'private');
-    check('export configuration private key: file holds the stored key', dbPriv.fileBase64 === db.priv, true);
-    check('export configuration private key: file name', namePattern('Private Key', item.code).test(dbPriv.fileName), true);
+    const dbPubExport = await exportKey('configuration public key', 'config', 'public');
+    check('export configuration public key: file holds the stored key', dbPubExport.fileBase64 === db.pub, true);
+    check('export configuration public key: file name', namePattern('Public Key', item.code).test(dbPubExport.fileName), true);
+    const dbPrivExport = await exportKey('configuration private key', 'config', 'private');
+    check('export configuration private key: file holds the stored key', dbPrivExport.fileBase64 === db.priv, true);
+    check('export configuration private key: file name', namePattern('Private Key', item.code).test(dbPrivExport.fileName), true);
     const invalid = await runExport('paste', 'public', 'not base64 !', 'pgpcheck');
     check('export text that is not Base64: refused', invalid.success === false && invalid.message === 'Chuỗi không phải Base64 hợp lệ.', true);
     await page.fill('#exportKeyBase64', wrap(fresh.pub));
@@ -147,8 +169,10 @@ async (page, options) => {
     refused('export Base64 text that is not a key: refused', await runExport('paste', 'public', junkKey, 'pgpcheck'), say.exportJunk);
     fresh.pubFile = { name: freshPub.fileName, b64: freshPub.fileBase64 };
     fresh.privFile = { name: freshPriv.fileName, b64: freshPriv.fileBase64 };
-    db.pubFile = { name: dbPub.fileName, b64: dbPub.fileBase64 };
-    db.privFile = { name: dbPriv.fileName, b64: dbPriv.fileBase64 };
+    db.pubFile = { name: dbPubExport.fileName, b64: dbPubExport.fileBase64 };
+    db.privFile = { name: dbPrivExport.fileName, b64: dbPrivExport.fileBase64 };
+    dbPub.pubFile = db.pubFile;
+    dbPriv.privFile = db.privFile;
 
     await tab('encrypt');
     if (options.inputFile) {
@@ -192,11 +216,12 @@ async (page, options) => {
     await encrypt('new key, .asc file, .pgp', fresh, 'file', '.pgp', true);
     await encrypt('new key, pasted Base64, .asc', fresh, 'base64', '.asc', true);
     await encrypt('new key, pasted Base64, no compression', fresh, 'base64', '.pgp', false);
-    await encrypt('DB key, configuration, .pgp', db, 'config', '.pgp', true);
-    await encrypt('DB key, pasted Base64, .pgp', db, 'base64', '.pgp', true);
-    await encrypt('DB key, exported .asc file, .pgp', db, 'file', '.pgp', true);
-    await encrypt('DB key, configuration, .asc', db, 'config', '.asc', true);
+    await encrypt('DB key, configuration, .pgp', dbPub, 'config', '.pgp', true);
+    await encrypt('DB key, pasted Base64, .pgp', dbPub, 'base64', '.pgp', true);
+    await encrypt('DB key, exported .asc file, .pgp', dbPub, 'file', '.pgp', true);
+    await encrypt('DB key, configuration, .asc', dbPub, 'config', '.asc', true);
     if (options.otherPublicKeyFile) await encrypt('other key, .asc file, .pgp', { name: 'other', pubFile: { path: options.otherPublicKeyFile } }, 'file', '.pgp', true);
+    if (pairWarning && options.configPrivateKeyPublicFile) await encrypt('public key of the DB private key, .asc file, .pgp', { name: dbPriv.name, pubFile: { path: options.configPrivateKeyPublicFile } }, 'file', '.pgp', true);
 
     refused('encrypt with the new private key pasted: says a public key is needed', await runEncrypt('base64', wrap(fresh.priv), null, '.pgp', true), say.encryptWithPrivate);
     refused('encrypt with the new private key .asc file: says a public key is needed', await runEncrypt('file', null, fresh.privFile, '.pgp', true), say.encryptWithPrivate);
@@ -208,9 +233,9 @@ async (page, options) => {
     const privateKeys = [
       { title: 'new key pasted', pair: fresh, source: 'base64' },
       { title: 'new key .asc file', pair: fresh, source: 'file' },
-      { title: 'DB configuration', pair: db, source: 'config' },
-      { title: 'DB key pasted', pair: db, source: 'base64' },
-      { title: 'DB key exported .asc file', pair: db, source: 'file' }
+      { title: 'DB configuration', pair: dbPriv, source: 'config' },
+      { title: 'DB key pasted', pair: dbPriv, source: 'base64' },
+      { title: 'DB key exported .asc file', pair: dbPriv, source: 'file' }
     ];
     const decrypt = async (file, key, pass) => {
       await tab('decrypt');
@@ -248,20 +273,37 @@ async (page, options) => {
       }
     }
 
-    const forDb = encrypted.filter((e) => e.pair === 'DB')[0];
-    if (forDb) {
-      const d = await decrypt(forDb.file, privateKeys[2], passphrase + 'x');
-      if (!check('decrypt with a wrong passphrase: says the passphrase is wrong', !!(d && !d.success && String(d.message).indexOf(wrongPassphrase) === 0), true)) note('message: ' + (d && d.message));
-      refused('decrypt with the DB public key exported .asc file: says a private key is needed', await decrypt(forDb.file, { source: 'file', file: db.pubFile }, passphrase), say.decryptWithPublicKey);
+    const storedName = 'a7e847dd-e02b-4bd8-8f8a-ef14f1bc6eec.txt';
+    const chosenName = 'APAC-VNM_QAA_QAA_Outbound_20261118172157.xls';
+    await tab('encrypt');
+    await setFile('#encryptFileInput', { name: storedName, b64: original.b64 });
+    const hrmLike = await runEncrypt('base64', wrap(fresh.pub), null, '.pgp', true);
+    if (check('encrypt a file named like the temporary file HRM encrypts: done', !!(hrmLike && hrmLike.success), true)) {
+      for (const name of [chosenName + '.pgp', chosenName + '.PGP', chosenName + '.gpg', chosenName + '.asc']) {
+        const d = await decrypt({ name: name, b64: hrmLike.fileBase64 }, privateKeys[0], passphrase);
+        check('decrypt ' + name + ' (name inside the file: ' + storedName + '): saved as the chosen name without the PGP extension', d && d.success ? d.fileName : d && d.message, chosenName);
+      }
+      const d = await decrypt({ name: chosenName, b64: hrmLike.fileBase64 }, privateKeys[0], passphrase);
+      check('decrypt a file whose name has no PGP extension: saved under the name inside the file', d && d.success ? d.fileName : d && d.message, storedName);
+      check('decrypt a file whose name has no PGP extension: same content as the original', !!(d && d.fileBase64 === original.b64), true);
+    } else note('message: ' + (hrmLike && hrmLike.message));
+
+    const forDb = encrypted.filter((e) => e.pair === dbPriv.name)[0];
+    const sample = forDb || encrypted[0];
+    if (sample) {
+      const passKey = privateKeys.filter((k) => k.pair.name === sample.pair)[0];
+      const d = await decrypt(sample.file, passKey, passphrase + 'x');
+      if (!check('decrypt with a wrong passphrase (' + passKey.title + '): says the passphrase is wrong', !!(d && !d.success && String(d.message).indexOf(wrongPassphrase) === 0), true)) note('message: ' + (d && d.message));
+      refused('decrypt with the DB public key exported .asc file: says a private key is needed', await decrypt(sample.file, { source: 'file', file: db.pubFile }, passphrase), say.decryptWithPublicKey);
       check('a public key given for decryption shows the reason on the page', await page.evaluate((text) => {
         const box = document.getElementById('decryptErr');
         return box.getBoundingClientRect().width > 0 && box.textContent === text;
       }, say.decryptWithPublicKey), true);
-      refused('decrypt with the DB public key pasted: says a private key is needed', await decrypt(forDb.file, { source: 'base64', text: wrap(db.pub) }, passphrase), say.decryptWithPublicKey);
-      refused('decrypt with the new public key .asc file: says a private key is needed', await decrypt(forDb.file, { source: 'file', file: fresh.pubFile }, passphrase), say.decryptWithPublicKey);
-      refused('decrypt with the encrypted file as the key: says it is not a private key', await decrypt(forDb.file, { source: 'file', file: forDb.file }, passphrase), say.decryptWithMessage);
-      refused('decrypt with Base64 text that is not a key: says it is not a PGP key', await decrypt(forDb.file, { source: 'base64', text: junkKey }, passphrase), say.decryptWithJunk);
-      refused('decrypt with key text that is not Base64: says so', await decrypt(forDb.file, { source: 'base64', text: 'not base64 !' }, passphrase), say.notBase64);
+      refused('decrypt with the DB public key pasted: says a private key is needed', await decrypt(sample.file, { source: 'base64', text: wrap(db.pub) }, passphrase), say.decryptWithPublicKey);
+      refused('decrypt with the new public key .asc file: says a private key is needed', await decrypt(sample.file, { source: 'file', file: fresh.pubFile }, passphrase), say.decryptWithPublicKey);
+      refused('decrypt with the encrypted file as the key: says it is not a private key', await decrypt(sample.file, { source: 'file', file: sample.file }, passphrase), say.decryptWithMessage);
+      refused('decrypt with Base64 text that is not a key: says it is not a PGP key', await decrypt(sample.file, { source: 'base64', text: junkKey }, passphrase), say.decryptWithJunk);
+      refused('decrypt with key text that is not Base64: says so', await decrypt(sample.file, { source: 'base64', text: 'not base64 !' }, passphrase), say.notBase64);
       refused('decrypt the original, not encrypted file: says it is not a PGP file', await decrypt(original, privateKeys[2], passphrase), say.decryptPlainFile);
       refused('decrypt the DB public key file: says it is a key file', await decrypt(db.pubFile, privateKeys[2], passphrase), say.decryptKeyFile);
       refused('decrypt the DB private key file: says it is a key file', await decrypt(db.privFile, privateKeys[2], passphrase), say.decryptKeyFile);
@@ -270,7 +312,7 @@ async (page, options) => {
     for (const f of options.encryptedFiles || []) {
       for (const key of privateKeys) {
         const d = await decrypt({ path: f.path }, key, passphrase);
-        await expectDecrypt('decrypt ' + f.label + ' with ' + key.title, d, f.pair, key, f.sameContent ? original.b64 : null, null);
+        await expectDecrypt('decrypt ' + f.label + ' with ' + key.title, d, f.pair, key, f.sameContent ? original.b64 : null, withoutPgpExtension(f.path.split(/[\\/]/).pop()));
       }
       refused('decrypt ' + f.label + ' with the DB public key exported .asc file: says a private key is needed', await decrypt({ path: f.path }, { source: 'file', file: db.pubFile }, passphrase), say.decryptWithPublicKey);
       for (const publicKeyFile of options.publicKeyFiles || []) {
@@ -289,17 +331,26 @@ async (page, options) => {
       if (options.keyIds && options.keyIds[pair]) check('the ' + pair + ' files are reported as key ' + options.keyIds[pair], fileKey[0], options.keyIds[pair]);
     });
 
-    if (forDb) {
+    if (pairMatch) {
+      check('the warning names the key that files encrypted with the DB public key are for', Object.keys(fileKeys[dbPub.name] || {}).join(', '), pairMatch[1]);
+      check('the warning names the key of the DB private key', Object.keys(keysInUse[dbPriv.name] || {}).join(', ').split(', ').indexOf(pairMatch[2]) >= 0, true);
+    }
+
+    if (sample) {
+      const otherKey = privateKeys.filter((k) => k.pair.name !== sample.pair)[0];
       await page.context().addCookies([{ name: 'baLang', value: 'en', url: start.origin }]);
       await page.goto(start.href, { waitUntil: 'load', timeout: 90000 });
-      await decrypt(forDb.file, privateKeys[0], passphrase);
+      await page.waitForFunction(() => document.getElementById('configKeyStatus').textContent.length > 0, null, { timeout: 30000 }).catch(() => {});
+      if (pairWarning) check('English: the pair warning is translated', await page.waitForFunction(() => /^The Public Key \(key [0-9A-F]{16}, created [0-9]{2}\/[0-9]{2}\/[0-9]{4}\) and the Private Key \(key [0-9A-F]{16}, created [0-9]{2}\/[0-9]{2}\/[0-9]{4}\) of this configuration are not a pair: files encrypted with this Public Key cannot be decrypted with this Private Key[.] Save the matching key pair to the configuration[.]$/.test(document.getElementById('configKeyPairWarn').textContent), null, { timeout: 10000 }).then(() => true, () => false), true);
+      await decrypt(sample.file, otherKey, passphrase);
       check('English: the refusal is translated', await page.waitForFunction(() => /^The file was encrypted for key [0-9A-F]{16}, but the private key in use is key [0-9A-F]{16}.* Use the private key from the same pair as the public key that encrypted the file/.test(document.getElementById('decryptErr').textContent), null, { timeout: 10000 }).then(() => true, () => false), true);
-      await decrypt(forDb.file, { source: 'file', file: db.pubFile }, passphrase);
+      await decrypt(sample.file, { source: 'file', file: db.pubFile }, passphrase);
       check('English: a public key given for decryption is explained', await page.waitForFunction(() => document.getElementById('decryptErr').textContent.indexOf('The key used for decryption is a Public Key. Decryption needs the Private Key of the same pair') === 0, null, { timeout: 10000 }).then(() => true, () => false), true);
     }
 
     check('no key was written to the database', keyWrites, 0);
     check('every successful export, encryption and decryption downloads one file', downloads, expectedDownloads);
+    check('every download is saved under the name the page gave', downloadNames.join(' | '), expectedNames.join(' | '));
     check('no script errors', pageErrors.length, 0);
     pageErrors.forEach((e) => note('page error: ' + e));
   } catch (e) {

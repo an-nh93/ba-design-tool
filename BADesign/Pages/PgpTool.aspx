@@ -58,6 +58,7 @@
                             <button type="button" class="ba-btn ba-btn-secondary" id="btnLoadConfigKeys">Nạp key</button>
                             <span id="configKeyStatus" class="ba-warn" style="margin-left: 0.5rem;"></span>
                         </div>
+                        <div id="configKeyPairWarn" class="ba-err" style="display: none;"></div>
                     </div>
 
                     <div class="ba-tabs">
@@ -419,6 +420,7 @@
                 if (!pgpTokenK) { $('#configKeyStatus').text('Chưa chọn database.').css('color', 'var(--danger)'); return; }
                 var idx = $('#folderConfigSelect').val();
                 $('#configKeyStatus').text('');
+                $('#configKeyPairWarn').hide().text('');
                 if (idx === '' || idx === undefined) { $('#configKeyStatus').text('Chọn một cấu hình trước.').css('color', 'var(--text-muted)'); return; }
                 var item = configList[parseInt(idx, 10)];
                 if (!item) { $('#configKeyStatus').text('Cấu hình không hợp lệ.').css('color', 'var(--danger)'); return; }
@@ -436,6 +438,7 @@
                         if (item.tenantName && item.tenantName !== '') statusText += ' (' + item.tenantName + ')';
                         else if (item.tenantId && item.tenantId !== '') statusText += ' (Tenant: ' + item.tenantId + ')';
                         $('#configKeyStatus').text(statusText + '.').css('color', 'var(--success)');
+                        $('#configKeyPairWarn').text(d.keyPairWarning || '').toggle(!!d.keyPairWarning);
                     },
                     error: function () { hideProgress(); $('#configKeyStatus').text('Lỗi kết nối.').css('color', 'var(--danger)'); currentConfigKeys = null; }
                 });
@@ -684,18 +687,18 @@
                         if (keySrc === 'file') {
                             showProgress('Đang giải mã file...', 'Đang đọc private key...');
                             fileToBase64(keyFile, function (k) {
-                                doDecrypt(encB64, k, pass);
+                                doDecrypt(encB64, encFile.name, k, pass);
                             });
                         } else {
-                            doDecrypt(encB64, privB64, pass);
+                            doDecrypt(encB64, encFile.name, privB64, pass);
                         }
                     });
                 }, 100);
             });
-            function doDecrypt(encB64, privB64, pass) {
+            function doDecrypt(encB64, encName, privB64, pass) {
                 $.ajax({
                     type: 'POST', url: decryptUrl,
-                    data: JSON.stringify({ encryptedFileBase64: encB64, privateKeyBase64: privB64, passphrase: pass || '' }),
+                    data: JSON.stringify({ encryptedFileBase64: encB64, encryptedFileName: encName, privateKeyBase64: privB64, passphrase: pass || '' }),
                     contentType: 'application/json; charset=utf-8', dataType: 'json',
                     timeout: 120000,
                     success: function (r) {

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using Org.BouncyCastle.Bcpg.OpenPgp;
@@ -40,24 +41,19 @@ namespace BADesign.Helpers.Security
 
         public static IList<long> GetSecretKeyIds(byte[] privateKey)
         {
-            var ids = new List<long>();
-            if (privateKey == null || privateKey.Length == 0) return ids;
-            try
-            {
-                using (var input = PgpUtilities.GetDecoderStream(new MemoryStream(privateKey)))
-                {
-                    var bundle = new PgpSecretKeyRingBundle(input);
-                    foreach (var ring in bundle.GetKeyRings())
-                    {
-                        foreach (var key in ring.GetSecretKeys()) ids.Add(key.KeyId);
-                    }
-                }
-            }
-            catch (Exception)
-            {
-                ids.Clear();
-            }
-            return ids;
+            return ReadSecretKeys(privateKey).Select(key => key.KeyId).ToList();
+        }
+
+        public static string DescribeConfigKeyPairProblem(byte[] publicKey, byte[] privateKey)
+        {
+            var publicKeys = ReadPublicKeys(publicKey);
+            var secretKeys = ReadSecretKeys(privateKey);
+            if (publicKeys.Count == 0 || secretKeys.Count == 0) return null;
+            if (publicKeys.Any(p => secretKeys.Any(s => s.KeyId == p.KeyId))) return null;
+            return string.Format(
+                "Public Key (key {0}, tạo ngày {1}) và Private Key (key {2}, tạo ngày {3}) của cấu hình này không cùng một cặp: file mã hóa bằng Public Key này không giải mã được bằng Private Key này. Cần lưu lại đúng cặp key vào cấu hình.",
+                FormatKeyId(publicKeys[0].KeyId), FormatCreationDate(publicKeys[0]),
+                FormatKeyId(secretKeys[0].KeyId), FormatCreationDate(secretKeys[0].PublicKey));
         }
 
         public static string DescribeDecryptProblem(byte[] encryptedMessage, byte[] privateKey)
@@ -124,6 +120,39 @@ namespace BADesign.Helpers.Security
         private static string FormatKeyIds(IEnumerable<long> ids)
         {
             return string.Join(", ", ids.Distinct().Select(FormatKeyId));
+        }
+
+        private static string FormatCreationDate(PgpPublicKey key)
+        {
+            return DateTime.SpecifyKind(key.CreationTime, DateTimeKind.Utc).ToLocalTime().ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+        }
+
+        private static IList<PgpPublicKey> ReadPublicKeys(byte[] publicKey)
+        {
+            return ReadKeys(publicKey, input => new PgpPublicKeyRingBundle(input).GetKeyRings().SelectMany(ring => ring.GetPublicKeys()));
+        }
+
+        private static IList<PgpSecretKey> ReadSecretKeys(byte[] privateKey)
+        {
+            return ReadKeys(privateKey, input => new PgpSecretKeyRingBundle(input).GetKeyRings().SelectMany(ring => ring.GetSecretKeys()));
+        }
+
+        private static IList<T> ReadKeys<T>(byte[] data, Func<Stream, IEnumerable<T>> read)
+        {
+            var keys = new List<T>();
+            if (data == null || data.Length == 0) return keys;
+            try
+            {
+                using (var input = PgpUtilities.GetDecoderStream(new MemoryStream(data)))
+                {
+                    keys.AddRange(read(input));
+                }
+            }
+            catch (Exception)
+            {
+                keys.Clear();
+            }
+            return keys;
         }
 
         private static object ReadFirstObject(byte[] data)

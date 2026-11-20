@@ -1687,6 +1687,7 @@ BaI18n.add("pgp-tool", {
     "Passphrase không đúng với Passphrase lúc key được generate. Vui lòng kiểm tra lại (ví dụ: dự án mới mặc định P@pCdn-Cry5, hoặc tìm \"Passphrase\" / \"PASS_PHRASE\" trong App Setting / source code": "The passphrase does not match the one used when the key was generated. Please check again (for example: newer projects default to P@pCdn-Cry5, or search for \"Passphrase\" / \"PASS_PHRASE\" in App Setting / source code",
     "Passphrase là password để nhập khi giải mã file PGP. Passphrase sẽ đóng vai trò trong phần tạo Public Key và Private Key": "The passphrase is the password entered when decrypting a PGP file. It is also used when creating the Public Key and Private Key",
     "Private key (để giải mã": "Private key (to decrypt",
+    "Public Key (key {0}, tạo ngày {1}) và Private Key (key {2}, tạo ngày {3}) của cấu hình này không cùng một cặp: file mã hóa bằng Public Key này không giải mã được bằng Private Key này. Cần lưu lại đúng cặp key vào cấu hình": "The Public Key (key {0}, created {1}) and the Private Key (key {2}, created {3}) of this configuration are not a pair: files encrypted with this Public Key cannot be decrypted with this Private Key. Save the matching key pair to the configuration",
     "Public Key và Private Key không được trống": "Public Key and Private Key are required",
     "Public key (để mã hóa": "Public key (to encrypt",
     "Sẽ dùng Private Key của cấu hình đã chọn phía trên": "The Private Key of the configuration selected above will be used",

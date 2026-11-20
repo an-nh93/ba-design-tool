@@ -602,6 +602,7 @@
     <Compile Include="Helpers\Database\DbSchemaSnapshot.cs" />
     <Compile Include="Helpers\Security\AesHelper.cs" />
     <Compile Include="Helpers\Security\DataSecurityWrapper.cs" />
+    <Compile Include="Helpers\Security\PgpFileNames.cs" />
     <Compile Include="Helpers\Security\PgpKeyInspector.cs" />
     <Compile Include="Helpers\Security\SimpleHash.cs" />
     <Compile Include="Handlers\UploadAvatar.ashx.cs">
