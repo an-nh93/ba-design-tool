@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Globalization;
 using System.Linq;
+using BADesign.Helpers.Security;
 
 namespace BADesign.Helpers.Database
 {
@@ -79,7 +80,7 @@ namespace BADesign.Helpers.Database
                 AccountName = Text(values, "EmailServer_AccountName", ""),
                 Username = Text(values, "EmailServer_Username", ""),
                 EmailAddress = Text(values, "EmailServer_EmailAddress", ""),
-                Password = Text(values, "EmailServer_Password", ""),
+                Password = SecretText(values, "EmailServer_Password"),
                 EnableSsl = ssl == "1" || string.Equals(ssl, "true", StringComparison.OrdinalIgnoreCase),
                 SslPort = Text(values, "EmailServer_SSLPort", "")
             };
@@ -88,7 +89,7 @@ namespace BADesign.Helpers.Database
                 Host = Text(values, "SftpHost", ""),
                 Port = Text(values, "SftpPort", ""),
                 User = Text(values, "SftpUser", ""),
-                Password = Text(values, "SftpPassword", "")
+                Password = SecretText(values, "SftpPassword")
             };
         }
 
@@ -121,6 +122,11 @@ ELSE
             string v;
             if (values != null && values.TryGetValue(key, out v) && !string.IsNullOrWhiteSpace(v)) return v.Trim();
             return fallback;
+        }
+
+        private static string SecretText(Dictionary<string, string> values, string key)
+        {
+            return BaSecret.Reveal(Text(values, key, "")).Trim();
         }
 
         private static decimal Number(Dictionary<string, string> values, string key, decimal fallback)

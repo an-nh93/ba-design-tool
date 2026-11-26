@@ -348,9 +348,17 @@
             if (opts.dryRun) { var r0 = imp.analyze(data, W, H); if (!r0.sections.length) { toast("Không nhận ra cấu trúc nào trong ảnh.", "warning"); return; } opts.dryRun(r0); return; }
             var scale = opts.scale || 1;   // dựng đúng kích thước ảnh gốc (1:1) để chữ không bị thu nhỏ thành nét gạch
             toast("Đang đọc chữ trong ảnh (offline) – bản có nhận dạng lưới/popup/section…", "info");
-            imp.makeAll(cv, scale, function (i, n) { if (i % 10 === 0) toast("Đọc chữ " + i + "/" + n + "…", "info"); }, src).then(function (made) {
-                if (!made.length) { toast("Không nhận ra cấu trúc nào trong ảnh.", "warning"); return; }
-                imp.commit(src, made, opts);
+            ocrReady().then(function () {
+                return imp.makeAll(cv, scale, function (i, n) { if (i % 10 === 0) toast("Đọc chữ " + i + "/" + n + "…", "info"); }, src).then(function (made) {
+                    if (!made.length) { toast("Không nhận ra cấu trúc nào trong ảnh.", "warning"); return; }
+                    imp.commit(src, made, opts);
+                });
+            }, function (reason) {
+                toast("Chưa tách được ảnh vì không tải được bộ đọc chữ (OCR) ở " + OCR_BASE + ": " + reasonText(reason) +
+                    ". Ảnh được giữ nguyên. Báo quản trị kiểm tra thư mục này trên máy chủ rồi thử lại.", "error");
+            }).catch(function (err) {
+                if (window.console) console.error("builderImport", err);
+                toast("Tách ảnh bị lỗi: " + reasonText(err) + ". Ảnh được giữ nguyên.", "error");
             });
         });
     };
@@ -386,6 +394,8 @@
         if (!edgesOnly && w >= 8 && w <= 22 && h >= 8 && h <= 22 && Math.abs(w - h) <= 3) {
             var mid = [df(w >> 1, 0), df(w >> 1, h - 1), df(0, h >> 1), df(w - 1, h >> 1)];
             if (mid.filter(function (v) { return v >= 20; }).length < 3) return null;
+            // ô chọn của giao diện Core có viền xám trung tính; hình nhỏ có màu tới tận vành là biểu tượng (nạp lại, trạng thái), giữ là ảnh
+            if (imp.mode !== "ess" && rimTone(d, W2, { x0: ox, y0: oy, x1: ox + w - 1, y1: oy + h - 1 }, bg) >= ICON_TONE) return null;
             var corners = [df(0, 0), df(w - 1, 0), df(0, h - 1), df(w - 1, h - 1)];
             return corners.filter(function (v) { return v < 14; }).length >= 3 ? "radio" : "checkbox";
         }
@@ -442,6 +452,12 @@
         });
         ocrPromise.catch(function () { ocrPromise = null; });
         return ocrPromise;
+    }
+    function ocrReady() {
+        return imp.ocr === false ? Promise.resolve() : getOcr();
+    }
+    function reasonText(reason) {
+        return String(reason && reason.message ? reason.message : reason).replace(/\s+/g, " ").slice(0, 200);
     }
 
     function allLeaves(res) {
@@ -592,25 +608,52 @@
                     if (!arrowLike && dark >= 3) return "text";
                 }
             }
-            if (imp.mode !== "ess" && h >= 22 && h <= 34 && w <= 260) {
+            if (imp.mode !== "ess" && h >= 22 && h <= 34 && w <= 260) {   // nút Core: một cụm chữ căn giữa (chữ của ô nhập bắt đầu cách mép trong 0–3px, chữ của nút đo được từ 7px)
                 var cp = inkProfile(n, inner);
-                if (cp && cp.count === 1 && cp.left >= 8 && cp.lastW >= 20 && Math.abs(cp.left - cp.right) <= Math.max(6, 0.12 * w)) return "button";
+                if (cp && cp.count === 1 && cp.left >= 5 && cp.lastW >= 20 && Math.abs(cp.left - cp.right) <= Math.max(6, 0.12 * w)) return "button";
             }
             if (window.__T2) console.log('T2 boxKind', n.x0, n.y0, w, h, 'dark', dark, 'edge', edge.join(','), 'inner', inner.join(','));
-            if (imp.mode !== "ess" && dark >= 6 && h <= 30) {
-                var zoneW = h >= 24 ? aw - 4 : aw - 1, zoneH = Math.max(1, h >= 24 ? h - 10 : h - 4), runs = 0, inRun = false;
-                for (var zy = 0; zy < zoneH; zy++) {
-                    var rowInk = false;
-                    for (var zx = 0; zx < zoneW && !rowInk; zx++) {
-                        var zi = (zy * zoneW + zx) * 4;
-                        rowInk = Math.max(Math.abs(d[zi] - inner[0]), Math.abs(d[zi + 1] - inner[1]), Math.abs(d[zi + 2] - inner[2])) >= 28;
-                    }
-                    if (rowInk && !inRun) runs++;
-                    inRun = rowInk;
-                }
-                if (runs === 2) return "number";
+            if (imp.mode !== "ess") {
+                if (h >= memoMin) return null;                // ô nhập một dòng của Core thấp hơn ô nhiều dòng: hộp cao mà hẹp, không phải nút thì giữ là ảnh
+                var arrows = arrowGlyphs(d, h >= 24 ? aw - 4 : aw - 1, Math.max(1, h >= 24 ? h - 10 : h - 4), inner);
+                if (arrows.up && arrows.down) return "number";
+                return arrows.down ? "combo" : "text";
             }
             return dark >= 3 ? "combo" : "text";
+        }
+        // Mũi tên trong vùng nút ở mép phải của ô nhập Core: tam giác đặc, mỗi hàng một vệt nét hẹp dần (quay xuống) hoặc rộng dần (quay lên) quanh cùng một trục.
+        // Combo và ô ngày có một tam giác quay xuống, ô số có một tam giác quay lên và một quay xuống; chữ của giá trị tràn tới mép phải không có dạng này.
+        // zone: điểm ảnh RGBA của vùng nút (zoneW x zoneH). Trả về { up, down }: số tam giác mỗi chiều.
+        function arrowGlyphs(zone, zoneW, zoneH, inner) {
+            var rows = [], found = { up: 0, down: 0 }, y;
+            for (y = 0; y < zoneH; y++) {
+                var run = null, open = false;
+                for (var x = 0; x < zoneW; x++) {
+                    var i = (y * zoneW + x) * 4;
+                    var ink = Math.max(Math.abs(zone[i] - inner[0]), Math.abs(zone[i + 1] - inner[1]), Math.abs(zone[i + 2] - inner[2])) >= 28;
+                    if (ink && !open) run = { x0: x, x1: x };
+                    else if (ink) run.x1 = x;
+                    open = ink;
+                }
+                rows.push(run);   // vệt nét nằm sát mép phải nhất của hàng (chữ bên trái mũi tên không tính)
+            }
+            function width(r) { return r.x1 - r.x0 + 1; }
+            function centre(r) { return (r.x0 + r.x1) / 2; }
+            // một tam giác: từ 3 hàng liền nhau, bề rộng đổi đều một chiều giữa một đáy từ 5px và một đỉnh tới 3px, trục lệch không quá 1px
+            function triangle(from, step) {
+                var last = from;
+                while (rows[last + 1] && (width(rows[last + 1]) - width(rows[last])) * step > 0 && Math.abs(centre(rows[last + 1]) - centre(rows[from])) <= 1) last++;
+                var wide = Math.max(width(rows[from]), width(rows[last])), narrow = Math.min(width(rows[from]), width(rows[last]));
+                return last - from >= 2 && wide >= 5 && narrow <= 3 ? last : -1;
+            }
+            y = 0;
+            while (y < zoneH) {
+                var down = rows[y] ? triangle(y, -1) : -1, up = rows[y] ? triangle(y, 1) : -1;
+                if (down >= 0) { found.down++; y = down + 1; }
+                else if (up >= 0) { found.up++; y = up + 1; }
+                else y++;
+            }
+            return found;
         }
         // thanh (bar) bị các hàng tiêu đề bảng phủ gần hết → bỏ thanh (tránh chồng ảnh mờ)
         var hdrs = leaves.filter(function (n) { return n.hdr; });
@@ -676,14 +719,7 @@
                     } catch (e3) { }
                 } else
                 if (n.boxed && n.fill && (0.299 * n.fill[0] + 0.587 * n.fill[1] + 0.114 * n.fill[2]) >= 128) {   // chữ xám nhạt (ô bị khoá): kéo giãn tương phản cho OCR đọc được
-                    try {
-                        var gd = g.getImageData(0, 0, c.width, c.height), gp = gd.data, mn = 255, mxv = 0, q0;
-                        for (q0 = 0; q0 < gp.length; q0 += 4) { var lv = 0.299 * gp[q0] + 0.587 * gp[q0 + 1] + 0.114 * gp[q0 + 2]; if (lv < mn) mn = lv; if (lv > mxv) mxv = lv; }
-                        if (mxv - mn >= 25 && mn > 40) {
-                            for (q0 = 0; q0 < gp.length; q0 += 4) { var l2 = 0.299 * gp[q0] + 0.587 * gp[q0 + 1] + 0.114 * gp[q0 + 2], v2 = Math.max(0, Math.min(255, Math.round((l2 - mn) * 255 / (mxv - mn)))); gp[q0] = gp[q0 + 1] = gp[q0 + 2] = v2; }
-                            g.putImageData(gd, 0, 0);
-                        }
-                    } catch (e1) { }
+                    try { stretchContrast(g, c.width, c.height, 25); } catch (e1) { }
                 }
                 if (n.boxed && n.fill && n.kind !== "tag" && (0.299 * n.fill[0] + 0.587 * n.fill[1] + 0.114 * n.fill[2]) < 128) {   // chữ sáng trên nền tối → đảo màu cho OCR
                     g.globalCompositeOperation = "difference"; g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.globalCompositeOperation = "source-over";
@@ -705,7 +741,7 @@
             mergePairs(res);
             return res;
         }, function (err) {
-            toast("Không đọc được chữ (OCR): " + err.message + ". Vẫn dựng cấu trúc.", "warning");
+            toast("Không đọc được chữ (OCR): " + reasonText(err) + ". Vẫn dựng cấu trúc.", "warning");
             return res;
         });
     };
@@ -713,6 +749,7 @@
     function vOverlap(a, b) { return Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) + 1; }
 
     var DATE_CAPTION = /(^|\s)(date|ngày)$|^date of\s|^(từ |đến )?ngày\s/i;
+    var DATE_VALUE = /^\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}$/;
 
     function mergePairs(res) {
         // gom mọi lát kèm danh sách cha để có thể ghép cả khi nhãn và ô nhập nằm ở 2 nhóm anh em khác nhau
@@ -743,7 +780,7 @@
                 }
             });
         }
-        flat.forEach(function (ie) { var a = ie.n; if (a.boxed && (a.kind === "combo" || a.kind === "text") && /^\d{1,4}[\/.\-]\d{1,2}[\/.\-]\d{1,4}$/.test((a.value || "").trim())) a.kind = "date"; });
+        flat.forEach(function (ie) { var a = ie.n; if (a.boxed && (a.kind === "combo" || a.kind === "text") && DATE_VALUE.test((a.value || "").trim())) a.kind = "date"; });
         var used = {};
         function txt(e) { return e.n.text && !e.n.kind && !e.n.bar && !e.n.field; }
         var pass = flat.filter(function (e) { return e.n.kind === "radio" || e.n.kind === "checkbox"; }).concat(flat.filter(function (e) { return !(e.n.kind === "radio" || e.n.kind === "checkbox"); }));   // ô chọn ghép nhãn trước, ô nhập ghép sau
@@ -762,13 +799,30 @@
                 if (gap < bestGap) { best = { e: le, i: li }; bestGap = gap; }
             });
             if (!best) return;
-            var lab = best.e.n;
-            var req = /\(\*\)/.test(lab.text);
-            var cap = lab.text.replace(/\s*\(\*\)\s*/g, "").replace(/[:：]\s*$/, "").trim();
-            if (inp.kind === "combo" && imp.mode !== "ess" && !inp.value && DATE_CAPTION.test(cap)) inp.kind = "date";
+            var lab = best.e.n, labText = lab.text, labX0 = lab.x0, labX1 = lab.x1, labLines = 1;
+            // nhãn hai dòng của ô nhập: dòng còn lại nằm sát trên / dưới dòng đã chọn (cách tới 6px, hai nhãn của hai hàng field cách nhau từ 12px),
+            // cùng mép trái và cùng đứng trước ô nhập đó
+            if (!radio) flat.some(function (le, li) {
+                var other = le.n;
+                if (le === ie || le === best.e || used[li] || !txt(le) || Math.abs(other.x0 - lab.x0) > 3 || other.x1 >= inp.x0 || vOverlap(other, inp) <= 0) return false;
+                var below = other.y0 > lab.y0, gapY = below ? other.y0 - lab.y1 - 1 : lab.y0 - other.y1 - 1;
+                if (gapY < 0 || gapY > 6) return false;
+                labText = below ? lab.text + " " + other.text : other.text + " " + lab.text;
+                labX0 = Math.min(lab.x0, other.x0); labX1 = Math.max(lab.x1, other.x1); labLines = 2;
+                var at = le.list.indexOf(other);
+                if (at >= 0) le.list.splice(at, 1);
+                used[li] = true;
+                return true;
+            });
+            var req = /\(\*\)/.test(labText);
+            var cap = labText.replace(/\s*\(\*\)\s*/g, "").replace(/[:：]\s*$/, "").trim();
+            // ô có mũi tên xổ xuống mà nhãn là ngày: ô ngày. Giá trị trong ô không có chữ cái (trống, hoặc ngày bị OCR đọc sai một ký tự) thì bỏ giá trị đọc sai.
+            if (inp.kind === "combo" && imp.mode !== "ess" && DATE_CAPTION.test(cap) && !/[A-Za-z]/.test(inp.value || "")) { inp.kind = "date"; inp.value = ""; }
+            // ô chọn: field ôm cả ô chọn lẫn chữ (chữ có thể hai dòng, cao hơn ô chọn); textX là chỗ chữ bắt đầu tính từ mép trái ô chọn, glyphY là tâm ô chọn tính từ đỉnh field
+            var top = radio ? Math.min(lab.y0, inp.y0) : inp.y0;
             var m = {
-                t: "leaf", field: { ftype: inp.kind, ui: inp.ui, disabled: !!inp.disabled, value: inp.value, caption: cap, required: req, right: radio, labelWidth: radio ? 0 : inp.x0 - lab.x0, labelTextW: lab.x1 - lab.x0 + 1 },
-                x0: Math.min(lab.x0, inp.x0), x1: Math.max(lab.x1, inp.x1), y0: inp.y0, y1: inp.y1
+                t: "leaf", field: { ftype: inp.kind, ui: inp.ui, disabled: !!inp.disabled, value: inp.value, caption: cap, required: req, right: radio, labelWidth: radio ? 0 : inp.x0 - labX0, labelTextW: labX1 - labX0 + 1, labelLines: labLines, textX: radio ? Math.max(0, lab.x0 - inp.x0) : 0, glyphY: radio ? (inp.y0 + inp.y1 + 1) / 2 - top : 0 },
+                x0: Math.min(labX0, inp.x0), x1: Math.max(labX1, inp.x1), y0: top, y1: radio ? Math.max(lab.y1, inp.y1) : inp.y1
             };
             var ix = ie.list.indexOf(inp);
             if (ix >= 0) ie.list.splice(ix, 1, m);
@@ -1098,7 +1152,7 @@
                 labelWidth: extra.labelWidth || 0, captionBold: false, captionItalic: false,
                 captionPosition: (ftype === "radio" || ftype === "checkbox") ? "right" : "left",
                 tabPageId: null, tabIndex: null, zIndex: 1, parentId: parentId,
-                left: S(node.x0 - ox), top: S(node.y0 - oy), width: S(w), height: S(h), _ltw: extra.ltw || 0
+                left: S(node.x0 - ox), top: S(node.y0 - oy), width: S(w), height: S(h), _ltw: extra.ltw || 0, _lines: extra.lines || 1, _textX: extra.textX || 0, _glyphY: extra.glyphY || 0
             };
             if ((ftype === "radio" || ftype === "checkbox") && cfg.uiMode === "ess") cfg.width += 40;   // ô chọn ESS to hơn và chữ rộng hơn → chừa chỗ để chữ không bị xuống dòng
             var hx = function (c) { return "#" + c.map(function (v) { var t = v.toString(16); return t.length < 2 ? "0" + t : t; }).join(""); };
@@ -1127,8 +1181,13 @@
         function slice(node, parentId, ox, oy) {
             if (node.field) {
                 var f = node.field;
-                if (f.right) realControl(node, parentId, ox, oy, f.ftype, { caption: f.caption, required: f.required, disabled: f.disabled });   // radio/checkbox: chữ nằm bên phải ô chọn
-                else realControl(node, parentId, ox, oy, f.ftype, { ui: f.ui, disabled: f.disabled, value: f.value, caption: f.caption, required: f.required, labelWidth: S(Math.max(f.labelWidth - 7, f.labelTextW + 2)), ltw: f.labelTextW });   // editor của field lệch ~7px so với labelWidth
+                if (f.right) realControl(node, parentId, ox, oy, f.ftype, { caption: f.caption, required: f.required, disabled: f.disabled, textX: S(f.textX), glyphY: f.glyphY * scale });   // radio/checkbox: chữ nằm bên phải ô chọn
+                else {
+                    // chỗ dành cho nhãn: field Core do bước canh quyết định theo số đo thật trên Builder; field ESS (chưa đo) giữ mức tối thiểu theo bề rộng chữ trong ảnh
+                    var room = f.labelWidth - EDITOR_GAP;
+                    if ((f.ui || imp.mode) === "ess") room = Math.max(room, f.labelTextW + 2);
+                    realControl(node, parentId, ox, oy, f.ftype, { ui: f.ui, disabled: f.disabled, value: f.value, caption: f.caption, required: f.required, labelWidth: S(room), ltw: f.labelTextW, lines: f.labelLines });
+                }
                 return;
             }
             if (imp.guessTypes !== false) {
@@ -1301,6 +1360,18 @@
         return best || [255, 255, 255];
     }
 
+    // Chữ xám nhạt (control bị khoá): kéo giãn tương phản cho OCR đọc được; chỉ làm khi khoảng sáng tối của vùng đạt minRange
+    function stretchContrast(g, w, h, minRange) {
+        var image = g.getImageData(0, 0, w, h), p = image.data, low = 255, high = 0, i, light;
+        for (i = 0; i < p.length; i += 4) { light = lum(p[i], p[i + 1], p[i + 2]); if (light < low) low = light; if (light > high) high = light; }
+        if (high - low < minRange || low <= 40) return;
+        for (i = 0; i < p.length; i += 4) {
+            light = Math.max(0, Math.min(255, Math.round((lum(p[i], p[i + 1], p[i + 2]) - low) * 255 / (high - low))));
+            p[i] = p[i + 1] = p[i + 2] = light;
+        }
+        g.putImageData(image, 0, 0);
+    }
+
     // OCR một vùng ảnh: trả về {text, conf, words:[{t,x0,y0,x1,y1}]} (toạ độ theo ảnh gốc)
     function ocrCrop(cv, x, y, w, h, o) {
         o = o || {};
@@ -1311,6 +1382,7 @@
         var g = c.getContext("2d"), fill = o.fill || [255, 255, 255];
         g.fillStyle = "rgb(" + fill.join(",") + ")"; g.fillRect(0, 0, c.width, c.height);
         g.imageSmoothingEnabled = true; g.drawImage(cv, x, y, w, h, P * S, P * S, w * S, h * S);
+        if (o.stretch) stretchContrast(g, c.width, c.height, o.stretch);
         if (o.invert) { g.globalCompositeOperation = "difference"; g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.globalCompositeOperation = "source-over"; }
         return getOcr().then(function (worker) {
             return worker.setParameters({ tessedit_pageseg_mode: o.psm || "7" }).then(function () { return worker.recognize(c, {}, { blocks: true }); }).then(function (r) {
@@ -1326,7 +1398,12 @@
     function seq(list, fn) { var out = []; return list.reduce(function (p, it, i) { return p.then(function () { return fn(it, i).then(function (v) { out.push(v); }); }); }, Promise.resolve()).then(function () { return out; }); }
 
     // Tìm các bảng: nhiều đường ngang dài cách đều nhau (hàng dữ liệu) → {x0,x1,hy0,hy1,lines:[y],cols:[x],title:[y0,y1]}
-    imp.findGrids = function (d, W, H, bg) {
+    // menuBars: các dải menu nằm ngay dưới một dải tên; bands: mọi dải tên của ảnh (cả hai do imp.findBands tìm, có thể bỏ trống)
+    imp.findGrids = function (d, W, H, bg, menuBars, bands) {
+        // dải menu nằm ngay dưới một dải tên (menuBars) có viền ô nhập trông như vạch phân cột nhưng không phải hàng tiêu đề cột
+        function isMenuBar(y0, y1) { return (menuBars || []).some(function (b) { return b.y0 >= y0 - 2 && b.y1 <= y1 + 2; }); }
+        var RULE_GAP = 3;   // số hàng liền nhau không có vạch phân cột vẫn coi là còn trong lưới (đường kẻ ngang giữa hai hàng dày 1–3px)
+        var MIN_LINE = 220; // đường kẻ ngang ngắn hơn mức này không xét (viền ô nhập); cũng là bề ngang nhỏ nhất của một lưới
         var lines = [];
         for (var y = 2; y < H - 2; y++) {
             var run = 0, rs = 0, best = 0, bs = 0, gap = 0;
@@ -1341,7 +1418,7 @@
                 else if (run && ++gap <= 2) { run++; }
                 else { run = 0; gap = 0; }
             }
-            if (best >= 220) lines.push({ y: y, x0: bs, x1: bs + best - 1 });
+            if (best >= MIN_LINE) lines.push({ y: y, x0: bs, x1: bs + best - 1 });
         }
         // gộp các dòng liền nhau (dày 1–3px)
         var ml = [];
@@ -1353,7 +1430,7 @@
         // tìm dải header: 2 đường ngang liền kề (cao 18–40px) và có ≥3 đường phân cột dọc
         function headerSeps(l0, l1) {
             var gx0 = Math.max(l0.x0, l1.x0), gx1 = Math.min(l0.x1, l1.x1);
-            if (gx1 - gx0 < 300) return null;
+            if (gx1 - gx0 < MIN_LINE) return null;
             var by0 = l0.y1 + 3, by1 = l1.y - 3, hh = by1 - by0 + 1;
             if (hh < 8) return null;
             var cc = {}, hc = null, bn = 0;
@@ -1365,7 +1442,7 @@
                 if (hit >= 0.8 * hh) { if (xx - prev > 3) seps.push(xx); prev = xx; }
             }
             var e = seps.filter(function (x) { return x > gx0 + 8 && x < gx1 - 8; });
-            return e.length >= 3 ? { x0: gx0, x1: gx1, seps: e, fill: hc, plain: cdf(hc, bg) < 5 } : null;
+            return e.length ? { x0: gx0, x1: gx1, seps: e, fill: hc, plain: cdf(hc, bg) < 5, few: e.length < 3 || gx1 - gx0 < 300 } : null;
         }
         function tableLike(hs, bottomIndex) {
             var top = ml[bottomIndex], bottom = ml[bottomIndex + 1];
@@ -1383,12 +1460,28 @@
                     if (hit >= 0.8 * rh) { same++; return; }
                 }
             });
-            return same >= Math.max(3, Math.ceil(0.6 * hs.seps.length));
+            return enoughSeps(hs, same);
         }
-        function bandHeader(index) {
+        function enoughSeps(hs, count) { return count >= Math.max(Math.min(3, hs.seps.length), Math.ceil(0.6 * hs.seps.length)); }
+        function linesBelow(hs, y) {
+            return ml.filter(function (line) { return line.y > y && spansGrid(hs, line); }).map(function (line) { return { y: line.y1, x1: line.x1 }; });
+        }
+        // few: nhận cả hàng tiêu đề ít cột (dưới 3 vạch phân cột hoặc hẹp hơn 300px); loại này phải qua thêm fewColumnHeader
+        function bandHeader(index, few) {
             if (index + 1 >= ml.length) return null;
-            var gap = ml[index + 1].y - ml[index].y1;
-            return (gap >= 18 && gap <= 60) ? headerSeps(ml[index], ml[index + 1]) : null;
+            var gap = ml[index + 1].y - ml[index].y1, hs = (gap >= 18 && gap <= 60) ? headerSeps(ml[index], ml[index + 1]) : null;
+            return hs && (few || !hs.few) ? hs : null;
+        }
+        // Hàng tiêu đề có nền khác nền trang và các cột có chữ tiêu đề màu trung tính (cho phép một ô không chữ: ô phía trên thanh cuộn dọc, cột lệnh)
+        function captioned(hs, index) {
+            if (hs.plain) return false;
+            var caps = captionBand(hs.x0, hs.x1, ml[index].y1 + 1, ml[index + 1].y - 1, hs.fill);
+            return caps.neutral && caps.groups >= Math.max(2, hs.seps.length);
+        }
+        // Hàng tiêu đề ít cột (lưới hai, ba cột như danh sách nhân viên ở vùng trái): không trùng một dải tên và phải có chữ tiêu đề ở các cột
+        function fewColumnHeader(hs, index) {
+            var y0 = ml[index].y1 + 1, y1 = ml[index + 1].y - 1;
+            return !(bands || []).some(function (b) { return b.y0 >= y0 - 2 && b.y1 <= y1 + 2; }) && captioned(hs, index);
         }
         function titleBandAbove(hs, index) {
             var top = ml[index].y;
@@ -1399,21 +1492,67 @@
                 return !!fill && cdf(fill, bg) >= 5 && bn >= 0.6 * total;
             });
         }
+        // Đáy của vùng có vạch phân cột tính từ hàng from: vạch phân cột của hàng tiêu đề chạy qua hàng lọc và mọi hàng dữ liệu,
+        // còn vùng trống của lưới rỗng, thanh cuộn ngang, thanh phân trang và nội dung bên dưới thì không có.
+        function ruledBottom(hs, from) {
+            var end = from - 1, gap = 0;
+            for (var y = from; y < H && gap <= RULE_GAP; y++) {
+                var fill = rowFill(hs.x0, hs.x1, y), hit = 0;
+                hs.seps.forEach(function (sx) {
+                    for (var dx = -2; dx <= 2; dx++) if (cdf(pxAt(d, W, sx + dx, y), fill) >= 6) { hit++; return; }
+                });
+                if (enoughSeps(hs, hit)) { end = y; gap = 0; } else gap++;
+            }
+            return end;
+        }
+        // đường ngắn hơn lưới (viền ô lọc, vùng bên cạnh) không phải đường kẻ hàng của lưới
+        function spansGrid(hs, line) { return line.x0 <= hs.x0 + 12 && line.x1 >= hs.x1 - 24; }
+        // Đếm hàng của lưới có hàng tiêu đề nằm giữa ml[hi] và ml[hi + 1] → { n, fy1, lastY }.
+        // Lưới có vạch phân cột ở các hàng (lưới Core): hàng kéo dài tới hết vùng có vạch, hàng dữ liệu cuối không có đường kẻ đáy vẫn được tính;
+        // lưới rỗng thì dưới hàng lọc (hoặc ngay dưới tiêu đề) là một vùng trống đóng bằng một đường kẻ dài.
+        // Lưới không có vạch phân cột ở các hàng: các đường kẻ dài cách nhau không quá 50px.
+        function gridRows(hs, hi) {
+            var headBottom = ml[hi + 1].y1, ruledEnd = ruledBottom(hs, headBottom + 1), ruled = ruledEnd - headBottom >= 8;
+            var rows = { n: 0, fy1: headBottom, lastY: headBottom }, j = hi + 2;
+            function take(line) { rows.lastY = line.y1; rows.n++; if (rows.n === 1) rows.fy1 = line.y; }
+            for (; j < ml.length; j++) {
+                if (!spansGrid(hs, ml[j])) continue;
+                if (ruled ? ml[j].y > ruledEnd + RULE_GAP + 1 : ml[j].y - rows.lastY > 50) break;
+                take(ml[j]);
+            }
+            if (!ruled) return rows;
+            if (ruledEnd - rows.lastY >= 8) { rows.n++; rows.lastY = ruledEnd; }
+            else if (rows.n <= 1 && j < ml.length && ml[j].y - rows.lastY <= 50) take(ml[j]);
+            return rows;
+        }
+        // Viền trái của khung lưới chạy liền từ hàng tiêu đề xuống hết thanh phân trang → hàng cuối còn viền; ảnh cắt sát lưới không còn viền thì trả null
+        function borderEnd(hs, from, lastY) {
+            var x = hs.x0 - 1, y = from;
+            if (x < 0) return null;
+            while (y < H && cdf(pxAt(d, W, x, y), bg) >= 6) y++;
+            return y - 1 > lastY ? y - 1 : null;
+        }
         var out = [], hi = 0;
         while (hi + 1 < ml.length) {
-            var hs = bandHeader(hi), titled = !!hs && titleBandAbove(hs, hi);
+            var hs = bandHeader(hi, true), titled = !!hs && titleBandAbove(hs, hi);
+            if (hs && isMenuBar(ml[hi].y, ml[hi + 1].y)) hs = null;
+            if (hs && hs.few && !fewColumnHeader(hs, hi)) hs = null;
             if (hs && !tableLike(hs, hi + 1)) {
                 var below = bandHeader(hi + 1);
                 if ((hs.plain && !titled) || (below && tableLike(below, hi + 2))) hs = null;
             }
             if (!hs) { hi++; continue; }
-            var l0 = ml[hi], l1 = ml[hi + 1], last = l1.y1, n = 0, fy1 = l1.y1, j = hi + 2;
-            for (; j < ml.length; j++) {
-                if (ml[j].y - last > 50) break;
-                last = ml[j].y1; n++; if (n === 1) fy1 = ml[j].y;
+            var l0 = ml[hi], l1 = ml[hi + 1], rows = gridRows(hs, hi);
+            // bảng chỉ có hàng tiêu đề (chưa có dòng nào, không có vùng trống bên dưới): nhận khi mọi cột đều có chữ tiêu đề
+            var headerOnly = rows.n === 0 && imp.mode !== "ess" && captioned(hs, hi);
+            if (rows.n >= 2 || ((titled || hs.few) && rows.n >= 1) || headerOnly) {
+                out.push({
+                    x0: hs.x0, x1: hs.x1, hy0: l0.y, hy1: l1.y, fy1: rows.fy1, lastY: rows.lastY, edges: [hs.x0].concat(hs.seps).concat([hs.x1]), lineCount: rows.n, idx: out.length,
+                    borderEnd: borderEnd(hs, l0.y, rows.lastY), linesBelow: linesBelow(hs, rows.lastY)
+                });
             }
-            if (n >= 2 || (titled && n >= 1)) out.push({ x0: hs.x0, x1: hs.x1, hy0: l0.y, hy1: l1.y, fy1: fy1, lastY: last, edges: [hs.x0].concat(hs.seps).concat([hs.x1]), lineCount: n, idx: out.length });
-            hi = Math.max(j, hi + 1);
+            hi += 2;
+            while (hi < ml.length && ml[hi].y <= rows.lastY) hi++;
         }
         function rowFill(x0, x1, y) {
             var cc = {}, fill = null, bn = 0;
@@ -1521,8 +1660,48 @@
         });
     }
 
-    // OCR các ô header → cấu hình grid
-    imp.gridConfig = function (cv, gr, top, bottom, bg, filterRow) {
+    // Khung viền cỡ một ô nhập (ô lọc của lưới, ô nhập của form), không phải ô chọn hay biểu tượng
+    function isInputBox(b) { return b.x1 - b.x0 >= 30 && b.y1 - b.y0 >= 12; }
+
+    var TEXT_INK = 60;          // lệch màu tối thiểu so với nền để tính là nét chữ trên nền trắng (đường kẻ nhạt của lưới và thanh cuộn không tới mức này)
+    var PAGER_REACH = 64;       // lưới không dò được khung: thanh phân trang nằm trong khoảng này phía dưới hàng cuối
+    var MIN_COLUMN = 20;        // ô tiêu đề hẹp hơn mức này mà không có chữ thì không phải một cột dữ liệu
+
+    // Các dòng chữ trong một vùng: dải hàng liên tiếp có nét (lệch màu nền từ TEXT_INK), tách nhau bởi từ 2 hàng trống → [{ y0, y1 }]
+    function textLines(d, W, x0, x1, y0, y1, fill) {
+        var lines = [], cur = null, gap = 0;
+        for (var y = y0; y <= y1; y++) {
+            var ink = false;
+            for (var x = x0; x <= x1 && !ink; x++) ink = cdf(pxAt(d, W, x, y), fill) >= TEXT_INK;
+            if (ink) { if (!cur) { cur = { y0: y, y1: y }; lines.push(cur); } else cur.y1 = y; gap = 0; }
+            else if (cur && ++gap >= 2) cur = null;
+        }
+        return lines;
+    }
+
+    // Chữ của một ô tiêu đề cột. Tiêu đề hai dòng được đọc từng dòng rồi nối lại; biểu tượng sắp xếp đứng riêng sát mép phải của ô bị bỏ ra.
+    function headerCaption(cv, d, c, gr, fill) {
+        var W = cv.width, x0 = c.x0 + 1, x1 = c.x1 - 2, y0 = gr.hy0 + 3, y1 = gr.hy1 - 3, clusters = [], cur = null, gap = 0;
+        for (var x = x0; x <= x1; x++) {
+            var ink = false;
+            for (var y = y0; y <= y1 && !ink; y++) ink = cdf(pxAt(d, W, x, y), fill) >= BAND_INK;
+            if (ink) { if (!cur) { cur = { x0: x, x1: x }; clusters.push(cur); } else cur.x1 = x; gap = 0; }
+            else if (cur && ++gap >= 6) cur = null;
+        }
+        var last = clusters[clusters.length - 1];
+        if (clusters.length > 1 && last.x1 - last.x0 < 12 && last.x1 >= x1 - 20) x1 = last.x0 - 3;
+        var lines = textLines(d, W, x0, x1, y0, y1, fill);
+        function accept(r) { return r.conf >= 50 && /[A-Za-z0-9]/.test(r.text) ? r.text : ""; }
+        if (lines.length < 2) return ocrCrop(cv, x0, y0, x1 - x0 + 1, y1 - y0 + 1, { fill: fill }).then(accept);
+        return seq(lines, function (line) {
+            return ocrCrop(cv, x0, line.y0 - 2, x1 - x0 + 1, line.y1 - line.y0 + 5, { fill: fill }).then(accept);
+        }).then(function (texts) { return texts.filter(Boolean).join(" "); });
+    }
+
+    // OCR các ô header → cấu hình grid. o: { top, bottom, limit, framed, bg, filterRow, head }; head là dải tên lưới đã đọc (gridBand) nếu lưới có dải tên,
+    // limit là hàng cuối còn được tìm thanh phân trang (thanh phân trang của HRM nằm sát đáy khung, có thể cách xa hàng cuối), framed: đã dò được khung lưới.
+    imp.gridConfig = function (cv, gr, o) {
+        var top = o.top, bottom = o.bottom, bg = o.bg, filterRow = o.filterRow;
         var d = cv.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, cv.width, cv.height).data;
         var hFill = pxAt(d, cv.width, Math.min(cv.width - 1, gr.x0 + 3), gr.hy0 + 4);
         var cells = [];
@@ -1533,26 +1712,33 @@
             return seq(cells, function (c) {
                 if (c.text != null) return Promise.resolve(c.text);
                 if (c.w < 12) return Promise.resolve("");
-                return ocrCrop(cv, c.x0 + 1, gr.hy0 + 3, c.x1 - c.x0 - 2, gr.hy1 - gr.hy0 - 5, { fill: hFill }).then(function (r) { return (r.conf >= 50 && /[A-Za-z0-9]/.test(r.text)) ? r.text : ""; });
+                return headerCaption(cv, d, c, gr, hFill);
             });
         }).then(function (caps) {
-            // dải tiêu đề phía trên header: tên lưới + Add/Delete + Local Data Language
-            var ty0 = Math.max(top, gr.hy0 - 28), bandFill = pxAt(d, cv.width, Math.min(cv.width - 1, gr.x1 - 12), Math.max(0, gr.hy0 - 8));
-            var titleRead = gr.hy0 - ty0 - 2 >= 8 ? ocrCrop(cv, gr.x0, ty0, cv.width - gr.x0, gr.hy0 - ty0 - 2, { fill: bandFill }) : Promise.resolve({ text: "", conf: 0, words: [] });
+            // vùng ngay trên header: không có dải tên thì đọc tên lưới + Add/Delete + Local Data Language ở đây; có dải tên thì chỉ còn vùng nhóm cột
+            var zoneTop = o.head ? o.head.y1 + 1 : Math.max(top, gr.hy0 - 28), ty0 = o.head ? top : zoneTop;
+            var bandFill = pxAt(d, cv.width, Math.min(cv.width - 1, gr.x1 - 12), Math.max(0, gr.hy0 - 8));
+            var titleRead = gr.hy0 - zoneTop - 2 >= 8 ? ocrCrop(cv, gr.x0, zoneTop, cv.width - gr.x0, gr.hy0 - zoneTop - 2, { fill: bandFill }) : Promise.resolve({ text: "", conf: 0, words: [] });
             return titleRead.then(function (tr) {
                 var title = [], toolbar = [], lang = false, hitTool = false, lim = gr.x0 + (gr.x1 - gr.x0) * 0.6, addEnd = null, addStart = null;
-                tr.words.forEach(function (w) {
+                var grouped = /drag a column|group by that column/i.test(tr.text);
+                if (o.head) {
+                    if (o.head.title) title = [o.head.title];
+                    toolbar = o.head.toolbar.map(menuItem);
+                    lang = o.head.language;
+                }
+                (o.head || grouped ? [] : tr.words).forEach(function (w) {
                     if (/language/i.test(w.t)) lang = true;
                     if (w.x0 > lim) return;
-                    if (/^\+?add$/i.test(w.t)) { if (addStart == null) addStart = w.x0; toolbar.push({ text: "Add", icon: "/Content/images/icon-menu/menu-add.png" }); hitTool = true; addEnd = w.x1; }
-                    else if (/^\S?delete$/i.test(w.t)) { if (!toolbar.some(function (t) { return t.text === "Delete"; })) toolbar.push({ text: "Delete", icon: "/Content/images/icon-menu/menu-delete.png" }); hitTool = true; }
+                    if (/^\+?add$/i.test(w.t)) { if (addStart == null) addStart = w.x0; toolbar.push(menuItem("Add")); hitTool = true; addEnd = w.x1; }
+                    else if (/^\S?delete$/i.test(w.t)) { if (!toolbar.some(function (t) { return t.text === "Delete"; })) toolbar.push(menuItem("Delete")); hitTool = true; }
                     else if (!hitTool && /[A-Za-z]{2}/.test(w.t) && w.conf >= 40) title.push(w.t.replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9)]+$/g, ""));
                 });
                 // nút Delete mờ (chữ xám nhạt, OCR không đọc được): có dấu X đỏ nhạt ngay sau Add → thêm Delete
                 if (addEnd != null && !toolbar.some(function (t) { return t.text === "Delete"; })) {
                     var red = false;
                     for (var yy = ty0; yy < gr.hy0 - 2 && !red; yy++) for (var xx = Math.round(addEnd) + 2; xx < addEnd + 90 && xx < cv.width; xx++) { var q = pxAt(d, cv.width, xx, yy); if (q[0] > 190 && q[0] - q[1] >= 25 && q[0] - q[2] >= 25) { red = true; break; } }
-                    if (red) toolbar.push({ text: "Delete", icon: "/Content/images/icon-menu/menu-delete.png" });
+                    if (red) toolbar.push(menuItem("Delete"));
                 }
                 var tp = Promise.resolve();
                 if (addStart != null && addStart - gr.x0 > 30) {   // đọc lại riêng phần tên lưới (đứng trước nút Add) cho đủ chữ
@@ -1574,19 +1760,34 @@
                         if (t2.length >= 3) title = [t2];
                     });
                 }
+                var pagerBottom = -1;
                 return tp.then(function () {
-                    if (bottom - gr.lastY < 14) return null;   // thanh phân trang ngay dưới hàng cuối: đọc chữ "Page 1 of …"
-                    if (gr.plain) return ocrCrop(cv, Math.max(gr.x0, gr.x1 - 320), gr.lastY + 3, Math.min(320, gr.x1 - gr.x0), bottom - gr.lastY - 4, { fill: bg }).then(function (pr) { return /previous|next|showing|page\s*\d|\d\s*(of|\/)\s*\d/i.test(pr.text); });
-                    return ocrCrop(cv, gr.x0, gr.lastY + 3, Math.min(320, gr.x1 - gr.x0), bottom - gr.lastY - 4, { fill: bg }).then(function (pr) { return /page|\bof\b|items/i.test(pr.text); });
+                    if (gr.plain) {
+                        if (bottom - gr.lastY < 14) return null;
+                        return ocrCrop(cv, Math.max(gr.x0, gr.x1 - 320), gr.lastY + 3, Math.min(320, gr.x1 - gr.x0), bottom - gr.lastY - 4, { fill: bg }).then(function (pr) { return /previous|next|showing|page\s*\d|\d\s*(of|\/)\s*\d/i.test(pr.text); });
+                    }
+                    // thanh phân trang: dòng chữ dạng "Page 1 of 3 (25 items)". Trong khung lưới nó là dòng chữ cuối cùng (phía trên có thể còn hàng tổng);
+                    // lưới không dò được khung thì chỉ xét dòng chữ đầu tiên phía dưới hàng cuối. Vệt cao dưới 5px là đường kẻ, không phải chữ.
+                    var px1 = Math.min(gr.x1, gr.x0 + 320);
+                    var found = textLines(d, cv.width, gr.x0 + 2, px1, gr.lastY + 2, o.limit, bg).filter(function (l) { return l.y1 - l.y0 >= 4; });
+                    var line = o.framed ? found[found.length - 1] : found[0];
+                    if (!line || line.y1 - line.y0 > 24) return null;
+                    return ocrCrop(cv, gr.x0, line.y0 - 3, px1 - gr.x0 + 1, line.y1 - line.y0 + 7, { fill: bg }).then(function (pr) {
+                        var found = /page|\bof\b|items/i.test(pr.text);
+                        if (found) pagerBottom = line.y1 + 12;
+                        return found;
+                    });
                 }).then(function (hasPager) {
+                // phía trên hàng tiêu đề cột không có gì thuộc lưới (tên lưới, nút, Local Data Language, vùng nhóm cột): lưới bắt đầu ở hàng tiêu đề cột
+                var startsAtHeader = !o.head && !title.length && !toolbar.length && !lang && !grouped;
                 var cfg = {
-                    type: "grid", filterRow: !!filterRow, allowAdd: true, allowEdit: true, allowGrouping: !gr.plain, _plain: !!gr.plain, _rows: gr.lineCount,
+                    type: "grid", filterRow: !!filterRow, allowAdd: true, allowEdit: true, allowGrouping: grouped, _plain: !!gr.plain, _rows: gr.lineCount, _pagerBottom: pagerBottom,
                     showCheckbox: false, showViewColumn: false, showEditColumn: false, showDeleteColumn: false, showSearchBox: false,
-                    showTitle: true, titleText: title.join(" ") || "Gridview", titleBold: false, titleItalic: false,
+                    showTitle: title.length > 0, titleText: title.join(" "), titleBold: false, titleItalic: false,
                     showToolbar: toolbar.length > 0, toolbarItems: toolbar, showLocalDataLanguage: lang,
                     showDataHeader: false, dataHeaderCaption: "View Data", dataHeaderValue: "Company Data",
                     columns: [], rowActionColumns: [], rowPermissions: {},
-                    showPager: !!hasPager, left: gr.x0, top: ty0, width: gr.x1 - gr.x0 + 1
+                    showPager: !!hasPager, left: gr.x0, top: startsAtHeader ? Math.max(ty0, gr.hy0) : ty0, width: gr.x1 - gr.x0 + 1
                 };
                 var acts = { view: { key: "view", text: "View", icon: "/Content/images/grid-view.png", visible: false, width: 40 },
                              edit: { key: "edit", text: "Edit", icon: "/Content/images/grid-edit.png", visible: false, width: 40 },
@@ -1619,6 +1820,7 @@
                         else if (!acts["delete"].visible) { acts["delete"].visible = true; acts["delete"].width = c.w; cfg.showDeleteColumn = true; }
                         return;
                     }
+                    if (!cap && c.w < MIN_COLUMN) return;   // ô hẹp không chữ: phần phía trên thanh cuộn dọc, không phải cột
                     leading = false; n++;
                     cfg.columns.push({ name: (cap.replace(/[^A-Za-z0-9]+/g, "") || ("Col" + n)), caption: cap, width: c.w });
                 });
@@ -1645,12 +1847,109 @@
     };
 
 
-    // Canh đều: các field (nhãn + ô) có mép trái / vị trí ô nhập / mép phải chỉ lệch vài px do đo pixel → gom về cùng một mốc
+    var EDITOR_GAP = 7;         // ô nhập của field bắt đầu ở: mép trái field + labelWidth + EDITOR_GAP
+    var TEXT_GROWTH = 1.25;     // ước lượng chữ dựng trên trình duyệt rộng hơn chữ trong ảnh; chỉ dùng ở chỗ chưa đo được trên Builder (nhãn field ESS, nhãn nhiều dòng của ô chọn)
+
+    // Hình học field Core nằm trong hàng trần của Builder (đo trên trang Builder): chữ nhãn thụt captionX so với mép field; ô nhập cách đỉnh field editorTop
+    // và cao cố định theo loại, không theo chiều cao field; ô memo nằm sát đỉnh và thấp hơn field memoTrim. Nhãn cao hơn ô nhập (nhiều dòng) thì ô nhập nằm giữa nhãn.
+    // Nhãn của ô chọn rộng tối đa bằng field trừ checkCaptionPad (quá thì ngắt dòng).
+    var CORE_FIELD = { captionX: 4, editorTop: 2, editorHeight: 18, numberHeight: 20, memoTrim: 4, checkCaptionPad: 12 };
+    var EDITOR_TYPES = { text: 1, combo: 1, date: 1, number: 1, memo: 1 };
+
+    // Nhãn của field Core khi dựng trong Builder: đo trên một nhãn thật gắn tạm vào canvas, nên font, cách ngắt dòng và dấu bắt buộc lấy đúng từ CSS của Builder.
+    // Nhãn do bộ tách ảnh tạo không đậm, không nghiêng; control-field.js đặt hai kiểu đó thẳng lên nhãn nên nhãn đo cũng đặt như vậy.
+    // measure(text, required, width) → { width, height }; bỏ trống width thì đo bề rộng tự nhiên của nhãn trên một dòng.
+    function captionProbe() {
+        var $field = $('<div class="page-field core-field"><label class="page-field-caption"></label></div>').appendTo($("#canvas-zoom-inner")[0] || document.body);
+        var $label = $field.children("label").css({ "font-weight": "normal", "font-style": "normal" });
+        return {
+            measure: function (text, required, width) {
+                $label.text(text).toggleClass("page-field-caption-required", !!required).css("width", width ? width + "px" : "");
+                var box = $label[0].getBoundingClientRect();
+                return { width: box.width, height: box.height };
+            },
+            remove: function () { $field.remove(); }
+        };
+    }
+
+    // Ô chọn Core (checkbox / radio): ô chọn thụt checkGlyphX so với mép field, chữ bắt đầu ở checkTextX, ô chọn nằm giữa hàng (hàng cao bằng nhãn khi nhãn nhiều dòng)
+    // → dời và nới field cho tâm ô chọn và chữ rơi đúng chỗ trong ảnh (số đo dùng chung với bộ chuyển đổi màn hình chụp từ HRM).
+    // Nhãn một dòng trong ảnh: field ôm vừa nhãn nằm một dòng. Nhãn nhiều dòng: nhãn rộng theo khối chữ trong ảnh để Builder cũng ngắt dòng.
+    function placeCheck(m, probe) {
+        var check = builderCapture.METRICS.core, g = CORE_FIELD, glyphY = m._glyphY || m.height / 2, captionHeight = 0;
+        if (!m.caption) m.width += check.checkGlyphX;
+        else {
+            var natural = Math.ceil(probe.measure(m.caption, m.required).width), room = natural;
+            if (m.height >= check.checkHeight) room = Math.min(natural, Math.ceil((m.width - m._textX) * TEXT_GROWTH));
+            m.width = room < natural ? room + g.checkCaptionPad : check.checkTextX + natural;
+            captionHeight = probe.measure(m.caption, m.required, room).height;
+        }
+        var rowHeight = Math.max(g.editorHeight, captionHeight);
+        m.left -= check.checkGlyphX;
+        m.top += Math.round(glyphY - g.editorTop - rowHeight / 2);
+        m.height = Math.max(check.checkHeight, Math.ceil(rowHeight) + 2 * g.editorTop);
+    }
+
+    // Ô nhập Core: field lúc này đang ôm đúng nhãn và ô nhập trong ảnh (mép trái = chữ nhãn, đỉnh = đỉnh ô nhập) → đổi sang hình học của Builder
+    // cho chữ nhãn và ô nhập rơi đúng chỗ trong ảnh. Field mất nhãn (OCR chỉ đọc được dấu) thì dựng như ô nhập không nhãn.
+    function placeEditor(m, probe) {
+        var g = CORE_FIELD, labelHeight = 0;
+        if (m.labelWidth > 0 && !m.caption) { m.left += m.labelWidth + EDITOR_GAP; m.width -= m.labelWidth + EDITOR_GAP; m.labelWidth = 0; }
+        m.left -= g.captionX;
+        if (m.labelWidth > 0) {
+            m.labelWidth += g.captionX;
+            m.width += g.captionX + builderCapture.METRICS.core.widthPad - EDITOR_GAP;
+            labelHeight = probe.measure(m.caption, m.required, m.labelWidth).height;
+        }
+        if (m.ftype === "memo") { m.height += g.memoTrim; return; }
+        m.top -= g.editorTop + Math.max(0, Math.round((labelHeight - (m.ftype === "number" ? g.numberHeight : g.editorHeight)) / 2));
+    }
+
+    // Đổi mọi field sang hình học của Builder sau khi đã canh theo ảnh, rồi bỏ các số đo tạm
+    function placeFields(made, probe) {
+        made.forEach(function (m) {
+            if (m.type === "field" && m.uiMode !== "ess") {
+                if (m.ftype === "radio" || m.ftype === "checkbox") placeCheck(m, probe);
+                else if (EDITOR_TYPES[m.ftype]) placeEditor(m, probe);
+            }
+            delete m._ltw; delete m._lines; delete m._textX; delete m._glyphY;
+        });
+    }
+
+    // Hàng "trần" (groupbox bare): dồn lệch trái của con đầu tiên vào groupbox để mọi hàng bắt đầu ở 0 (auto-layout không giữ lề âm)
+    function packBareRows(made) {
+        for (var pass = 0; pass < 3; pass++) {
+            made.filter(function (g) { return g.type === "field" && g.ftype === "groupbox" && g.bare; }).forEach(function (g) {
+                var kids = made.filter(function (c) { return c.parentId === g.id; });
+                if (!kids.length) return;
+                var mn = Math.min.apply(null, kids.map(function (c) { return c.left; }));
+                if (mn !== 0) { g.left += mn; g.width -= mn; kids.forEach(function (c) { c.left -= mn; }); }
+            });
+        }
+    }
+
+    // Canh các field theo ảnh rồi đổi sang hình học của Builder. Bước dịch hình học của control ESS chỉ chạy khi đã canh (từ hai field có nhãn trở lên).
     imp.alignFields = function (made) {
+        var probe = captionProbe(), aligned = alignEditors(made, probe);
+        placeFields(made, probe);
+        probe.remove();
+        packBareRows(made);
+        if (aligned && imp.mode === "ess") placeEssEditors(made);
+        return made;
+    };
+
+    // Canh đều: các field (nhãn + ô) có mép trái / vị trí ô nhập / mép phải chỉ lệch vài px do đo pixel → gom về cùng một mốc.
+    // Trả về true khi có từ hai field có nhãn trở lên (đủ để canh với nhau).
+    function alignEditors(made, probe) {
         var by = {}; made.forEach(function (m) { by[m.id] = m; });
         function absLeft(m) { var x = m.left || 0, p = by[m.parentId]; while (p) { x += p.left || 0; p = by[p.parentId]; } return x; }
-        var F = made.filter(function (m) { return m.type === "field" && (m.ftype === "text" || m.ftype === "combo" || m.ftype === "date" || m.ftype === "number" || m.ftype === "memo") && m.labelWidth > 0; });
-        if (F.length < 2) return made;
+        var F = made.filter(function (m) { return m.type === "field" && EDITOR_TYPES[m.ftype] && m.labelWidth > 0; });
+        if (!F.length) return false;
+        // chỗ nhãn cần (tính như labelWidth lúc chưa đổi hình học) để chữ nằm trên một dòng; nhãn vốn nhiều dòng trong ảnh thì không đòi thêm chỗ
+        function captionRoom(m) {
+            if (m.uiMode === "ess") return Math.ceil((m._ltw || 0) * TEXT_GROWTH) + 8;
+            return m._lines > 1 ? 0 : Math.ceil(probe.measure(m.caption, m.required).width) - CORE_FIELD.captionX;
+        }
         function snap(get, set) {
             var arr = F.map(function (m) { return { m: m, v: get(m) }; }).sort(function (a, b) { return a.v - b.v; });
             var i = 0;
@@ -1671,25 +1970,17 @@
         snap(function (m) { return absLeft(m) + m.labelWidth; }, function (m, d) { m.labelWidth += d; });
         // 3) mép phải
         snap(function (m) { return absLeft(m) + m.width; }, function (m, d) { m.width += d; });
-        // 4) chữ nhãn trên trình duyệt rộng hơn trong ảnh (~25%): nhãn dài đẩy ô nhập lệch → nới labelWidth của cả cột cho vừa nhãn dài nhất
+        // 4) nhãn một dòng dài hơn chỗ dành cho nó thì Builder ngắt xuống dòng và ô nhập lệch theo → nới labelWidth của cả cột cho vừa nhãn dài nhất
+        //    (bước này làm cả khi chỉ có một field)
         var srt = F.slice().sort(function (a, b) { return (absLeft(a) + a.labelWidth) - (absLeft(b) + b.labelWidth); }), gi = 0;
         while (gi < srt.length) {
             var gj = gi; while (gj + 1 < srt.length && (absLeft(srt[gj + 1]) + srt[gj + 1].labelWidth) - (absLeft(srt[gj]) + srt[gj].labelWidth) <= 10) gj++;
             var grp = srt.slice(gi, gj + 1), target = 0;
-            grp.forEach(function (m) { target = Math.max(target, absLeft(m) + m.labelWidth, absLeft(m) + Math.ceil((m._ltw || 0) * 1.25) + 8); });
+            grp.forEach(function (m) { target = Math.max(target, absLeft(m) + m.labelWidth, absLeft(m) + captionRoom(m)); });
             grp.forEach(function (m) { var nw = target - absLeft(m); if (nw !== m.labelWidth && m.width - (nw - m.labelWidth) >= 40) m.labelWidth = nw; });
             gi = gj + 1;
         }
-        // 5) hàng "trần" (groupbox bare): dồn lệch trái của con đầu tiên vào groupbox để mọi hàng bắt đầu ở 0 (auto-layout không giữ lề âm)
-        for (var pass = 0; pass < 3; pass++) {
-            made.filter(function (g) { return g.type === "field" && g.ftype === "groupbox" && g.bare; }).forEach(function (g) {
-                var kids = made.filter(function (c) { return c.parentId === g.id; });
-                if (!kids.length) return;
-                var mn = Math.min.apply(null, kids.map(function (c) { return c.left; }));
-                if (mn !== 0) { g.left += mn; g.width -= mn; kids.forEach(function (c) { c.left -= mn; }); }
-            });
-        }
-        // 6) chiều cao ô nhập gần nhau (±4px) → cùng một chiều cao (phổ biến nhất); 7) trong cùng một hàng, đỉnh các ô lệch ≤5px → cùng đỉnh
+        // 5) chiều cao ô nhập gần nhau (±4px) → cùng một chiều cao (phổ biến nhất); 6) trong cùng một hàng, đỉnh các ô lệch ≤5px → cùng đỉnh
         (function () {
             var hs = F.filter(function (m) { return m.ftype !== "memo"; }).sort(function (a, b) { return a.height - b.height; }), i = 0;
             while (i < hs.length) {
@@ -1709,72 +2000,304 @@
                 }
             });
         })();
-        made.forEach(function (m) { delete m._ltw; });
-        if (imp.mode === "ess") {   // control ESS: khung ngoài có viền 1px + padding 4/6px + khe 6px giữa nhãn và ô → dịch hình học cho ô nhập rơi đúng chỗ trong ảnh
-            made.forEach(function (m) {
-                if (m.type !== "field" || m.uiMode !== "ess" || ["text", "combo", "date", "memo"].indexOf(m.ftype) < 0) return;
-                var hasCap = m.labelWidth > 0;
-                m.left -= 7; m.top -= 4; m.height += 8;
-                m.width += hasCap ? 15 : 14;
-                if (hasCap) m.labelWidth = Math.max(30, m.labelWidth - 6);
-            });
+        return F.length >= 2;
+    }
+
+    // Control ESS: khung ngoài có viền 1px + padding 4/6px + khe 6px giữa nhãn và ô → dịch hình học cho ô nhập rơi đúng chỗ trong ảnh
+    function placeEssEditors(made) {
+        made.forEach(function (m) {
+            if (m.type !== "field" || m.uiMode !== "ess" || ["text", "combo", "date", "memo"].indexOf(m.ftype) < 0) return;
+            var hasCap = m.labelWidth > 0;
+            m.left -= 7; m.top -= 4; m.height += 8;
+            m.width += hasCap ? 15 : 14;
+            if (hasCap) m.labelWidth = Math.max(30, m.labelWidth - 6);
+        });
+    }
+
+
+    // ================================================================ DẢI TIÊU ĐỀ + SECTION PANEL
+    var BAND_FAINT = 12;        // lệch màu tối thiểu so với nền dải để tính là nét (chữ của mục menu bị khoá chỉ lệch khoảng 15)
+    var BAND_INK = 40;          // lệch màu của chữ và biểu tượng bình thường
+    var BAND_GROUP_GAP = 8;     // khoảng trống tách hai nhóm chữ trên dải (giữa hai từ chỉ 3–4px, giữa biểu tượng và chữ của nó 5–6px)
+    var TOOLBAR_ICON_X = 9;     // biểu tượng đầu tiên của Toolbar cách mép trái control: viền 1 + lề 2 + lề trái của nút 6
+    var TOOLBAR_HEIGHT = 26;
+
+    function cropCanvas(cv, x, y, w, h) {
+        var out = document.createElement("canvas");
+        out.width = w; out.height = h;
+        out.getContext("2d", { willReadFrequently: true }).drawImage(cv, x, y, w, h, 0, 0, w, h);
+        return out;
+    }
+
+    // Gắn kết quả của một vùng con vào vùng cha: control cấp trên cùng của vùng con nhận cha mới và dời theo gốc toạ độ của vùng con
+    function adopt(out, kids, parentId, dx, dy) {
+        var ids = {};
+        kids.forEach(function (k) { ids[k.id] = true; });
+        kids.forEach(function (k) {
+            if (!k.parentId || !ids[k.parentId]) { k.parentId = parentId; k.left = (k.left || 0) + dx; k.top = (k.top || 0) + dy; }
+            out.push(k);
+        });
+    }
+
+    var ICON_MAX = 22;          // bề ngang lớn nhất của một biểu tượng trên dải
+    var ICON_TONE = 8;          // ánh màu tối thiểu của biểu tượng nhạt màu (chữ và nét xám trung tính chỉ 0–2)
+    var ICON_RIM = 2;           // bề dày vành ngoài của cụm nét dùng để đo màu vành
+
+    function channelSpread(sum, n) { return n ? (Math.max(sum[0], sum[1], sum[2]) - Math.min(sum[0], sum[1], sum[2])) / n : 0; }
+
+    // Độ lệch kênh màu của các điểm nét nằm ở vành ngoài của cụm
+    function rimTone(d, W, c, fill) {
+        var sum = [0, 0, 0], n = 0;
+        for (var y = c.y0; y <= c.y1; y++) {
+            for (var x = c.x0; x <= c.x1; x++) {
+                if (x - c.x0 >= ICON_RIM && c.x1 - x >= ICON_RIM && y - c.y0 >= ICON_RIM && c.y1 - y >= ICON_RIM) continue;
+                var p = pxAt(d, W, x, y);
+                if (cdf(p, fill) < BAND_FAINT) continue;
+                n++; sum[0] += p[0]; sum[1] += p[1]; sum[2] += p[2];
+            }
         }
-        return made;
+        return channelSpread(sum, n);
+    }
+
+    // Cụm nét trên một dải màu, cách nhau từ 3 cột trống. tone = độ lệch kênh màu của TỔNG các điểm nét chia số điểm:
+    // chữ khử răng cưa có viền màu ở từng điểm nhưng tổng thì trung tính, biểu tượng màu thì không. rim = cùng số đo nhưng chỉ ở vành ngoài của cụm
+    // (chỉ đo cho cụm nhỏ cỡ biểu tượng): biểu tượng có màu tới tận vành, ô radio / ô chọn đang chọn chỉ có màu ở giữa.
+    function bandClusters(d, W, x0, x1, y0, y1, fill) {
+        var out = [], cur = null, gap = 0, rows = y1 - y0 + 1;
+        function close() {
+            cur.tone = channelSpread(cur.sum, cur.n);
+            cur.rim = cur.x1 - cur.x0 < ICON_MAX ? rimTone(d, W, cur, fill) : 0;
+            out.push(cur); cur = null; gap = 0;
+        }
+        for (var x = x0; x <= x1; x++) {
+            var hit = 0;
+            for (var y = y0; y <= y1; y++) {
+                var p = pxAt(d, W, x, y), c = cdf(p, fill);
+                if (c < BAND_FAINT) continue;
+                if (!cur) cur = { x0: x, x1: x, y0: y, y1: y, max: 0, n: 0, tall: 0, sum: [0, 0, 0] };
+                hit++; cur.n++; cur.x1 = x;
+                if (c > cur.max) cur.max = c;
+                if (y < cur.y0) cur.y0 = y;
+                if (y > cur.y1) cur.y1 = y;
+                cur.sum[0] += p[0]; cur.sum[1] += p[1]; cur.sum[2] += p[2];
+            }
+            if (hit) { gap = 0; if (hit >= 0.55 * rows) cur.tall++; }
+            else if (cur && ++gap >= 3) close();
+        }
+        if (cur) close();
+        return out;
+    }
+
+    // Xếp các cụm nét của dải thành: tên (chữ đầu dải), mục menu (biểu tượng màu + chữ), mũi tên thu gọn và phần khác (ô nhập, nhãn rời, biểu tượng lẻ)
+    function bandLayout(clusters, x0, x1) {
+        var parts = { title: null, items: [], other: [], arrow: null };
+        function width(c) { return c.x1 - c.x0 + 1; }
+        function height(c) { return c.y1 - c.y0 + 1; }
+        function isBox(c) { return c.tall >= 24; }
+        // Biểu tượng: cụm nhỏ có màu rõ, hoặc cụm gần vuông cao từ 11px có ánh màu (đĩa lưu xám xanh, biểu tượng của mục bị khoá: tone từ 13; chữ chỉ 0–2).
+        // Vành ngoài cũng phải có màu (biểu tượng thật đo được từ 13, vành ô radio / ô chọn chỉ 0–1).
+        function isIcon(c) {
+            if (isBox(c) || width(c) < 6 || width(c) > ICON_MAX || c.n < 12 || c.rim < ICON_TONE) return false;
+            return c.tone >= 35 || (c.tone >= ICON_TONE && height(c) >= 11 && Math.abs(width(c) - height(c)) <= 3);
+        }
+        var list = clusters.filter(function (c) { return width(c) >= 3 || c.max >= BAND_INK; });   // bỏ vạch ngăn mờ giữa các mục menu
+        var last = list[list.length - 1];
+        // Mũi tên thu gọn: cụm hẹp, dẹt, nằm sát mép phải của dải
+        if (last && !isBox(last) && last.x1 >= x1 - 30 && width(last) <= 14 && height(last) <= 8) { parts.arrow = last; list.pop(); }
+        var group = null;
+        function flush() {
+            var g = group;
+            group = null;
+            if (!g) return;
+            if (!g.text.length) { parts.other.push(g); return; }
+            g.tx0 = g.text[0].x0;
+            g.y0 = Math.min.apply(null, g.text.map(function (c) { return c.y0; }));
+            g.y1 = Math.max.apply(null, g.text.map(function (c) { return c.y1; }));
+            g.faint = g.text.every(function (c) { return c.max < BAND_INK; });
+            if (g.icon) parts.items.push(g);
+            else if (!parts.title && !parts.items.length && !parts.other.length && g.x0 - x0 <= 40) parts.title = g;
+            else parts.other.push(g);
+        }
+        list.forEach(function (c) {
+            if (isBox(c)) { flush(); parts.other.push(c); return; }
+            if (isIcon(c)) { flush(); group = { icon: c, x0: c.x0, x1: c.x1, text: [] }; return; }
+            if (group && c.x0 - group.x1 - 1 >= BAND_GROUP_GAP) flush();
+            if (!group) group = { icon: null, x0: c.x0, x1: c.x1, text: [] };
+            group.text.push(c); group.x1 = c.x1;
+        });
+        flush();
+        return parts;
+    }
+
+    // Dải màu ngang gần hết bề rộng ảnh (tiêu đề Section, thanh công cụ đầu trang) → { y0, y1, fill, xa, xb, parts }.
+    // Hàng đầu và hàng cuối của dải (không có nội dung) phải có màu dải trên 70% bề ngang; các hàng giữa chỉ cần 45% vì ô nhập nằm trên dải che bớt.
+    imp.findBands = function (d, W, H, bg) {
+        var rows = [], shares = [], x, y;
+        for (y = 0; y < H; y++) {
+            var count = {}, best = null, most = 0, total = 0;
+            for (x = Math.round(W * 0.04); x < W * 0.96; x += 3) {
+                var c = pxAt(d, W, x, y), key = (c[0] >> 2) + "," + (c[1] >> 2) + "," + (c[2] >> 2);
+                total++;
+                count[key] = (count[key] || 0) + 1;
+                if (count[key] > most) { most = count[key]; best = c; }
+            }
+            var light = best ? lum(best[0], best[1], best[2]) : 0;
+            rows.push(most >= 0.45 * total && cdf(best, bg) >= 6 && light > 190 && light < 246 ? best : null);
+            shares.push(most / total);
+        }
+        var bands = [], start = -1;
+        for (y = 0; y <= H; y++) {
+            var row = y < H ? rows[y] : null;
+            if (row && start >= 0 && cdf(row, rows[start]) <= 4) continue;
+            if (start >= 0 && y - start >= 18 && y - start <= 44 && shares[start] >= 0.7 && shares[y - 1] >= 0.7) bands.push({ y0: start, y1: y - 1, fill: rows[start] });
+            start = row ? y : -1;
+        }
+        // Mép trái / phải: đoạn cùng màu dài nhất trên hàng đầu và hàng cuối của dải (hai hàng không có chữ), bỏ qua vạch ngăn mục menu rộng tới 3px
+        function span(row, fill) {
+            var best = { xa: 0, xb: -1 }, cur = null, gap = 0;
+            for (var px = 0; px <= W; px++) {
+                if (px < W && cdf(pxAt(d, W, px, row), fill) <= 6) {
+                    if (!cur) cur = { xa: px, xb: px }; else cur.xb = px;
+                    gap = 0;
+                } else if (cur && (px === W || ++gap > 3)) {
+                    if (cur.xb - cur.xa > best.xb - best.xa) best = cur;
+                    cur = null; gap = 0;
+                }
+            }
+            return best;
+        }
+        bands.forEach(function (b) {
+            var top = span(b.y0, b.fill), bottom = span(b.y1, b.fill);
+            b.xa = Math.min(top.xa, bottom.xa); b.xb = Math.max(top.xb, bottom.xb);
+            b.parts = bandLayout(bandClusters(d, W, b.xa, b.xb, b.y0 + 1, b.y1 - 1, b.fill), b.xa, b.xb);
+        });
+        return bands;
     };
 
+    // Dải không có tên mà có mục menu là thanh công cụ (Save, Cancel…), không phải tiêu đề Section
+    function isToolbarBand(band) { return !band.parts.title && band.parts.items.length > 0; }
 
-    // ================================================================ SECTION PANEL
-    // Dải tiêu đề xám ngang gần hết bề rộng + khung viền quanh nội dung = Section panel của Builder
-    imp.findSections = function (d, W, H, bg, fss) {
-        fss = fss || [];
-        function lumc(c) { return 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; }
-        var rows = [];
-        for (var y = 0; y < H; y++) {
-            var cnt = {}, best = null, bn = 0, tot = 0;
-            for (var x = Math.round(W * 0.04); x < W * 0.96; x += 3) {
-                var c = pxAt(d, W, x, y), k = (c[0] >> 2) + "," + (c[1] >> 2) + "," + (c[2] >> 2); tot++;
-                var n = (cnt[k] = (cnt[k] || 0) + 1); if (n > bn) { bn = n; best = c; }
-            }
-            rows.push(bn >= 0.7 * tot && cdf(best, bg) >= 6 && lumc(best) > 190 && lumc(best) < 246 ? best : null);
-        }
-        var bands = [], y0 = -1;
-        for (var yy = 0; yy <= H; yy++) {
-            var cur = yy < H ? rows[yy] : null;
-            if (cur && y0 >= 0 && cdf(cur, rows[y0]) <= 4) continue;
-            if (y0 >= 0) { var h = yy - y0; if (h >= 18 && h <= 44) bands.push({ y0: y0, y1: yy - 1, color: rows[y0] }); }
-            y0 = cur ? yy : -1;
-        }
-        if (!bands.length) return [];
-        bands.forEach(function (b) {
-            var my = Math.min(H - 1, b.y0 + 2), xa = W >> 1, xb = W >> 1;
-            while (xa > 0 && cdf(pxAt(d, W, xa - 1, my), b.color) <= 6) xa--;
-            while (xb < W - 1 && cdf(pxAt(d, W, xb + 1, my), b.color) <= 6) xb++;
-            b.xa = xa; b.xb = xb;
+    // Đọc chữ trên dải: tên dải và chữ của từng mục menu (.caption). Nhóm không đọc được chuyển sang phần khác để pipeline thường xử lý.
+    function readBand(cv, band) {
+        var parts = band.parts, groups = (parts.title ? [parts.title] : []).concat(parts.items);
+        function readable(g) { return g.caption.length >= 2 && /[A-Za-z]/.test(g.caption); }
+        return seq(groups, function (g) {
+            return ocrCrop(cv, g.tx0 - 2, g.y0 - 3, g.x1 - g.tx0 + 5, g.y1 - g.y0 + 7, { fill: band.fill, stretch: g.faint ? BAND_FAINT : 0 }).then(function (r) {
+                g.caption = r.text.replace(/^[^A-Za-z0-9(]+/, "").replace(/[^A-Za-z0-9).%]+$/, "").trim();
+            });
+        }).then(function () {
+            return {
+                title: parts.title && readable(parts.title) ? parts.title : null,
+                items: parts.items.filter(readable),
+                other: parts.other.concat(groups.filter(function (g) { return !readable(g); })),
+                arrow: parts.arrow
+            };
         });
-        // giữ các dải cùng bề rộng (±6px)
-        var w0 = bands[0].xb - bands[0].xa;
-        bands = bands.filter(function (b) { return Math.abs((b.xb - b.xa) - w0) <= 8 && Math.abs(b.xa - bands[0].xa) <= 6; });
-        // cạnh trên/dưới của fieldset nằm LỌT trong Section (thụt vào so với khung Section) không phải đáy Section
-        function inFs(q, b) { return fss.some(function (f) { return f.x0 >= b.xa + 8 && (Math.abs(f.y0 - q) <= 2 || Math.abs(f.y1 - q) <= 2); }); }
-        function longLine(y, xa, xb) {
-            var run = 0, best = 0;
-            for (var x = xa; x <= xb; x++) { var c = pxAt(d, W, x, y); if (cdf(c, bg) >= 6 && lumc(c) < 240) { run++; if (run > best) best = run; } else run = 0; }
-            return best >= 0.85 * (xb - xa);
+    }
+
+    function bandToolbar(texts, left, top, parentId) {
+        return {
+            id: tmpIdX("toolbar"), type: "toolbar", left: Math.round(left), top: Math.round(top), parentId: parentId || null, dock: null, showBackground: true,
+            tabPageId: null, tabIndex: null, zIndex: 1,
+            items: texts.map(menuItem)
+        };
+    }
+
+    // Mục menu của Toolbar: biểu tượng theo chữ, cùng bảng với bộ chuyển đổi màn hình chụp từ HRM (builderCapture)
+    function menuItem(text) {
+        var item = { text: text }, icon = builderCapture.menuIcon(text);
+        if (icon) item.icon = icon;
+        return item;
+    }
+
+    // Dải tên của lưới Core: tên lưới, các mục menu (Add, Delete…), Local Data Language; ô nhập và nhãn khác trên dải được giữ lại thành control rời
+    function gridBand(cv, band, scale, progress, src) {
+        return readBand(cv, band).then(function (parts) {
+            return bandRest(cv, band, parts, scale, progress, src).then(function (kids) {
+                var placed = [], language = false;
+                adopt(placed, kids, null, band.xa, band.y0 + 1);
+                var extra = placed.filter(function (k) {
+                    if (!/language/i.test(k.caption || k.defaultValue || "")) return true;
+                    language = true;
+                    return false;
+                });
+                return { y0: band.y0, y1: band.y1, title: parts.title ? parts.title.caption : "", toolbar: captionsOf(parts.items), language: language, extra: extra };
+            });
+        });
+    }
+
+    function captionsOf(groups) { return groups.map(function (g) { return g.caption; }); }
+
+    // Phần khác của dải (ô nhập, nhãn rời, biểu tượng lẻ) đi qua pipeline thường sau khi che tên dải, các mục menu và mũi tên; toạ độ tính từ (band.xa, band.y0 + 1)
+    function bandRest(cv, band, parts, scale, progress, src) {
+        var w = band.xb - band.xa + 1, h = band.y1 - band.y0 - 1, PAD = 4;   // đệm màu dải trên và dưới: ô nhập cao gần bằng dải vẫn có đủ viền ngoài để dò ra
+        if (!parts.other.length || w < 30 || h < 10) return Promise.resolve([]);
+        var sub = document.createElement("canvas");
+        sub.width = w; sub.height = h + 2 * PAD;
+        var g = sub.getContext("2d", { willReadFrequently: true });
+        g.fillStyle = "rgb(" + band.fill.join(",") + ")";
+        g.fillRect(0, 0, w, sub.height);
+        g.drawImage(cv, band.xa, band.y0 + 1, w, h, 0, PAD, w, h);
+        (parts.title ? [parts.title] : []).concat(parts.items, parts.arrow ? [parts.arrow] : []).forEach(function (p) {
+            g.fillRect(p.x0 - band.xa - 2, 0, p.x1 - p.x0 + 5, sub.height);
+        });
+        return imp.runPipeline(sub, scale, progress, src, { absTop: true }).then(function (kids) {
+            var out = [];
+            adopt(out, kids, null, 0, -PAD);
+            return out;
+        });
+    }
+
+    // Section panel: mỗi dải kèm khung viền quanh nội dung bên dưới. Nhóm dải rộng nhất (cùng hai mép trái / phải) là cấp ngoài cùng;
+    // dải hẹp hơn nằm lọt trong một Section đã nhận là Section lồng, được tìm lại khi xử lý ruột của Section đó (imp.runInterior).
+    imp.findSections = function (d, W, H, bg, fss, bands) {
+        function widestGroup(list) {
+            var groups = [];
+            list.forEach(function (b) {
+                var same = groups.filter(function (g) { return Math.abs(g.xa - b.xa) <= 6 && Math.abs((g.xb - g.xa) - (b.xb - b.xa)) <= 8; })[0];
+                if (same) same.list.push(b); else groups.push({ xa: b.xa, xb: b.xb, list: [b] });
+            });
+            return groups.reduce(function (wide, g) { return !wide || g.xb - g.xa > wide.xb - wide.xa + 8 ? g : wide; }, null).list;
         }
-        var xas = bands.map(function (b) { return b.xa; }).sort(function (a, b) { return a - b; }), xbs = bands.map(function (b) { return b.xb; }).sort(function (a, b) { return a - b; });
-        var mxa = xas[xas.length >> 1], mxb = xbs[xbs.length >> 1];
-        bands.forEach(function (b) { b.xa = mxa; b.xb = mxb; });   // mọi Section cùng bề rộng
-        return bands.map(function (b, i) {
-            var nx = bands[i + 1], top = Math.max(0, b.y0 - 1), bottom = -1;
-            if (nx) {
-                for (var q = nx.y0 - 1; q > b.y1 + 8; q--) if (longLine(q, b.xa, b.xb) && !inFs(q, b)) { bottom = q; break; }
-                if (bottom < 0) bottom = nx.y0 - 3;
-            } else {
-                for (var q2 = b.y1 + 8; q2 < H; q2++) if (longLine(q2, b.xa, b.xb) && !inFs(q2, b)) { bottom = q2; break; }
-                if (bottom < 0) bottom = H - 1;
+        function sectionsOf(list, taken) {
+            var xa = median(list.map(function (b) { return b.xa; })), xb = median(list.map(function (b) { return b.xb; }));
+            function inFieldset(y) { return fss.some(function (f) { return f.x0 >= xa + 8 && (Math.abs(f.y0 - y) <= 2 || Math.abs(f.y1 - y) <= 2); }); }
+            function longLine(y) {
+                var run = 0, best = 0;
+                for (var x = xa; x <= xb; x++) {
+                    var c = pxAt(d, W, x, y);
+                    if (cdf(c, bg) >= 6 && lum(c[0], c[1], c[2]) < 240) { run++; if (run > best) best = run; } else run = 0;
+                }
+                return best >= 0.85 * (xb - xa);
             }
-            return { hy0: b.y0, hy1: b.y1, color: b.color, x0: Math.max(0, b.xa - 1), x1: Math.min(W - 1, b.xb + 1), top: top, bottom: bottom };
-        }).filter(Boolean);
+            // Đáy khung: viền dọc của khung còn ở ngay phía trên đường kẻ và hết ở ngay phía dưới
+            function frameEnds(y) {
+                return [xa - 1, xb + 1].some(function (x) {
+                    if (x < 0 || x >= W || y < 2) return false;
+                    var above = pxAt(d, W, x, y - 2);
+                    return cdf(above, bg) >= 6 && (y + 2 >= H || cdf(pxAt(d, W, x, y + 2), above) >= 6);
+                });
+            }
+            return list.map(function (b, i) {
+                var floor = H + 2;
+                if (list[i + 1]) floor = list[i + 1].y0;
+                taken.forEach(function (s) { if (s.top > b.y1 && s.top + 1 < floor) floor = s.top + 1; });
+                var bottom = Math.min(H - 1, floor - 3), low = b.bars.length ? b.bars[b.bars.length - 1].y1 : b.y1;
+                for (var y = low + 1; y <= Math.min(H - 1, floor - 2); y++) {
+                    if (longLine(y) && frameEnds(y) && !inFieldset(y)) { bottom = y; break; }
+                }
+                return { hy0: b.y0, hy1: low, x0: Math.max(0, xa - 1), x1: Math.min(W - 1, xb + 1), top: Math.max(0, b.y0 - 1), bottom: bottom, band: b };
+            });
+        }
+        var out = [], left = bands.slice();
+        while (left.length) {
+            var group = widestGroup(left);
+            out = out.concat(sectionsOf(group, out));
+            left = left.filter(function (b) {
+                return group.indexOf(b) < 0 && !out.some(function (s) { return b.y0 > s.hy1 && b.y1 < s.bottom && b.xa >= s.x0 && b.xb <= s.x1; });
+            });
+        }
+        return out.sort(function (a, b) { return a.top - b.top; });
     };
 
     // Fieldset: khung viền mảnh (1px xám, góc bo) có chữ tiêu đề (legend) đè lên cạnh trên → Group box của Builder
@@ -1845,7 +2368,7 @@
         var wg = work.getContext("2d", { willReadFrequently: true }); wg.drawImage(cv, 0, 0);
         wg.fillStyle = "rgb(" + bg.join(",") + ")";
         outer.forEach(function (f) { wg.fillRect(f.x0 - 2, Math.max(0, f.y0 - 10), f.x1 - f.x0 + 5, f.y1 - Math.max(0, f.y0 - 10) + 3); });
-        var TOP = 9;   // ruột group box trong Builder: viền 1 + lề trên 8 → gốc toạ độ của control con
+        var INNER_TOP = 9;   // ruột fieldset bắt đầu dưới nửa dưới của legend (legend vắt qua cạnh trên của khung)
         var fdata = ctx.getImageData(0, 0, W, H).data;   // (work chưa xoá gì tại thời điểm này ngoài các fieldset — dùng để đo dải tiêu đề)
         function cdD(x, y, c) { var i = (y * W + x) * 4; return Math.max(Math.abs(fdata[i] - c[0]), Math.abs(fdata[i + 1] - c[1]), Math.abs(fdata[i + 2] - c[2])); }
         return seq(outer, function (f) {
@@ -1862,29 +2385,28 @@
                     });
                 }
             }
-            var cw = f.x1 - f.x0 - 1, ch = f.y1 - (f.y0 + TOP) - 1;
+            var cw = f.x1 - f.x0 - 1, ch = f.y1 - (f.y0 + INNER_TOP) - 1;
             var legend = f.lx0 != null ? ocrCrop(cv, f.lx0, f.y0 - 9, f.lx1 - f.lx0 + 1, 19, { fill: bg }) : Promise.resolve({ text: "" });
             if (cw < 10 || ch < 10) return legend.then(function (t) { return { f: f, title: t.text, kids: [] }; });
             var sub = document.createElement("canvas"); sub.width = cw; sub.height = ch;
-            sub.getContext("2d").drawImage(cv, f.x0 + 1, f.y0 + TOP, cw, ch, 0, 0, cw, ch);
+            sub.getContext("2d").drawImage(cv, f.x0 + 1, f.y0 + INNER_TOP, cw, ch, 0, 0, cw, ch);
             return legend.then(function (t) {
                 if (window.__T2) console.log('T2 legend', f.lx0, f.lx1, JSON.stringify(t.text), t.conf);
                 return imp.runInterior(sub, scale, progress, src).then(function (kids) { return { f: f, title: t.text, kids: kids }; });
             });
         }).then(function (parts) {
-            var out = [];
+            var out = [], origins = builderCapture.INSETS;
             parts.forEach(function (pt) {
-                var f = pt.f, id = tmpIdX("fld_groupbox"), ids = {};
-                pt.kids.forEach(function (k) { ids[k.id] = 1; });
-                if (pt.ess) {   // ESS Section (collapsible-section): gốc con = (trái+11, trên+48) trong DOM
+                var f = pt.f, id = tmpIdX("fld_groupbox");
+                if (pt.ess) {   // ESS Section (collapsible-section): ruột trong ảnh bắt đầu ngay dưới dải tiêu đề
                     var cid = tmpIdX("collapsible");
                     out.push({ id: cid, type: "collapsible-section", uiMode: "ess", caption: (pt.title || "").replace(/[^A-Za-z0-9 ()\/&-]+/g, "").trim() || "Section", expanded: true, left: f.x0, top: f.y0, width: f.x1 - f.x0 + 1, height: Math.max(60, f.y1 - f.y0 + 1 - 9), backgroundColor: "#f5f5f5", borderColor: "#e0e0e0", headerColor: "#0078d4", contentPadding: 12, zIndex: 0, parentId: null });
-                    pt.kids.forEach(function (k) { if (!k.parentId || !ids[k.parentId]) { k.parentId = cid; k.left = (k.left || 0) - 10; k.top = (k.top || 0) + pt.bandH - 47; } out.push(k); });
+                    adopt(out, pt.kids, cid, 1 - origins.essSection.x, pt.bandH + 1 - origins.essSection.y);
                     return;
                 }
                 var cap = pt.title && /[A-Za-z0-9]/.test(pt.title) ? pt.title.replace(/[\s\-–—_:.~=|]+$/, "") : "";
                 out.push({ id: id, type: "field", ftype: "groupbox", uiMode: "core", caption: cap, required: false, disabled: false, defaultValue: "", items: [], multiselectColumns: [], multiselectItems: [], multiselectSelectedValues: [], labelWidth: 120, captionBold: false, captionItalic: false, captionPosition: "left", tabPageId: null, tabIndex: null, zIndex: 0, parentId: null, left: f.x0, top: f.y0, width: f.x1 - f.x0 + 1, height: f.y1 - f.y0 + 1 });
-                pt.kids.forEach(function (k) { if (!k.parentId || !ids[k.parentId]) k.parentId = id; out.push(k); });
+                adopt(out, pt.kids, id, 1 - origins.groupbox.x, INNER_TOP - origins.groupbox.y);
             });
             return imp.runPipeline(work, scale, progress, src, { absTop: true }).then(function (rest) {
                 return out.concat(rest);
@@ -1892,69 +2414,90 @@
         });
     };
 
-    // Ruột của Section / fieldset: có fieldset lồng bên trong thì tách nó ra, không thì pipeline thường; toạ độ tuyệt đối trong ruột
+    // Ruột của Section / fieldset: Section lồng (màn hình Core) và fieldset lồng được tách ra, còn lại là pipeline thường; toạ độ tuyệt đối trong ruột
     imp.runInterior = function (cv, scale, progress, src) {
-        var W = cv.width, H = cv.height, fss = [];
-        if (imp.regions !== false && W >= 140 && H >= 40) {
-            try { var dd = cv.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, W, H).data; fss = imp.findFieldsets(dd, W, H, mainColor(dd, W, H)); } catch (e) { fss = []; }
-        }
-        if (fss.length) return imp.runFieldsets(cv, fss, scale, progress, src);
-        return imp.runPipeline(cv, scale, progress, src, { absTop: true });
+        if (cv.width < 140 || cv.height < 40) return imp.runPipeline(cv, scale, progress, src, { absTop: true });
+        return imp.runSections(cv, scale, progress, src, { absTop: true, noBands: imp.mode === "ess" });
     };
+
+    // Dải nằm ngay dưới một dải khác (cách tối đa 3px, cùng hai mép) là thanh menu của dải trên: gắn vào .bars của dải trên
+    function stackBands(bands) {
+        var heads = [];
+        bands.forEach(function (b) {
+            var head = heads[heads.length - 1], last = head ? head.bars[head.bars.length - 1] || head : null;
+            b.bars = [];
+            if (last && b.y0 - last.y1 <= 3 && Math.abs(b.xa - head.xa) <= 6 && Math.abs(b.xb - head.xb) <= 8) head.bars.push(b);
+            else heads.push(b);
+        });
+        return heads;
+    }
+
+    // Thanh menu: mọi nhóm chữ của dải (có biểu tượng hay không) là một mục của Toolbar; phần còn lại của dải đi qua pipeline thường.
+    // Toạ độ trả về tính theo ảnh rồi cộng (dx, dy).
+    function barControls(cv, band, parentId, dx, dy, scale, progress, src) {
+        return readBand(cv, band).then(function (parts) {
+            var groups = (parts.title ? [parts.title] : []).concat(parts.items), out = [];
+            if (groups.length) out.push(bandToolbar(captionsOf(groups), groups[0].x0 - TOOLBAR_ICON_X + dx, (band.y0 + band.y1 + 1 - TOOLBAR_HEIGHT) / 2 + dy, parentId));
+            return bandRest(cv, band, parts, scale, progress, src).then(function (kids) {
+                adopt(out, kids, parentId, band.xa + dx, band.y0 + 1 + dy);
+                return out;
+            });
+        });
+    }
 
     imp.runSections = function (cv, scale, progress, src, opts) {
         var W = cv.width, H = cv.height, ctx = cv.getContext("2d", { willReadFrequently: true });
-        var data = ctx.getImageData(0, 0, W, H).data, secs = [];
-        var fss = [];
-        if (imp.regions !== false) { try { fss = imp.findFieldsets(data, W, H, mainColor(data, W, H)); } catch (e2) { fss = []; } }
-        if (imp.regions !== false) { try { secs = imp.findSections(data, W, H, mainColor(data, W, H), fss); } catch (e) { secs = []; } }
-        if (!secs.length && fss.length) return imp.runFieldsets(cv, fss, scale, progress, src);
-        if (!secs.length) return imp.runPipeline(cv, scale, progress, src, opts);
-        var bg = mainColor(data, W, H);
-        var work = document.createElement("canvas"); work.width = W; work.height = H;
-        var wg = work.getContext("2d", { willReadFrequently: true }); wg.drawImage(cv, 0, 0);
+        var data = ctx.getImageData(0, 0, W, H).data, bg = mainColor(data, W, H), fss = [], bands = [];
+        // Dải và khung Section đo trên ảnh còn nguyên các lưới (opts.whole); vùng của lưới (opts.gridRegions) do lưới tự đọc dải tên của nó
+        var frame = opts && opts.whole ? opts.whole.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, W, H).data : data;
+        var taken = (opts && opts.gridRegions) || [];
+        if (imp.regions !== false) {
+            try { fss = imp.findFieldsets(data, W, H, bg); } catch (e2) { fss = []; }
+            if (!(opts && opts.noBands)) { try { bands = imp.findBands(frame, W, H, bg).filter(function (b) { return !taken.some(function (r) { return b.y0 >= r.top && b.y1 <= r.bottom; }); }); } catch (e) { bands = []; } }
+        }
+        var heads = stackBands(bands), bars = [];
+        heads.filter(isToolbarBand).forEach(function (b) { bars = bars.concat([b], b.bars); });
+        var secs = imp.findSections(frame, W, H, bg, fss, heads.filter(function (b) { return !isToolbarBand(b); }));
+        if (!secs.length && !bars.length) return fss.length ? imp.runFieldsets(cv, fss, scale, progress, src) : imp.runPipeline(cv, scale, progress, src, opts);
+        var work = cropCanvas(cv, 0, 0, W, H), wg = work.getContext("2d"), out = [];
         wg.fillStyle = "rgb(" + bg.join(",") + ")";
         secs.forEach(function (sc) { wg.fillRect(sc.x0 - 1, sc.top - 1, sc.x1 - sc.x0 + 3, sc.bottom - sc.top + 3); });
-        var DOM_HDR = 35;   // tiêu đề Section trong Builder cao ~26 + lề nội dung 8 + viền 1 → gốc toạ độ của control con
-        return seq(secs, function (sc) {
-            var cw = sc.x1 - sc.x0 - 1, ch = Math.max(10, sc.bottom - sc.hy1 - 1);
-            var sub = document.createElement("canvas"); sub.width = cw; sub.height = ch;
-            sub.getContext("2d").drawImage(cv, sc.x0 + 1, sc.hy1 + 1, cw, ch, 0, 0, cw, ch);
-            return ocrCrop(cv, sc.x0 + 6, sc.hy0 + 2, Math.min(600, (sc.x1 - sc.x0) * 0.7), sc.hy1 - sc.hy0 - 3, { fill: sc.color }).then(function (t) {
-                // tiêu đề = các từ liền nhau từ đầu dải; phần sau khoảng hở > 14px (biểu tượng, link, combo bên phải…) là control nằm trên dải
-                var ws = (t.words || []).filter(function (w) { return w.t && /[A-Za-z0-9]/.test(w.t); }).sort(function (a, b) { return a.x0 - b.x0; }), tt = [], tx1 = sc.x0 + 6;
-                for (var wi = 0; wi < ws.length; wi++) { if (wi && ws[wi].x0 - ws[wi - 1].x1 > 14) break; tt.push(ws[wi].t); tx1 = ws[wi].x1; }
-                var title = tt.length ? cleanText(tt.join(" ")) : t.text;
-                var hx0 = Math.round(tx1 + 8), hw = sc.x1 - 2 - hx0, hh = sc.hy1 - sc.hy0 - 1, hdrP = Promise.resolve([]);
-                if (ws.length && hw >= 30 && hh >= 10 && ws.length > tt.length - 0 || (ws.length && hw >= 30 && hh >= 10)) {
-                    var hsub = document.createElement("canvas"); hsub.width = hw; hsub.height = hh;
-                    hsub.getContext("2d").drawImage(cv, hx0, sc.hy0 + 1, hw, hh, 0, 0, hw, hh);
-                    hdrP = imp.runPipeline(hsub, scale, progress, src, { absTop: true });
+        bars.forEach(function (b) { wg.fillRect(b.xa - 1, b.y0 - 1, b.xb - b.xa + 3, b.y1 - b.y0 + 3); });
+        var origin = builderCapture.INSETS.section;
+        return seq(bars, function (band) {
+            return barControls(cv, band, null, 0, 0, scale, progress, src).then(function (made) { out = out.concat(made); });
+        }).then(function () {
+            return seq(secs, function (sc) {
+                var cw = sc.x1 - sc.x0 - 1, ch = sc.bottom - sc.hy1 - 1, inset = { x: -(sc.x0 + origin.x), y: -(sc.top + origin.y) }, onBars = [];
+                return readBand(cv, sc.band).then(function (parts) {
+                    return seq(sc.band.bars, function (bar) {
+                        return barControls(cv, bar, null, inset.x, inset.y, scale, progress, src).then(function (made) { onBars = onBars.concat(made); });
+                    }).then(function () {
+                        return ch >= 10 ? imp.runInterior(cropCanvas(cv, sc.x0 + 1, sc.hy1 + 1, cw, ch), scale, progress, src) : [];
+                    }).then(function (kids) {
+                        return bandRest(cv, sc.band, parts, scale, progress, src).then(function (onBand) { return { sc: sc, parts: parts, kids: kids, onBand: onBand, onBars: onBars, inset: inset }; });
+                    });
+                });
+            });
+        }).then(function (list) {
+            list.forEach(function (pt) {
+                var sc = pt.sc, band = sc.band, id = tmpIdX("fld_section");
+                out.push({ id: id, type: "field", ftype: "section", uiMode: "core", caption: pt.parts.title ? pt.parts.title.caption : "Section", required: false, disabled: false, defaultValue: "", items: [], multiselectColumns: [], multiselectItems: [], multiselectSelectedValues: [], labelWidth: 120, captionBold: false, captionItalic: false, captionPosition: "left", tabPageId: null, tabIndex: null, zIndex: 0, parentId: null, left: sc.x0, top: sc.top, width: sc.x1 - sc.x0 + 1, height: sc.bottom - sc.top + 1 });
+                adopt(out, pt.kids, id, sc.x0 + 1 + pt.inset.x, sc.hy1 + 1 + pt.inset.y);
+                // control nằm trên dải tiêu đề (menu Add / Remove, combo bên phải…) và thanh menu ngay dưới nó: con của Section với top âm (đè lên vùng tiêu đề)
+                if (pt.parts.items.length) {
+                    out.push(bandToolbar(captionsOf(pt.parts.items), pt.parts.items[0].x0 - TOOLBAR_ICON_X + pt.inset.x, (band.y0 + band.y1 + 1 - TOOLBAR_HEIGHT) / 2 + pt.inset.y, id));
                 }
-                return imp.runInterior(sub, scale, progress, src).then(function (kids) {
-                    return hdrP.then(function (hk) { return { sc: sc, title: title, kids: kids, hk: hk, hx0: hx0 }; });
-                });
+                adopt(out, pt.onBand, id, band.xa + pt.inset.x, band.y0 + 1 + pt.inset.y);
+                adopt(out, pt.onBars, id, 0, 0);
             });
-        }).then(function (parts) {
-            var out = [];
-            parts.forEach(function (pt) {
-                var sc = pt.sc, id = tmpIdX("fld_section"), ids = {};
-                pt.kids.forEach(function (k) { ids[k.id] = 1; });
-                out.push({ id: id, type: "field", ftype: "section", uiMode: "core", caption: pt.title && /[A-Za-z0-9]/.test(pt.title) ? pt.title : "Section", required: false, disabled: false, defaultValue: "", items: [], multiselectColumns: [], multiselectItems: [], multiselectSelectedValues: [], labelWidth: 120, captionBold: false, captionItalic: false, captionPosition: "left", tabPageId: null, tabIndex: null, zIndex: 0, parentId: null, left: sc.x0, top: sc.top, width: sc.x1 - sc.x0 + 1, height: sc.bottom - sc.top + 1 });
-                var off = (sc.hy1 - sc.top + 1) - DOM_HDR;
-                pt.kids.forEach(function (k) { if (!k.parentId || !ids[k.parentId]) { k.parentId = id; k.top = (k.top || 0) + off; } out.push(k); });
-                // control nằm trên dải tiêu đề (vd. combo Company bên phải): con của Section với top âm (đè lên vùng tiêu đề)
-                var hids = {}; (pt.hk || []).forEach(function (k) { hids[k.id] = 1; });
-                (pt.hk || []).forEach(function (k) {
-                    if (!k.parentId || !hids[k.parentId]) { k.parentId = id; k.top = (k.top || 0) + (sc.hy0 + 1 - sc.top) - DOM_HDR; k.left = (k.left || 0) + (pt.hx0 - (sc.x0 + 1)); }
-                    out.push(k);
-                });
-            });
+            if (!secs.length) return fss.length ? imp.runFieldsets(work, fss, scale, progress, src) : imp.runPipeline(work, scale, progress, src, { absTop: true });
             return imp.runPipeline(work, scale, progress, src, { absTop: true }).then(function (rest) {
                 // vệt ngang mỏng còn sót giữa các Section (viền/đổ bóng) không phải control
-                rest = rest.filter(function (r) { return !(r.ftype === "image" && r.height <= 16 && r.width >= 0.5 * W); });
-                return out.concat(rest);
+                return rest.filter(function (r) { return !(r.ftype === "image" && r.height <= 16 && r.width >= 0.5 * W); });
             });
+        }).then(function (rest) {
+            return out.concat(rest);
         });
     };
 
@@ -2001,7 +2544,7 @@
         var data = ctx.getImageData(0, 0, W, H).data, pop = null;
         if (imp.regions !== false) { try { pop = imp.findPopup(data, W, H); } catch (e) { pop = null; } }
         if (pop) return imp.popupFlow(cv, pop, scale, progress, src).then(dropMarks);
-        return imp.makePage(cv, scale, progress, src).then(function (made) { return imp.mode === "ess" ? pillTabs(made) : made; }).then(dropMarks);
+        return imp.makePanes(cv, scale, progress, src).then(function (made) { return imp.mode === "ess" ? pillTabs(made) : made; }).then(dropMarks);
     };
 
     function dropMarks(made) {
@@ -2033,11 +2576,10 @@
         var drop = {};
         items.forEach(function (it) { drop[it.m.id] = true; });
         var rest = made.filter(function (m) { return !drop[m.id]; });
-        var right = 0, bottom = 0;
+        var right = 0, bottom = renderedBottom(rest);
         rest.forEach(function (m) {
             if (m.parentId && by[m.parentId]) return;
             right = Math.max(right, (m.left || 0) + (m.width || 0));
-            bottom = Math.max(bottom, (m.top || 0) + (m.type === "grid" || m.type === "ess-grid" ? gridRenderHeight(m) : (m.height || 0)));
         });
         var top = Math.max(0, Math.round(rowTop) - 2), left = Math.max(0, Math.round(items[0].x) - 4);
         var tab = {
@@ -2062,15 +2604,6 @@
             labelWidth: 0, captionBold: false, captionItalic: false, captionPosition: "left", tabPageId: null, tabIndex: null, zIndex: 1, parentId: null,
             left: Math.round(x), top: Math.round(y), width: Math.round(w), height: Math.round(h)
         };
-    }
-
-    var MENU_ICONS = [
-        [/^(add|new|create|insert|assign)/i, "menu-add"], [/^(save|update|submit)/i, "menu-save"], [/^(delete|remove|un-?assign)/i, "menu-delete"],
-        [/^(cancel|close|back)/i, "menu-cancel"], [/^(open|view|preview) report/i, "menu-open-report"], [/^download/i, "menu-download"], [/^(export|print)/i, "menu-export"], [/^(approve|confirm)/i, "menu-approve"], [/^(ok|select)$/i, "menu-ok"], [/^(import|browse|upload)/i, "menu-browse"]
-    ];
-    function menuIcon(text) {
-        for (var i = 0; i < MENU_ICONS.length; i++) if (MENU_ICONS[i][0].test(text)) return "/Content/images/icon-menu/" + MENU_ICONS[i][1] + ".png";
-        return null;
     }
 
     function tableBand(d, W, gr, bg) {
@@ -2167,11 +2700,7 @@
         parts.labels.forEach(function (l) { out.push(looseField("label", l.x0 - 2, l.y0 - 3, l.x1 - l.x0 + 8, l.y1 - l.y0 + 7, l.text)); });
         if (parts.items.length) {
             var first = parts.items[0];
-            out.push({
-                id: tmpIdX("toolbar"), type: "toolbar", left: Math.max(0, first.x0 - 6), top: Math.round((parts.y0 + parts.y1) / 2 - 14), parentId: null, dock: null, showBackground: true,
-                tabPageId: null, tabIndex: null, zIndex: 1,
-                items: parts.items.map(function (it) { var item = { text: it.text }, icon = menuIcon(it.text); if (icon) item.icon = icon; return item; })
-            });
+            out.push(bandToolbar(parts.items.map(function (it) { return it.text; }), Math.max(0, first.x0 - 6), (parts.y0 + parts.y1) / 2 - 14, null));
         }
         parts.buttons.forEach(function (b) {
             var btn = looseField("button", b.x0, b.y0, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1, b.text);
@@ -2181,30 +2710,88 @@
         return out;
     }
 
-    function gridRenderHeight(c) {
-        if (c.type === "ess-grid") return c.height || 260;
-        var rows = c.sampleData ? c.sampleData.length : 5;
-        return 22 + 35 + rows * 35 + (c.allowGrouping ? 52 : 0) + (c.showTitle || c.showToolbar || c.showLocalDataLanguage ? 27 : 0) +
-            (c.filterRow ? 34 : 0) + (c.showPager ? 50 : 0);
+    // Đáy của kết quả khi dựng trong Builder: lưới cao theo số dòng mẫu chứ không theo ảnh
+    function renderedBottom(made) {
+        var ids = {}, bottom = 0;
+        made.forEach(function (m) { ids[m.id] = true; });
+        made.forEach(function (m) {
+            if (m.parentId && ids[m.parentId]) return;
+            bottom = Math.max(bottom, (m.top || 0) + (m.type === "grid" || m.type === "ess-grid" ? gridRenderHeight(m) : (m.height || 0)));
+        });
+        return bottom;
     }
 
-    function pushBelowGrids(grids, regions, rest) {
-        var ids = {};
-        rest.forEach(function (m) { ids[m.id] = true; });
-        var growths = grids.map(function (c, i) { return Math.max(0, gridRenderHeight(c) - (regions[i].bottom - c.top + 1)); });
-        function shiftFor(top) {
-            var total = 0;
-            regions.forEach(function (r, i) { if (r.bottom <= top + 2) total += growths[i]; });
-            return total;
-        }
-        rest.forEach(function (m) {
-            if (m.parentId && ids[m.parentId]) return;
-            m.top = (m.top || 0) + shiftFor(m.top || 0);
+    function gridRenderHeight(c) {
+        if (c.type === "ess-grid") return c.height || 260;
+        return builderCapture.gridHeight("core", {
+            rows: c.sampleData ? c.sampleData.length : 5, groupPanel: c.allowGrouping, viewData: c.showDataHeader, title: c.showTitle,
+            toolbar: (c.showToolbar && c.toolbarItems) || [], language: c.showLocalDataLanguage, filterRow: c.filterRow, pager: c.showPager
         });
+    }
+
+    // Gốc toạ độ của control con trong một khối chứa của Builder (group box trần không viền, không lề: gốc trùng góc của khối)
+    function childOrigin(box) {
+        if (box.type === "collapsible-section") return builderCapture.INSETS.essSection;
+        if (box.type !== "field") return null;
+        return box.bare ? { x: 0, y: 0 } : (builderCapture.INSETS[box.ftype] || null);
+    }
+
+    // Lưới dựng trong Builder cao theo số dòng mẫu, thường cao hơn chỗ của nó trong ảnh: mọi thứ nằm dưới lưới dời xuống bằng phần cao thêm,
+    // khối chứa lưới thì cao thêm bấy nhiêu. Con của một khối chỉ dời theo các lưới thuộc khối đó (khối dời thì con đi theo).
+    // Lưới thuộc một khối khi đáy vùng lưới nằm trong chiều cao của khối và hai bên có phần chung theo chiều ngang (khối trần chỉ là khung bao các con).
+    // Sau khi dời, lưới thành con của khối có khung nhỏ nhất bao trọn vùng lưới (Section, group box, ESS Section), để kéo khối thì lưới đi theo.
+    function settleGrids(grids, regions, rest) {
+        var EDGE = 2, byId = {}, frames = {};
+        rest.forEach(function (m) { byId[m.id] = m; });
+        var spots = grids.map(function (c, i) {
+            return { x0: c.left, x1: c.left + c.width, y0: c.top, y1: regions[i].bottom, growth: Math.max(0, gridRenderHeight(c) - (regions[i].bottom - c.top + 1)) };
+        });
+        function frameOf(m) {
+            if (frames[m.id] !== undefined) return frames[m.id];
+            var parent = byId[m.parentId], x = m.left || 0, y = m.top || 0;
+            if (parent) {
+                var outer = frameOf(parent), origin = childOrigin(parent);
+                if (!outer || !origin) return (frames[m.id] = null);
+                x += outer.x0 + origin.x; y += outer.y0 + origin.y;
+            }
+            return (frames[m.id] = { x0: x, y0: y, x1: x + (m.width || 0), y1: y + (m.height || 0) });
+        }
+        function inside(frame) {
+            return spots.filter(function (s) { return s.y1 > frame.y0 + EDGE && s.y1 <= frame.y1 + EDGE && s.x1 > frame.x0 && s.x0 < frame.x1; });
+        }
+        function growthAbove(list, top) {
+            return list.reduce(function (sum, s) { return s.y1 <= top + EDGE ? sum + s.growth : sum; }, 0);
+        }
+        var moves = rest.map(function (m) {
+            var own = frameOf(m), parent = byId[m.parentId];
+            if (!own) return null;
+            return { down: growthAbove(parent ? inside(frameOf(parent)) : spots, own.y0), taller: childOrigin(m) ? growthAbove(inside(own), Infinity) : 0 };
+        });
+        function homeOf(spot) {
+            var home = null, smallest = Infinity;
+            rest.forEach(function (m) {
+                var frame = m.bare || !childOrigin(m) ? null : frameOf(m);
+                if (!frame || inside(frame).indexOf(spot) < 0 || spot.y0 < frame.y0 - EDGE || spot.x0 < frame.x0 - EDGE || spot.x1 > frame.x1 + EDGE) return;
+                var area = (frame.x1 - frame.x0) * (frame.y1 - frame.y0);
+                if (area < smallest) { home = m; smallest = area; }
+            });
+            return home;
+        }
+        var gridMoves = spots.map(function (s) { return growthAbove(spots, s.y0); }), homes = spots.map(homeOf);
+        rest.forEach(function (m, i) {
+            if (!moves[i]) return;
+            if (moves[i].down) m.top = (m.top || 0) + moves[i].down;
+            if (moves[i].taller) m.height += moves[i].taller;
+        });
+        frames = {};
         grids.forEach(function (c, i) {
-            var total = 0;
-            for (var k = 0; k < i; k++) total += growths[k];
-            c.top += total;
+            c.top += gridMoves[i];
+            var home = homes[i], frame = home && frameOf(home);
+            if (!frame) return;
+            var origin = childOrigin(home);
+            c.parentId = home.id;
+            c.left -= frame.x0 + origin.x;
+            c.top -= frame.y0 + origin.y;
         });
     }
 
@@ -2463,6 +3050,224 @@
         });
     }
 
+    // ================================================================ VÙNG HAI BÊN SPLITTER, VÙNG CỦA TAB
+    // Splitter dọc của màn hình Core: hai đường kẻ dọc (viền của hai vùng) cách nhau 3–12px, khe giữa trống, chạy từ nửa chiều cao ảnh trở lên.
+    // Trả về { left, right, y0, y1 } (left / right là cột của hai đường kẻ) hoặc null.
+    imp.findSplit = function (d, W, H, bg) {
+        var MIN_PANE = 60, minSpan = Math.max(150, 0.5 * H), lines = [], best = null;
+        function lineAt(x) {
+            var found = null, start = 0;
+            for (var y = 1; y <= H; y++) {
+                if (y < H && cdf(pxAt(d, W, x, y), pxAt(d, W, x, start)) <= 6) continue;
+                if (y - start >= minSpan && cdf(pxAt(d, W, x, start), bg) >= 20 && (!found || y - start > found.y1 - found.y0 + 1)) {
+                    found = { x: x, y0: start, y1: y - 1, color: pxAt(d, W, x, start) };
+                }
+                start = y;
+            }
+            return found;
+        }
+        // Khe giữa hai đường kẻ: mỗi cột gần như một màu (trừ mấy chấm tay nắm ở giữa), khác màu đường kẻ.
+        function emptyGap(xa, xb, y0, y1, lineColor) {
+            for (var x = xa; x <= xb; x++) {
+                var count = {}, most = 0, c = null;
+                for (var y = y0; y <= y1; y++) {
+                    var p = pxAt(d, W, x, y), key = p.join(",");
+                    count[key] = (count[key] || 0) + 1;
+                    if (count[key] > most) { most = count[key]; c = p; }
+                }
+                if (most < 0.95 * (y1 - y0 + 1) || cdf(c, lineColor) < 20) return false;
+            }
+            return true;
+        }
+        for (var x = MIN_PANE; x < W - MIN_PANE; x++) {
+            var line = lineAt(x);
+            if (line) lines.push(line);
+        }
+        lines.forEach(function (a) {
+            lines.forEach(function (b) {
+                var gap = b.x - a.x - 1, y0 = Math.max(a.y0, b.y0), y1 = Math.min(a.y1, b.y1);
+                if (gap < 3 || gap > 12 || y1 - y0 + 1 < minSpan || (best && y1 - y0 <= best.y1 - best.y0)) return;
+                if (emptyGap(a.x + 1, b.x - 1, y0, y1, a.color)) best = { left: a.x, right: b.x, y0: y0, y1: y1 };
+            });
+        });
+        return best;
+    };
+
+    // Dải tab của màn hình Core: một hàng khối màu liền nhau (tab đang mở có màu đậm, tab khác xám nhạt, cách nhau 1px), ngay dưới là gạch chân dày 2–6px
+    // cùng màu với tab đang mở, chạy gần hết bề ngang. Trả về { top, bottom, x0, x1, tabs: [{ x0, x1, fill, active }] } hoặc null.
+    imp.findTabStrip = function (d, W, H, bg) {
+        function vivid(c) { return Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2]) >= 60 && cdf(c, bg) >= 40; }
+        function runFrom(x, y) {
+            var c = pxAt(d, W, x, y), end = x;
+            while (end + 1 < W && cdf(pxAt(d, W, end + 1, y), c) <= 6) end++;
+            return { x0: x, x1: end, fill: c };
+        }
+        function blocksAt(y, line) {
+            var list = [];
+            for (var x = line.x0; x <= line.x1; x++) {
+                var block = runFrom(x, y), wide = block.x1 - block.x0 + 1 >= 24 && cdf(block.fill, bg) >= 15;
+                if (wide && list.length && block.x0 - list[list.length - 1].x1 > 4) break;
+                if (wide) {
+                    block.active = cdf(block.fill, line.fill) <= 10;
+                    list.push(block);
+                }
+                x = block.x1;
+            }
+            return list;
+        }
+        function underlineAt(y) {
+            for (var x = 0; x < 0.1 * W; x++) {
+                var run = runFrom(x, y);
+                if (run.x1 - run.x0 + 1 >= 0.9 * W && vivid(run.fill)) return run;
+                x = run.x1;
+            }
+            return null;
+        }
+        for (var y = 20; y < H - 8; y++) {
+            var line = underlineAt(y);
+            if (!line) continue;
+            var thick = 1;
+            while (y + thick < H && cdf(pxAt(d, W, line.x0 + 2, y + thick), line.fill) <= 6) thick++;
+            if (thick < 2 || thick > 6) { y += thick; continue; }
+            var base = -1;
+            for (var up = 1; up <= 4 && base < 0; up++) {
+                for (var bx = line.x0; bx <= line.x1; bx++) {
+                    var hit = runFrom(bx, y - up);
+                    if (hit.x1 - hit.x0 + 1 >= 24 && cdf(hit.fill, line.fill) <= 10) { base = y - up; break; }
+                    bx = hit.x1;
+                }
+            }
+            if (base < 0) { y += thick; continue; }
+            // tab đang mở có thể thấp hơn các tab khác 1–2px: lấy hàng có nhiều khối nhất trong mấy hàng cuối của dải tab
+            var tabs = [];
+            for (var row = base; row >= base - 3; row--) {
+                var found = blocksAt(row, line);
+                if (found.length > tabs.length) tabs = found;
+            }
+            var open = tabs.filter(function (t) { return t.active; });
+            if (open.length !== 1) { y += thick; continue; }
+            var top = base;
+            while (top > 0 && cdf(pxAt(d, W, open[0].x0 + 1, top - 1), open[0].fill) <= 6) top--;
+            if (base - top + 1 < 14 || base - top + 1 > 40) { y += thick; continue; }
+            return { top: top, base: base, bottom: y + thick - 1, x0: line.x0, x1: line.x1, tabs: tabs };
+        }
+        return null;
+    };
+
+    // Khung nội dung của ảnh chụp cả trang. Mọi dải tên đều bắt đầu cách mép trái ảnh từ MIN_SIDE, phần bên trái mép chung đó là một cột chỉ có chữ
+    // và biểu tượng (menu của ứng dụng: không có ô nhập, không có cây) nằm ngoài mọi khung nội dung → trả về góc trên trái { x0, y0 } của khung nội dung.
+    // Dòng phía trên dải đầu tiên mà chạy vắt qua mép khung (breadcrumb, đường kẻ của đầu trang) cũng nằm ngoài khung. Không phải dạng này thì trả null.
+    imp.findContent = function (d, W, H, bg) {
+        var MIN_SIDE = 60, bands = imp.findBands(d, W, H, bg);
+        if (!bands.length) return null;
+        var left = Math.min.apply(null, bands.map(function (b) { return b.xa; })), top = bands[0].y0;
+        if (left < MIN_SIDE || textLines(d, W, 0, left - 9, top, H - 1, bg).length < 3) return null;
+        if (imp.findBoxes(d, W, H).some(function (b) { return b.x1 < left && isInputBox(b); })) return null;
+        if (imp.findTrees(d, W, H, bg).some(function (t) { return t.left < left; })) return null;
+        function crosses(line) {
+            for (var y = line.y0; y <= line.y1; y++) {
+                for (var x = left - 8; x <= left - 2; x++) if (cdf(pxAt(d, W, x, y), bg) >= TEXT_INK) return true;
+            }
+            return false;
+        }
+        var y0 = 0;
+        textLines(d, W, 0, W - 1, 0, top - 1, bg).forEach(function (line) { if (crosses(line)) y0 = line.y1 + 1; });
+        return { x0: left - 1, y0: Math.min(y0, Math.max(0, top - 1)) };
+    };
+
+    function copyOptions(extra, opts) {
+        var next = {};
+        Object.keys(opts || {}).forEach(function (key) { next[key] = opts[key]; });
+        Object.keys(extra).forEach(function (key) { next[key] = extra[key]; });
+        return next;
+    }
+
+    // Nhận dạng từng vùng chữ nhật của ảnh như một trang riêng rồi ghép lại theo vị trí. rows: các hàng vùng từ trên xuống, mỗi hàng gồm các vùng
+    // đứng cạnh nhau (cùng y, cùng h). Hàng nào dựng ra cao hơn chỗ của nó trong ảnh (lưới cao theo số dòng mẫu) thì các hàng bên dưới dịch xuống.
+    // Trả về mỗi hàng { shift, bottom, lists }: độ dịch đã áp, đáy kết quả tính từ đỉnh hàng, kết quả của từng vùng.
+    function makeRows(cv, rows, scale, progress, src, opts) {
+        var shift = 0, out = [];
+        return seq(rows, function (row) {
+            var result = { shift: shift, bottom: 0, lists: [] };
+            out.push(result);
+            return seq(row, function (p) {
+                if (p.h < 8 || p.w < 8) { result.lists.push([]); return Promise.resolve(); }
+                return imp.makePanes(cropCanvas(cv, p.x, p.y, p.w, p.h), scale, progress, src, copyOptions({ absTop: true }, opts)).then(function (made) {
+                    var placed = [];
+                    result.bottom = Math.max(result.bottom, p.h, renderedBottom(made));
+                    adopt(placed, made, null, p.x, p.y + result.shift);
+                    result.lists.push(placed);
+                });
+            }).then(function () { shift += Math.max(0, result.bottom - row[0].h); });
+        }).then(function () { return out; });
+    }
+
+    // Hai vùng hai bên khe thành hai vùng của một khối Splitter: control cấp trên cùng của mỗi vùng thành con của khối, toạ độ tính theo vùng.
+    // panes: kết quả của hàng chứa hai vùng do makeRows trả về.
+    function splitterBlock(split, W, panes) {
+        var firstWidth = split.left + 1, secondWidth = W - split.right;
+        var block = looseField("splitter", 0, split.y0 + panes.shift, firstWidth + builderCapture.METRICS.core.splitter + secondWidth, Math.max(split.y1 - split.y0 + 1, panes.bottom));
+        block.zIndex = 0;
+        block.splitOrientation = "vertical";
+        block.splitRatio = builderCapture.SPLIT.ratio(firstWidth, firstWidth + secondWidth);
+        var out = [block];
+        [0, split.right].forEach(function (x, pane) {
+            var from = out.length;
+            adopt(out, panes.lists[pane], block.id, -x, -block.top);
+            out.slice(from).forEach(function (m) { if (m.parentId === block.id) m.paneIndex = pane; });
+        });
+        return out;
+    }
+
+    // Ảnh chụp kèm menu của ứng dụng: chỉ nhận dạng khung nội dung (imp.findContent), control đặt theo gốc của khung đó.
+    // Ảnh có splitter dọc: vùng bên trái, vùng bên phải và dải phía trên / dưới splitter được nhận dạng riêng; hai vùng thành hai vùng của một khối Splitter.
+    // Ảnh có dải tab: phần phía trên dải tab và phần nội dung của tab được nhận dạng riêng; control cấp trên cùng của phần nội dung thuộc tab đang mở.
+    imp.makePanes = function (cv, scale, progress, src, opts) {
+        var W = cv.width, H = cv.height, split = null, strip = null;
+        if (imp.regions !== false && imp.mode !== "ess") {
+            var data = cv.getContext("2d", { willReadFrequently: true }).getImageData(0, 0, W, H).data, bg = mainColor(data, W, H);
+            var content = imp.findContent(data, W, H, bg);
+            if (content) return imp.makePanes(cropCanvas(cv, content.x0, content.y0, W - content.x0, H - content.y0), scale, progress, src, opts);
+            split = imp.findSplit(data, W, H, bg);
+            if (!split) strip = imp.findTabStrip(data, W, H, bg);
+        }
+        if (split) {
+            var height = split.y1 - split.y0 + 1;
+            return makeRows(cv, [
+                [{ x: 0, y: 0, w: W, h: split.y0 }],
+                [{ x: 0, y: split.y0, w: split.left + 1, h: height }, { x: split.right, y: split.y0, w: W - split.right, h: height }],
+                [{ x: 0, y: split.y1 + 1, w: W, h: H - 1 - split.y1 }]
+            ], scale, progress, src, opts).then(function (rows) {
+                return rows[0].lists[0].concat(splitterBlock(split, W, rows[1]), rows[2].lists[0]);
+            });
+        }
+        if (!strip) return imp.makePage(cv, scale, progress, src, opts);
+        return seq(strip.tabs, function (t) {
+            var dark = lum(t.fill[0], t.fill[1], t.fill[2]) < 128;
+            return ocrCrop(cv, t.x0 + 2, strip.top + 2, t.x1 - t.x0 - 3, strip.base - strip.top - 3, { fill: t.fill, invert: dark }).then(function (r) { return r.text; });
+        }).then(function (captions) {
+            return makeRows(cv, [
+                [{ x: 0, y: 0, w: W, h: strip.top }],
+                [{ x: 0, y: strip.bottom + 1, w: W, h: H - 1 - strip.bottom }]
+            ], scale, progress, src, opts).then(function (rows) {
+                var active = strip.tabs.findIndex(function (t) { return t.active; }), ids = {}, lists = [rows[0].lists[0], rows[1].lists[0]];
+                var tab = {
+                    id: tmpIdX("tabpage"), type: "tabpage", left: strip.x0, top: strip.top + rows[1].shift, width: strip.x1 - strip.x0 + 1,
+                    height: strip.bottom + 1 - strip.top + rows[1].bottom,
+                    tabs: captions.map(function (text, i) { return { caption: /[A-Za-z0-9]/.test(text) ? text : "Tab " + (i + 1) }; }),
+                    activeTabIndex: active, zIndex: 0, parentId: null
+                };
+                lists[1].forEach(function (m) { ids[m.id] = true; });
+                lists[1].forEach(function (m) {
+                    if (m.parentId && ids[m.parentId]) return;
+                    m.tabPageId = tab.id;
+                    m.tabIndex = active;
+                });
+                return lists[0].concat([tab], lists[1]);
+            });
+        });
+    };
+
     imp.makePage = function (cv, scale, progress, src, opts) {
         var W = cv.width, H = cv.height, ctx = cv.getContext("2d", { willReadFrequently: true });
         var data = ctx.getImageData(0, 0, W, H).data;
@@ -2478,60 +3283,98 @@
                         var from = m.left <= 30 ? 0 : m.left - 2, to = W - (m.left + m.width) <= 30 ? W : m.left + m.width + 2;
                         cg.fillRect(from, Math.max(0, m.top - 2), to - from, m.height + 4);
                     });
-                    var next = { noTrees: true };
-                    Object.keys(opts || {}).forEach(function (key) { next[key] = opts[key]; });
-                    return imp.makePage(clean, scale, progress, src, next).then(function (rest) { return found.concat(rest); });
+                    return imp.makePage(clean, scale, progress, src, copyOptions({ noTrees: true }, opts)).then(function (rest) { return found.concat(rest); });
                 });
             }
         }
-        var grids = [];
-        if (imp.regions !== false) { try { grids = imp.findGrids(data, W, H, mainColor(data, W, H)); } catch (e) { grids = []; } }
-        if (!grids.length) return imp.runSections(cv, scale, progress, src);
-        var bg = mainColor(data, W, H), boxes = [];
-        try { boxes = imp.findBoxes(data, W, H); } catch (e) { }
-        var allB = [];
-        try { allB = imp.allBoxes(data, W, H, bg); } catch (e) { }
-        var work = document.createElement("canvas"); work.width = W; work.height = H;
-        var wg = work.getContext("2d", { willReadFrequently: true }); wg.drawImage(cv, 0, 0);
+        var bg = mainColor(data, W, H), grids = [], titleBands = [], menuBars = [], boxes = [], allB = [];
+        if (imp.regions !== false) {
+            if (imp.mode !== "ess") {
+                try { titleBands = imp.findBands(data, W, H, bg); } catch (e1) { titleBands = []; }
+                stackBands(titleBands).forEach(function (head) { menuBars = menuBars.concat(head.bars); });
+            }
+            try { grids = imp.findGrids(data, W, H, bg, menuBars, titleBands); } catch (e) { grids = []; }
+        }
+        if (!grids.length) return imp.runSections(cv, scale, progress, src, opts && opts.absTop ? { absTop: true } : null);
+        try { boxes = imp.findBoxes(data, W, H); } catch (e2) { }
+        try { allB = imp.allBoxes(data, W, H, bg); } catch (e3) { }
+        var work = cropCanvas(cv, 0, 0, W, H), wg = work.getContext("2d");
+        // Dải tên của lưới Core: dải nằm ngay trên hàng tiêu đề cột (giữa hai bên chỉ có thể là vùng nhóm cột, không có ô nhập), cùng mép trái với lưới.
+        // Dải thụt ra ngoài lưới là tiêu đề của Section chứa lưới, không phải dải tên của lưới.
+        function titleBandOf(gr) {
+            if (gr.plain) return null;
+            var band = titleBands.filter(function (b) { return b.y1 < gr.hy0 && gr.hy0 - b.y1 <= 45 && Math.abs(b.xa - gr.x0) <= 4; }).pop();
+            if (!band) return null;
+            var between = allB.some(function (b) { return !b.check && b.y0 > band.y1 && b.y1 < gr.hy0 && b.x1 >= gr.x0 && b.x0 <= gr.x1; });
+            return between ? null : band;
+        }
+        // Đáy khung của lưới Core → { y, x1 } (x1: mép phải của đường kẻ đáy, tức mép phải của khung; khung rộng hơn các cột khi lưới không chiếm hết vùng chứa).
+        // Đáy khung là nơi viền trái của khung kết thúc; trong khung là hàng dữ liệu, vùng trống, thanh cuộn, hàng tổng và thanh phân trang.
+        // Viền trái trùng với viền của vùng chứa (chạy quá dải tên hoặc lưới kế tiếp) thì lấy đường kẻ dài cuối cùng còn nằm phía trên dải / lưới đó.
+        function frameBottomOf(gr, next) {
+            if (gr.plain || gr.borderEnd == null) return null;
+            var cap = next ? next.hy0 - 2 : H - 1;
+            titleBands.forEach(function (b) { if (b.y0 > gr.lastY) cap = Math.min(cap, b.y0 - 2); });
+            var inside = gr.linesBelow.filter(function (line) { return line.y <= Math.min(cap, gr.borderEnd); }), last = inside[inside.length - 1];
+            if (gr.borderEnd <= cap) return { y: gr.borderEnd, x1: last && last.y >= gr.borderEnd - 1 ? last.x1 : gr.x1 };
+            return last || null;
+        }
         return seq(grids, function (gr) {
             var band = imp.mode === "ess" && !gr.plain ? tableBand(data, W, gr, bg) : null;
             return band ? bandParts(cv, data, gr, band) : Promise.resolve(null);
         }).then(function (bands) {
-            var regions = [];
+            var regions = [], heads = grids.map(titleBandOf);
             grids.forEach(function (gr, i) {
-                var floor = i ? regions[i - 1].bottom + 1 : 0, next = grids[i + 1], top, bottom, gridTop;
+                var floor = i ? regions[i - 1].bottom + 1 : 0, next = grids[i + 1], head = heads[i], frame = frameBottomOf(gr, next), top, bottom, gridTop;
                 if (gr.plain) {
                     top = gridTop = Math.max(floor, gr.hy0 - 2);
-                    bottom = Math.min(H - 1, gr.lastY + 64, next ? Math.max(gr.lastY + 2, next.hy0 - 3) : H - 1);
+                    bottom = Math.min(H - 1, gr.lastY + PAGER_REACH, next ? Math.max(gr.lastY + 2, next.hy0 - 3) : H - 1);
                 } else {
                     if (bands[i]) { top = Math.max(floor, bands[i].y0 - 1); gridTop = gr.hy0 - 1; }
+                    else if (head) top = gridTop = Math.max(floor, head.y0 - 1);
                     else {
                         top = Math.max(floor, gr.hy0 - 30); if (!i && top < 45) top = 0;
-                        allB.forEach(function (b) { if (!b.check && b.y1 >= top && b.y1 < gr.hy0 - 2 && b.y0 < gr.hy0 - 2 && b.y1 - b.y0 >= 18 && b.x1 >= gr.x0 && b.x0 <= gr.x1) top = Math.max(top, b.y1 + 1); });   // nút / ô nằm sát trên bảng không thuộc bảng → không xoá
+                        allB.forEach(function (b) { if (!b.check && b.y1 >= top && b.y1 < gr.hy0 - 1 && b.y1 - b.y0 >= 18 && b.x1 >= gr.x0 && b.x0 <= gr.x1) top = Math.max(top, b.y1 + 1); });   // nút / ô nằm trên bảng, cách hàng tiêu đề ít nhất một hàng nền, không thuộc bảng → không xoá
                         gridTop = top;
                     }
-                    bottom = next ? Math.max(gr.lastY + 4, next.hy0 - 32) : Math.min(H - 1, gr.lastY + 64);
+                    // không dò được khung: vùng của lưới dừng ở hàng cuối, có thanh phân trang ngay bên dưới thì nới thêm sau khi đọc (c._pagerBottom)
+                    bottom = frame ? frame.y : Math.min(H - 1, gr.lastY + 2);
                 }
-                regions.push({ top: top, bottom: bottom, gridTop: gridTop, x0: gr.plain ? Math.max(0, gr.x0 - 2) : 0, x1: gr.plain ? Math.min(W - 1, gr.x1 + 2) : W - 1 });
+                // vùng xoá của lưới: lưới có dải tên thì rộng bằng dải tên (thanh phân trang và Local Data Language nằm trong bề rộng đó), lưới có khung
+                // hoặc lưới không viền dọc thì bằng lưới; lưới Core không dải tên, không dò được khung thì hết bề ngang (tên lưới và thanh phân trang nằm ngoài bề rộng lưới)
+                var wide = !gr.plain && !head && !frame;
+                regions.push({
+                    top: top, bottom: bottom, gridTop: gridTop, head: head, extra: [], framed: !!frame,
+                    x0: wide ? 0 : Math.max(0, Math.min(gr.x0, head ? head.xa : gr.x0) - 2),
+                    x1: wide ? W - 1 : Math.min(W - 1, Math.max(gr.x1, head ? head.xb : gr.x1, frame ? frame.x1 : gr.x1) + 2)
+                });
             });
             return seq(grids, function (gr, i) {
-                var fr = boxes.filter(function (b) { return b.y0 >= gr.hy1 - 2 && b.y1 <= gr.fy1 + 2 && b.x0 >= gr.x0 && b.x1 <= gr.x1 && b.x1 - b.x0 >= 30 && b.y1 - b.y0 >= 12; }).length >= 2;
-                return imp.gridConfig(cv, gr, regions[i].gridTop, regions[i].bottom, bg, fr);
+                var region = regions[i];
+                var fr = boxes.filter(function (b) { return b.y0 >= gr.hy1 - 2 && b.y1 <= gr.fy1 + 2 && b.x0 >= gr.x0 && b.x1 <= gr.x1 && isInputBox(b); }).length >= 2;
+                return (region.head ? gridBand(cv, region.head, scale, progress, src) : Promise.resolve(null)).then(function (head) {
+                    if (head) region.extra = head.extra;
+                    var limit = region.framed ? region.bottom - 1 : Math.min(H - 1, gr.lastY + PAGER_REACH, grids[i + 1] ? grids[i + 1].hy0 - 3 : H - 1);
+                    return imp.gridConfig(cv, gr, { top: region.gridTop, bottom: region.bottom, limit: limit, framed: region.framed, bg: bg, filterRow: fr, head: head });
+                });
             }).then(function (cfgs) {
                 var extra = [];
                 wg.fillStyle = "rgb(" + bg.join(",") + ")";
                 var made = cfgs.map(function (c, i) {
                     var region = regions[i];
                     if (grids[i].plain && !c.showPager) region.bottom = Math.min(region.bottom, grids[i].lastY + 2);
+                    if (c._pagerBottom > region.bottom) region.bottom = Math.min(H - 1, c._pagerBottom);
+                    delete c._pagerBottom;
                     wg.fillRect(region.x0, region.top, region.x1 - region.x0 + 1, region.bottom - region.top + 1);
                     if (bands[i]) extra = extra.concat(bandControls(bands[i]));
+                    extra = extra.concat(region.extra);
                     c.id = tmpIdX("grid"); c.parentId = null; c.zIndex = 1;
                     if (opts && opts.inPopup) c.allowGrouping = false;
                     return imp.mode === "ess" ? imp.toEssGrid(c) : c;
                 });
-                return imp.runSections(work, scale, progress, src).then(function (rest) {
+                return imp.runSections(work, scale, progress, src, { whole: cv, gridRegions: regions, absTop: true }).then(function (rest) {
                     rest = extra.concat(rest);
-                    pushBelowGrids(made, regions, rest);
+                    settleGrids(made, regions, rest);
                     return made.concat(rest);
                 });
             });
@@ -2540,7 +3383,7 @@
 
     // Cấu hình lưới Core → ESS GridView (control "ess-grid")
     imp.toEssGrid = function (c) {
-        var hasTitle = c.titleText && c.titleText !== "Gridview";
+        var hasTitle = !!c.titleText;
         var acts = (c.rowActionColumns || []).filter(function (a) { return a.visible; });
         var cols = (c.columns || []).map(function (k, i) {
             return { id: "col_imp" + Date.now() + "_" + i, key: k.name || ("Col" + (i + 1)), caption: k.caption || "", type: "text", align: "left", headerBold: false, headerItalic: false, width: k.width || 120 };
@@ -2575,12 +3418,13 @@
             return ocrCrop(cv, pop.x0 + 4, pop.toolbarTop + 2, popW - 8, barH - (pop.toolbarTop - pop.hy1 - 1) - 4, { fill: [g[0], g[1], g[2]] });
         }).then(function (tr) {
             if (tr) {
-                var items = [], firstX = null, langX = null, langStart = null, iconPath = { save: "menu-save.png", cancel: "menu-cancel.png", close: "menu-cancel.png", delete: "menu-delete.png", add: "menu-add.png", approve: "menu-approve.png", export: "menu-export.png", browse: "menu-browse.png" };
+                var items = [], firstX = null, langX = null, langStart = null;
                 tr.words.forEach(function (w) {
-                    var key = w.t.toLowerCase().replace(/[^a-z]/g, ""), lx = w.x0 - pop.x0;
-                    if (iconPath[key] && (langX == null || lx < langX)) {
+                    var word = w.t.replace(/[^A-Za-z]/g, ""), lx = w.x0 - pop.x0;
+                    var item = menuItem(word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+                    if (item.icon && (langX == null || lx < langX)) {
                         if (firstX == null) firstX = lx;
-                        items.push({ text: w.t.charAt(0).toUpperCase() + w.t.slice(1).toLowerCase(), icon: "/Content/images/icon-menu/" + iconPath[key] });
+                        items.push(item);
                     }
                     if (/language/i.test(w.t) && langX == null) langX = lx;
                     if (/^local$/i.test(w.t.replace(/[^A-Za-z]/g, "")) && langStart == null) langStart = lx;
@@ -2591,14 +3435,9 @@
                     extra.push({ id: tmpIdX("fld_language"), type: "field", ftype: "language", uiMode: "core", caption: "Local Data Language", required: false, disabled: false, defaultValue: "", items: [], multiselectColumns: [], multiselectItems: [], multiselectSelectedValues: [], labelWidth: 130, captionBold: false, captionItalic: false, captionPosition: "left", tabPageId: null, tabIndex: null, zIndex: 1, parentId: popup.id, left: Math.max(2, Math.min(langStart != null ? Math.round(langStart - 5) : 1e9, Math.round(popW - 221))), top: -(popup.titleLineHeight) + 3, width: 215, height: 24 });
                 }
             }
-            return imp.makePage(body, scale, progress, src, { inPopup: true });
+            return imp.makePage(body, scale, progress, src, { inPopup: true, absTop: true });
         }).then(function (made) {
-            var ids = {}; made.forEach(function (m) { ids[m.id] = 1; });
-            var contentBottom = 0;
-            made.forEach(function (m) {
-                if (m.parentId && ids[m.parentId]) return;
-                contentBottom = Math.max(contentBottom, (m.top || 0) + (m.type === "grid" || m.type === "ess-grid" ? gridRenderHeight(m) : (m.height || 0)));
-            });
+            var contentBottom = renderedBottom(made);
             if (contentBottom > bodyH) popup.height += Math.round(contentBottom - bodyH);
             // thanh cuộn ngang / vệt đáy popup (dải mảnh rộng nằm dưới mọi control) không phải control → bỏ
             var byId = {}; made.forEach(function (m) { byId[m.id] = m; });
@@ -2616,8 +3455,13 @@
                 made = made.filter(function (m) { return !(m.type === "field" && m.ftype === "groupbox" && !m.caption && !used[m.id]); });
                 if (made.length !== before) again = true;
             }
-            var ids2 = {}; made.forEach(function (m) { ids2[m.id] = 1; });
-            made.forEach(function (m) { if (!m.parentId || !ids2[m.parentId]) m.parentId = popup.id; });
+            // ruột popup trong ảnh được cắt từ mép ngoài của popup, còn thân Popup của Builder bắt đầu sau viền → lùi các control của thân một khoảng bằng viền
+            var ids2 = {}, frame = builderCapture.INSETS.popup.x;
+            made.forEach(function (m) { ids2[m.id] = 1; });
+            made.forEach(function (m) {
+                if (m.parentId && ids2[m.parentId]) return;
+                m.parentId = popup.id; m.left = (m.left || 0) - frame; m.top = (m.top || 0) - frame;
+            });
             return [popup].concat(extra, made);
         });
     };

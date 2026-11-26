@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Configuration;
 using System.Data.SqlClient;
 using System.Web.Hosting;
+using BADesign.Helpers.Security;
 using BADesign.Pages;
 
 namespace BADesign.Helpers
@@ -73,7 +74,7 @@ SELECT @id;";
                 cmd.Parameters.AddWithValue("@uid", request.UserId);
                 cmd.Parameters.AddWithValue("@uname", (object)request.UserName ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@msg", (object)request.Message ?? DBNull.Value);
-                cmd.Parameters.AddWithValue("@payload", (object)request.Payload ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("@payload", (object)BaSecretStore.PayloadForStorage(UiAuthHelper.ConnStr, request.Payload) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@queue", QueueParameter);
                 conn.Open();
                 jobId = Convert.ToInt32(cmd.ExecuteScalar());

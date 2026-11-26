@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sample mockup page</title>
+<link rel="stylesheet" href="__BASE__/__htmlstyle.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px Arial, sans-serif; color: #222; background: #fff; }
+  header { height: 50px; background: #1565c0; display: flex; align-items: center; gap: 12px; padding: 0 12px; }
+  header input { height: 30px; }
+  .shell { display: flex; }
+  nav { width: 200px; flex: none; padding: 8px; border-right: 1px solid #ccc; }
+  nav a { display: block; padding: 8px; }
+  main { flex: 1; min-width: 0; padding: 12px; background: #f6f6f6; }
+  .host { margin-top: 10px; }
+  .strip { display: flex; gap: 2px; border-bottom: 2px solid #1565c0; }
+  .strip button { border: 0; padding: 8px 24px; background: #e0e0e0; cursor: pointer; }
+  .strip button[aria-selected=true] { background: #1565c0; color: #fff; }
+  .card { background: #fff; border: 1px solid #ccc; margin-top: 12px; }
+  .card-bar { background: #e8e8e8; padding: 8px 12px; display: flex; align-items: center; gap: 14px; }
+  .form { padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px 40px; }
+  .line { display: flex; align-items: center; gap: 10px; }
+  .cap { width: 130px; flex: none; }
+  .fake { flex: 1; height: 28px; border: 1px solid #aaa; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 8px; }
+  .fake.locked { background: #eeeeee; }
+  .fake.tall { height: 60px; }
+  .tail { padding: 0 14px 14px; display: flex; align-items: center; gap: 12px; }
+  .link { background: transparent; border: 0; cursor: pointer; padding: 2px 4px; font-size: 14px; }
+  .solid { background: #1565c0; color: #fff; border: 0; padding: 6px 16px; cursor: pointer; }
+  .scroller { overflow-x: auto; }
+  .rows { min-width: max-content; }
+  .r { display: grid; border-bottom: 1px solid #ddd; }
+  .wide .r { grid-template-columns: 40px 60px 160px 140px 700px 700px; }
+  .small .r { grid-template-columns: 60px 150px 300px; }
+  .r > div { min-height: 34px; display: flex; align-items: center; justify-content: center; border-right: 1px solid #ddd; }
+  .r.h { background: #f0f0f0; }
+  .r.f input { width: 80%; height: 22px; }
+  .pill { border: 0; border-radius: 3px; padding: 2px 10px; color: #fff; font-weight: 700; }
+  .pill.open { background: #ef6c00; }
+  .pill.done { background: #2e7d32; }
+  .pages { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid #ccc; }
+  .chip { display: inline-block; border: 1px solid #999; border-radius: 10px; padding: 2px 10px; }
+  .steps { margin-top: 12px; }
+  .step { display: grid; grid-template-columns: 120px 30px 300px; min-height: 30px; }
+  .plain { margin-top: 12px; border-collapse: collapse; background: #fff; }
+  .plain th, .plain td { border: 1px solid #ccc; padding: 6px 10px; width: 180px; height: 30px; }
+  .below { margin-top: 12px; }
+  .shade { position: fixed; inset: 0; background: rgba(0, 0, 0, .4); display: flex; align-items: center; justify-content: center; }
+  .shade[hidden] { display: none; }
+  .closed { display: none; }
+  .faint { visibility: hidden; opacity: 0; }
+  .stuck { display: none !important; }
+  .win { background: #fff; width: 560px; box-shadow: 0 6px 24px rgba(0, 0, 0, .3); }
+  .win-top { background: #1565c0; color: #fff; padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
+  .win-top h3 { margin: 0; font-size: 14px; }
+  .win-top button { background: transparent; border: 0; color: #fff; cursor: pointer; }
+  .win-bar { display: flex; gap: 12px; padding: 6px 12px; background: #f0f0f0; border-bottom: 1px solid #ccc; }
+  .win-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .win-body textarea { flex: 1; height: 50px; }
+  .ask { display: flex; gap: 8px; }
+  fieldset { border: 1px solid #ccc; margin: 0; padding: 10px; }
+  dialog { border: 1px solid #999; padding: 0; width: 420px; }
+</style>
+</head>
+<body>
+<header><input type="text" placeholder="Search everything"><button type="button">Sign out</button></header>
+<div class="shell">
+  <nav aria-label="Menu"><a href="#">Menu one</a><a href="#">Menu two</a><button type="button">Menu button</button></nav>
+  <main>
+    <div id="probe"></div>
+    <div class="host">
+      <div class="strip" role="tablist">
+        <button type="button" role="tab" id="tabA" aria-selected="true">Orders</button>
+        <button type="button" role="tab" id="tabB" aria-selected="false">Archive</button>
+      </div>
+      <div id="paneA">
+        <section class="card">
+          <div class="card-bar">Search</div>
+          <div class="form">
+            <div class="line"><span class="cap">From date <span>(*)</span></span><span class="fake">01/02/2026 <span>▾</span></span></div>
+            <div class="line"><span class="cap">Status</span><span class="fake">All <span>▾</span></span></div>
+            <div class="line"><span class="cap">Order code</span><input type="text"></div>
+            <div class="line"><span class="cap">Owner</span><span class="fake locked"></span></div>
+            <div class="line"><span class="cap">Region</span><span class="late"></span></div>
+          </div>
+          <div class="tail"><button type="button" class="solid">Find</button><span class="chip">Draft</span></div>
+        </section>
+        <section class="card">
+          <div class="card-bar"><span>Orders</span><button type="button" class="link">Add</button><button type="button" class="link">Delete</button></div>
+          <div class="scroller"><div class="rows wide" id="orders"></div></div>
+          <div class="pages"><span>Page 1 of 3 (25 items)</span><button type="button">‹</button><span>[1]</span><button type="button">›</button></div>
+        </section>
+        <div class="steps">
+          <div class="step"><div>08:00</div><div>1</div><div>Created</div></div>
+          <div class="step"><div>09:30</div><div>2</div><div>Checked</div></div>
+          <div class="step"><div>11:15</div><div>3</div><div>Shipped</div></div>
+        </div>
+      </div>
+      <div id="paneB" hidden>
+        <table class="plain">
+          <tr><th>Code</th><th>Closed on</th><th>Note <span>▲</span></th></tr>
+          <tr><td>ARC-01</td><td>05/01/2026</td><td></td></tr>
+          <tr><td>ARC-02</td><td>06/01/2026</td><td></td></tr>
+        </table>
+        <div class="line below"><span class="cap">Comment</span><span class="fake tall"></span></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="shade" id="editShade" hidden>
+  <div class="win" role="dialog" aria-modal="true" aria-labelledby="editName">
+    <div class="win-top"><span id="editName">Edit order</span><button type="button" aria-label="Close">×</button></div>
+    <div class="win-bar"><button type="button" class="link">Save</button><button type="button" class="link">Cancel</button></div>
+    <div class="win-body">
+      <div class="line"><span class="cap">Customer <span>(*)</span></span><span class="fake">Sample Co <span>▾</span></span></div>
+      <div class="line"><span class="cap">Order code</span><span class="fake locked">ORD-001</span></div>
+      <fieldset>
+        <legend>Delivery</legend>
+        <label class="line"><span class="cap">Address</span><textarea></textarea></label>
+      </fieldset>
+    </div>
+  </div>
+</div>
+
+<div class="shade closed" id="pickShade">
+  <div class="win">
+    <div class="win-top"><h3>Pick a customer</h3><button type="button" aria-label="Close">×</button></div>
+    <div class="win-bar"><button type="button" class="link">Close</button></div>
+    <div class="win-body"><div class="rows small" id="customers"></div></div>
+  </div>
+</div>
+
+<div class="win faint" role="dialog" aria-label="Quick confirm">
+  <div class="win-body">
+    <div>Delete the selected orders?</div>
+    <div class="ask"><button type="button" class="solid">Yes</button><button type="button" class="solid">No</button></div>
+  </div>
+</div>
+
+<div class="win stuck" role="dialog" aria-labelledby="stuckName">
+  <div class="win-top"><span id="stuckName">Locked window</span></div>
+  <div class="win-body"><button type="button" class="solid">Never seen</button></div>
+</div>
+
+<dialog aria-label="Native note">
+  <div class="win-body"><label class="line"><span class="cap">Remark</span><textarea></textarea></label></div>
+</dialog>
+
+<script>
+  // Trang tự báo những gì nó làm được từ bên trong khung đọc file: kịch bản kiểm tra đọc dòng này trong kết quả.
+  var report = [];
+  function attempt(name, action) {
+    try { action(); report.push(name + ' open'); } catch (e) { report.push(name + ' blocked'); }
+  }
+  function tell() { document.getElementById('probe').textContent = report.join(', '); }
+  attempt('parent', function () { return window.parent.document.title; });
+  attempt('storage', function () { window.localStorage.setItem('probe', '1'); });
+  attempt('cookie', function () { document.cookie = 'probe=1'; });
+  tell();
+  fetch('__BASE__/__scenarios').then(function () { report.push('network open'); }, function () { report.push('network blocked'); }).then(tell);
+
+  var EYE = '<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#666"><circle cx="8" cy="8" r="6"/></svg>';
+  var columns = [{ kind: 'check' }, { kind: 'view', label: 'View' }, { label: 'Code' }, { label: 'Status' }, { label: 'Amount', sort: true }, { label: 'Note' }];
+  var orders = [['ORD-001', 'Open', '120'], ['ORD-002', 'Done', '75'], ['ORD-003', 'Open', '310']];
+  var out = '<div class="r h">' + columns.map(function (c) {
+    return '<div>' + (c.kind === 'check' ? '<input type="checkbox" aria-label="All">' : c.label + (c.sort ? ' <span>▲</span>' : '')) + '</div>';
+  }).join('') + '</div>';
+  out += '<div class="r f">' + columns.map(function (c) { return '<div>' + (c.kind ? '' : '<input type="text" aria-label="Filter">') + '</div>'; }).join('') + '</div>';
+  orders.forEach(function (order) {
+    out += '<div class="r">' + columns.map(function (c) {
+      if (c.kind === 'check') return '<div><input type="checkbox" aria-label="Pick"></div>';
+      if (c.kind === 'view') return '<div><button type="button" class="link" aria-label="View">' + EYE + '</button></div>';
+      if (c.label === 'Status') return '<div><button type="button" class="pill ' + order[1].toLowerCase() + '">' + order[1] + '</button></div>';
+      if (c.label === 'Code') return '<div>' + order[0] + '</div>';
+      if (c.label === 'Amount') return '<div>' + order[2] + '</div>';
+      return '<div></div>';
+    }).join('') + '</div>';
+  });
+  document.getElementById('orders').innerHTML = out;
+
+  var names = [['1', 'C-01', 'Sample Co'], ['2', 'C-02', 'Example Ltd']];
+  document.getElementById('customers').innerHTML = '<div class="r h"><div>No</div><div>Code</div><div>Name</div></div>' + names.map(function (row) {
+    return '<div class="r">' + row.map(function (value) { return '<div>' + value + '</div>'; }).join('') + '</div>';
+  }).join('');
+
+  function show(which) {
+    document.getElementById('tabA').setAttribute('aria-selected', String(which === 'A'));
+    document.getElementById('tabB').setAttribute('aria-selected', String(which === 'B'));
+    document.getElementById('paneA').hidden = which !== 'A';
+    document.getElementById('paneB').hidden = which !== 'B';
+  }
+  document.getElementById('tabA').onclick = function () { show('A'); };
+  document.getElementById('tabB').onclick = function () { show('B'); };
+</script>
+</body>
+</html>

@@ -48,14 +48,7 @@ namespace BADesign
 		private static string ConnStr
 	        => ConfigurationManager.ConnectionStrings["UiBuilderDb"].ConnectionString;
 
-		private static string ConfigPath
-        {
-            get
-            {
-                var ctx = HttpContext.Current;
-                return ctx.Server.MapPath("~/Output/generated-config.json");
-            }
-        }
+		private const string NotOwnerMessage = "Không có quyền update control này.";
 
 		protected void Page_Load(object sender, EventArgs e)
 		{
@@ -102,7 +95,7 @@ namespace BADesign
 		// Lưu 1 PAGE (nhiều control) vào UiBuilderControl với ControlType = 'page'
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static int SaveDesign(int? controlId, string pageName, string controlName,
+		public static object SaveDesign(int? controlId, string pageName, string controlName,
 									 string controlType, string jsonConfig,
 									 bool isPublic, string thumbnailData, int? projectId = null)
 		{
@@ -115,28 +108,10 @@ namespace BADesign
 
 
 
-		[WebMethod]
-        public static string SaveConfig(string json)
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath));
-            File.WriteAllText(ConfigPath, json ?? "[]");
-            return "ok";
-        }
-
-        [WebMethod]
+        [WebMethod(EnableSession = true)]
         public static string LoadConfig()
         {
-            if (File.Exists(ConfigPath))
-            {
-                return File.ReadAllText(ConfigPath);
-            }
-            return "[]";
-        }
-
-        [WebMethod]
-        public static string GetConfigFileName()
-        {
-            return "generated-config.json";
+            return Helpers.UiDesignScratch.Read(Helpers.UiDesignScratch.DefaultFolder, CurrentUserId);
         }
 
 		// 3.1. Lấy danh sách control của user + public
@@ -188,6 +163,7 @@ ORDER BY
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
 		public static ControlDetailDto LoadControl(int controlId)
 		{
+			int uid = CurrentUserId;
 			using (var conn = new SqlConnection(ConnStr))
 			using (var cmd = conn.CreateCommand())
 			{
@@ -202,14 +178,18 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 				{
 					if (!rd.Read()) return null;
 
-					bool isOwner = rd.GetInt32(6) == CurrentUserId;
+					int ownerUserId = rd.GetInt32(6);
+					bool isPublic = rd.GetBoolean(4);
+					if (!Helpers.UiDesignCatalog.CanRead(ownerUserId, isPublic, uid)) return null;
+
+					bool isOwner = ownerUserId == uid;
 					return new ControlDetailDto
 					{
 						ControlId = rd.GetInt32(0),
 						Name = rd.GetString(1),
 						ControlType = rd.GetString(2),
 						JsonConfig = rd.GetString(3),
-						IsPublic = rd.GetBoolean(4),
+						IsPublic = isPublic,
 						OriginalId = rd.IsDBNull(5) ? (int?)null : rd.GetInt32(5),
 						IsOwner = isOwner,
 						ProjectId = isOwner && !rd.IsDBNull(7) ? rd.GetInt32(7) : (int?)null
@@ -280,7 +260,7 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 
 		[WebMethod(EnableSession = true)]
 		[ScriptMethod(ResponseFormat = ResponseFormat.Json)]
-		public static int SaveControl(int? controlId, string name,
+		public static object SaveControl(int? controlId, string name,
 					  string controlType, string jsonConfig,
 					  bool isPublic, string thumbnailData, int? projectId = null)
 		{
@@ -298,9 +278,12 @@ WHERE ControlId = @id AND IsDeleted = 0;";
 					conn.Open();
 					var validProjectId = cmd.ExecuteScalar();
 					if (validProjectId == null)
-						throw new Exception("Dự án không tồn tại hoặc không thuộc về bạn.");
+						return new { success = false, message = "Dự án không tồn tại hoặc không thuộc về bạn." };
 				}
 			}
+
+			if (controlId.HasValue && !Helpers.UiDesignCatalog.Owns(uid, controlId.Value))
+				return new { success = false, message = NotOwnerMessage };
 
 			string thumbPath = null;
 			if (!string.IsNullOrEmpty(thumbnailData))
@@ -358,7 +341,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 				{
 					int rows = cmd.ExecuteNonQuery();
 					if (rows == 0)
-						throw new Exception("Không có quyền update control này.");
+						return new { success = false, message = NotOwnerMessage };
 					savedId = controlId.Value;
 				}
 				else
@@ -367,7 +350,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 				}
 				if (isPage)
 					Helpers.UiDesignVersions.RecordSave(savedId, name, jsonConfig, uid);
-				return savedId;
+				return new { success = true, controlId = savedId };
 			}
 		}
 

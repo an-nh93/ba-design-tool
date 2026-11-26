@@ -4,7 +4,9 @@
 
 ## Server
 
-Thêm, sửa, xóa server (tên, port, user, password, tên hiển thị, thư mục backup, thư mục restore) và chọn role được dùng server ngay trong cùng form. Password không hiện lại trên danh sách. Quyền Manage Servers và Server Access theo role quyết định server nào user thấy.
+Thêm, sửa, xóa server (tên, port, user, password, tên hiển thị, thư mục backup, thư mục restore) và chọn role được dùng server ngay trong cùng form. Password không hiện lại trên danh sách; nó lưu trong `BaDatabaseServer.Password` ở dạng thường hoặc dạng mã hóa tùy công tắc ở App Settings (ghi qua `BaSecretStore.ForStorage`, mọi nơi đọc qua `BaSecret.Reveal`; xem [06-App-Settings.md](06-App-Settings.md), mục Mã hóa dữ liệu nhạy cảm). Quyền Manage Servers và Server Access theo role quyết định server nào user thấy.
+
+Chuỗi kết nối tới một server đã lưu chỉ dựng bằng `DbConnectionString.ForServer` (`Helpers/Database/DbConnectionString.cs`, dùng `SqlConnectionStringBuilder`); Công cụ Database và License Key cùng gọi hàm này. User hoặc password có `;`, `=`, dấu nháy, ngoặc nhọn hay khoảng trắng ở đầu / cuối vẫn là đúng một giá trị và giữ nguyên từng ký tự. Trước ngày 26/11/2026 mỗi trang tự ghép `UID=...;PWD=...;` nên một dấu `;` trong mật khẩu làm hỏng chuỗi, còn khoảng trắng ở đầu / cuối bị SqlClient cắt đi. Lúc đổi, 15 server đang dùng không có user / mật khẩu nào chứa các ký tự đó, nên không server nào đổi thông tin đăng nhập. Form lưu server cắt khoảng trắng ở tên server và user, không cắt ở password.
 
 Form có ba nút hỗ trợ thiết lập (`ProbeServer`):
 
@@ -62,6 +64,10 @@ Hai nguồn sau được giữ nguyên theo quyết định ngày 13/11/2026 (t�
 - Các bảng lịch sử migrate `MIG_History_*`: lương, tài khoản ngân hàng, họ tên và script insert dạng thường. Chỉ các cột tên chứa `Email` hoặc `Phone` được thay như mọi bảng khác.
 
 Danh mục bảng và cột nằm ở `DbSanitizeCatalog`. Khi HRM thêm bảng chứa dữ liệu mã hóa, bổ sung vào đó. Cách tìm chỗ sót: restore một database thật rồi quét mọi cột chuỗi tìm giá trị còn dạng mã hóa hoặc còn giống email.
+
+## Kết nối sang Trợ lý HR
+
+Ba hàm cấp token kết nối (chuỗi kết nối nằm trong Session, trình duyệt chỉ giữ token): `PrepareConnectByServerAndDb` (chọn server và database, cần quyền trên server đó), `PrepareConnectForMultiDb` (quyền Bulk Reset) và `PrepareConnect` (chuỗi kết nối người dùng tự gõ, dành cho người đã đăng nhập nhưng không có quyền dùng server). Cả ba đòi đăng nhập: trang này không mở cho khách, và mọi hàm của Trợ lý HR chạy được là nhờ token đó.
 
 ## Shrink và xóa
 

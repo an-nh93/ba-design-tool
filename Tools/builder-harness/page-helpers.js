@@ -1,4 +1,20 @@
 (function () {
+    // Trình duyệt chạy kịch bản dùng chung clipboard với người đang ngồi máy: lệnh ghi clipboard của trang được giữ ở window.__clipboard, không ghi thật.
+    window.__clipboard = { text: null, items: null, writes: 0 };
+    Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+            writeText: function (text) { window.__clipboard.text = String(text); window.__clipboard.writes++; return Promise.resolve(); },
+            write: function (items) { window.__clipboard.items = items; window.__clipboard.writes++; return Promise.resolve(); },
+            readText: function () { return Promise.resolve(window.__clipboard.text || ''); },
+            read: function () { return Promise.resolve(window.__clipboard.items || []); }
+        }
+    });
+
+    // Địa chỉ của harness, để kịch bản lấy file mẫu của harness cả khi trang đang mở là site thật.
+    var harness = new URL(document.currentScript.src).origin;
+    window.__harnessUrl = function (path) { return harness + path; };
+
     function label(c) {
         if (!c) return null;
         var name = c.type === 'field' ? c.ftype + (c.caption ? ':' + c.caption : '') : c.type;
@@ -48,6 +64,8 @@
             if (!$el.length) { problems.push(label(c) + ': no DOM'); return; }
             var want = expectedHost(c), got = hostKind($el[0]);
             if (want === 'canvas' ? got !== 'canvas' : got.indexOf('@' + want) < 0) problems.push(label(c) + ': parent ' + want + ' but DOM in ' + got);
+            var pane = $el[0].parentElement.getAttribute('data-pane');
+            if (pane !== (c.paneIndex == null ? null : String(c.paneIndex))) problems.push(label(c) + ': paneIndex ' + c.paneIndex + ' but DOM pane ' + pane);
             var cssL = parseFloat($el.css('left')), cssT = parseFloat($el.css('top'));
             if (Math.abs(cssL - (c.left || 0)) > 1 || Math.abs(cssT - (c.top || 0)) > 1) problems.push(label(c) + ': css ' + cssL + ',' + cssT + ' vs cfg ' + c.left + ',' + c.top);
             if (!$el.is(':visible')) problems.push(label(c) + ': hidden');
@@ -62,7 +80,7 @@
             var $el = elOf(c);
             if (!$el.length) return label(c) + '=none';
             var r = $el[0].getBoundingClientRect();
-            return label(c) + '=' + [Math.round((r.left - base.left) / scale), Math.round((r.top - base.top) / scale), Math.round(r.width / scale), Math.round(r.height / scale), c.parentId ? label(builder.getControlConfig(c.parentId)) : '-'].join(',');
+            return label(c) + '=' + [Math.round((r.left - base.left) / scale), Math.round((r.top - base.top) / scale), Math.round(r.width / scale), Math.round(r.height / scale), (c.parentId ? label(builder.getControlConfig(c.parentId)) : '-') + (c.paneIndex == null ? '' : '/pane' + c.paneIndex)].join(',');
         }).sort().join(' ; ');
     };
     window.__find = function (type, ftype, caption) {
@@ -74,6 +92,7 @@
         if (c.type === 'popup') el = $el.find('.popup-header')[0];
         else if (c.type === 'field' && c.ftype === 'groupbox') el = $el.children('.page-field-groupbox-title')[0];
         else if (c.type === 'field' && c.ftype === 'section') el = $el.children('.page-field-section-header')[0];
+        else if (c.type === 'field' && c.ftype === 'splitter') return window.__center(id, '> .page-field-editor > .core-splitter > .core-splitter-move');
         else if (c.type === 'grid') el = $el.find('.grid-title-bar:visible, .grid-header-panel-row:visible, .grid-data-header:visible')[0];
         else if (c.type === 'ess-grid') el = $el.find('.ess-grid-header')[0];
         else if (c.type === 'collapsible-section') el = $el.find('.ess-collapsible-header')[0];
@@ -108,6 +127,35 @@
         var r = $content[0].getBoundingClientRect();
         return { x: Math.round(r.left + dx), y: Math.round(r.top + dy) };
     };
+    window.__pane = function (id, pane, dx, dy) {
+        var r = controlSplitter.paneElement(elOf(builder.getControlConfig(id)), pane)[0].getBoundingClientRect();
+        return { x: Math.round(r.left + (dx == null ? r.width / 2 : dx)), y: Math.round(r.top + (dy == null ? r.height / 2 : dy)) };
+    };
+    window.__bar = function (id) {
+        return window.__center(id, '> .page-field-editor > .core-splitter > .core-splitter-bar');
+    };
+    window.__panes = function (id) {
+        return controlSplitter.boxes(builder.getControlConfig(id)).map(function (b) { return b.width + 'x' + b.height; }).join('|');
+    };
+    // Khoảng từ mép dưới của control tới mép dưới của vùng chứa nó (số âm: control bị vùng cắt).
+    window.__paneGap = function (id) {
+        var el = elOf(builder.getControlConfig(id))[0], scale = builder.viewScale || 1;
+        return Math.round((el.parentElement.getBoundingClientRect().bottom - el.getBoundingClientRect().bottom) / scale);
+    };
+    // Lưới Core: chiều cao trong cấu hình / trên trang, có chiều cao riêng (fixed) hay cao theo số dòng (free), số dòng, chiều cao vùng dòng,
+    // vùng dòng có cuộn không, và khoảng trống còn lại dưới phần cuối cùng của lưới (slack: phải bằng nhau ở hai chế độ).
+    window.__gridBox = function (id) {
+        var c = builder.getControlConfig(id), el = elOf(c)[0], scale = builder.viewScale || 1;
+        var rows = el.querySelector('.dx-datagrid-rowsview'), scroll = rows.querySelector('.dx-scrollable-container');
+        var last = ($(el).find('.dx-datagrid-pager:visible')[0] || rows).getBoundingClientRect();
+        var box = el.getBoundingClientRect(), style = window.getComputedStyle(el);
+        var floor = box.bottom - (parseFloat(style.borderBottomWidth) + parseFloat(style.paddingBottom)) * scale;
+        return (c.height === undefined ? 'auto' : c.height) + '/' + Math.round(box.height / scale) +
+            (el.classList.contains('grid-fixed-height') ? ' fixed' : ' free') +
+            ' rows ' + el.querySelectorAll('.dx-data-row').length + ' view ' + Math.round(rows.getBoundingClientRect().height / scale) +
+            (scroll.scrollHeight > scroll.clientHeight + 1 ? ' scroll' : ' whole') +
+            ' slack ' + Math.round((floor - last.bottom) / scale);
+    };
     window.__center = function (id, selector, n) {
         var $el = elOf(builder.getControlConfig(id));
         var el = selector ? $el.find(selector)[n || 0] : $el[0];
@@ -117,6 +165,16 @@
     window.__text = function (id, selector, n) {
         var el = elOf(builder.getControlConfig(id)).find(selector)[n || 0];
         return el ? $.trim(el.textContent) : 'missing';
+    };
+    window.__brokenImages = function (paths) {
+        return Promise.all(paths.map(function (path) {
+            return new Promise(function (done) {
+                var img = new Image();
+                img.onload = function () { done(img.naturalWidth ? null : path); };
+                img.onerror = function () { done(path); };
+                img.src = path;
+            });
+        })).then(function (failed) { return failed.filter(Boolean); });
     };
     window.__canvas = function (x, y) {
         var r = document.getElementById('canvas-zoom-inner').getBoundingClientRect();

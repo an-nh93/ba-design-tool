@@ -7,16 +7,26 @@ using System.Web.Script.Services;
 using System.Web.UI;
 using BADesign;
 using BADesign.Helpers.Database;
+using BADesign.Helpers.Security;
 
 namespace BADesign.Pages
 {
     public partial class AppSettings : Page
     {
+        private const string DeniedMessage = "Bạn không có quyền Settings.";
+
         public bool CanEditSettings => UiAuthHelper.HasFeature("Settings");
+
+        public bool CanSwitchStoredSecrets => UiAuthHelper.IsSuperAdmin;
 
         protected void Page_Load(object sender, System.EventArgs e)
         {
             UiAuthHelper.RequireLogin();
+            if (!CanEditSettings)
+            {
+                Response.Redirect(ResolveUrl("~/AccessDenied"), true);
+                return;
+            }
             if (!IsPostBack)
             {
                 ucBaSidebar.ActiveSection = "AppSettings";
@@ -52,6 +62,8 @@ namespace BADesign.Pages
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
                 string value = null;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -77,7 +89,7 @@ namespace BADesign.Pages
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var uid = UiAuthHelper.CurrentUserId;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -107,6 +119,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
                 string value = null;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -132,7 +146,7 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var uid = UiAuthHelper.CurrentUserId;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -163,6 +177,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
                 string allowedPatterns = "", notificationMethod = "Email", notifyEmails = "an.nh@cadena.com.sg", botToken = "", chatId = "";
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -180,7 +196,7 @@ ELSE
                             if (k == Registration_AllowedEmailPatterns) allowedPatterns = v ?? "";
                             else if (k == Registration_NotificationMethod) notificationMethod = (v ?? "Email").Trim();
                             else if (k == Registration_NotifyEmails) notifyEmails = v ?? "an.nh@cadena.com.sg";
-                            else if (k == Telegram_BotToken) botToken = v ?? "";
+                            else if (k == Telegram_BotToken) botToken = BaSecret.Reveal(v ?? "");
                             else if (k == Telegram_ChatId) chatId = v ?? "";
                         }
                     }
@@ -202,7 +218,7 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var method = (notificationMethod ?? "Email").Trim();
                 if (method != "Telegram" && method != "Email") method = "Email";
                 var uid = UiAuthHelper.CurrentUserId;
@@ -213,7 +229,7 @@ ELSE
                         new { Key = Registration_AllowedEmailPatterns, Val = (allowedPatterns ?? "").Trim() },
                         new { Key = Registration_NotificationMethod, Val = method },
                         new { Key = Registration_NotifyEmails, Val = (notifyEmails ?? "an.nh@cadena.com.sg").Trim() },
-                        new { Key = Telegram_BotToken, Val = (botToken ?? "").Trim() },
+                        new { Key = Telegram_BotToken, Val = BaSecretStore.ForStorage(UiAuthHelper.ConnStr, (botToken ?? "").Trim()) },
                         new { Key = Telegram_ChatId, Val = (chatId ?? "").Trim() }
                     })
                     {
@@ -239,12 +255,20 @@ ELSE
             }
         }
 
+        /// <summary>Cấu hình mail của Cadena có hai nơi đọc: trang này (quyền Settings) và nút "Cadena Email Server" của Trợ lý HR (quyền Database Tools).</summary>
+        public static bool CanReadEmailServerConfig()
+        {
+            return UiAuthHelper.HasFeature("Settings") || UiAuthHelper.HasFeature("DatabaseTools");
+        }
+
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object LoadEmailServerConfig()
         {
             try
             {
+                if (!CanReadEmailServerConfig())
+                    return new { success = false, message = "Bạn không có quyền xem cấu hình Email Server." };
                 string outgoing = null, port = null, accountName = null, username = null, emailAddress = null, password = null, sslPort = null;
                 bool enableSSL = false;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
@@ -265,7 +289,7 @@ ELSE
                             else if (k == "EmailServer_AccountName") accountName = v;
                             else if (k == "EmailServer_Username") username = v;
                             else if (k == "EmailServer_EmailAddress") emailAddress = v;
-                            else if (k == "EmailServer_Password") password = v;
+                            else if (k == "EmailServer_Password") password = BaSecret.Reveal(v);
                             else if (k == "EmailServer_EnableSSL") enableSSL = (v == "1" || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase));
                             else if (k == "EmailServer_SSLPort") sslPort = v;
                         }
@@ -286,7 +310,7 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var uid = UiAuthHelper.CurrentUserId;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 {
@@ -297,7 +321,7 @@ ELSE
                         new { Key = EmailServer_AccountName, Val = accountName ?? "" },
                         new { Key = EmailServer_Username, Val = username ?? "" },
                         new { Key = EmailServer_EmailAddress, Val = emailAddress ?? "" },
-                        new { Key = EmailServer_Password, Val = password ?? "" },
+                        new { Key = EmailServer_Password, Val = BaSecretStore.ForStorage(UiAuthHelper.ConnStr, password ?? "") },
                         new { Key = EmailServer_EnableSSL, Val = enableSSL ? "1" : "0" },
                         new { Key = EmailServer_SSLPort, Val = sslPort ?? "" }
                     })
@@ -331,7 +355,7 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 if (string.IsNullOrWhiteSpace(testEmailTo))
                     return new { success = false, message = "Vui lòng nhập email nhận thử." };
                 if (string.IsNullOrWhiteSpace(outgoingServer))
@@ -372,6 +396,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
                 string botToken = null, chatId = null;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -384,7 +410,7 @@ ELSE
                         {
                             var k = r.GetString(0);
                             var v = r.IsDBNull(1) ? null : r.GetString(1);
-                            if (k == Telegram_BotToken) botToken = v;
+                            if (k == Telegram_BotToken) botToken = BaSecret.Reveal(v);
                             else if (k == Telegram_ChatId) chatId = v;
                         }
                     }
@@ -404,13 +430,13 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var uid = UiAuthHelper.CurrentUserId;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 {
                     conn.Open();
                     foreach (var kv in new[] {
-                        new { Key = Telegram_BotToken, Val = (botToken ?? "").Trim() },
+                        new { Key = Telegram_BotToken, Val = BaSecretStore.ForStorage(UiAuthHelper.ConnStr, (botToken ?? "").Trim()) },
                         new { Key = Telegram_ChatId, Val = (chatId ?? "").Trim() }
                     })
                     {
@@ -442,6 +468,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
                 string host = null, port = null, user = null, password = null;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -457,7 +485,7 @@ ELSE
                             if (k == "SftpHost") host = v;
                             else if (k == "SftpPort") port = v;
                             else if (k == "SftpUser") user = v;
-                            else if (k == "SftpPassword") password = v;
+                            else if (k == "SftpPassword") password = BaSecret.Reveal(v);
                         }
                     }
                 }
@@ -476,7 +504,7 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var uid = UiAuthHelper.CurrentUserId;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 {
@@ -485,7 +513,7 @@ ELSE
                         new { Key = SftpHostKey, Val = host ?? "" },
                         new { Key = SftpPortKey, Val = port ?? "" },
                         new { Key = SftpUserKey, Val = user ?? "" },
-                        new { Key = SftpPasswordKey, Val = password ?? "" }
+                        new { Key = SftpPasswordKey, Val = BaSecretStore.ForStorage(UiAuthHelper.ConnStr, password ?? "") }
                     })
                     {
                         using (var cmd = conn.CreateCommand())
@@ -517,6 +545,8 @@ ELSE
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
                 string value = null;
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 using (var cmd = conn.CreateCommand())
@@ -542,7 +572,7 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var uid = UiAuthHelper.CurrentUserId;
                 var val = (value ?? "").Trim();
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
@@ -573,8 +603,8 @@ ELSE
         {
             try
             {
-                if (UiAuthHelper.IsAnonymous)
-                    return new { success = false, message = "Cần đăng nhập." };
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
                 var defaults = DbSanitizeSettings.LoadDefaults(UiAuthHelper.ConnStr);
                 return new { success = true, password = defaults.Password, salaryMin = defaults.SalaryMin, salaryMax = defaults.SalaryMax };
             }
@@ -591,7 +621,7 @@ ELSE
             try
             {
                 if (!UiAuthHelper.HasFeature("Settings"))
-                    return new { success = false, message = "Bạn không có quyền Settings." };
+                    return new { success = false, message = DeniedMessage };
                 var passwordValue = (password ?? "").Trim();
                 if (passwordValue.Length == 0)
                     return new { success = false, message = "Mật khẩu mặc định không được trống." };
@@ -615,6 +645,46 @@ ELSE
             {
                 return new { success = false, message = ex.Message };
             }
+        }
+
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object LoadStoredSecretStatus()
+        {
+            try
+            {
+                if (!UiAuthHelper.HasFeature("Settings"))
+                    return new { success = false, message = DeniedMessage };
+                return StoredSecretResult(BaSecretStore.Status(UiAuthHelper.ConnStr));
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        /// <summary>Đổi dạng lưu của mọi bí mật trong database của tool, nên chỉ Super Admin được gọi.</summary>
+        [WebMethod(EnableSession = true)]
+        [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
+        public static object SwitchStoredSecrets(bool on)
+        {
+            try
+            {
+                if (!UiAuthHelper.IsSuperAdmin)
+                    return new { success = false, message = "Chỉ Super Admin mới bật hoặc tắt được mã hóa dữ liệu nhạy cảm." };
+                var status = BaSecretStore.Switch(UiAuthHelper.ConnStr, on, UiAuthHelper.CurrentUserId);
+                UserActionLogHelper.Log("AppSettings.SwitchStoredSecrets", "on=" + on + ", changed=" + status.ChangedCount);
+                return StoredSecretResult(status);
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        private static object StoredSecretResult(BaSecretStatus status)
+        {
+            return new { success = true, on = status.On, protectedCount = status.ProtectedCount, plainCount = status.PlainCount, changedCount = status.ChangedCount };
         }
     }
 }

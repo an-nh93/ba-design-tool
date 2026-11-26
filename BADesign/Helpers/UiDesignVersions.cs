@@ -140,17 +140,6 @@ WHERE ControlId = @id AND Kind = @kind AND VersionNo <= @no - @keep";
             }
         }
 
-        private static bool Owns(SqlConnection conn, int controlId, int userId)
-        {
-            using (var cmd = conn.CreateCommand())
-            {
-                cmd.CommandText = "SELECT COUNT(*) FROM dbo.UiBuilderControl WHERE ControlId = @id AND OwnerUserId = @uid AND IsDeleted = 0";
-                cmd.Parameters.AddWithValue("@id", controlId);
-                cmd.Parameters.AddWithValue("@uid", userId);
-                return (int)cmd.ExecuteScalar() > 0;
-            }
-        }
-
         public static bool SaveBaseline(int controlId, string json, int userId)
         {
             if (string.IsNullOrWhiteSpace(json) || json.Length > MaxJsonLength) return false;
@@ -160,7 +149,7 @@ WHERE ControlId = @id AND Kind = @kind AND VersionNo <= @no - @keep";
                 using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
                 {
                     conn.Open();
-                    if (!Owns(conn, controlId, userId)) return false;
+                    if (!UiDesignCatalog.Owns(conn, userId, controlId)) return false;
                     using (var cmd = conn.CreateCommand())
                     {
                         cmd.CommandText = "SELECT COUNT(*) FROM dbo.UiBuilderControlVersion WHERE ControlId = @id AND Kind = @kind";
@@ -198,7 +187,7 @@ WHERE ControlId = @id AND Kind = @kind AND VersionNo <= @no - @keep";
             using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
             {
                 conn.Open();
-                if (!Owns(conn, controlId, userId)) return list;
+                if (!UiDesignCatalog.Owns(conn, userId, controlId)) return list;
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = @"

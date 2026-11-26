@@ -211,7 +211,7 @@
                         <button type="button" class="ba-connect-mode-btn" id="btnModeConnStr" data-mode="connstr">Chỉ Cách 1</button>
                         <button type="button" class="ba-connect-mode-btn" id="btnModeServers" data-mode="servers">Chỉ Cách 2</button>
                     </div>
-                    <!-- Connection String (Guest + Logged-in) - thu gọn mặc định -->
+                    <!-- Connection String - thu gọn mặc định -->
                     <div class="ba-card" id="cardConnStr">
                         <div class="ba-card-header">
                             <div class="ba-card-title-wrap">
@@ -846,7 +846,6 @@
                 localStorage.setItem(key, $sb.hasClass('collapsed') ? '1' : '0');
             });
         })();
-        var isGuest = <%= IsGuest ? "true" : "false" %>;
         var canUseServers = <%= CanUseServers ? "true" : "false" %>;
         var canManageServers = <%= CanManageServers ? "true" : "false" %>;
         var canBulkReset = <%= CanBulkReset ? "true" : "false" %>;
@@ -2725,7 +2724,7 @@
                 $toggle.text(expanded ? '▼' : '▶');
             }
             function applyConnectMode(mode) {
-                var hasServerFlow = !(isGuest || !canUseServers);
+                var hasServerFlow = canUseServers;
                 var m = mode || 'both';
                 if (!hasServerFlow && m === 'servers') m = 'connstr';
                 if (!hasServerFlow) {
@@ -2755,19 +2754,14 @@
                     }
                 }
             }
-            if (isGuest) {
-                $('#cardServers').hide();
-                $('#cardDatabases').hide();
-                $('#btnLoadDb').hide();
-                $('#btnUseServerMethod').hide();
-            } else if (!canUseServers) {
+            if (!canUseServers) {
                 $('#cardServers').hide();
                 $('#cardDatabases').hide();
                 $('#btnLoadDb').hide();
                 $('#btnUseServerMethod').hide();
             }
             if (!canManageServers) $('#addServerWrap').hide();
-            applyConnectMode((isGuest || !canUseServers) ? 'connstr' : 'servers');
+            applyConnectMode(canUseServers ? 'servers' : 'connstr');
             var msg = (function() {
                 var s = (window.location.search || '').replace(/^\?/, '');
                 if (!s) return null;
@@ -2827,7 +2821,7 @@
                 if ($target.length) window.setTimeout(function() { try { $target.focus(); } catch (e) {} }, 100);
             });
             $('#btnUseServerMethod').on('click', function() {
-                if (isGuest || !canUseServers) return;
+                if (!canUseServers) return;
                 applyConnectMode('servers');
                 setSectionExpanded($('#cardServers'), $('#toggleServers'), true);
             });

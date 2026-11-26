@@ -46,34 +46,6 @@
   <ItemGroup>
     <Reference Include="DevExpress.Data.v19.1, Version=19.1.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
     <Reference Include="DevExpress.Web.v19.1, Version=19.1.6.0, Culture=neutral, PublicKeyToken=b88d1754d700e49a, processorArchitecture=MSIL" />
-    <Reference Include="Microsoft.AI.Agent.Intercept, Version=1.2.1.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.ApplicationInsights.Agent.Intercept.1.2.1\lib\net45\Microsoft.AI.Agent.Intercept.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Microsoft.AI.DependencyCollector, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.ApplicationInsights.DependencyCollector.2.0.0\lib\net45\Microsoft.AI.DependencyCollector.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Microsoft.AI.PerfCounterCollector, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.ApplicationInsights.PerfCounterCollector.2.0.0\lib\net45\Microsoft.AI.PerfCounterCollector.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Microsoft.AI.ServerTelemetryChannel, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.ApplicationInsights.WindowsServer.TelemetryChannel.2.0.0\lib\net45\Microsoft.AI.ServerTelemetryChannel.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Microsoft.AI.Web, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.ApplicationInsights.Web.2.0.0\lib\net45\Microsoft.AI.Web.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Microsoft.AI.WindowsServer, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.ApplicationInsights.WindowsServer.2.0.0\lib\net45\Microsoft.AI.WindowsServer.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="Microsoft.ApplicationInsights, Version=2.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <HintPath>..\packages\Microsoft.ApplicationInsights.2.0.0\lib\net46\Microsoft.ApplicationInsights.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
     <Reference Include="Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=1.0.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
       <HintPath>..\packages\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.1.0.0\lib\net45\Microsoft.CodeDom.Providers.DotNetCompilerPlatform.dll</HintPath>
       <Private>True</Private>
@@ -248,6 +220,7 @@
     <Content Include="Content\images\flag-en.png" />
     <Content Include="Content\images\grid-edit.png" />
     <Content Include="Content\images\grid-delete.png" />
+    <Content Include="Content\images\grid-detail.png" />
     <Content Include="Content\images\grid-view.png" />
     <Content Include="Content\images\icon-menu\menu-add.png" />
     <Content Include="Content\images\icon-menu\menu-approve.png" />
@@ -262,6 +235,7 @@
     <Content Include="Content\images\icon-menu\menu-open-report.png" />
     <Content Include="Content\images\icon-menu\menu-save.png" />
     <Content Include="Content\images\login-overlay.png" />
+    <Content Include="Content\images\login-right.jpg" />
     <Content Include="Content\images\no-thumb.png" />
     <Content Include="Content\images\tree-checked.png" />
     <Content Include="Content\images\tree-unchecked.png" />
@@ -274,9 +248,6 @@
     <Content Include="fonts\glyphicons-halflings-regular.ttf" />
     <Content Include="fonts\glyphicons-halflings-regular.eot" />
     <Content Include="Account\Web.config" />
-    <Content Include="ApplicationInsights.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Handlers\ExportFeedback.ashx" />
     <Content Include="Handlers\EmployeeLoadProgress.ashx" />
     <Content Include="Handlers\NotifyJobProgress.ashx" />
@@ -287,8 +258,6 @@
     <Content Include="Pages\Home.aspx" />
     <Content Include="Pages\Login.aspx" />
     <Content Include="Pages\Builder.aspx" />
-    <Content Include="Pages\Preview.aspx" />
-    <Content Include="Pages\WordExport.aspx" />
     <Content Include="Pages\ChangePassword.aspx" />
     <Content Include="Pages\Register.aspx" />
     <Content Include="Pages\ForgotPassword.aspx" />
@@ -327,6 +296,7 @@
     <Content Include="Scripts\AddBaJobDismissedByUser.sql" />
     <Content Include="Scripts\AddBaJobProgressColumns.sql" />
     <Content Include="Scripts\AddBaJobRunner.sql" />
+    <Content Include="Scripts\AddStoredSecretEncryption.sql" />
     <Content Include="Scripts\AddBaRestoreJobDismissedAt.sql" />
     <Content Include="Scripts\AddDatabaseRestoreAndResetLog.sql" />
     <Content Include="Scripts\AddAuditLogColumns.sql" />
@@ -345,8 +315,6 @@
     <Content Include="Scripts\AddDatabaseManageServersAndServerAccess.sql" />
     <Content Include="Scripts\AddDatabaseBackupRestorePermissions.sql" />
     <Content Include="Scripts\AddDatabaseDeleteAndShrinkLogPermissions.sql" />
-    <Content Include="Scripts\ai.0.22.9-build00167.js" />
-    <Content Include="Scripts\ai.0.22.9-build00167.min.js" />
     <Content Include="Scripts\ba-layout.js" />
     <Content Include="Scripts\ba-i18n.js" />
     <Content Include="Scripts\ba-toast.js" />
@@ -367,6 +335,8 @@
     <Content Include="Scripts\builder\builder-import.js" />
     <Content Include="Scripts\builder\builder-capture.js" />
     <Content Include="Scripts\builder\builder-capture-page.js" />
+    <Content Include="Scripts\builder\builder-drawio.js" />
+    <Content Include="Scripts\builder\builder-html.js" />
     <Content Include="Scripts\builder\control-annotation.js" />
     <Content Include="Scripts\builder\builder-templates.js" />
     <Content Include="Scripts\builder\builder-inline-edit.js" />
@@ -386,7 +356,9 @@
     <Content Include="Scripts\builder\control-popup.js" />
     <Content Include="Scripts\builder\control-tabpage.js" />
     <Content Include="Scripts\builder\control-toolbar.js" />
+    <Content Include="Scripts\builder\control-splitter.js" />
     <Content Include="Scripts\builder\control-tree.js" />
+    <Content Include="Scripts\vendor\tesseract\*" />
     <Content Include="Scripts\datatables.js" />
     <Content Include="Scripts\datatables.min.js" />
     <Content Include="Scripts\html2canvas.min.js" />
@@ -558,11 +530,13 @@
     <Compile Include="Common\EmailHelper.cs" />
     <Compile Include="Common\TelegramHelper.cs" />
     <Compile Include="Common\UserActionLogHelper.cs" />
-    <Compile Include="Common\UiBuilderModels.cs" />
     <Compile Include="Common\UiAuthHelper.cs" />
     <Compile Include="Common\BaI18n.cs" />
     <Compile Include="Helpers\BaJobProgress.cs" />
     <Compile Include="Helpers\BaJobQueue.cs" />
+    <Compile Include="Helpers\BaJobJson.cs" />
+    <Compile Include="Helpers\BaJobSecrets.cs" />
+    <Compile Include="Helpers\BaJobView.cs" />
     <Compile Include="Helpers\BaJobRunner.cs" />
     <Compile Include="Helpers\BaJobSqlStore.cs" />
     <Compile Include="Helpers\BaJobWebHost.cs" />
@@ -586,6 +560,7 @@
     <Compile Include="Helpers\UiDesignVersions.cs" />
     <Compile Include="Helpers\UiRoleManagers.cs" />
     <Compile Include="Helpers\UiDesignCatalog.cs" />
+    <Compile Include="Helpers\UiDesignScratch.cs" />
     <Compile Include="Helpers\UiHrModules.cs" />
     <Compile Include="Helpers\BaJobWorkerNotify.cs" />
     <Compile Include="Helpers\BaJobEmailHelper.cs" />
@@ -593,6 +568,7 @@
     <Compile Include="Helpers\ServerAccessHelper.cs" />
     <Compile Include="Helpers\MyConvert.cs" />
     <Compile Include="Helpers\CadenaLicenseKeyHelper.cs" />
+    <Compile Include="Helpers\Database\DbConnectionString.cs" />
     <Compile Include="Helpers\Database\DbSanitizeCatalog.cs" />
     <Compile Include="Helpers\Database\DbSanitizeOptions.cs" />
     <Compile Include="Helpers\Database\DbSanitizeReport.cs" />
@@ -601,6 +577,8 @@
     <Compile Include="Helpers\Database\DbSanitizer.cs" />
     <Compile Include="Helpers\Database\DbSchemaSnapshot.cs" />
     <Compile Include="Helpers\Security\AesHelper.cs" />
+    <Compile Include="Helpers\Security\BaSecret.cs" />
+    <Compile Include="Helpers\Security\BaSecretStore.cs" />
     <Compile Include="Helpers\Security\DataSecurityWrapper.cs" />
     <Compile Include="Helpers\Security\PgpFileNames.cs" />
     <Compile Include="Helpers\Security\PgpKeyInspector.cs" />
@@ -690,17 +668,6 @@
     </Compile>
     <Compile Include="Pages\Builder.aspx.designer.cs">
       <DependentUpon>Builder.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\Preview.aspx.cs">
-      <DependentUpon>Preview.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="Pages\Preview.aspx.designer.cs">
-      <DependentUpon>Preview.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="Pages\WordExport.aspx.cs">
-      <DependentUpon>WordExport.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Pages\ChangePassword.aspx.cs">
       <DependentUpon>ChangePassword.aspx</DependentUpon>
@@ -949,4 +916,20 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <!-- Publish chỉ mang theo file đã khai báo ở trên. File có trên đĩa mà chưa khai báo trong Scripts, fonts và phần mã nguồn của Content
+       (file ở cấp đầu, images, builder-templates) vẫn được đưa vào gói Publish, kèm một cảnh báo. Các thư mục khác của Content
+       (avatars, DevShareAttachments, FeedbackImages, design-thumbs) do ứng dụng ghi lúc chạy nên không tự đưa vào. -->
+  <PropertyGroup>
+    <CopyAllFilesToSingleFolderForPackageDependsOn>PublishUndeclaredStaticFiles;$(CopyAllFilesToSingleFolderForPackageDependsOn)</CopyAllFilesToSingleFolderForPackageDependsOn>
+    <CopyAllFilesToSingleFolderForMsdeployDependsOn>PublishUndeclaredStaticFiles;$(CopyAllFilesToSingleFolderForMsdeployDependsOn)</CopyAllFilesToSingleFolderForMsdeployDependsOn>
+  </PropertyGroup>
+  <Target Name="PublishUndeclaredStaticFiles">
+    <ItemGroup>
+      <_UndeclaredStaticFile Include="Scripts\**\*;fonts\**\*;Content\*;Content\images\**\*;Content\builder-templates\**\*" Exclude="@(Content);@(None)" />
+      <FilesForPackagingFromProject Include="@(_UndeclaredStaticFile)">
+        <DestinationRelativePath>%(RelativeDir)%(Filename)%(Extension)</DestinationRelativePath>
+      </FilesForPackagingFromProject>
+    </ItemGroup>
+    <Warning Condition="'@(_UndeclaredStaticFile)' != ''" Text="Chưa khai báo trong BADesign.csproj nhưng vẫn được đưa vào gói Publish: @(_UndeclaredStaticFile). Thêm &lt;Content Include=... /&gt; cho từng file, hoặc xóa file không dùng." />
+  </Target>
 </Project>

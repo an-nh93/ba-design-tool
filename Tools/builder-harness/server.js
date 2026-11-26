@@ -14,7 +14,12 @@ const own = {
     '/__runner': { file: 'runner.js', type: 'text/plain; charset=utf-8' },
     '/__helpers.js': { file: 'page-helpers.js', type: types['.js'] },
     '/__scenarios': { file: 'scenarios.json', type: types['.json'] },
-    '/__golden': { file: 'golden.json', type: types['.json'] }
+    '/__golden': { file: 'golden.json', type: types['.json'] },
+    '/__hrmpage': { file: 'hrm-sample-page.html', type: 'text/html; charset=utf-8' },
+    '/__hrmsplit': { file: 'hrm-splitter-page.html', type: 'text/html; charset=utf-8' },
+    '/__hrmplain': { file: 'hrm-plain-page.html', type: 'text/html; charset=utf-8' },
+    '/__htmlfile': { file: 'html-mockup-page.html', type: 'text/html; charset=utf-8' },
+    '/__htmlstyle.css': { file: 'html-mockup-style.css', type: types['.css'] }
 };
 
 function builderPage() {
@@ -27,6 +32,8 @@ function builderPage() {
     t = t.replace(/<%[:=][^%]*%>/g, 'tester');
     return t;
 }
+
+const NOT_OWNER_MESSAGE = 'Không có quyền update control này.';
 
 let memory = { versions: {}, versionSeed: 1, designs: {}, requests: [], requestSeed: 1 };
 
@@ -115,12 +122,16 @@ function stub(method, body) {
         return { d: fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : null };
     }
     if (method === 'SaveDesign') {
+        if (body.controlId && !memory.designs[body.controlId]) return { d: { success: false, message: NOT_OWNER_MESSAGE } };
         const id = body.controlId || 9001;
         memory.designs[id] = { name: body.pageName, json: body.jsonConfig };
         addVersion(id, 'save', body.pageName, body.jsonConfig);
-        return { d: id };
+        return { d: { success: true, controlId: id } };
     }
-    if (method === 'SaveControl') return { d: 9001 };
+    if (method === 'SaveControl') {
+        if (body.controlId) return { d: { success: false, message: NOT_OWNER_MESSAGE } };
+        return { d: { success: true, controlId: 9001 } };
+    }
     if (method === 'LoadControl') return { d: null };
     if (method === 'KeepAlive') return { d: true };
     if (method === 'SaveDesignBaseline') {
@@ -233,6 +244,8 @@ http.createServer(function (req, res) {
         });
         return;
     }
+    // Tài nguyên tải mãi không xong: giữ kết nối mở, không trả lời (kịch bản htmlimport).
+    if (url === '/__hang') return;
     if (own[url]) {
         res.writeHead(200, { 'Content-Type': own[url].type, 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' });
         res.end(fs.readFileSync(path.join(__dirname, own[url].file), 'utf8'));

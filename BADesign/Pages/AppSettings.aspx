@@ -26,6 +26,7 @@
                         <button type="button" class="ba-tab ba-settings-tab" data-settings-tab="general">Đăng ký và thông báo</button>
                         <button type="button" class="ba-tab ba-settings-tab" data-settings-tab="mail">Email và SFTP</button>
                         <button type="button" class="ba-tab ba-settings-tab" data-settings-tab="sanitize">Làm sạch dữ liệu</button>
+                        <button type="button" class="ba-tab ba-settings-tab" data-settings-tab="security">Bảo mật</button>
                     </div>
                     <div class="ba-card-grid" id="appSettingsCards">
                     <div class="ba-card ba-collapse-section ba-card-collapsible" id="cardPublicBaseUrl" data-settings-tab="general" data-collapse-key="appSettings_publicBaseUrl" style="display:none">
@@ -277,6 +278,36 @@
                             <button type="button" class="ba-btn ba-btn-primary" id="btnSaveSanitizeDefaults" onclick="saveSanitizeDefaults(); return false;">Lưu</button>
                             <% } else { %>
                             <span class="ba-field-hint">Chỉ user có quyền Settings mới có thể chỉnh sửa.</span>
+                            <% } %>
+                        </div>
+                        </div>
+                    </div>
+                    <div class="ba-card ba-collapse-section ba-card-collapsible" id="cardStoredSecrets" data-settings-tab="security" data-collapse-key="appSettings_storedSecrets">
+                        <div class="ba-collapse-header" onclick="toggleAppSettingsCard('cardStoredSecrets'); return false;">
+                            <span class="ba-collapse-icon">▼</span>
+                            <h3 class="ba-card-title">Mã hóa dữ liệu nhạy cảm</h3>
+                        </div>
+                        <div class="ba-collapse-body">
+                        <p class="ba-section-hint">
+                            Mật khẩu SQL Server của các server, mật khẩu Email server, mật khẩu SFTP, Telegram Bot Token và chuỗi kết nối trong job của Trợ lý HR được lưu trong database của tool. Khi bật, các giá trị này được lưu ở dạng đã mã hóa.
+                        </p>
+                        <p class="ba-section-hint">
+                            Chỉ bật khi mọi bản web và Worker dùng chung database này đã là bản mới: bản cũ không đọc được giá trị đã mã hóa. Trước khi bật, chạy <code>Scripts/AddStoredSecretEncryption.sql</code> trên database của tool.
+                        </p>
+                        <div class="ba-form-group">
+                            <label class="ba-form-label">Trạng thái</label>
+                            <div>
+                                <span class="ba-badge" id="lblStoredSecretsState">Đang tải</span>
+                                <span class="ba-field-hint" id="lblStoredSecretsCounts"></span>
+                            </div>
+                        </div>
+                        <div id="msgStoredSecrets" class="ba-msg" style="display:none;"></div>
+                        <div class="ba-actions">
+                            <% if (CanSwitchStoredSecrets) { %>
+                            <button type="button" class="ba-btn ba-btn-primary" id="btnStoredSecretsOn" onclick="switchStoredSecrets(true); return false;">Bật và mã hóa dữ liệu đang có</button>
+                            <button type="button" class="ba-btn ba-btn-secondary" id="btnStoredSecretsOff" onclick="switchStoredSecrets(false); return false;">Tắt và giải mã</button>
+                            <% } else { %>
+                            <span class="ba-field-hint">Chỉ Super Admin mới bật hoặc tắt được.</span>
                             <% } %>
                         </div>
                         </div>
@@ -673,6 +704,63 @@
                 }).always(function () {
                     $('#btnSaveSftp').prop('disabled', false);
                 });
+            };
+            function showStoredSecretStatus(d) {
+                $('#lblStoredSecretsState').text(d.on ? 'Đang bật' : 'Đang tắt').toggleClass('ba-badge-ok', !!d.on);
+                $('#lblStoredSecretsCounts').text('Đã mã hóa: ' + d.protectedCount + ', dạng thường: ' + d.plainCount);
+            }
+            function showStoredSecretError(message) {
+                $('#msgStoredSecrets').removeClass('success').addClass('error').text(message).show();
+            }
+            function onStoredSecretStatusLoaded(r) {
+                var d = (typeof r.d !== 'undefined') ? r.d : r;
+                if (!d || !d.success) {
+                    showStoredSecretError(d && d.message ? d.message : 'Lỗi.');
+                    return;
+                }
+                showStoredSecretStatus(d);
+            }
+            function onStoredSecretSwitched(r) {
+                var d = (typeof r.d !== 'undefined') ? r.d : r;
+                if (!d || !d.success) {
+                    showStoredSecretError(d && d.message ? d.message : 'Lỗi.');
+                    return;
+                }
+                showStoredSecretStatus(d);
+                $('#msgStoredSecrets').removeClass('error').addClass('success').text('Đã đổi ' + d.changedCount + ' giá trị.').show();
+            }
+            (function loadStoredSecretStatus() {
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/LoadStoredSecretStatus") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: '{}',
+                    dataType: 'json'
+                }).done(onStoredSecretStatusLoaded).fail(function () {
+                    showStoredSecretError('Không load được config.');
+                });
+            })();
+            function runStoredSecretSwitch(on) {
+                var $buttons = $('#btnStoredSecretsOn, #btnStoredSecretsOff');
+                $('#msgStoredSecrets').hide();
+                $buttons.prop('disabled', true);
+                $.ajax({
+                    url: '<%= ResolveUrl("~/Pages/AppSettings.aspx/SwitchStoredSecrets") %>',
+                    type: 'POST',
+                    contentType: 'application/json; charset=utf-8',
+                    data: JSON.stringify({ on: on }),
+                    dataType: 'json'
+                }).done(onStoredSecretSwitched).fail(function () {
+                    showStoredSecretError('Lỗi khi lưu.');
+                }).always(function () {
+                    $buttons.prop('disabled', false);
+                });
+            }
+            window.switchStoredSecrets = function (on) {
+                var msg = on
+                    ? 'Bật mã hóa và mã hóa mọi giá trị đang lưu? Bản web hoặc Worker cũ dùng chung database này sẽ không đọc được nữa.'
+                    : 'Tắt mã hóa và đưa mọi giá trị đang lưu về dạng thường?';
+                if (typeof baConfirm === 'function') baConfirm(msg, function () { runStoredSecretSwitch(on); }, null, 'Đồng ý', 'Thoát');
             };
         })();
     </script>

@@ -34,7 +34,7 @@ Chạy trong IIS (hosting production), app pool nên đặt:
 - **Regular Time Interval** = 0 (tắt khởi động lại định kỳ 29 giờ), hoặc đặt giờ cố định ban đêm.
 - Tài khoản app pool có quyền ghi `App_Data` và `Content/design-thumbs`.
 
-Thêm loại job mới: thêm `JobType` và hàm chạy vào `BaJobQueue.Handlers()`, trang tạo job bằng `BaJobQueue.Enqueue`. Không viết bản chạy riêng trong trang.
+Thêm loại job mới: thêm `JobType` và hàm chạy vào `BaJobQueue.Handlers()`, trang tạo job bằng `BaJobQueue.Enqueue`. Không viết bản chạy riêng trong trang. Payload có chuỗi kết nối hoặc mật khẩu thì dùng đúng tên khóa mà `BaJobSecrets` biết (hoặc thêm khóa mới vào đó), thêm `JobType` vào nơi lưu `BaJob` của `BaSecretStore.Sources`, và hàm chạy đọc bằng `BaJobSecrets.Read`.
 
 Tiến độ restore ghi file/log để web poll `GetRestoreProgress` (%), và bắn SignalR để chuông cập nhật không cần F5.
 
@@ -71,6 +71,15 @@ Chuông chỉ có một bản, không trang nào được chép lại:
 ## Function Queue
 
 `Pages/FunctionQueue.aspx` là bảng job của user: lọc ngày, loại, sort. Nơi nhìn việc đã chạy khi chuông đã tắt.
+
+## Ai xem được job, trình duyệt nhận gì
+
+`Helpers/BaJobView.cs` là nơi duy nhất quyết định hai việc:
+
+- **Ai xem được một job** (`CanView`): người tạo job; người thấy mọi server (Super Admin hoặc quyền Manage Servers) xem được mọi job; người còn lại xem được job Restore / Backup trên server mình được cấp. Đây là hợp của quy tắc danh sách ở chuông (`GetJobs`), Function Queue (`GetFunctionQueueJobs`) và Nhật ký thao tác. `GetJobResult` và `GetJobPayload` nhận id job từ trình duyệt nên dùng quy tắc này; job không được xem trả về giống job không tồn tại.
+- **Phần Payload gửi về trình duyệt** (`Payload`): Payload là đầu vào của bộ chạy job nên chứa chuỗi kết nối, mật khẩu mới của user, mật khẩu mail server, mật khẩu reset. Trình duyệt chỉ nhận các khóa giao diện đọc (danh sách `DisplayKeys`): kết quả shrink, báo cáo làm sạch, email / phone reset, danh sách database, danh sách nhân viên của job xóa, các cờ và giá trị "Dự kiến cập nhật". Mọi hàm trả Payload (`GetJobs`, `GetFunctionQueueJobs`, `GetMyRunningHRHelperJobs`, `GetJobResult`, `GetJobPayload`) đi qua hàm này. Giao diện cần đọc thêm một khóa thì thêm khóa đó vào `DisplayKeys`; khóa mới của bộ chạy job mặc định không rời server.
+
+Thông tin reset của một lần restore (email, phone, mật khẩu reset) đi đường riêng: `GetRestoreResetInfo`, cho người xem được job đó hoặc được cấp server đó. Việc lọc trên chỉ chặn ở chỗ trả về trình duyệt. Phần lưu trong bảng `BaJob` do `Helpers/BaJobSecrets.cs` lo: khi công tắc mã hóa ở App Settings bật, `BaJobQueue.Enqueue` ghi `connectionString`, `password` (ở gốc) và `ConnectionString` của từng phần tử trong `connectionStrings` ở dạng mã hóa; các khóa khác giữ dạng đọc được. Hàm chạy job đọc Payload bằng `BaJobSecrets.Read(payloadJson)` (nhận cả Payload cũ dạng thường), không tự `JObject.Parse`. Job tạo bằng `INSERT` trực tiếp (Backup, làm sạch dữ liệu, Phân tích Multi-DB, Xóa nhân viên) không mang chuỗi kết nối; loại job mới có bí mật thì phải đi qua `Enqueue`. Chi tiết ở [06-App-Settings.md](06-App-Settings.md), mục Mã hóa dữ liệu nhạy cảm.
 
 ## Hủy
 

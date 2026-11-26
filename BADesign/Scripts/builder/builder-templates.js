@@ -10,6 +10,10 @@
     var DRAWIO_SCRIPT_URL = "/Scripts/builder/builder-drawio.js";
     var DRAWIO_FILE = /\.(drawio|dio)(\.(xml|svg|png))?$/i;
     var DRAWIO_PARAM = /[?&]drawio=1(?=&|$)/;
+    var HTML_SCRIPT_URL = "/Scripts/builder/builder-html.js";
+    var HTML_FILE = /\.html?$/i;
+    var HTML_PARAM = /[?&]htmlfile=1(?=&|$)/;
+    var ALL_SCREENS = "all";
     var MAX_CANVAS_SIDE = 4096;
     var PASTED_KEY = "badesign.builder.capturedScreen";
     var CLIPBOARD_TEMPLATE = "clipboard";
@@ -18,6 +22,7 @@
         done: "Đã chụp xong màn hình",
         untitled: "Màn hình chưa có tên",
         privacy: "Chỉ lấy bố cục và tên các ô, không lấy dữ liệu trong lưới.",
+        dataNote: "Dữ liệu đang hiện trong lưới sẽ nằm trong thiết kế. Chỉ nên dùng với dữ liệu mẫu.",
         next: "Bấm Sao chép, rồi mở UI Builder và bấm Ctrl+V.",
         copy: "Sao chép",
         copied: "Đã sao chép. Mở UI Builder và bấm Ctrl+V.",
@@ -28,7 +33,24 @@
         tabs: "Màn hình này có nhiều tab",
         tabsHint: "Khi chụp tất cả tab, các tab sẽ tự chuyển lần lượt. Không có gì được lưu trên HRM.",
         allTabs: "Chụp tất cả tab",
-        oneTab: "Chỉ tab đang mở"
+        oneTab: "Chỉ tab đang mở",
+        which: "Chụp phần nào?",
+        whole: "Cả màn hình",
+        some: "Chỉ các phần được chọn",
+        hover: "Rê chuột vào một dòng để khoanh vùng đó trên màn hình.",
+        none: "Chưa chọn phần nào.",
+        options: "Tùy chọn",
+        gridData: "Lấy cả dữ liệu đang hiện trong lưới (tối đa 10 dòng mỗi lưới)",
+        splitters: "Giữ khối chia vùng (Splitter)",
+        kinds: { grid: "Lưới", tree: "Cây", tab: "Tab", box: "Khối", rest: "Các ô và nút còn lại" },
+        within: { tab: "trong tab", box: "trong khối" },
+        amounts: {
+            controls: { one: "1 control", many: "{0} control" },
+            columns: { one: "1 cột", many: "{0} cột" },
+            grids: { one: "1 lưới", many: "{0} lưới" },
+            fields: { one: "1 ô nhập", many: "{0} ô nhập" },
+            buttons: { one: "1 nút", many: "{0} nút" }
+        }
     };
 
     var templates = {};
@@ -39,6 +61,8 @@
     var captureSource = null;
     var drawio = null;
     var drawioPages = [];
+    var html = null;
+    var htmlFile = null;
     var patchCache = {};
     var modules = null;
     var NO_MODULE = "none";
@@ -48,6 +72,18 @@
         if (window.builder && builder.showToast) builder.showToast(message, type || "info");
         else if (window.BaToast && BaToast.show) BaToast.show(message, type || "info");
         else window.alert(message);
+    }
+
+    function shownText(text) {
+        return window.BaI18n ? window.BaI18n.translate(text) : text;
+    }
+
+    function shownTexts(texts) {
+        var out = {};
+        Object.keys(texts).forEach(function (key) {
+            out[key] = typeof texts[key] === "string" ? shownText(texts[key]) : shownTexts(texts[key]);
+        });
+        return out;
     }
 
     function post(method, data, done, fail) {
@@ -72,7 +108,8 @@
             Key: TEAM_PREFIX + info.RequestId,
             Name: info.Name || "",
             Ui: info.UiKind === "ess" ? "ess" : "core",
-            Group: "Mẫu của team" + (info.Category ? " · " + info.Category : ""),
+            Group: "Mẫu của team",
+            Category: info.Category || "",
             Description: info.Description || "",
             ThumbUrl: thumb,
             Controls: info.ControlCount || 0,
@@ -127,7 +164,7 @@
             toast(err && err.message ? err.message : "Không đọc được dữ liệu màn hình.", "error");
             return false;
         }
-        return templates.applyControls(converted.controls, mode, name || converted.screen.title || "Màn hình chuẩn", converted.truncated);
+        return templates.applyControls(converted.controls, mode, name || converted.screen.title || shownText("Màn hình chuẩn"), converted.truncated);
     };
 
     templates.applyControls = function (controls, mode, title, truncated) {
@@ -159,8 +196,11 @@
         var $borders = $("#chkShowBorders");
         if ($borders.length && $borders.prop("checked")) $borders.prop("checked", false).trigger("change");
         templates.clearSelection();
-        toast("Đã " + (mode === "new" ? "mở" : "chèn") + " màn hình '" + title + "' (" + converted.controls.length + " control)."
-            + (converted.truncated ? " Màn hình quá lớn nên một phần bị lược bỏ." : ""), "success");
+        var count = converted.controls.length;
+        var message = mode === "new"
+            ? "Đã mở màn hình '" + title + "' (" + count + " control)."
+            : "Đã chèn màn hình '" + title + "' (" + count + " control).";
+        toast(message + (converted.truncated ? " Màn hình quá lớn nên một phần bị lược bỏ." : ""), "success");
         return true;
     };
 
@@ -179,7 +219,7 @@
                 var controls = null;
                 try { controls = JSON.parse(json || "null"); } catch (err) { controls = null; }
                 if (!Array.isArray(controls)) { toast("Không tìm thấy mẫu này trong thư viện chung.", "error"); return; }
-                templates.applyControls(controls, mode === "insert" ? "insert" : "new", name || "Mẫu của team");
+                templates.applyControls(controls, mode === "insert" ? "insert" : "new", name || shownText("Mẫu của team"));
             }, function () {
                 toast("Không tải được mẫu. Kiểm tra đăng nhập rồi thử lại.", "error");
             });
@@ -220,6 +260,27 @@
         return node;
     }
 
+    function dataEl(tag, className, text) {
+        var node = el(tag, className, text);
+        node.setAttribute("translate", "no");
+        return node;
+    }
+
+    function labelled(label, value) {
+        var part = el("span", null, label + " ");
+        part.appendChild(dataEl("span", null, value));
+        return part;
+    }
+
+    function metaLine(parts) {
+        var line = el("div", "bst-meta");
+        parts.forEach(function (part, index) {
+            if (index) line.appendChild(document.createTextNode(" · "));
+            line.appendChild(part);
+        });
+        return line;
+    }
+
     function buildGallery() {
         var overlay = el("div", "bst-overlay");
         overlay.id = "bstGallery";
@@ -252,6 +313,10 @@
         fromDrawio.type = "button";
         fromDrawio.title = "Mở file vẽ bằng draw.io và chuyển các hình thành control";
         fromDrawio.addEventListener("click", function () { templates.openDrawio(); });
+        var fromHtml = el("button", "bst-btn bst-head-btn", "Mở file HTML");
+        fromHtml.type = "button";
+        fromHtml.title = "Mở file HTML (ví dụ mockup do AI vẽ) và chuyển trang cùng các popup của nó thành control";
+        fromHtml.addEventListener("click", function () { templates.openHtml(); });
         var close = el("button", "bst-close", "×");
         close.type = "button";
         close.title = "Đóng";
@@ -261,6 +326,7 @@
         head.appendChild(filter);
         head.appendChild(fromHrm);
         head.appendChild(fromDrawio);
+        head.appendChild(fromHtml);
         head.appendChild(close);
 
         var hint = el("div", "bst-hint", "Chọn một màn hình của HRM để bắt đầu. Control trong thiết kế là control thật, kéo thả và sửa được ngay.");
@@ -291,6 +357,7 @@
             if (e.key !== "Escape" || !overlay.classList.contains("is-open")) return;
             if (capture && capture.overlay.classList.contains("is-open")) return;
             if (drawio && drawio.overlay.classList.contains("is-open")) return;
+            if (html && html.overlay.classList.contains("is-open")) return;
             e.stopPropagation();
             templates.closeGallery();
         }, true);
@@ -322,8 +389,10 @@
         if (state.module && (state.module === NO_MODULE ? !!item.ModuleId : String(item.ModuleId) !== state.module)) return false;
         var q = state.query.toLowerCase().trim();
         if (!q) return true;
-        var team = item.Team ? [item.Team.submitter, item.Team.approvers] : [];
-        return [item.Name, item.Group, item.Module, item.Description].concat(team).join(" ").toLowerCase().indexOf(q) >= 0;
+        var texts = [item.Name, item.Group, shownText(item.Group), item.Category, item.Module, item.Description];
+        if (item.Team) texts.push(item.Team.submitter, item.Team.approvers);
+        else texts.push(shownText(item.Name), shownText(item.Description));
+        return texts.join(" ").toLowerCase().indexOf(q) >= 0;
     }
 
     var SVG_NS = "http://www.w3.org/2000/svg";
@@ -405,13 +474,19 @@
         node.appendChild(thumb);
 
         var info = el("div", "bst-info");
-        info.appendChild(el("div", "bst-name", item.Name));
-        var meta = [item.Group, item.Module, item.Controls ? item.Controls + " control" : ""].filter(Boolean).join(" · ");
-        if (meta) info.appendChild(el("div", "bst-meta", meta));
-        if (item.Description) info.appendChild(el("div", "bst-desc", item.Description));
+        var itemText = item.Team ? dataEl : el;
+        info.appendChild(itemText("div", "bst-name", item.Name));
+        var meta = [];
+        if (item.Group) meta.push(el("span", null, item.Group));
+        if (item.Category) meta.push(dataEl("span", null, item.Category));
+        if (item.Module) meta.push(dataEl("span", null, item.Module));
+        if (item.Controls) meta.push(el("span", null, item.Controls + " control"));
+        if (meta.length) info.appendChild(metaLine(meta));
+        if (item.Description) info.appendChild(itemText("div", "bst-desc", item.Description));
         if (item.Team) {
-            info.appendChild(el("div", "bst-meta", "Người gửi: " + item.Team.submitter + " · Người duyệt: " + item.Team.approvers +
-                (item.Team.approvedAt ? " · " + item.Team.approvedAt : "")));
+            var people = [labelled("Người gửi:", item.Team.submitter), labelled("Người duyệt:", item.Team.approvers)];
+            if (item.Team.approvedAt) people.push(dataEl("span", null, item.Team.approvedAt));
+            info.appendChild(metaLine(people));
         }
         node.appendChild(info);
 
@@ -474,6 +549,7 @@
         var doc = document;
         var PANEL_ID = "ba-capture-panel";
         function close() {
+            window.__baHighlight(null);
             var old = doc.getElementById(PANEL_ID);
             if (old && old.parentNode) old.parentNode.removeChild(old);
         }
@@ -482,7 +558,7 @@
             var box = doc.createElement("div");
             box.id = PANEL_ID;
             box.setAttribute("data-ba-capture-ignore", "1");
-            box.style.cssText = "position:fixed;top:16px;right:16px;z-index:2147483647;width:330px;max-width:calc(100% - 32px);box-sizing:border-box;padding:14px 16px;border:1px solid #0f75bd;border-radius:8px;background:#ffffff;color:#1f2937;font:13px/1.5 'Segoe UI',Arial,sans-serif;text-align:left;box-shadow:0 12px 32px rgba(0,0,0,0.3)";
+            box.style.cssText = "position:fixed;top:16px;right:16px;z-index:2147483647;width:330px;max-width:calc(100% - 32px);max-height:calc(100% - 32px);overflow:auto;box-sizing:border-box;padding:14px 16px;border:1px solid #0f75bd;border-radius:8px;background:#ffffff;color:#1f2937;font:13px/1.5 'Segoe UI',Arial,sans-serif;text-align:left;box-shadow:0 12px 32px rgba(0,0,0,0.3)";
             doc.body.appendChild(box);
             return box;
         }
@@ -502,10 +578,49 @@
             box.appendChild(node);
             return node;
         }
+        function heading(box, value) {
+            var row = line(box, value);
+            row.style.cssText += "margin-top:9px;font-weight:600;";
+            return row;
+        }
+        function choice(box, type, group, label, checked, onChange) {
+            var row = doc.createElement("label");
+            row.style.cssText = "display:flex;gap:7px;align-items:flex-start;margin:3px 0 0;padding:0;font-weight:normal;color:inherit;cursor:pointer";
+            var input = doc.createElement("input");
+            input.type = type;
+            input.name = group;
+            input.checked = checked;
+            input.style.cssText = "all:revert;flex:none;margin:3px 0 0";
+            input.addEventListener("change", function () { onChange(input); });
+            var caption = doc.createElement("span");
+            caption.textContent = label;
+            row.appendChild(input);
+            row.appendChild(caption);
+            box.appendChild(row);
+            return input;
+        }
         function count(nodes) {
             var total = 0;
             (nodes || []).forEach(function (node) { total += 1 + count(node.children); });
             return total;
+        }
+        function has(nodes, test) {
+            return (nodes || []).some(function (node) { return test(node) || has(node.children, test); });
+        }
+        function amount(key, value) {
+            var forms = text.amounts[key];
+            return value === 1 ? forms.one : forms.many.replace("{0}", value);
+        }
+        function partLabel(part) {
+            var name = text.kinds[part.kind] + (part.title ? " “" + part.title + "”" : "");
+            if (part.within && text.within[part.within.kind]) name += " " + text.within[part.within.kind] + " “" + part.within.title + "”";
+            var detail = [];
+            if (part.kind === "grid") {
+                detail.push(amount("columns", part.columns) + (part.names.length ? ": " + part.names.join(", ") + (part.columns > part.names.length ? "…" : "") : ""));
+            } else if (part.kind !== "tree") {
+                ["grids", "fields", "buttons"].forEach(function (key) { if (part.counts[key]) detail.push(amount(key, part.counts[key])); });
+            }
+            return name + (detail.length ? " · " + detail.join(", ") : "");
         }
         function copy(value, done) {
             function legacy() {
@@ -525,13 +640,62 @@
             else legacy();
         }
         function showResult(screen) {
-            var json = JSON.stringify(screen);
+            var parts = window.__baParts(screen);
+            var state = { some: false, chosen: {}, gridData: false, splitters: true };
             var box = panel();
+            var note, status;
+            function chosenIds() {
+                return parts.filter(function (part) { return state.chosen[part.id]; }).map(function (part) { return part.id; });
+            }
+            function selection() {
+                return window.__baSelect(screen, { parts: state.some ? chosenIds() : null, gridData: state.gridData, splitters: state.splitters });
+            }
+            function refresh() {
+                summary.textContent = (screen.title || text.untitled) + " · " + amount("controls", count(selection().nodes));
+                note.textContent = state.gridData ? text.dataNote : text.privacy;
+                note.style.color = state.gridData ? "#b45309" : "";
+                status.textContent = text.next;
+                status.style.color = "";
+                var manual = box.querySelector("textarea");
+                if (manual) box.removeChild(manual);
+            }
             line(box, text.done, true);
-            line(box, (screen.title || text.untitled) + " · " + count(screen.nodes) + " control");
-            line(box, text.privacy);
-            var status = line(box, text.next);
+            var summary = line(box, "");
+            if (parts.length > 1) {
+                var group = PANEL_ID + "-mode";
+                heading(box, text.which);
+                choice(box, "radio", group, text.whole, true, function () { state.some = false; refresh(); });
+                var someRadio = choice(box, "radio", group, text.some, false, function () { state.some = true; refresh(); });
+                var list = doc.createElement("div");
+                list.style.cssText = "max-height:190px;overflow:auto;margin:4px 0 4px 20px;padding:2px 8px 5px;border:1px solid #e2e6ec;border-radius:4px";
+                box.appendChild(list);
+                parts.forEach(function (part) {
+                    var input = choice(list, "checkbox", "", partLabel(part), false, function () {
+                        state.chosen[part.id] = input.checked;
+                        if (input.checked) { state.some = true; someRadio.checked = true; }
+                        refresh();
+                    });
+                    input.parentNode.addEventListener("mouseenter", function () { window.__baHighlight(part.box); });
+                    input.parentNode.addEventListener("mouseleave", function () { window.__baHighlight(null); });
+                });
+                line(box, text.hover).style.color = "#6b7280";
+            }
+            var hasData = has(screen.nodes, function (node) { return node.t === "grid" && !!node.data; });
+            var hasSplitters = has(screen.nodes, function (node) { return node.t === "splitter"; });
+            if (hasData || hasSplitters) heading(box, text.options);
+            if (hasData) choice(box, "checkbox", "", text.gridData, false, function (input) { state.gridData = input.checked; refresh(); });
+            if (hasSplitters) choice(box, "checkbox", "", text.splitters, true, function (input) { state.splitters = input.checked; refresh(); });
+            note = line(box, "");
+            note.style.marginTop = "9px";
+            status = line(box, "");
+            refresh();
             button(box, text.copy, true, function () {
+                if (state.some && !chosenIds().length) {
+                    status.textContent = text.none;
+                    status.style.color = "#b91c1c";
+                    return;
+                }
+                var json = JSON.stringify(selection());
                 copy(json, function (ok) {
                     if (ok) { status.textContent = text.copied; status.style.color = "#0e7a4f"; return; }
                     status.textContent = text.manual;
@@ -556,9 +720,9 @@
         function run(allTabs) {
             close();
             try {
-                if (!allTabs) { showResult(window.__baCapture({})); return; }
+                if (!allTabs) { showResult(window.__baCapture({ gridData: true })); return; }
                 line(panel(), text.working, true);
-                window.__baCaptureAllTabs({}).then(function (screens) { showResult(window.__baMergeTabs(screens)); }, showError);
+                window.__baCaptureAllTabs({ gridData: true }).then(function (screens) { showResult(window.__baMergeTabs(screens)); }, showError);
             } catch (error) { showError(error); }
         }
         var tabs = 0;
@@ -574,7 +738,7 @@
 
     templates.bookmarkCode = function (source) {
         var compact = String(source).split(/\r?\n/).map(function (row) { return row.replace(/^\s+/, ""); }).filter(Boolean).join("\n");
-        return "(function(){" + compact + "\n(" + pageRunner.toString() + ")(" + JSON.stringify(RUNNER_TEXT) + ");})();void 0;";
+        return "(function(){" + compact + "\n(" + pageRunner.toString() + ")(" + JSON.stringify(shownTexts(RUNNER_TEXT)) + ");})();void 0;";
     };
 
     templates.bookmarkHref = function (source) {
@@ -594,6 +758,14 @@
 
     function ensureConverter(done) {
         ensureScript(CONVERTER_SCRIPT_URL, function () { return !!window.builderCapture; }, done);
+    }
+
+    function ensureCaptureSource(done) {
+        if (captureSource) { done(captureSource); return; }
+        loadText(CAPTURE_SCRIPT_URL, function (source) {
+            if (source) captureSource = source;
+            done(source);
+        });
     }
 
     function buildCapture() {
@@ -624,7 +796,7 @@
         first.appendChild(link);
         first.appendChild(el("div", "bst-step-note", "Không thấy thanh dấu trang thì bấm Ctrl+Shift+B."));
         steps.appendChild(first);
-        steps.appendChild(el("li", null, "Mở màn hình cần chụp trong HRM, bấm dấu trang vừa tạo rồi bấm Sao chép."));
+        steps.appendChild(el("li", null, "Mở màn hình cần chụp trong HRM, bấm dấu trang vừa tạo, chọn phần cần chụp nếu không lấy cả màn hình, rồi bấm Sao chép."));
         steps.appendChild(el("li", null, "Quay lại đây, bấm vào ô bên dưới rồi bấm Ctrl+V."));
         var paste = el("textarea", "bst-paste");
         paste.placeholder = "Dán dữ liệu màn hình vào đây (Ctrl+V)";
@@ -677,9 +849,10 @@
         if (svg) thumb.appendChild(svg);
         thumb.appendChild(el("span", "bst-badge bst-badge-" + info.ui, UI_LABEL[info.ui] || info.ui));
         host.appendChild(thumb);
-        host.appendChild(el("div", "bst-name", name));
-        host.appendChild(el("div", "bst-meta", info.counts.total + " control · " + info.counts.fields + " ô nhập · " + info.counts.grids + " lưới"
-            + (result.truncated ? " · màn hình quá lớn nên một phần bị lược bỏ" : "")));
+        host.appendChild(dataEl("div", "bst-name", name));
+        var meta = [el("span", null, info.counts.total + " control"), el("span", null, info.counts.fields + " ô nhập"), el("span", null, info.counts.grids + " lưới")];
+        if (result.truncated) meta.push(el("span", null, "màn hình quá lớn nên một phần bị lược bỏ"));
+        host.appendChild(metaLine(meta));
         return name;
     }
 
@@ -695,7 +868,7 @@
         capture.preview.textContent = "";
         capture.actions.textContent = "";
         if (!text) return;
-        var name = showScreen(capture.preview, text, "Màn hình chụp từ HRM");
+        var name = showScreen(capture.preview, text, shownText("Màn hình chụp từ HRM"));
         if (name == null) return;
 
         if (inBuilder()) {
@@ -721,15 +894,12 @@
         capture.overlay.classList.add("is-open");
         capture.paste.value = options.text || "";
         ensureConverter(function () { renderPasted(); });
-        if (!captureSource) {
-            loadText(CAPTURE_SCRIPT_URL, function (source) {
-                if (!source) { capture.link.textContent = "Không tải được công cụ chụp"; return; }
-                captureSource = source;
-                capture.link.href = templates.bookmarkHref(source);
-                capture.link.textContent = "Chụp màn hình HRM";
-                capture.link.classList.remove("is-disabled");
-            });
-        }
+        ensureCaptureSource(function (source) {
+            if (!source) { capture.link.textContent = "Không tải được công cụ chụp"; return; }
+            capture.link.href = templates.bookmarkHref(source);
+            capture.link.textContent = "Chụp màn hình HRM";
+            capture.link.classList.remove("is-disabled");
+        });
         if (!options.text) {
             try { capture.paste.focus(); } catch (e) { }
         }
@@ -837,18 +1007,18 @@
         return page.results[ui];
     }
 
-    function showDrawioMessage(message, isError) {
-        drawio.preview.textContent = "";
-        drawio.notes.textContent = "";
-        drawio.actions.textContent = "";
-        if (message) drawio.preview.appendChild(el("div", isError ? "bst-paste-error" : "bst-meta", message));
+    function showFileMessage(box, message, isError) {
+        box.preview.textContent = "";
+        box.notes.textContent = "";
+        box.actions.textContent = "";
+        if (message) box.preview.appendChild(el("div", isError ? "bst-paste-error" : "bst-meta", message));
     }
 
     function renderDrawio() {
         var page = drawioPages[parseInt(drawio.page.value, 10)];
         if (!page) return;
         var result = drawioResult(page, drawio.ui.value);
-        if (result.error) { showDrawioMessage(result.error, true); return; }
+        if (result.error) { showFileMessage(drawio, result.error, true); return; }
         drawio.notes.textContent = "";
         drawio.actions.textContent = "";
         var name = showScreen(drawio.preview, result.screen, page.name);
@@ -868,8 +1038,8 @@
         if (!file) return;
         drawio.options.classList.remove("is-ready");
         drawio.file.textContent = file.name || "";
-        if (file.size > builderDrawio.LIMITS.file) { showDrawioMessage("File quá lớn (tối đa 40 MB).", true); return; }
-        showDrawioMessage("Đang đọc file...", false);
+        if (file.size > builderDrawio.LIMITS.file) { showFileMessage(drawio, "File quá lớn (tối đa 40 MB).", true); return; }
+        showFileMessage(drawio, "Đang đọc file...", false);
         file.arrayBuffer().then(function (buffer) {
             var bytes = new Uint8Array(buffer);
             var text = bytes[0] === 137 && bytes[1] === 80 ? builderDrawio.textFromPng(bytes) : new TextDecoder("utf-8").decode(bytes);
@@ -887,33 +1057,46 @@
                 if (!result.error && (first < 0 || (drawioResult(pages[first], drawio.ui.value).stats.flow && !result.stats.flow))) first = index;
                 drawio.page.appendChild(option);
             });
-            if (first < 0) { showDrawioMessage("File này không có trang nào chuyển được thành control.", true); return; }
+            if (first < 0) { showFileMessage(drawio, "File này không có trang nào chuyển được thành control.", true); return; }
             drawio.page.value = String(first);
             drawio.options.classList.add("is-ready");
             renderDrawio();
         }, function (error) {
-            showDrawioMessage(error && error.drawio ? error.message : "Không đọc được file này.", true);
+            showFileMessage(drawio, error && error.drawio ? error.message : "Không đọc được file này.", true);
         });
     }
 
-    function drawioOption(labelText, select) {
+    function choiceSelect(choices) {
+        var select = el("select", "bst-select");
+        choices.forEach(function (pair) {
+            var option = el("option", null, pair[1]);
+            option.value = pair[0];
+            select.appendChild(option);
+        });
+        return select;
+    }
+
+    function fileOption(labelText, select) {
         var label = el("label", "bst-option");
         label.appendChild(el("span", null, labelText));
         label.appendChild(select);
         return label;
     }
 
-    function buildDrawio() {
+    // Hộp "mở file" dùng chung cho file draw.io và file HTML: vùng thả file, các ô chọn, phần xem trước, ghi chú và nút áp dụng.
+    // spec: { id, title, accept, dropText, note, pickLabel, extra: [nhãn, [[giá trị, chữ]]] (không bắt buộc),
+    //         read(file), onPick() khi đổi ô chọn đầu, onOption() khi đổi kiểu control hoặc ô extra, close() }
+    function buildFileDialog(spec) {
         var overlay = el("div", "bst-overlay");
-        overlay.id = "bstDrawio";
+        overlay.id = spec.id;
         var dialog = el("div", "bst-dialog bst-dialog-narrow");
         dialog.setAttribute("role", "dialog");
         dialog.setAttribute("aria-modal", "true");
-        dialog.setAttribute("aria-labelledby", "bstDrawioTitle");
+        dialog.setAttribute("aria-labelledby", spec.id + "Title");
 
         var head = el("div", "bst-head");
-        var title = el("span", "bst-title", "Mở file draw.io");
-        title.id = "bstDrawioTitle";
+        var title = el("span", "bst-title", spec.title);
+        title.id = spec.id + "Title";
         var close = el("button", "bst-close", "×");
         close.type = "button";
         close.title = "Đóng";
@@ -924,26 +1107,23 @@
         var drop = el("div", "bst-drop");
         var input = el("input", "bst-file");
         input.type = "file";
-        input.accept = ".drawio,.dio,.xml,.svg,.png";
-        drop.appendChild(el("span", null, "Kéo thả file .drawio vào đây, hoặc"));
+        input.accept = spec.accept;
+        drop.appendChild(el("span", null, spec.dropText));
         drop.appendChild(actionButton("Chọn file", true, function () { input.click(); }));
         drop.appendChild(input);
         var file = el("div", "bst-meta");
         file.setAttribute("translate", "no");
         var page = el("select", "bst-select");
-        var ui = el("select", "bst-select");
-        [["core", "Core"], ["ess", "ESS"]].forEach(function (pair) {
-            var option = el("option", null, pair[1]);
-            option.value = pair[0];
-            ui.appendChild(option);
-        });
+        var ui = choiceSelect([["core", "Core"], ["ess", "ESS"]]);
+        var extra = spec.extra ? choiceSelect(spec.extra[1]) : null;
         var options = el("div", "bst-drawio-options");
-        options.appendChild(drawioOption("Trang", page));
-        options.appendChild(drawioOption("Kiểu control", ui));
+        options.appendChild(fileOption(spec.pickLabel, page));
+        options.appendChild(fileOption("Kiểu control", ui));
+        if (extra) options.appendChild(fileOption(spec.extra[0], extra));
         var preview = el("div", "bst-preview");
         var notes = el("ul", "bst-notes");
         var actions = el("div", "bst-actions bst-capture-actions");
-        body.appendChild(el("div", "bst-step-note", "File được đọc ngay trên máy của bạn, không gửi lên máy chủ. Ảnh chụp dán trong file được giữ làm ảnh nền; nhãn, ô nhập, nút và bảng vẽ thêm thành control."));
+        body.appendChild(el("div", "bst-step-note", spec.note));
         body.appendChild(drop);
         body.appendChild(file);
         body.appendChild(options);
@@ -956,14 +1136,15 @@
         overlay.appendChild(dialog);
         document.body.appendChild(overlay);
 
-        overlay.addEventListener("mousedown", function (e) { if (e.target === overlay) templates.closeDrawio(); });
-        close.addEventListener("click", function () { templates.closeDrawio(); });
+        overlay.addEventListener("mousedown", function (e) { if (e.target === overlay) spec.close(); });
+        close.addEventListener("click", function () { spec.close(); });
         input.addEventListener("change", function () {
-            readDrawioFile(input.files && input.files[0]);
+            spec.read(input.files && input.files[0]);
             input.value = "";
         });
-        page.addEventListener("change", renderDrawio);
-        ui.addEventListener("change", renderDrawio);
+        page.addEventListener("change", spec.onPick);
+        ui.addEventListener("change", spec.onOption);
+        if (extra) extra.addEventListener("change", spec.onOption);
         dialog.addEventListener("dragover", function (e) {
             e.preventDefault();
             drop.classList.add("is-over");
@@ -973,13 +1154,28 @@
             e.preventDefault();
             e.stopPropagation();
             drop.classList.remove("is-over");
-            readDrawioFile(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
+            spec.read(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]);
         });
         document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape" && overlay.classList.contains("is-open")) { e.stopPropagation(); templates.closeDrawio(); }
+            if (e.key === "Escape" && overlay.classList.contains("is-open")) { e.stopPropagation(); spec.close(); }
         }, true);
 
-        return { overlay: overlay, dialog: dialog, file: file, page: page, ui: ui, options: options, preview: preview, notes: notes, actions: actions };
+        return { overlay: overlay, dialog: dialog, file: file, page: page, ui: ui, extra: extra, options: options, preview: preview, notes: notes, actions: actions };
+    }
+
+    function buildDrawio() {
+        return buildFileDialog({
+            id: "bstDrawio",
+            title: "Mở file draw.io",
+            accept: ".drawio,.dio,.xml,.svg,.png",
+            dropText: "Kéo thả file .drawio vào đây, hoặc",
+            note: "File được đọc ngay trên máy của bạn, không gửi lên máy chủ. Ảnh chụp dán trong file được giữ làm ảnh nền; nhãn, ô nhập, nút và bảng vẽ thêm thành control.",
+            pickLabel: "Trang",
+            read: readDrawioFile,
+            onPick: renderDrawio,
+            onOption: renderDrawio,
+            close: function () { templates.closeDrawio(); }
+        });
     }
 
     templates.openDrawio = function (options) {
@@ -990,7 +1186,7 @@
         if (!drawio) drawio = buildDrawio();
         drawio.overlay.classList.add("is-open");
         ensureScript(DRAWIO_SCRIPT_URL, function () { return !!window.builderDrawio; }, function (ready) {
-            if (!ready) { showDrawioMessage("Chưa tải được bộ đọc file draw.io. Tải lại trang rồi thử lại.", true); return; }
+            if (!ready) { showFileMessage(drawio, "Chưa tải được bộ đọc file draw.io. Tải lại trang rồi thử lại.", true); return; }
             if (options && options.file) readDrawioFile(options.file);
         });
     };
@@ -998,6 +1194,161 @@
     templates.closeDrawio = function () {
         if (drawio) drawio.overlay.classList.remove("is-open");
     };
+
+    function htmlNotes(result, network) {
+        var notes = [];
+        if (result.external && !network) {
+            notes.push("File dùng " + result.external + " tài nguyên bên ngoài (CSS, script, ảnh). Chúng không được tải nên kết quả có thể thiếu hoặc khác bản gốc; chọn \"Cho phép tải\" ở ô Tài nguyên ngoài để đọc lại.");
+        }
+        if (result.skipped.length) {
+            var names = result.skipped.filter(Boolean);
+            notes.push(result.skipped.length + " popup không mở ra được nên chưa được đọc" + (names.length ? ": " + names.join(", ") : "") + ".");
+        }
+        return notes;
+    }
+
+    function htmlScreen() {
+        var result = htmlFile ? htmlFile.result : null;
+        if (!result) return null;
+        if (html.page.value === ALL_SCREENS) return result.all;
+        var item = result.screens[parseInt(html.page.value, 10)];
+        return item ? item.screen : null;
+    }
+
+    function showHtmlNotes() {
+        htmlNotes(htmlFile.result, !!html.extra.value).forEach(function (note) { html.notes.appendChild(el("li", null, note)); });
+    }
+
+    function renderHtml() {
+        var screen = htmlScreen();
+        if (!screen) return;
+        html.notes.textContent = "";
+        html.actions.textContent = "";
+        var name = showScreen(html.preview, screen, htmlFile.name);
+        if (name == null) return;
+        showHtmlNotes();
+        fillApplyActions(html.actions, function (mode) {
+            if (templates.applyScreen(screen, mode, name)) { templates.closeHtml(); templates.closeGallery(); }
+        });
+    }
+
+    function fillHtmlScreens(result) {
+        var popups = result.screens.filter(function (item) { return item.kind === "popup"; }).length;
+        html.page.textContent = "";
+        function add(value, text, isData) {
+            var option = el("option", null, text);
+            option.value = value;
+            if (isData) option.setAttribute("translate", "no");
+            html.page.appendChild(option);
+        }
+        if (result.all) {
+            add(ALL_SCREENS, popups < result.screens.length ? "Tất cả (trang chính + " + popups + " popup)" : "Tất cả (" + popups + " popup)", false);
+        }
+        result.screens.forEach(function (item, index) {
+            if (item.kind === "page") add(String(index), "Trang chính", false);
+            else if (item.title) add(String(index), "Popup: " + item.title, true);
+            else add(String(index), "Popup: không có tiêu đề", false);
+        });
+        html.page.value = result.all ? ALL_SCREENS : "0";
+    }
+
+    // Mỗi cặp (kiểu control, có tải tài nguyên ngoài hay không) dựng lại file một lần trong khung cách ly; kết quả được giữ theo file.
+    function loadHtml() {
+        var file = htmlFile;
+        if (!file) return;
+        var network = !!html.extra.value;
+        var key = html.ui.value + (network ? "+network" : "");
+        file.key = key;
+        file.result = null;
+        html.page.textContent = "";
+        showFileMessage(html, "Đang dựng và đọc file...", false);
+        html.dialog.classList.add("bst-busy");
+        if (!file.reads[key]) file.reads[key] = builderHtml.read(file.text, { source: captureSource, ui: html.ui.value, network: network });
+        file.reads[key].then(function (result) {
+            if (file !== htmlFile || file.key !== key) return;
+            html.dialog.classList.remove("bst-busy");
+            file.result = result;
+            if (!result.screens.length) {
+                showFileMessage(html, "Không tìm thấy control nào trong file này.", true);
+                showHtmlNotes();
+                return;
+            }
+            fillHtmlScreens(result);
+            renderHtml();
+        }, function (error) {
+            if (file !== htmlFile || file.key !== key) return;
+            html.dialog.classList.remove("bst-busy");
+            showFileMessage(html, error && error.html ? error.message : "Không đọc được file này.", true);
+        });
+    }
+
+    function readHtmlFile(file) {
+        if (!file) return;
+        htmlFile = null;
+        html.dialog.classList.remove("bst-busy");
+        html.options.classList.remove("is-ready");
+        html.extra.value = "";
+        html.file.textContent = file.name || "";
+        if (file.size > builderHtml.LIMITS.file) { showFileMessage(html, "File quá lớn (tối đa 5 MB).", true); return; }
+        showFileMessage(html, "Đang đọc file...", false);
+        file.text().then(function (text) {
+            htmlFile = { name: (file.name || "").replace(HTML_FILE, "") || shownText("Màn hình từ file HTML"), text: text, reads: {}, result: null, key: "" };
+            html.options.classList.add("is-ready");
+            loadHtml();
+        }, function () {
+            showFileMessage(html, "Không đọc được file này.", true);
+        });
+    }
+
+    function buildHtml() {
+        return buildFileDialog({
+            id: "bstHtml",
+            title: "Mở file HTML",
+            accept: ".html,.htm",
+            dropText: "Kéo thả file .html vào đây, hoặc",
+            note: "File được dựng trong một khung cách ly ngay trên máy của bạn, không gửi lên máy chủ. Trang chính và từng popup của file thành control: lưới, ô nhập, ô chọn, nút, tab, khối. Giá trị mẫu trong ô nhập không được đưa vào thiết kế.",
+            pickLabel: "Màn hình",
+            extra: ["Tài nguyên ngoài", [["", "Không tải"], ["1", "Cho phép tải"]]],
+            read: readHtmlFile,
+            onPick: renderHtml,
+            onOption: loadHtml,
+            close: function () { templates.closeHtml(); }
+        });
+    }
+
+    function ensureHtmlReader(done) {
+        ensureScript(HTML_SCRIPT_URL, function () { return !!window.builderHtml; }, function (ready) {
+            if (!ready) { done(false); return; }
+            ensureConverter(function (converter) {
+                if (!converter) { done(false); return; }
+                ensureCaptureSource(function (source) { done(!!source); });
+            });
+        });
+    }
+
+    templates.openHtml = function (options) {
+        if (!inBuilder()) {
+            window.location.href = BUILDER_URL + "?htmlfile=1";
+            return;
+        }
+        if (!html) html = buildHtml();
+        html.overlay.classList.add("is-open");
+        ensureHtmlReader(function (ready) {
+            if (!ready) { showFileMessage(html, "Chưa tải được bộ đọc file HTML. Tải lại trang rồi thử lại.", true); return; }
+            if (options && options.file) readHtmlFile(options.file);
+        });
+    };
+
+    templates.closeHtml = function () {
+        if (html) html.overlay.classList.remove("is-open");
+    };
+
+    function openerFor(file) {
+        var name = file ? file.name || "" : "";
+        if (DRAWIO_FILE.test(name)) return templates.openDrawio;
+        if (HTML_FILE.test(name)) return templates.openHtml;
+        return null;
+    }
 
     document.addEventListener("dragover", function (e) {
         if (!inBuilder() || !e.dataTransfer || Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") < 0) return;
@@ -1007,10 +1358,11 @@
 
     document.addEventListener("drop", function (e) {
         var file = inBuilder() && e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
-        if (!file || !DRAWIO_FILE.test(file.name || "")) return;
+        var open = openerFor(file);
+        if (!open) return;
         e.preventDefault();
         e.stopPropagation();
-        templates.openDrawio({ file: file });
+        open({ file: file });
     }, true);
 
     document.addEventListener("paste", function (e) {
@@ -1018,6 +1370,7 @@
         var target = e.target || {};
         var tag = (target.tagName || "").toUpperCase();
         if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable) return;
+        if (builder.shouldPreferAppPaste()) return;
         var data = e.clipboardData || window.clipboardData;
         var text = data && data.getData ? data.getData("text") : "";
         if (!text || text.length > builderCapture.LIMITS.json || text.indexOf('"' + builderCapture.KIND + '"') < 0) return;
@@ -1034,9 +1387,12 @@
 
     $(function () {
         if (!inBuilder()) return;
-        if (DRAWIO_PARAM.test(window.location.search || "")) {
+        var search = window.location.search || "";
+        var openFile = DRAWIO_PARAM.test(search) ? templates.openDrawio : null;
+        if (!openFile && HTML_PARAM.test(search)) openFile = templates.openHtml;
+        if (openFile) {
             if (window.history && history.replaceState) history.replaceState(null, "", BUILDER_URL);
-            templates.openDrawio();
+            openFile();
             return;
         }
         var key = templateKeyFromUrl();

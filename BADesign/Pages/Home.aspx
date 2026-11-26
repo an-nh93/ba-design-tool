@@ -9,12 +9,12 @@
     <meta charset="utf-8" />
     <title>Thiết kế giao diện - HR Helper</title>
     <uc:BaHead runat="server" />
-    <link href="../Content/builder-templates.css?v=20261150" rel="stylesheet" />
-    <script src="../Scripts/builder/builder-templates.js?v=20261151"></script>
+    <link href="../Content/builder-templates.css?v=20261166" rel="stylesheet" />
+    <script src="../Scripts/builder/builder-templates.js?v=20261172"></script>
     <style>
         .hd-head { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 0.375rem 0.75rem; border-bottom: 2px solid var(--border); flex-shrink: 0; }
         .hd-head .ba-tabs { flex: 1 1 auto; border-bottom: 0; margin-bottom: 0; }
-        .hd-head-actions { display: flex; gap: 0.5rem; padding-bottom: 0.375rem; }
+        .hd-head-actions { display: flex; flex-wrap: wrap; flex-shrink: 0; max-width: 100%; gap: 0.5rem; padding-bottom: 0.375rem; }
         .hd-count { display: inline-block; min-width: 1.25rem; margin-left: 0.375rem; padding: 0 0.375rem; border-radius: 999px; background: var(--border); color: var(--text-secondary); font-size: 0.6875rem; font-weight: 600; line-height: 1.125rem; text-align: center; }
         .hd-count:empty { display: none; }
         .ba-tab.active .hd-count { background: var(--primary-soft); color: var(--primary-light); }
@@ -122,6 +122,7 @@
                         <div class="hd-head-actions">
                             <button type="button" class="ba-btn ba-btn-secondary" id="hdFromStandard" title="Bắt đầu từ một màn hình chuẩn của HRM"><span class="hd-icon" data-icon="layout"></span><span>Từ màn hình chuẩn</span></button>
                             <a class="ba-btn ba-btn-secondary" id="hdFromDrawio" href="<%= ResolveUrl("~/Builder") %>?drawio=1" title="Mở file vẽ bằng draw.io và chuyển các hình thành control"><span class="hd-icon" data-icon="file"></span><span>Từ file draw.io</span></a>
+                            <a class="ba-btn ba-btn-secondary" id="hdFromHtml" href="<%= ResolveUrl("~/Builder") %>?htmlfile=1" title="Mở file HTML (ví dụ mockup do AI vẽ) và chuyển trang cùng các popup của nó thành control"><span class="hd-icon" data-icon="file"></span><span>Từ file HTML</span></a>
                             <a class="ba-btn ba-btn-primary" id="hdNew" href="<%= ResolveUrl("~/Builder") %>" title="Mở UI Builder với trang trắng"><span class="hd-icon" data-icon="plus"></span><span>Thiết kế mới</span></a>
                         </div>
                     </div>

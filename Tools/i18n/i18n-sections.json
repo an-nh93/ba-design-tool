@@ -54,13 +54,17 @@
       "Pages/RolePermission.aspx", "Pages/RolePermission.aspx.cs", "Pages/AuditLog.aspx", "Pages/AuditLog.aspx.cs",
       "Pages/ServerMonitor.aspx", "Pages/ServerMonitor.aspx.cs", "Pages/LeaveManager.aspx", "Pages/LeaveManager.aspx.cs",
       "Helpers/ServerMetricsCollector.cs",
-      "Helpers/UiRoleManagers.cs"
+      "Helpers/UiRoleManagers.cs",
+      "Helpers/Security/BaSecretStore.cs"
     ],
     "ui-template": [
       "Pages/TemplateRequests.aspx", "Pages/TemplateRequests.aspx.cs", "Pages/TemplateWorkflow.aspx", "Pages/TemplateWorkflow.aspx.cs",
       "Helpers/UiTemplateLibrary.cs"
     ],
-    "ui-builder-home": ["Pages/Home.aspx", "Pages/Home.aspx.cs"],
+    "ui-builder-home": [
+      "Pages/Home.aspx", "Pages/Home.aspx.cs", "Scripts/builder/builder-templates.js", "Scripts/builder/builder-capture.js",
+      "App_Data/BuilderTemplates/index.json"
+    ],
     "hr-modules": ["Pages/HrModules.aspx", "Pages/HrModules.aspx.cs", "Helpers/UiHrModules.cs"]
   }
 }

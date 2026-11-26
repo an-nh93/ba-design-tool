@@ -20,6 +20,8 @@ namespace BADesign.Pages
         /// <summary>Key chuẩn (STD) cho tab Connection String — khớp mặc định khi để trống (cùng giá trị dùng trong script trang).</summary>
         public const string StdConnectionStringEncryptKey = "20261203";
 
+        private const string DeniedMessage = "Không có quyền dùng chức năng Mã hóa / Giải mã.";
+
         public string TokenK { get; private set; } = "";
         public string ConnectedServer { get; private set; } = "";
         public string ConnectedDatabase { get; private set; } = "";
@@ -65,6 +67,8 @@ namespace BADesign.Pages
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = DeniedMessage };
                 if (plainText == null)
                     return new { success = false, message = "Chưa nhập giá trị cần mã hóa." };
                 var key = (keyType ?? "").Trim().ToLowerInvariant();
@@ -121,6 +125,8 @@ namespace BADesign.Pages
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = DeniedMessage };
                 if (string.IsNullOrWhiteSpace(encryptedText))
                     return new { success = false, message = "Chưa nhập chuỗi đã mã hóa." };
                 var b64 = NormalizeBase64(encryptedText);
@@ -186,7 +192,7 @@ namespace BADesign.Pages
             try
             {
                 if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
-                    return new { success = false, message = "Không có quyền dùng chức năng Mã hóa / Giải mã." };
+                    return new { success = false, message = DeniedMessage };
                 if (string.IsNullOrWhiteSpace(text))
                     return new { success = false, message = "Chưa nhập chuỗi cần mã hóa." };
                 var m = NormalizeHashMode(mode);
@@ -244,7 +250,7 @@ namespace BADesign.Pages
             try
             {
                 if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
-                    return new { success = false, message = "Không có quyền dùng chức năng Mã hóa / Giải mã." };
+                    return new { success = false, message = DeniedMessage };
                 if (string.IsNullOrEmpty(plainText))
                     return new { success = false, message = "Nhập chuỗi gốc / password cần kiểm tra." };
                 if (string.IsNullOrWhiteSpace(hashValue))
@@ -361,6 +367,8 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = DeniedMessage };
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database. Connect từ Công cụ Database rồi vào Trợ lý HR, sau đó mở Generate Demo Reset Script." };
@@ -408,6 +416,8 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = DeniedMessage };
                 var info = GetConnectionFromToken(k);
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
@@ -437,6 +447,8 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = DeniedMessage };
                 var config = ParseConfig(configObj);
                 if (config == null)
                     return new { success = false, message = "Cấu hình không hợp lệ." };
@@ -696,6 +708,8 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = DeniedMessage };
                 if (string.IsNullOrWhiteSpace(csvText))
                     return new { success = false, message = "Chưa dán dữ liệu." };
                 if (decryptColumnNames == null || decryptColumnNames.Count == 0)
@@ -804,6 +818,8 @@ WHERE T.IsActiveTransaction = 1";
         {
             try
             {
+                if (!UiAuthHelper.HasFeature("EncryptDecrypt"))
+                    return new { success = false, message = DeniedMessage };
                 if (string.IsNullOrWhiteSpace(csvText))
                     return new { success = false, message = "Chưa dán dữ liệu." };
                 if (string.IsNullOrWhiteSpace(keyColumnName))

@@ -4,10 +4,11 @@
     var FIELD_KIND = {
         text: "Text box", number: "Numeric", "numberic-test": "Numeric", combo: "Combobox", multiselect: "Multi-select Dropdown",
         date: "Date", memo: "Memo", checkbox: "Checkbox", radio: "Radio", label: "Label", button: "Button",
-        language: "Language combo", tag: "Tag", progress: "Progress", image: "Image", tree: "Tree"
+        language: "Language combo", tag: "Tag", progress: "Progress", image: "Image", tree: "Tree", splitter: "Splitter"
     };
     var HEADERS = ["STT", "Khu vực", "Tên field", "Loại control", "Bắt buộc", "Chỉ đọc", "Mặc định / danh sách", "Kiểu dữ liệu, độ dài", "Mô tả, quy tắc"];
-    var NO_DATA_SPEC = { button: 1, label: 1, image: 1, tag: 1, progress: 1, tree: 1 };
+    var NO_DATA_SPEC = { button: 1, label: 1, image: 1, tag: 1, progress: 1, tree: 1, splitter: 1 };
+    var LAYOUT_ONLY = { label: 1, image: 1, splitter: 1 };
 
     var spec = {};
 
@@ -46,6 +47,9 @@
         }
         function tabMembers(tab, index) {
             return controls.filter(function (c) { return tabOf(c) === tab && (c.tabIndex || 0) === index; });
+        }
+        function paneChildren(splitterId, pane) {
+            return childrenOf(splitterId).filter(function (c) { return (c.paneIndex === 1 ? 1 : 0) === pane; });
         }
         function add(area, target, name, kind, extra) {
             rows.push($.extend({
@@ -93,8 +97,12 @@
                 } else if (c.type === "field") {
                     if (c.ftype === "groupbox" || c.ftype === "section") {
                         walk(childrenOf(c.id), area.concat((c.ftype === "groupbox" ? "Group: " : "Section: ") + (c.caption || "")));
-                    } else if ((c.ftype !== "label" && c.ftype !== "image") || options.all) {
-                        fieldRow(c, area);
+                    } else {
+                        if (!LAYOUT_ONLY[c.ftype] || options.all) fieldRow(c, area);
+                        if (controlSplitter.isSplitter(c)) {
+                            walk(paneChildren(c.id, 0), area);
+                            walk(paneChildren(c.id, 1), area);
+                        }
                     }
                 }
             });

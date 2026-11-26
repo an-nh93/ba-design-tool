@@ -77,6 +77,31 @@ ORDER BY ISNULL(c.UpdatedAt, c.CreatedAt) DESC, c.ControlId DESC;";
             };
         }
 
+        public static bool CanRead(int ownerUserId, bool isPublic, int userId)
+        {
+            return isPublic || ownerUserId == userId;
+        }
+
+        public static bool Owns(int userId, int controlId)
+        {
+            using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+            {
+                conn.Open();
+                return Owns(conn, userId, controlId);
+            }
+        }
+
+        public static bool Owns(SqlConnection conn, int userId, int controlId)
+        {
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT COUNT(*) FROM dbo.UiBuilderControl WHERE ControlId = @id AND OwnerUserId = @uid AND IsDeleted = 0";
+                cmd.Parameters.AddWithValue("@id", controlId);
+                cmd.Parameters.AddWithValue("@uid", userId);
+                return (int)cmd.ExecuteScalar() > 0;
+            }
+        }
+
         public static List<DesignListItem> ListMine(int userId)
         {
             return Query(ListColumns + " AND c.OwnerUserId = @uid" + ListOrder, userId);

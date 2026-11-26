@@ -63,3 +63,5 @@
 .bst-notes { margin: 6px 0 0; padding-left: 18px; font-size: 12px; line-height: 1.5; color: var(--text-secondary, #4b5563); }
 .bst-notes:empty { display: none; }
 .bst-busy { opacity: 0.6; pointer-events: none; }
+/* Khung dựng file HTML để đọc: nằm trong vùng nhìn thấy (trình duyệt mới dựng và chạy hiệu ứng của nó) nhưng trong suốt và không nhận chuột. */
+.bst-html-frame { position: fixed; left: 0; top: 0; z-index: -1; border: 0; opacity: 0; pointer-events: none; }

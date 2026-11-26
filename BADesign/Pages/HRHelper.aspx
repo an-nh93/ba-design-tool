@@ -682,7 +682,7 @@
     <form id="form1" runat="server">
         <asp:ScriptManager ID="sm1" runat="server" EnablePageMethods="true" />
         <div class="ba-container">
-            <uc:BaSidebar ID="ucBaSidebar" runat="server" ActiveSection="HRHelper" AllowAnonymous="true" />
+            <uc:BaSidebar ID="ucBaSidebar" runat="server" ActiveSection="HRHelper" />
             <main class="ba-main">
                 <uc:BaTopBar ID="ucBaTopBar" runat="server" />
                 <% if (!IsMultiDbMode) { %>
@@ -1135,9 +1135,11 @@
                                     <h3 class="ba-card-title">Email Server Settings</h3>
                                 </div>
                                 <div class="ba-collapse-body">
+                                <% if (CanUseCadenaEmailServer) { %>
                                 <div class="ba-actions">
                                     <button type="button" class="ba-btn ba-btn-secondary" id="btnCompanyCadenaServer" onclick="loadCadenaEmailServer(); return false;" disabled>Cadena Email Server</button>
                                 </div>
+                                <% } %>
                                 <div class="ba-update-grid">
                                     <div>
                                         <div class="ba-form-group">
@@ -1701,7 +1703,6 @@
         })();
         var hrToken = '';
         var isMultiDbMode = <%= IsMultiDbMode ? "true" : "false" %>;
-        var isGuest = <%= IsGuest ? "true" : "false" %>;
         var multiDbAnalyzeResults = [];
         var multiDbSortCol = 1;
         var multiDbSortDir = 1;
@@ -1949,7 +1950,6 @@
                 renderUsers();
             });
             loadCompanies();
-            if (isGuest) $('#companyUserActionWrap').hide();
             $('#txtSearchEmployees').on('input', function() {
                 employeeSearch = $(this).val();
                 employeePage = 1;

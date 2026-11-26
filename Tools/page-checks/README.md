@@ -4,9 +4,9 @@ Kịch bản Playwright cho các trang phải đăng nhập mới mở được 
 
 | File | Trang | Kiểm tra gì |
 |---|---|---|
-| `home.js` | `/Home` (danh sách thiết kế của UI Builder) | Khung chung, nút Từ file draw.io mở hộp thoại trong Builder, tìm, lọc dự án / trạng thái, sắp xếp, lưới / danh sách, tạo và xóa dự án, công khai / riêng tư, nhân bản, xem ảnh lớn, ô "Chưa có ảnh xem trước", xóa thiết kế, tên chứa mã HTML, chế độ sáng, tiếng Anh (kể cả ô lọc phân hệ và nút Mở file draw.io của hộp Màn hình chuẩn), người chưa đăng nhập không lấy được dữ liệu |
+| `home.js` | `/Home` (danh sách thiết kế của UI Builder) | Khung chung, nút Từ file draw.io và Từ file HTML mở đúng hộp thoại trong Builder, tìm, lọc dự án / trạng thái, sắp xếp, lưới / danh sách, tạo và xóa dự án, công khai / riêng tư, nhân bản, xem ảnh lớn, ô "Chưa có ảnh xem trước", xóa thiết kế, tên chứa mã HTML, chế độ sáng, tiếng Anh (kể cả hộp Màn hình chuẩn: ô lọc phân hệ, hai nút Mở file draw.io, Mở file HTML, tên, nhóm, mô tả của một màn hình chuẩn, ô tìm bằng chữ tiếng Anh; hộp Chụp từ HRM và chữ tiếng Anh trong dấu trang; không còn chữ tiếng Việt chưa dịch trong hai hộp), người chưa đăng nhập không lấy được dữ liệu |
 | `server-monitor.js` | `/ServerMonitor` (Giám sát máy chủ) | Nhóm Bộ chạy job ghi đúng nơi chạy job theo `UseBackgroundWorker`; nhóm BADesign.Worker.exe và câu giới thiệu nhắc Worker chỉ có khi job chạy trong Worker, server cũng chỉ gửi số liệu Worker khi đó; không cuộn ngang; tiếng Anh không sót chữ; không lỗi script |
-| `hr-modules.js` | `/HrModules` (phân hệ HR) | Khung chung, thêm phân hệ, tên rỗng / chứa mã HTML / trùng, đổi tên, ẩn và hiện, đổi thứ tự, gán phân hệ cho một màn hình chuẩn, lọc Chưa gán, tìm, id không tồn tại, người chưa đăng nhập, ô lọc phân hệ trong hộp Màn hình chuẩn, xóa phân hệ, chế độ sáng, tiếng Anh |
+| `hr-modules.js` | `/HrModules` (phân hệ HR) | Khung chung, thêm phân hệ, tên rỗng / chứa mã HTML / trùng, đổi tên, ẩn và hiện, đổi thứ tự, gán phân hệ cho một màn hình chuẩn, lọc Chưa gán, tìm, id không tồn tại, người chưa đăng nhập, ô lọc phân hệ trong hộp Màn hình chuẩn, xóa phân hệ, chế độ sáng, tiếng Anh (kể cả tên, nhóm của màn hình chuẩn và ô tìm bằng chữ tiếng Anh) |
 | `pgp-tool.js` | `/PgpTool?k=...` (Công cụ PGP, mở từ Database Tools) | Tạo cặp key mới (không lưu DB), xuất key ra `.asc` từ chuỗi Base64 dán vào và từ cấu hình DB (public, private, tên file, chuỗi không phải Base64; chuyển sang nguồn DB rồi quay lại thì chuỗi đã dán và mã tên file vẫn giữ nguyên), mã hóa bằng key lấy từ file `.asc` / chuỗi Base64 / cấu hình DB ra `.pgp` và `.asc`, có và không nén, giải mã mọi file đó bằng private key từ file / chuỗi / cấu hình DB: đúng cặp key thì mở được, nội dung và tên file trùng file gốc; khác cặp key thì trang báo file được mã hóa cho key nào và private key đang dùng là key nào (cùng một cặp thì luôn cùng key ID, key của file nằm trong các key của private key cùng cặp), có cả bản tiếng Anh; sai passphrase thì báo passphrase sai; nhập sai loại dữ liệu thì báo đúng lỗi (giải mã bằng public key dạng file hoặc chuỗi, bằng file đã mã hóa, bằng chuỗi không phải key, chuỗi không phải Base64; giải mã một file chưa mã hóa hoặc một file key; mã hóa bằng private key, bằng file đã mã hóa, bằng chuỗi không phải key; xuất private key với loại Public Key và ngược lại, xuất chuỗi không phải key); tên file giải mã là tên file đã chọn bỏ đuôi `.pgp` / `.PGP` / `.gpg` / `.asc`, kể cả khi tên ghi bên trong file khác (như file HRM mã hóa từ file tạm), còn file không có các đuôi đó thì lấy tên ghi bên trong; Nạp key báo khi public key và private key của cấu hình không cùng một cặp (có cả bản tiếng Anh); mỗi lần thành công tải đúng một file, đúng tên trang trả về; không ghi key xuống DB |
 
 ## Chạy
@@ -33,15 +33,15 @@ Kịch bản Playwright cho các trang phải đăng nhập mới mở được 
 Dòng cuối của kết quả:
 
 ```
-=== Home: 52 checks passed, 0 failed
-=== HR modules: 31 checks passed, 0 failed
+=== Home: 58 checks passed, 0 failed
+=== HR modules: 33 checks passed, 0 failed
 === PGP tool: 136 checks passed, 0 failed
 === Server monitor (jobs run in the web site): 11 checks passed, 0 failed
 ```
 
 Số kiểm tra của `pgp-tool.js` tùy dữ liệu: 136 khi hai key của cấu hình không cùng một cặp (chạy bằng `filename`), 159 khi cùng một cặp và có `keyIds`, nhiều hơn khi truyền thêm file thật.
 
-Chưa đăng nhập thì kịch bản dừng ngay với dòng `NOT LOGGED IN`; tài khoản không có quyền quản lý phân hệ thì `hr-modules.js` dừng với dòng `NOT ALLOWED`. Tài khoản chưa có thiết kế nào kèm ảnh xem trước thì bước thử "ảnh không tải được" của `home.js` bị bỏ qua: kết quả có thêm dòng `skip ...` và dòng cuối ghi `51 checks passed, 0 failed, 1 skipped`.
+Chưa đăng nhập thì kịch bản dừng ngay với dòng `NOT LOGGED IN`; tài khoản không có quyền quản lý phân hệ thì `hr-modules.js` dừng với dòng `NOT ALLOWED`. Tài khoản chưa có thiết kế nào kèm ảnh xem trước thì bước thử "ảnh không tải được" của `home.js` bị bỏ qua: kết quả có thêm dòng `skip ...` và dòng cuối ghi `57 checks passed, 0 failed, 1 skipped`. Bước tiếng Anh của hộp Màn hình chuẩn trong `home.js` và của trang `hr-modules.js` tìm màn hình chuẩn `pattern-core-list` (tên tiếng Anh "List with toolbar (Core)"), nên màn hình này phải còn trong thư viện.
 
 ## Dữ liệu thử
 

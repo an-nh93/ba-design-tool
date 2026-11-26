@@ -27,8 +27,6 @@ namespace BADesign.Pages
         public bool CanManageServers { get; private set; }
         /// <summary>True khi user có quyền Multi-DB Reset (Database Bulk Reset).</summary>
         public bool CanBulkReset { get; private set; }
-        /// <summary>True khi là guest (chưa đăng nhập).</summary>
-        public bool IsGuest { get; private set; }
         /// <summary>True khi user có quyền dùng server quét (DatabaseSearch).</summary>
         public bool CanUseServers { get; private set; }
         /// <summary>True khi user có quyền backup database (DatabaseManageServers hoặc DatabaseBackup).</summary>
@@ -44,10 +42,9 @@ namespace BADesign.Pages
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            IsGuest = UiAuthHelper.IsAnonymous;
             CanManageServers = UiAuthHelper.HasFeature("DatabaseManageServers");
             CanBulkReset = UiAuthHelper.HasFeature("DatabaseBulkReset");
-            CanUseServers = !IsGuest && UiAuthHelper.HasFeature("DatabaseTools");
+            CanUseServers = UiAuthHelper.HasFeature("DatabaseTools");
             CanBackup = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseBackup");
             CanRestore = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseRestore");
             CanDelete = UiAuthHelper.HasFeature("DatabaseManageServers") || UiAuthHelper.HasFeature("DatabaseDelete");
@@ -103,7 +100,7 @@ namespace BADesign.Pages
             try
             {
                 if (UiAuthHelper.IsAnonymous)
-                    return new { success = true, list = new List<object>() };
+                    return new { success = false, message = "Cần đăng nhập.", list = new List<object>() };
 
                 var accessibleIds = GetAccessibleServerIds();
                 var list = new List<object>();
@@ -223,7 +220,7 @@ WHERE IsActive = 1
                 if (!UiAuthHelper.HasFeature("DatabaseManageServers"))
                     return new { success = false, message = "Bạn không có quyền quản lý server." };
                 UiAuthHelper.GetCurrentUserIdOrThrow();
-                var masterConn = BuildConnectionString(serverName, port, username, password, "master");
+                var masterConn = DbConnectionString.ForServer(serverName, port, username, password, "master");
                 using (var c = new SqlConnection(masterConn))
                 using (var q = c.CreateCommand())
                 {
@@ -268,7 +265,7 @@ WHERE IsActive = 1
                 cmd.Parameters.AddWithValue("@id", id);
                 conn.Open();
                 var obj = cmd.ExecuteScalar();
-                return obj == null || obj == DBNull.Value ? null : obj.ToString();
+                return obj == null || obj == DBNull.Value ? null : BaSecret.Reveal(obj.ToString());
             }
         }
 
@@ -300,7 +297,7 @@ WHERE IsActive = 1
         {
             try
             {
-                var masterConn = BuildConnectionString(serverName, port, username, password, "master");
+                var masterConn = DbConnectionString.ForServer(serverName, port, username, password, "master");
                 using (var c = new SqlConnection(masterConn))
                 using (var q = c.CreateCommand())
                 {
@@ -368,7 +365,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                 cmd.Parameters.AddWithValue("@sn", serverName);
                 cmd.Parameters.AddWithValue("@port", (object)input.Port ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@u", username);
-                cmd.Parameters.AddWithValue("@p", password);
+                cmd.Parameters.AddWithValue("@p", BaSecretStore.ForStorage(UiAuthHelper.ConnStr, password));
                 cmd.Parameters.AddWithValue("@backupPath", (object)NormalizeServerPath(input.BackupPath) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("@restorePath", (object)NormalizeServerPath(input.RestorePath) ?? DBNull.Value);
                 if (!isEdit || input.HasDisplayName)
@@ -643,7 +640,7 @@ FROM UiRole R LEFT JOIN UiRoleServerAccess A ON A.RoleId = R.RoleId AND A.Server
                     return new { success = false, message = "Nhập Server, Username và Password trước khi kiểm tra.", checks = checks, suggestedBackupPath = (string)null };
 
                 string suggestedBackupPath = null;
-                using (var conn = new SqlConnection(BuildConnectionString(serverName, input.Port, username, password, "master")))
+                using (var conn = new SqlConnection(DbConnectionString.ForServer(serverName, input.Port, username, password, "master")))
                 {
                     try
                     {
@@ -795,7 +792,7 @@ SELECT @dir;";
             try
             {
                 if (UiAuthHelper.IsAnonymous)
-                    return new { success = false, message = "Guest chỉ dùng Connection String. Đăng nhập để quét server." };
+                    return new { success = false, message = "Cần đăng nhập." };
 
                 var accessibleIds = GetAccessibleServerIds();
                 var list = new List<Dictionary<string, object>>();
@@ -834,7 +831,7 @@ SELECT @dir;";
                                 ServerName = r.IsDBNull(1) ? "" : r.GetString(1),
                                 Port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
                                 Username = r.IsDBNull(3) ? "" : r.GetString(3),
-                                Password = r.IsDBNull(4) ? "" : r.GetString(4)
+                                Password = BaSecret.Reveal(r.IsDBNull(4) ? "" : r.GetString(4))
                             });
                         }
                     }
@@ -998,7 +995,7 @@ WHERE r.rn = 1";
                                 ServerName = r.IsDBNull(1) ? "" : r.GetString(1),
                                 Port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
                                 Username = r.IsDBNull(3) ? "" : r.GetString(3),
-                                Password = r.IsDBNull(4) ? "" : r.GetString(4)
+                                Password = BaSecret.Reveal(r.IsDBNull(4) ? "" : r.GetString(4))
                             };
                         }
                     }
@@ -1010,7 +1007,7 @@ WHERE r.rn = 1";
                     .Select(db => new HRConnMultiDbEntry
                     {
                         DatabaseName = db.Name,
-                        ConnectionString = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db.Name)
+                        ConnectionString = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, db.Name)
                     })
                     .ToList();
 
@@ -1083,7 +1080,7 @@ WHERE r.rn = 1";
                                 ServerName = r.IsDBNull(1) ? "" : r.GetString(1),
                                 Port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
                                 Username = r.IsDBNull(3) ? "" : r.GetString(3),
-                                Password = r.IsDBNull(4) ? "" : r.GetString(4)
+                                Password = BaSecret.Reveal(r.IsDBNull(4) ? "" : r.GetString(4))
                             };
                         }
                     }
@@ -1091,7 +1088,7 @@ WHERE r.rn = 1";
                 if (s == null)
                     return new { success = false, message = "Không tìm thấy server." };
 
-                var connStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, databaseName.Trim());
+                var connStr = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, databaseName.Trim());
                 var parsedServer = (s.ServerName ?? "") + (s.Port.HasValue ? "," + s.Port.Value : "");
                 var id = Guid.NewGuid().ToString("N");
                 var ctx = HttpContext.Current;
@@ -1112,6 +1109,8 @@ WHERE r.rn = 1";
         {
             try
             {
+                if (UiAuthHelper.IsAnonymous)
+                    return new { success = false, message = "Cần đăng nhập." };
                 if (string.IsNullOrWhiteSpace(connectionString))
                     return new { success = false, message = "Connection string trống." };
                 var connStr = connectionString.Trim();
@@ -1203,7 +1202,7 @@ WHERE r.rn = 1";
                     fullPath = backupPath + "\\" + fileName;
                 }
 
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
                 {
                     conn.Open();
@@ -1303,7 +1302,7 @@ WHERE r.rn = 1";
                 }
                 catch { startedByName = "User " + userId; }
 
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 var backupConn = new SqlConnection(masterConn);
                 backupConn.Open();
                 int sessionId;
@@ -1638,7 +1637,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
 
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server.", sets = new List<object>() };
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 var sets = new List<object>();
                 using (var conn = new SqlConnection(masterConn))
                 {
@@ -1870,7 +1869,7 @@ WHERE IsActive = 1 AND Id <> @id AND (ISNULL(RestorePath, N'') <> N'' OR ISNULL(
                             ServerName = r.IsDBNull(1) ? "" : r.GetString(1),
                             Port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
                             Username = r.IsDBNull(3) ? "" : r.GetString(3),
-                            Password = r.IsDBNull(4) ? "" : r.GetString(4)
+                            Password = BaSecret.Reveal(r.IsDBNull(4) ? "" : r.GetString(4))
                         });
                     }
                 }
@@ -1880,7 +1879,7 @@ WHERE IsActive = 1 AND Id <> @id AND (ISNULL(RestorePath, N'') <> N'' OR ISNULL(
             {
                 try
                 {
-                    var connStr = BuildConnectionString(candidate.ServerName, candidate.Port, candidate.Username, candidate.Password, "master") + "Connect Timeout=5;";
+                    var connStr = DbConnectionString.ForServer(candidate.ServerName, candidate.Port, candidate.Username, candidate.Password, "master", 5);
                     using (var conn = new SqlConnection(connStr))
                     using (var cmd = conn.CreateCommand())
                     {
@@ -1982,7 +1981,7 @@ WHERE IsActive = 1 AND Id <> @id AND (ISNULL(RestorePath, N'') <> N'' OR ISNULL(
                 string serverVersion;
                 BackupHeaderInfo header;
                 string headerError;
-                using (var conn = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master")))
+                using (var conn = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master")))
                 {
                     conn.Open();
                     serverVersion = ReadServerVersion(conn);
@@ -2045,7 +2044,7 @@ WHERE IsActive = 1 AND Id <> @id AND (ISNULL(RestorePath, N'') <> N'' OR ISNULL(
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
                 bool exists;
-                using (var conn = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master")))
+                using (var conn = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master")))
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = "SELECT 1 FROM sys.databases WHERE name = @db";
@@ -2278,7 +2277,7 @@ WHERE R.ServerId = @sid AND R.DatabaseName = @db ORDER BY R.RestoredAt DESC";
 
                 var s = GetServerInfo(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server.", jobId = 0 };
-                using (var conn = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master")))
+                using (var conn = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master")))
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandText = "SELECT state_desc FROM sys.databases WHERE name = @db";
@@ -2384,7 +2383,7 @@ END";
                 DbSanitizeSettings.ApplyConnections(UiAuthHelper.ConnStr, options);
                 var s = GetServerInfo(serverId);
                 if (s == null) throw new InvalidOperationException("Không tìm thấy server.");
-                var connStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, databaseName);
+                var connStr = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, databaseName);
                 var report = DbSanitizer.Run(connStr, options,
                     p => UpdateSanitizeJob(jobId, userId, "Running", Math.Max(1, p.Percent), p.StepLabel, false),
                     () => IsSanitizeJobCancelled(jobId));
@@ -2536,7 +2535,7 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
                         }
                         var s = GetServerInfo(j.Item2);
                         if (s == null) continue;
-                        var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                        var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                         using (var sqlConn = new SqlConnection(masterConn))
                         {
                             sqlConn.Open();
@@ -2751,7 +2750,7 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
                 if (recovery != "RECOVERY" && recovery != "NORECOVERY" && recovery != "STANDBY") recovery = "RECOVERY";
                 bool targetExists;
                 string backupError;
-                using (var checkConn = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master")))
+                using (var checkConn = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master")))
                 {
                     checkConn.Open();
                     using (var cmdCheck = checkConn.CreateCommand())
@@ -2934,7 +2933,7 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
             if (s == null || fullPaths == null || fullPaths.Count == 0) return null;
             try
             {
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
                 {
                     conn.Open();
@@ -3156,7 +3155,7 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
                 {
                     try
                     {
-                        var dbConnStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, databaseName);
+                        var dbConnStr = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, databaseName);
                         using (var dbConn = new SqlConnection(dbConnStr))
                         {
                             dbConn.Open();
@@ -3195,7 +3194,7 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
                 {
                     try
                     {
-                        var restoredConnStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, databaseName);
+                        var restoredConnStr = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, databaseName);
                         UpdateJobPhaseAndPercent(jobId, "Reset Information", 1);
                         DbSanitizeSettings.ApplyConnections(appConnStr, sanitizeOptions);
                         var report = RunSanitize(jobId, serverId, databaseName, restoredConnStr, sanitizeOptions);
@@ -3357,7 +3356,7 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
             List<string> fullPaths;
             string pathError;
             if (!TryResolveBackupPaths(serverId, backupFileNamesList, out fullPaths, out pathError)) { MarkJobFailed(jobId, pathError); return; }
-            var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+            var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
             var conn = new SqlConnection(masterConn);
             try
             {
@@ -3604,6 +3603,41 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
             return CancelJob(jobId);
         }
 
+        private sealed class JobResult
+        {
+            public string Status;
+            public string Message;
+            public string Payload;
+        }
+
+        /// <summary>Kết quả của một job mà người dùng hiện tại được xem (BaJobView.CanView). Job không tồn tại và job không được xem đều trả null.</summary>
+        private static JobResult LoadViewableJobResult(int jobId)
+        {
+            var userId = UiAuthHelper.GetCurrentUserIdOrThrow();
+            var accessibleIds = GetAccessibleServerIds();
+            using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
+            using (var cmd = conn.CreateCommand())
+            {
+                cmd.CommandText = "SELECT JobType, ServerId, StartedByUserId, Status, Message, Payload FROM BaJob WHERE Id = @id";
+                cmd.Parameters.AddWithValue("@id", jobId);
+                conn.Open();
+                using (var r = cmd.ExecuteReader())
+                {
+                    if (!r.Read()) return null;
+                    var jobType = r.IsDBNull(0) ? "" : r.GetString(0);
+                    var serverId = r.IsDBNull(1) ? (int?)null : r.GetInt32(1);
+                    var startedByUserId = r.IsDBNull(2) ? (int?)null : r.GetInt32(2);
+                    if (!BaJobView.CanView(jobType, serverId, startedByUserId, userId, accessibleIds)) return null;
+                    return new JobResult
+                    {
+                        Status = r.IsDBNull(3) ? null : r.GetString(3),
+                        Message = r.IsDBNull(4) ? "" : r.GetString(4),
+                        Payload = BaJobView.Payload(r.IsDBNull(5) ? null : r.GetString(5))
+                    };
+                }
+            }
+        }
+
         /// <summary>Lấy Payload của job (để Audit Log hiển thị danh sách database cho HRHelperMultiDbReset).</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
@@ -3613,16 +3647,8 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
             {
                 if (UiAuthHelper.IsAnonymous)
                     return new { success = false, payload = (string)null };
-                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = "SELECT Payload FROM BaJob WHERE Id = @id";
-                    cmd.Parameters.AddWithValue("@id", jobId);
-                    conn.Open();
-                    var obj = cmd.ExecuteScalar();
-                    var payload = (obj != null && obj != DBNull.Value) ? obj.ToString() : null;
-                    return new { success = true, payload = payload };
-                }
+                var job = LoadViewableJobResult(jobId);
+                return new { success = true, payload = job == null ? null : job.Payload };
             }
             catch
             {
@@ -3639,22 +3665,10 @@ SELECT @sid, @db, J.StartedByUserId, @types, @note FROM BaJob J WHERE J.Id = @id
             {
                 if (UiAuthHelper.IsAnonymous)
                     return new { success = false, status = (string)null, message = (string)null, payload = (string)null };
-                using (var conn = new SqlConnection(UiAuthHelper.ConnStr))
-                using (var cmd = conn.CreateCommand())
-                {
-                    cmd.CommandText = "SELECT Status, ISNULL(Message, N''), ISNULL(Payload, N'') FROM BaJob WHERE Id = @id";
-                    cmd.Parameters.AddWithValue("@id", jobId);
-                    conn.Open();
-                    using (var r = cmd.ExecuteReader())
-                    {
-                        if (!r.Read())
-                            return new { success = true, status = (string)null, message = (string)null, payload = (string)null };
-                        var status = r.IsDBNull(0) ? null : r.GetString(0);
-                        var message = r.IsDBNull(1) ? "" : r.GetString(1);
-                        var payload = r.IsDBNull(2) ? null : r.GetString(2);
-                        return new { success = true, status = status, message = message, payload = payload };
-                    }
-                }
+                var job = LoadViewableJobResult(jobId);
+                if (job == null)
+                    return new { success = true, status = (string)null, message = (string)null, payload = (string)null };
+                return new { success = true, status = job.Status, message = job.Message, payload = job.Payload };
             }
             catch
             {
@@ -3769,7 +3783,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                     withAutoReset = withAutoResetOpt,
                                     withReplace = withReplaceOpt,
                                     withShrinkLog = withShrinkLogOpt,
-                                    payload = payloadStr
+                                    payload = BaJobView.Payload(payloadStr)
                                 });
                             }
                         }
@@ -3987,7 +4001,7 @@ ORDER BY CASE WHEN J.Status = N'Running' THEN 0 ELSE 1 END, J.StartTime DESC";
                                         message = r.FieldCount > 13 && !r.IsDBNull(13) ? r.GetString(13) : "",
                                         completedAt = r.FieldCount > 14 && !r.IsDBNull(14) ? r.GetDateTime(14).ToString("o") : null,
                                         withAutoReset = withAutoReset,
-                                        payload = r.FieldCount > 15 && !r.IsDBNull(15) ? r.GetString(15) : null
+                                        payload = BaJobView.Payload(payloadStr)
                                     });
                                 }
                             }
@@ -4072,7 +4086,7 @@ ORDER BY StartTime DESC";
                                 status = r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : "",
                                 message = r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : "",
                                 percentComplete = r.FieldCount > 7 && !r.IsDBNull(7) ? (int?)r.GetInt32(7) : (int?)null,
-                                payload = string.IsNullOrEmpty(payloadStr) ? null : payloadStr,
+                                payload = BaJobView.Payload(payloadStr),
                                 canCancel = true
                             });
                         }
@@ -4322,7 +4336,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 {
                     return new { success = true, percentComplete = currentPctFromJob, phase = curMsgTrim, completed = false, jobStartTime = jobStartTimeIso, phaseHint = hintForRestore100 };
                 }
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
                 {
                     conn.Open();
@@ -4458,7 +4472,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 object sqlSession = null;
                 object databaseOnServer = null;
 
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 try
                 {
                     using (var sqlConn = new SqlConnection(masterConn))
@@ -4618,7 +4632,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                     return new { success = false, message = "Đường dẫn file không hợp lệ." };
                 var dbSafe = databaseName.Replace("]", "]]");
                 bool isNewDatabase;
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
                 {
                     conn.Open();
@@ -4715,7 +4729,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
                 var dbSafe = databaseName.Trim().Replace("]", "]]");
 
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 using (var conn = new SqlConnection(masterConn))
                 {
                     conn.Open();
@@ -4750,7 +4764,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
             backupPath = backupPath.Trim().TrimEnd('\\');
             var pathForCmd = backupPath.Replace("\"", "");
             var dirCmd = "dir /b \"" + pathForCmd + "\\*.bak\"";
-            var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+            var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
             try
             {
                 using (var conn = new SqlConnection(masterConn))
@@ -4966,7 +4980,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
             List<BackupListEntry> entries;
             try
             {
-                using (var conn = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master")))
+                using (var conn = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master")))
                 {
                     conn.Open();
                     entries = ListDirectoryViaSqlServer(conn, fullPath);
@@ -4995,7 +5009,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
             var results = new List<object>();
             try
             {
-                using (var conn = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master")))
+                using (var conn = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master")))
                 using (var cmd = conn.CreateCommand())
                 {
                     cmd.CommandTimeout = 120;
@@ -5179,7 +5193,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
             if (s == null) throw new InvalidOperationException("Không tìm thấy server.");
             var db = databaseName.Trim();
             var dbSafe = db.Replace("]", "]]");
-            var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+            var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
             string recoveryBefore = null;
             string logFileName = null;
             using (var conn = new SqlConnection(masterConn))
@@ -5192,7 +5206,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                     recoveryBefore = cmd.ExecuteScalar() as string;
                 }
             }
-            using (var connDb = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db)))
+            using (var connDb = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, db)))
             using (var cmd = connDb.CreateCommand())
             {
                 cmd.CommandText = "SELECT name FROM sys.database_files WHERE type = 1";
@@ -5217,7 +5231,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 }
                 try
                 {
-                    using (var connDb = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db)))
+                    using (var connDb = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, db)))
                     {
                         connDb.Open();
                         using (var cmd = connDb.CreateCommand())
@@ -5264,7 +5278,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                 var db = databaseName.Trim();
                 var dbSafe = db.Replace("]", "]]");
 
-                var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+                var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
                 string recoveryBefore = null;
                 string logFileName = null;
                 using (var conn = new SqlConnection(masterConn))
@@ -5277,7 +5291,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                         recoveryBefore = cmd.ExecuteScalar() as string;
                     }
                 }
-                using (var connDb = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db)))
+                using (var connDb = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, db)))
                 using (var cmd = connDb.CreateCommand())
                 {
                     cmd.CommandText = "SELECT name FROM sys.database_files WHERE type = 1";
@@ -5303,7 +5317,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                     }
                     try
                     {
-                        using (var connDb = new SqlConnection(BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, db)))
+                        using (var connDb = new SqlConnection(DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, db)))
                         {
                             connDb.Open();
                             using (var cmd = connDb.CreateCommand())
@@ -5352,7 +5366,7 @@ WHEN NOT MATCHED THEN INSERT (JobId, UserId, DismissedAt) VALUES (@jid, @uid, SY
                             ServerName = r.IsDBNull(1) ? "" : r.GetString(1),
                             Port = r.IsDBNull(2) ? (int?)null : r.GetInt32(2),
                             Username = r.IsDBNull(3) ? "" : r.GetString(3),
-                            Password = r.IsDBNull(4) ? "" : r.GetString(4),
+                            Password = BaSecret.Reveal(r.IsDBNull(4) ? "" : r.GetString(4)),
                             BackupPath = r.FieldCount > 5 && !r.IsDBNull(5) ? r.GetString(5) : null,
                             RestorePath = r.FieldCount > 6 && !r.IsDBNull(6) ? r.GetString(6) : null
                         };
@@ -5559,7 +5573,7 @@ ORDER BY d.name";
 
         private static List<HrmDatabase> ListHrmDatabases(ServerInfo s, int commandTimeoutSeconds)
         {
-            var masterConn = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+            var masterConn = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
             List<HrmDatabase> candidates;
             using (var conn = new SqlConnection(masterConn))
             {
@@ -5664,33 +5678,12 @@ ORDER BY d.name";
         }
 
         /// <summary>
-        /// Data Source=server[,port];Initial Catalog=db;UID=u;PWD=p. Connect Timeout=10 để tránh treo khi server tắt/sai mật khẩu.
-        /// </summary>
-        private static string BuildConnectionString(string server, int? port, string user, string password, string catalog)
-        {
-            var dataSource = string.IsNullOrEmpty(server) ? "."
-                : (port.HasValue && port.Value > 0)
-                    ? server + "," + port.Value
-                    : server;
-            return string.Format("Data Source={0};Initial Catalog={1};UID={2};PWD={3};", dataSource, catalog, user, password);
-        }
-
-        /// <summary>
-        /// Connection string dùng cho Copy: PWD= trống, trừ khi UID là dev (full password).
-        /// </summary>
-        private static string BuildConnectionStringForCopy(string server, int? port, string user, string password, string catalog)
-        {
-            var pwd = string.Equals((user ?? "").Trim(), "dev", StringComparison.OrdinalIgnoreCase) ? (password ?? "") : "";
-            return BuildConnectionString(server, port, user, pwd, catalog);
-        }
-
-        /// <summary>
         /// Lấy tên file log, dung lượng (MB), recovery model và state từ master (sys.databases + sys.master_files).
         /// Không mở kết nối trực tiếp vào database đích để tránh lỗi "Cannot open database ... requested by login" khi DB vừa restore/chưa ONLINE.
         /// </summary>
         private static LogInfo GetDatabaseLogInfo(ServerInfo s, string db)
         {
-            var connStr = BuildConnectionString(s.ServerName, s.Port, s.Username, s.Password, "master");
+            var connStr = DbConnectionString.ForServer(s.ServerName, s.Port, s.Username, s.Password, "master");
             using (var conn = new SqlConnection(connStr))
             using (var cmd = conn.CreateCommand())
             {

@@ -506,30 +506,6 @@
     position: relative;
 }
 
-/* Resize handle cho ESS grid */
-.ess-grid-resize-handle {
-    position: absolute;
-    width: 12px;
-    height: 12px;
-    right: -1px;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: ew-resize;
-    background: #0078d4;
-    border: 1px solid #ffffff;
-    border-radius: 2px 0 0 2px;
-    z-index: 1000;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-.canvas-control-selected .ess-grid-resize-handle {
-    opacity: 1;
-}
-.ess-grid-resize-handle:hover {
-    background: #005a9e;
-    opacity: 1 !important;
-}
-
 /* Header: có background nhẹ, không giống core grid */
 .ess-grid-header {
     display: flex;

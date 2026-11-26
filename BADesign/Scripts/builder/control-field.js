@@ -1,5 +1,20 @@
 var controlField = (function () {
     var multiSelectedIds = [];
+    var SELF_DRAWN = { tree: controlTree, splitter: controlSplitter };
+
+    function selfDrawnModule(ftype) {
+        return Object.prototype.hasOwnProperty.call(SELF_DRAWN, ftype) ? SELF_DRAWN[ftype] : null;
+    }
+
+    function drawnHook(cfg, name) {
+        var drawn = selfDrawnModule(cfg.ftype);
+        if (drawn && typeof drawn[name] === "function") drawn[name](cfg);
+    }
+
+    function dragIgnoreOf(cfg) {
+        var drawn = selfDrawnModule(cfg.ftype);
+        return drawn && drawn.dragIgnore ? ", " + drawn.dragIgnore : "";
+    }
 
     // Icon Picker Modal Function
     // callback: function(selectedIcon, selectedIconType) - called when OK is clicked
@@ -877,6 +892,11 @@ var controlField = (function () {
             defWidth = 382;
             defHeight = 252;
         }
+        if (ftype === "splitter") {
+            var blockSize = controlSplitter.defaultSize();
+            defWidth = blockSize.width;
+            defHeight = blockSize.height;
+        }
         if (uiMode === "core") {
             // các control core cũ
             //if (ftype === "memo") {
@@ -963,7 +983,7 @@ var controlField = (function () {
             parentId: null,
             tabPageId: null,
             tabIndex: null,
-            zIndex: (ftype === "groupbox" || ftype === "section") ? 0 : 1
+            zIndex: (ftype === "groupbox" || ftype === "section" || ftype === "splitter") ? 0 : 1
         };
 
         // ĐIỀU CHỈNH RIÊNG CHO BUTTON
@@ -1010,11 +1030,12 @@ var controlField = (function () {
             cfg.imageData = cfg.imageData || null; // base64 hoặc url
         }
 
-        if (ftype === "tree") {
+        var selfDrawn = selfDrawnModule(ftype);
+        if (selfDrawn) {
             cfg.caption = "";
             cfg.defaultValue = "";
             cfg.labelWidth = 0;
-            controlTree.ensure(cfg);
+            selfDrawn.ensure(cfg);
         }
 
         return cfg;
@@ -1145,15 +1166,15 @@ var controlField = (function () {
             }
         });
         
-        // Cũng cập nhật z-index cho các control con khác
         (builder.controls || []).forEach(function (c) {
-            if (c && c.parentId === rootId && c.type !== "field") {
-                c.zIndex = baseZ;
-                var $child = $('.canvas-control[data-id="' + c.id + '"]');
-                if ($child.length) {
-                    $child.css("z-index", baseZ);
-                }
+            if (!c || c.parentId !== rootId || c.type === "field") return;
+            var $child = $('.canvas-control[data-id="' + c.id + '"]');
+            if (builder.derivesStacking(c)) {
+                builder.applyStacking(c, $child);
+                return;
             }
+            c.zIndex = baseZ;
+            $child.css("z-index", baseZ);
         });
     }
 
@@ -1177,7 +1198,7 @@ var controlField = (function () {
     }
 
     function applyParentZIndex(fieldCfg, $dom) {
-        var isContainer = fieldCfg.ftype === "groupbox" || fieldCfg.ftype === "section";
+        var isContainer = builder.isContainerConfig(fieldCfg);
         var parentCfg = fieldCfg.parentId ? builder.getControlConfig(fieldCfg.parentId) : null;
         var z = isContainer ? 0 : 1;
         if (parentCfg) {
@@ -1262,7 +1283,7 @@ var controlField = (function () {
         var isTag = (cfg.ftype === "tag");
         var isProgress = (cfg.ftype === "progress");
         var isImage = (cfg.ftype === "image");
-        var isButtonLike = isButton || isTag || isProgress || isImage || cfg.ftype === "tree";
+        var isButtonLike = isButton || isTag || isProgress || isImage || !!selfDrawnModule(cfg.ftype);
 
         var isCheck = (cfg.ftype === "checkbox" || cfg.ftype === "radio");
         var pos = cfg.captionPosition || "left";
@@ -1605,6 +1626,18 @@ var controlField = (function () {
         $button.find('.core-multiselect-text').text(multiSelectText(cfg) || 'Select...');
     }
 
+    // Biểu tượng của nút ESS. Class và đường dẫn ảnh là dữ liệu của thiết kế nên chỉ gán qua addClass / attr, không ghép vào chuỗi HTML.
+    function essButtonIcon(cfg) {
+        if (!cfg.btnIcon) return null;
+        if (cfg.btnIconType === "glyphicon") {
+            return $("<span></span>").addClass(cfg.btnIcon).css({ "font-size": "14px", "margin-right": "4px", "color": cfg.btnBorderColor || "#0A75BA" });
+        }
+        if (cfg.btnIconType === "menu") {
+            return $("<img />").attr("src", cfg.btnIcon).css({ "width": "16px", "height": "16px", "vertical-align": "middle", "margin-right": "4px" });
+        }
+        return null;
+    }
+
     function render(cfg) {
         var $canvas = $("#canvas-zoom-inner");
 
@@ -1635,7 +1668,7 @@ var controlField = (function () {
 </div>`);
         } else {
             $field = $(`
-<div class="canvas-control page-field${extraClass}${cfg.ftype === "tree" ? " page-field-tree" : ""}" data-id="${cfg.id}">
+<div class="canvas-control page-field${extraClass}${selfDrawnModule(cfg.ftype) ? " page-field-" + cfg.ftype : ""}" data-id="${cfg.id}">
   <label class="page-field-caption"></label>
   <div class="page-field-editor"></div>
   <div class="page-field-resizer"></div>
@@ -1726,30 +1759,10 @@ var controlField = (function () {
                     var btnCls = "page-field-button-editor" + (cfg.uiMode === "ess" ? " ess-button" : "");
                     $editor = $('<button type="button" class="' + btnCls + '"></button>');
                     
-                    // Add icon if exists
-                    if (cfg.uiMode === "ess" && cfg.btnIcon && cfg.btnIconType && cfg.btnIconType !== "none") {
-                        if (cfg.btnIconType === "glyphicon") {
-                            var $icon = $('<span></span>').addClass(cfg.btnIcon);
-                            // Set color for Glyphicon icon to match button border color
-                            var iconColor = cfg.btnBorderColor || "#0A75BA";
-                            $icon.css({
-                                "font-size": "14px",
-                                "margin-right": "4px",
-                                "color": iconColor
-                            });
-                            $editor.append($icon);
-                        } else if (cfg.btnIconType === "menu" && cfg.btnIcon) {
-                            var $icon = $('<img />').attr("src", cfg.btnIcon);
-                            $icon.css({
-                                "width": "16px",
-                                "height": "16px",
-                                "vertical-align": "middle",
-                                "margin-right": "4px"
-                            });
-                            $editor.append($icon);
-                        }
-                    }
-                    
+                    var $buttonIcon = cfg.uiMode === "ess" ? essButtonIcon(cfg) : null;
+                    if ($buttonIcon) $editor.append($buttonIcon);
+
+
                     $editor.append(document.createTextNode(cfg.defaultValue || cfg.caption || "Button"));
                     if (cfg.disabled) $editor.prop("disabled", true);
 
@@ -1817,7 +1830,8 @@ var controlField = (function () {
                     break;
 
                 case "tree":
-                    $editor = controlTree.build(cfg);
+                case "splitter":
+                    $editor = selfDrawnModule(cfg.ftype).build(cfg);
                     break;
 
                 default:
@@ -1982,7 +1996,7 @@ var controlField = (function () {
 
         // DRAG - chỉ cho phép khi không phải từ resize handles
         fieldInteractable.draggable({
-            ignoreFrom: "input, select, textarea, .page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom, .page-field-groupbox-content, .page-field-section-content",
+            ignoreFrom: "input, select, textarea, .page-field-resizer, .page-field-resize-handle-right, .page-field-resize-handle-bottom, .page-field-groupbox-content, .page-field-section-content" + dragIgnoreOf(cfg),
             // Thêm threshold để phân biệt drag vs resize
             startAxis: 'xy',
             lockAxis: false,
@@ -2054,6 +2068,7 @@ var controlField = (function () {
                     if (cfg.autoLayout && cfg.autoLayout.autoHeight !== false) {
                         cfg.autoLayout.autoHeight = false;
                     }
+                    drawnHook(cfg, "beginResize");
                 },
                 move: function (ev) {
                     var target = ev.target;
@@ -2084,11 +2099,13 @@ var controlField = (function () {
 
                     // ESS: cập nhật height bên trong
                     applyEssInnerHeight($(target), cfg);
+                    drawnHook(cfg, "resizing");
 
                     builder.updateSelectionSizeHint();
                 },
                 end: function () {
                     isResizing = false;
+                    drawnHook(cfg, "endResize");
                     builder.refreshJson();
                 }
             }
@@ -2097,10 +2114,11 @@ var controlField = (function () {
         // chọn field
         $field.on("mousedown", function (e) {
             // Chỉ khi click đúng vào vùng content của CHÍNH control này → không chọn, để bật marquee. Tránh groupbox trong section bị coi là "click content" và không chọn được.
-            var $myContent = $(this).find(".page-field-groupbox-content, .page-field-section-content").first();
-            if ((cfg.ftype === "groupbox" || cfg.ftype === "section") && $myContent.length && ($myContent[0] === e.target || $.contains($myContent[0], e.target))) {
-                return;
-            }
+            var field = this;
+            var inOwnContent = $(field).find(builder.containerContentSelector).filter(function () {
+                return $(this).closest(".canvas-control")[0] === field && (this === e.target || $.contains(this, e.target));
+            }).length > 0;
+            if (inOwnContent) return;
             e.stopPropagation();
 
             if (window.controlPopup && typeof controlPopup.clearSelection === "function") {
@@ -2153,7 +2171,7 @@ var controlField = (function () {
         var isTag = (cfg.ftype === "tag");
         var isProgress = (cfg.ftype === "progress");
         var isImage = (cfg.ftype === "image");
-        var isTree = (cfg.ftype === "tree");
+        var selfDrawn = selfDrawnModule(cfg.ftype);
         var isEssButton = isButton && (cfg.uiMode === "ess");
         var isEssTag = isTag && (cfg.uiMode === "ess");
 
@@ -2169,7 +2187,7 @@ var controlField = (function () {
         }
 
         var general = "";
-        if (!(isButton || isTag || isImage || isProgress || isTree)) {
+        if (!(isButton || isTag || isImage || isProgress || selfDrawn)) {
             general += P.line(P.field("Nhãn", P.text({ id: "pfCaption", value: cfg.caption != null ? cfg.caption : "" }) + P.toggles(
                 P.toggle({ id: "pfBold", title: "Nhãn in đậm" }, { html: "<b>B</b>" }, cfg.captionBold),
                 P.toggle({ id: "pfItalic", title: "Nhãn in nghiêng" }, { html: "<i>I</i>" }, cfg.captionItalic)), null, "pfCaption"));
@@ -2177,7 +2195,7 @@ var controlField = (function () {
         if (isCheckRadio) {
             general += P.line(P.field("Vị trí nhãn", P.select({ id: "pfCapPos" }, [["left", "Bên trái control"], ["right", "Bên phải control"]], cfg.captionPosition || "left"), null, "pfCapPos"));
         }
-        if (!(isContainer || isImage || isTree)) {
+        if (!(isContainer || isImage || selfDrawn)) {
             general += P.line(P.field(isButton ? "Chữ trên nút" : (isTag ? "Chữ trên tag" : "Giá trị mặc định"),
                 P.text({ id: "pfDefault", value: (cfg.defaultValue !== undefined && cfg.defaultValue !== null) ? cfg.defaultValue : "" }), null, "pfDefault"));
         }
@@ -2194,7 +2212,7 @@ var controlField = (function () {
                 (cfg.items || []).map(function (item) { return typeof item === "string" ? item : (item.text || item.value || ""); }).join("\n")), "pp-field--stack", "pfItems"));
         }
         var states = [];
-        if (!(isButton || isTag || isImage || isProgress || isContainer || isTree)) states.push(P.check({ id: "pfRequired" }, "Bắt buộc", cfg.required));
+        if (!(isButton || isTag || isImage || isProgress || isContainer || selfDrawn)) states.push(P.check({ id: "pfRequired" }, "Bắt buộc", cfg.required));
         states.push(P.check({ id: "pfDisabled" }, "Khóa", cfg.disabled));
         general += P.checks(states);
 
@@ -2202,7 +2220,7 @@ var controlField = (function () {
 
         var buttonIcon = { icon: cfg.btnIcon || "", iconType: cfg.btnIconType || "" };
         if (isEssButton) sections += P.section("Biểu tượng nút", P.iconEditor(buttonIcon, "button", { color: false }));
-        if (isTree) sections += controlTree.propertiesHtml(cfg);
+        if (selfDrawn) sections += selfDrawn.propertiesHtml(cfg);
 
         // Multi-select configuration - User-friendly form for BA
         if (isMultiSelect) {
@@ -2266,7 +2284,7 @@ var controlField = (function () {
             P.field("Rộng", P.number({ id: "pfWidth", value: cfg.width }), "pp-field--num", "pfWidth"),
             P.field("Cao", P.number({ id: "pfHeight", value: cfg.height }), "pp-field--num", "pfHeight")
         ];
-        if (!(isContainer || cfg.ftype === "language" || isButton || isTag || isImage || isProgress || isTree)) {
+        if (!(isContainer || cfg.ftype === "language" || isButton || isTag || isImage || isProgress || selfDrawn)) {
             size.push(P.field("Rộng nhãn", P.number({ id: "pfLabelWidth", value: cfg.labelWidth || 120 }), "pp-field--num", "pfLabelWidth"));
         }
         size.push(P.field("Z-index", P.number({ id: "pfZIndex", value: cfg.zIndex != null ? cfg.zIndex : "" }), "pp-field--num", "pfZIndex"));
@@ -2341,35 +2359,10 @@ var controlField = (function () {
             
             // ====== ESS BUTTON ICON BINDING ======
             function updateButtonIcon() {
-                var iconType = cfg.btnIconType || "";
-                var iconValue = cfg.btnIcon || "";
                 var $btn = $dom.find(".page-field-editor button");
-                
-                // Remove existing icon
                 $btn.find("img, span.glyphicon").remove();
-                
-                if (iconValue && iconType) {
-                    if (iconType === "glyphicon") {
-                        var $icon = $('<span class="' + iconValue + '"></span>');
-                        // Set color for Glyphicon icon to match button border color
-                        var iconColor = cfg.btnBorderColor || "#0A75BA";
-                        $icon.css({
-                            "font-size": "14px",
-                            "margin-right": "4px",
-                            "color": iconColor
-                        });
-                        $btn.prepend($icon);
-                    } else if (iconType === "menu" && iconValue) {
-                        var $icon = $('<img src="' + iconValue + '" />');
-                        $icon.css({
-                            "width": "16px",
-                            "height": "16px",
-                            "vertical-align": "middle",
-                            "margin-right": "4px"
-                        });
-                        $btn.prepend($icon);
-                    }
-                }
+                var $icon = essButtonIcon(cfg);
+                if ($icon) $btn.prepend($icon);
                 builder.refreshJson();
             }
             
@@ -2650,7 +2643,7 @@ var controlField = (function () {
             });
         }
 
-        if (isTree) controlTree.bindProperties(cfg);
+        if (selfDrawn) selfDrawn.bindProperties(cfg);
 
         if (isImage) {
             $("#pfImageMode").on("change", function () {
@@ -2672,9 +2665,11 @@ var controlField = (function () {
         $("#pfWidth").on("change", function () {
             var v = parseInt(this.value || "0", 10);
             if (!isNaN(v) && v > 0) {
+                drawnHook(cfg, "beginResize");
                 cfg.width = v;
                 $dom.css("width", v);
                 if (!isContainer && cfg.ftype !== "language") applyLayout($dom, cfg);
+                drawnHook(cfg, "endResize");
                 builder.refreshJson();
             }
         });
@@ -2682,6 +2677,7 @@ var controlField = (function () {
         $("#pfHeight").on("change", function () {
             var v = parseInt(this.value || "0", 10);
             if (!isNaN(v) && v > 0) {
+                drawnHook(cfg, "beginResize");
                 cfg.height = v;
                 $dom.css("height", v);
 
@@ -2689,6 +2685,7 @@ var controlField = (function () {
                     applyLayout($dom, cfg);
                 }
                 applyEssInnerHeight($dom, cfg);
+                drawnHook(cfg, "endResize");
 
                 builder.refreshJson();
             }

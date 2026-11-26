@@ -66,7 +66,8 @@ namespace BADesign.Pages
                     new { code = "UiTemplate.SaveRoleManagers", label = "Mẫu UI: Lưu sếp của role" },
                     new { code = "UiHrModule.Save", label = "Phân hệ HR: Lưu phân hệ" },
                     new { code = "UiHrModule.Delete", label = "Phân hệ HR: Xóa phân hệ" },
-                    new { code = "UiHrModule.Assign", label = "Phân hệ HR: Gán phân hệ cho màn hình" }
+                    new { code = "UiHrModule.Assign", label = "Phân hệ HR: Gán phân hệ cho màn hình" },
+                    new { code = "AppSettings.SwitchStoredSecrets", label = "Cài đặt: Bật hoặc tắt mã hóa dữ liệu nhạy cảm" }
                 };
                 return new { success = true, codes = codes };
             }
@@ -238,6 +239,7 @@ namespace BADesign.Pages
                 case "UiHrModule.Save": return "Phân hệ HR: Lưu phân hệ";
                 case "UiHrModule.Delete": return "Phân hệ HR: Xóa phân hệ";
                 case "UiHrModule.Assign": return "Phân hệ HR: Gán phân hệ cho màn hình";
+                case "AppSettings.SwitchStoredSecrets": return "Cài đặt: Bật hoặc tắt mã hóa dữ liệu nhạy cảm";
                 default: return code;
             }
         }

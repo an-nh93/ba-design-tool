@@ -9,6 +9,7 @@
     var VERSION = 1;
     var LIMITS = {
         nodes: 2000, depth: 8, text: 200, columns: 80, tabs: 30, buttons: 40, size: 20000, json: 2 * 1024 * 1024, treeItems: 200, treeColumns: 12,
+        gridRows: 10, cell: 60,
         image: 12 * 1024 * 1024, imageTotal: 48 * 1024 * 1024
     };
     var IMAGE_PATTERN = /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+\/]+={0,2}$/;
@@ -18,12 +19,12 @@
     var NODE_TYPES = {
         text: 1, number: 1, date: 1, combo: 1, multiselect: 1, memo: 1,
         checkbox: 1, radio: 1, button: 1, label: 1, tag: 1, image: 1,
-        group: 1, section: 1, popup: 1, tabs: 1, grid: 1, toolbar: 1, tree: 1
+        group: 1, section: 1, popup: 1, tabs: 1, grid: 1, toolbar: 1, tree: 1, splitter: 1
     };
-    var CONTAINER_TYPES = { group: 1, section: 1, popup: 1, tabs: 1 };
+    var CONTAINER_TYPES = { group: 1, section: 1, popup: 1, tabs: 1, splitter: 1 };
 
     var METRICS = {
-        core: { labelGap: 8, widthPad: 10, editorTop: 3, rowHeight: 22, checkHeight: 22, labelHeight: 18, labelPadX: 0, labelPadY: 0, labelSlack: 0 },
+        core: { labelGap: 8, widthPad: 10, editorTop: 3, rowHeight: 22, checkHeight: 22, checkGlyphX: 4, checkTextX: 25, labelHeight: 18, labelPadX: 0, labelPadY: 0, labelSlack: 0, splitter: 6 },
         ess: { labelGap: 13, widthPad: 20, editorTop: 5, heightPad: 10, checkHeight: 28, labelHeight: 20, checkExtraWidth: 40, labelPadX: 7, labelPadY: 5, labelSlack: 6, buttonPadX: 7, buttonPadY: 6 }
     };
     var GRID_HEIGHT = { frame: 22, header: 35, row: 35, panel: 52, dataHeader: 27, titleBar: 27, filter: 34, pager: 50 };
@@ -34,10 +35,18 @@
         popup: { x: 2, y: 59 },
         essSection: { x: 11, y: 52 }
     };
+    // Thanh nút gắn vào popup nằm trên dải ngay dưới thanh tiêu đề của popup Builder, cách mép trên popup như thanh nút trên popup của HRM.
+    var POPUP_BAR_TOP = 32;
+    var SPLIT = {
+        defaultRatio: 50,
+        room: function (total) { return Math.max(0, total - METRICS.core.splitter); },
+        first: function (room, ratio) { return Math.round(room * ratio / 100); },
+        ratio: function (first, room) { return room > 0 ? Math.round(first / room * 1000000) / 10000 : SPLIT.defaultRatio; }
+    };
     var ICONS = [
-        { test: /^(add|new|create|insert)\b/i, icon: "/Content/images/icon-menu/menu-add.png" },
+        { test: /^(add|new|create|insert|assign)\b/i, icon: "/Content/images/icon-menu/menu-add.png" },
         { test: /^(save|update|submit)\b/i, icon: "/Content/images/icon-menu/menu-save.png" },
-        { test: /^(delete|remove)\b/i, icon: "/Content/images/icon-menu/menu-delete.png" },
+        { test: /^(delete|remove|un-?assign)\b/i, icon: "/Content/images/icon-menu/menu-delete.png" },
         { test: /^(cancel|close|back)\b/i, icon: "/Content/images/icon-menu/menu-cancel.png" },
         { test: /^(open|view|preview) report\b/i, icon: "/Content/images/icon-menu/menu-open-report.png" },
         { test: /^download\b/i, icon: "/Content/images/icon-menu/menu-download.png" },
@@ -146,7 +155,7 @@
             node.groupPanel = raw.groupPanel === true;
             node.viewData = raw.viewData === true;
             node.language = raw.language === true;
-            node.rows = Math.max(1, Math.min(10, cleanNumber(raw.rows, 3)));
+            node.rows = Math.max(1, Math.min(LIMITS.gridRows, cleanNumber(raw.rows, 3)));
             node.columns = (Array.isArray(raw.columns) ? raw.columns : []).slice(0, LIMITS.columns).map(function (c) {
                 var column = { caption: cleanText(c && c.caption), w: Math.max(20, cleanNumber(c && c.w, 120)) };
                 if (c && c.type === "checkbox") column.type = "checkbox";
@@ -159,10 +168,11 @@
                 }
                 return column;
             });
-            if (Array.isArray(raw.data)) {
-                node.data = raw.data.slice(0, 10).map(function (row) {
-                    return (Array.isArray(row) ? row : []).slice(0, node.columns.length).map(function (value) { return cleanText(value, 60); });
+            if (state.ui === "core" && Array.isArray(raw.data) && raw.data.length) {
+                node.data = raw.data.slice(0, LIMITS.gridRows).map(function (row) {
+                    return (Array.isArray(row) ? row : []).slice(0, node.columns.length).map(function (value) { return cleanText(value, LIMITS.cell); });
                 });
+                node.rows = node.data.length;
             }
             node.actions = (Array.isArray(raw.actions) ? raw.actions : []).filter(function (a) { return Object.prototype.hasOwnProperty.call(ROW_ACTIONS, a); });
             node.toolbar = (Array.isArray(raw.toolbar) ? raw.toolbar : []).slice(0, LIMITS.buttons).map(cleanButton).filter(function (b) { return b.text; });
@@ -187,15 +197,21 @@
                 if (item && item.focused === true) entry.focused = true;
                 if (item && Array.isArray(item.cells)) {
                     entry.cells = item.cells.slice(0, node.columns.length).map(function (value) {
-                        return typeof value === "boolean" ? value : cleanText(value, 60);
+                        return typeof value === "boolean" ? value : cleanText(value, LIMITS.cell);
                     });
                 }
                 return entry;
             });
+        } else if (raw.t === "splitter") {
+            node.vertical = raw.vertical === true;
+            var span = node.vertical ? node.w : node.h;
+            node.bar = Math.max(0, Math.min(METRICS.core.splitter, span, cleanNumber(raw.bar, 0)));
+            node.split = Math.max(0, Math.min(span - node.bar, cleanNumber(raw.split, Math.round((span - node.bar) / 2))));
         } else if (raw.t === "group" || raw.t === "section") {
             node.caption = cleanText(raw.caption);
         } else if (raw.t === "popup") {
             node.title = cleanText(raw.title);
+            if (raw.head != null) node.head = Math.max(0, Math.min(node.h, cleanNumber(raw.head, 0)));
         } else if (raw.t === "tabs") {
             node.tabs = (Array.isArray(raw.tabs) ? raw.tabs : []).slice(0, LIMITS.tabs).map(function (t) { return cleanText(t); });
             if (!node.tabs.length) node.tabs = ["Tab 1"];
@@ -206,7 +222,9 @@
             node.children = [];
             (Array.isArray(raw.children) ? raw.children : []).forEach(function (child) {
                 var clean = normalizeNode(child, depth + 1, state);
-                if (clean) node.children.push(clean);
+                if (!clean) return;
+                if (raw.t === "splitter") clean.pane = child.pane === 1 ? 1 : 0;
+                node.children.push(clean);
             });
         }
         return node;
@@ -221,7 +239,7 @@
         if (!data || typeof data !== "object" || data.kind !== KIND) return fail("Đây không phải dữ liệu màn hình của UI Builder.");
         if (data.v !== VERSION) return fail("Phiên bản dữ liệu màn hình không được hỗ trợ.");
         if (data.ui !== "core" && data.ui !== "ess") return fail("Thiếu kiểu giao diện (core hoặc ess).");
-        var state = { count: 0, truncated: false, imageSize: 0 };
+        var state = { count: 0, truncated: false, imageSize: 0, ui: data.ui };
         var screen = {
             kind: KIND,
             v: VERSION,
@@ -406,6 +424,10 @@
         return place(cfg, origin, node.x, node.y);
     }
 
+    function paneNodes(node, pane) {
+        return node.children.filter(function (child) { return child.pane === pane; });
+    }
+
     function sampleRows(columns, count, data) {
         if (data && data.length) {
             return data.map(function (cells) {
@@ -421,7 +443,7 @@
                 var low = c.name.toLowerCase();
                 if (c.type === "tag") row[c.name] = c.tags[(i - 1) % c.tags.length].text;
                 else if (c.type === "checkbox") row[c.name] = i % 2 === 1;
-                else row[c.name] = (low === "code" ? "Code " : low === "name" ? "Name " : c.name + " ") + i;
+                else row[c.name] = c.caption ? (low === "code" ? "Code " : low === "name" ? "Name " : c.name + " ") + i : "";
             });
             rows.push(row);
         }
@@ -439,40 +461,123 @@
         return total;
     }
 
-    function shiftNode(node, dy) {
-        node.y += dy;
-        if (node.labelY != null) node.labelY += dy;
-        (node.children || []).forEach(function (child) { shiftNode(child, dy); });
+    var DOWN = { pos: "y", size: "h", label: "labelY" };
+    var ACROSS = { pos: "x", size: "w", label: "labelX" };
+    var EDGE_SLACK = 2;
+    var HEADER_SLACK = 4;
+
+    function shiftNode(node, axis, delta) {
+        node[axis.pos] += delta;
+        if (node[axis.label] != null) node[axis.label] += delta;
+        (node.children || []).forEach(function (child) { shiftNode(child, axis, delta); });
     }
 
-    function reflowList(ui, nodes) {
+    function ownGrowth(ui, node, axis) {
+        if (node.t === "grid") return axis === DOWN ? Math.max(0, gridHeight(ui, node) - node.h) : 0;
+        return 0;
+    }
+
+    function spillOf(nodes, axis, limit) {
+        var ends = nodes.map(function (child) { return child[axis.pos] + child[axis.size]; });
+        return Math.max.apply(null, ends.concat(limit)) - limit;
+    }
+
+    // Hai vùng của Splitter dàn lại riêng. Theo chiều chia: thanh lấy bề dày của Builder, vùng 1 dài thêm bao nhiêu thì vùng 2 lùi bấy nhiêu.
+    // Theo chiều còn lại: cả khối lớn theo vùng dài thêm nhiều hơn.
+    // Vùng của Builder cắt nội dung tràn ra ngoài, nên node tràn khỏi vùng trên màn hình chụp làm vùng dài thêm đúng bằng phần tràn.
+    function reflowSplitter(ui, node, axis) {
+        var along = axis === (node.vertical ? ACROSS : DOWN);
+        var end = node[axis.pos] + node[axis.size];
+        var panes = [paneNodes(node, 0), paneNodes(node, 1)];
+        var spill = [spillOf(panes[0], axis, along ? node[axis.pos] + node.split : end), spillOf(panes[1], axis, end)];
+        var first = reflowList(ui, panes[0], axis) + spill[0];
+        var second = reflowList(ui, panes[1], axis) + spill[1];
+        if (!along) return Math.max(first, second);
+        var push = first + METRICS.core.splitter - node.bar;
+        if (push) panes[1].forEach(function (child) { shiftNode(child, axis, push); });
+        node.split += first;
+        node.bar = METRICS.core.splitter;
+        return push + second;
+    }
+
+    // Control nằm trên phần đầu của khối chứa (thanh tiêu đề): tâm của nó ở trên mép vùng nội dung.
+    function onHeader(node, child, inset) {
+        return child.y + child.h / 2 < node.y + inset.y - HEADER_SLACK;
+    }
+
+    // Popup đọc từ một trang HTML bất kỳ có phần đầu riêng cao node.head (dải tiêu đề, dải nút), khác phần đầu của popup Builder.
+    // Thanh nút nằm trên phần đầu đó về dải nút của popup Builder. Mọi thứ còn lại dời cùng một khoảng để giữ nguyên khoảng cách
+    // tới mép dưới phần đầu, và popup cao thêm (hoặc thấp đi) đúng bằng khoảng đó. Phần đầu không xuống quá control nội dung đầu tiên.
+    function rehead(node, inset) {
+        var tops = node.children.filter(function (child) { return child.t !== "toolbar"; }).map(function (child) {
+            return (child.labelY != null ? Math.min(child.y, child.labelY) : child.y) - node.y;
+        });
+        var head = Math.max(0, Math.min.apply(null, tops.concat(node.head)));
+        var lack = inset.y - head;
+        node.children.forEach(function (child) {
+            if (child.t === "toolbar" && child.y + child.h <= node.y + head + EDGE_SLACK) child.y = node.y + POPUP_BAR_TOP;
+            else shiftNode(child, DOWN, lack);
+        });
+        return lack;
+    }
+
+    // Phần đầu của popup (thanh tiêu đề, thanh nút) và của khối ESS trong Builder không đặt control lên được. Khối trên màn hình gốc
+    // có control nằm ở đó (popup không có thanh tiêu đề, nút nằm ngay trên thanh tiêu đề của khối) thì đẩy cả phần nội dung xuống
+    // cho control cao nhất chạm mép vùng nội dung, và trả về phần khối phải cao thêm. Kẹp riêng từng control ở mép trên vùng nội dung
+    // sẽ dồn các control hàng đầu chồng lên nhau. Thanh nút gắn vào popup không tính là nội dung.
+    function headroom(ui, node, axis) {
+        var inset = node.t === "popup" ? INSETS.popup : (node.t === "section" && ui === "ess" ? INSETS.essSection : null);
+        if (!inset || axis !== DOWN) return 0;
+        if (node.t === "popup" && node.head != null) return rehead(node, inset);
+        var content = node.children.filter(function (child) { return !(node.t === "popup" && child.t === "toolbar"); });
+        if (!content.some(function (child) { return onHeader(node, child, inset); })) return 0;
+        var top = Math.min.apply(null, content.map(function (child) { return child.labelY != null ? Math.min(child.y, child.labelY) : child.y; }));
+        var lack = node.y + inset.y - top;
+        content.forEach(function (child) { shiftNode(child, DOWN, lack); });
+        return lack;
+    }
+
+    // Control dựng trong Builder lớn hơn chỗ của nó trên màn hình chụp (lưới cao theo số dòng mẫu, thanh chia bị ẩn trên HRM vẫn chiếm chỗ):
+    // nới node đó theo chiều axis, đẩy mọi node cùng cấp nằm sau nó, và trả về phần cả danh sách dài thêm để khối chứa nới theo.
+    function reflowList(ui, nodes, axis) {
         if (!nodes.length) return 0;
-        var items = nodes.map(function (node) { return { node: node, top: node.y, bottom: node.y + node.h, growth: 0, shift: 0 }; });
-        var oldBottom = Math.max.apply(null, items.map(function (item) { return item.bottom; }));
+        var items = nodes.map(function (node) { return { node: node, start: node[axis.pos], end: node[axis.pos] + node[axis.size], growth: 0, shift: null }; });
+        var oldEnd = Math.max.apply(null, items.map(function (item) { return item.end; }));
+        function comesAfter(item, other) {
+            return other.end <= item.start + EDGE_SLACK && item.end > other.start + EDGE_SLACK;
+        }
+        function shiftOf(item) {
+            if (item.shift == null) {
+                item.shift = 0;
+                items.forEach(function (other) {
+                    if (comesAfter(item, other)) item.shift = Math.max(item.shift, shiftOf(other) + other.growth);
+                });
+            }
+            return item.shift;
+        }
         items.forEach(function (item) {
             var node = item.node;
-            if (node.t === "grid") {
-                item.growth = Math.max(0, gridHeight(ui, node) - node.h);
-            } else if (node.t === "tabs") {
+            if (node.t === "tabs") {
                 var groups = {};
                 node.children.forEach(function (child) {
                     var key = child.tab != null ? child.tab : node.active;
                     (groups[key] = groups[key] || []).push(child);
                 });
-                Object.keys(groups).forEach(function (key) { item.growth = Math.max(item.growth, reflowList(ui, groups[key])); });
+                Object.keys(groups).forEach(function (key) { item.growth = Math.max(item.growth, reflowList(ui, groups[key], axis)); });
+            } else if (node.t === "splitter") {
+                item.growth = reflowSplitter(ui, node, axis);
             } else if (node.children) {
-                item.growth = reflowList(ui, node.children);
+                item.growth = reflowList(ui, node.children, axis) + headroom(ui, node, axis);
+            } else {
+                item.growth = ownGrowth(ui, node, axis);
             }
-            if (item.growth) node.h += item.growth;
+            if (item.growth) node[axis.size] += item.growth;
         });
-        items.slice().sort(function (a, b) { return a.top - b.top; }).forEach(function (item) {
-            items.forEach(function (other) {
-                if (other !== item && other.bottom <= item.top + 2) item.shift = Math.max(item.shift, other.shift + other.growth);
-            });
-            if (item.shift) shiftNode(item.node, item.shift);
+        items.forEach(function (item) {
+            if (shiftOf(item)) shiftNode(item.node, axis, item.shift);
         });
-        var newBottom = Math.max.apply(null, items.map(function (item) { return item.node.y + item.node.h; }));
-        return Math.max(0, newBottom - oldBottom);
+        var newEnd = Math.max.apply(null, items.map(function (item) { return item.node[axis.pos] + item.node[axis.size]; }));
+        return Math.max(0, newEnd - oldEnd);
     }
 
     function gridControl(ctx, origin, parentId, tab, node) {
@@ -584,6 +689,8 @@
                 ctx.out.push(gridControl(ctx, origin, parentId, childTab, node));
             } else if (node.t === "tree") {
                 ctx.out.push(treeControl(ctx, origin, parentId, childTab, node));
+            } else if (node.t === "splitter") {
+                emitSplitter(ctx, node, origin, parentId, childTab);
             } else if (node.t === "toolbar") {
                 var docked = !!origin.popup && parentId === origin.popupId;
                 ctx.out.push(place({
@@ -654,6 +761,8 @@
                 borderColor: "#e0e0e0",
                 headerColor: "#0078d4",
                 contentPadding: 12,
+                tabPageId: tab ? tab.id : null,
+                tabIndex: tab ? tab.index : null,
                 zIndex: 0,
                 parentId: parentId || null
             };
@@ -673,7 +782,7 @@
                 var captionEnd = node.x + 14 + Math.ceil(node.caption.length * 7.2);
                 node.children.forEach(function (child) {
                     if (CONTAINER_TYPES[child.t] || child.t === "grid") return;
-                    if (child.y + child.h / 2 >= node.y + inset.y - 4 || child.x >= captionEnd) return;
+                    if (!onHeader(node, child, inset) || child.x >= captionEnd) return;
                     var shift = captionEnd - child.x;
                     child.x += shift;
                     if (child.labelX != null) child.labelX += shift;
@@ -692,6 +801,44 @@
         }, cfg.id, tab);
     }
 
+    function emitSplitter(ctx, node, origin, parentId, tab) {
+        var cfg = fieldBase(ctx, "splitter", parentId, tab);
+        cfg.uiMode = "core";
+        cfg.zIndex = 0;
+        cfg.splitOrientation = node.vertical ? "vertical" : "horizontal";
+        cfg.splitRatio = SPLIT.ratio(node.split, SPLIT.room(node.vertical ? node.w : node.h));
+        cfg.width = node.w;
+        cfg.height = node.h;
+        place(cfg, origin, node.x, node.y);
+        ctx.out.push(cfg);
+        [0, 1].forEach(function (pane) {
+            var offset = pane === 1 ? node.split + METRICS.core.splitter : 0;
+            var from = ctx.out.length;
+            emitNodes(ctx, paneNodes(node, pane), {
+                x: node.x + (node.vertical ? offset : 0),
+                y: node.y + (node.vertical ? 0 : offset),
+                min: 0,
+                popup: origin.popup,
+                popupId: origin.popupId
+            }, cfg.id, tab);
+            ctx.out.slice(from).forEach(function (child) {
+                if (child.parentId === cfg.id) child.paneIndex = pane;
+            });
+        });
+    }
+
+    // Control gốc nào lấn ra ngoài lề (phần đệm của nó nằm trước mép màn hình chụp) thì dời cả màn hình một lần cho đủ lề CANVAS_MIN.
+    // Kẹp riêng từng control sẽ làm lệch khoảng cách giữa các control ở hàng đầu và cột đầu.
+    function keepMargin(controls) {
+        var roots = controls.filter(function (c) { return !c.parentId; });
+        var dx = CANVAS_MIN - Math.min.apply(null, roots.map(function (c) { return c.left; }));
+        var dy = CANVAS_MIN - Math.min.apply(null, roots.map(function (c) { return c.top; }));
+        roots.forEach(function (c) {
+            if (dx > 0) c.left += dx;
+            if (dy > 0) c.top += dy;
+        });
+    }
+
     function convert(input, options) {
         var result = normalize(input);
         if (!result.ok) throw new Error(result.error);
@@ -703,9 +850,10 @@
             out: [],
             nextId: function (prefix) { return prefix + "_cap" + stamp + "_" + (seq++); }
         };
-        result.screen.height += reflowList(ctx.ui, result.screen.nodes);
-        ctx.rootOrigin = { x: -CANVAS_MIN, y: -CANVAS_MIN, min: CANVAS_MIN };
-        emitNodes(ctx, result.screen.nodes, ctx.rootOrigin, null, null);
+        result.screen.width += reflowList(ctx.ui, result.screen.nodes, ACROSS);
+        result.screen.height += reflowList(ctx.ui, result.screen.nodes, DOWN);
+        emitNodes(ctx, result.screen.nodes, { x: -CANVAS_MIN, y: -CANVAS_MIN, min: -Infinity }, null, null);
+        keepMargin(ctx.out);
         return { controls: ctx.out, screen: result.screen, truncated: result.truncated === true };
     }
 
@@ -763,6 +911,10 @@
                     add("g", n.x, n.y, n.w, Math.max(60, n.h));
                 } else if (n.t === "tree") {
                     add("g", n.x, n.y, n.w, n.h);
+                } else if (n.t === "splitter") {
+                    if (n.vertical) add("i", n.x + n.split, n.y, METRICS.core.splitter, n.h);
+                    else add("i", n.x, n.y + n.split, n.w, METRICS.core.splitter);
+                    walk(n.children);
                 } else if (n.t === "toolbar") {
                     n.buttons.forEach(function (b, i) { add("b", n.x + i * 66, n.y + 2, 60, Math.max(16, n.h - 4)); });
                 } else if (CONTAINER_TYPES[n.t]) {
@@ -778,6 +930,10 @@
         KIND: KIND,
         VERSION: VERSION,
         LIMITS: LIMITS,
+        METRICS: METRICS,
+        INSETS: INSETS,
+        SPLIT: SPLIT,
+        menuIcon: iconFor,
         normalize: normalize,
         convert: convert,
         gridHeight: gridHeight,

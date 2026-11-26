@@ -302,6 +302,11 @@ function pageTexts(source, out, english) {
     markup.split(/<[^>]*>/).forEach(function (piece) { out.push(piece); });
 }
 
+function dataTexts(value, out) {
+    if (typeof value === 'string') { out.push(value); return; }
+    if (value && typeof value === 'object') Object.keys(value).forEach(function (key) { dataTexts(value[key], out); });
+}
+
 function englishTexts(file) {
     const source = fs.readFileSync(file, 'utf8');
     const ext = path.extname(file).toLowerCase();
@@ -329,6 +334,7 @@ function fileTexts(file) {
     if (ext === '.aspx' || ext === '.ascx' || ext === '.master') pageTexts(source, raw);
     else if (ext === '.js') codeTexts(source, 'js', raw);
     else if (ext === '.cs') codeTexts(source, 'cs', raw);
+    else if (ext === '.json') dataTexts(JSON.parse(source), raw);
     const found = new Set();
     raw.forEach(function (text) {
         if (text[0] === HTML_ITEM) {

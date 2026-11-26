@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temporary Transfer Approval — CADENA mockup</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Roboto,"Segoe UI",Arial,sans-serif;color:#222;font-size:14px;background:#fff}
+  button{font-family:inherit}
+  header{background:#1877D2;height:60px;display:flex;align-items:center;gap:24px;padding-left:16px}
+  .logo{color:#fff;font-weight:700;width:270px;display:flex;align-items:baseline;letter-spacing:1px}
+  .logo .c{font-size:44px;line-height:1}.logo .r{font-size:30px;line-height:1}
+  .search{display:flex;align-items:center;background:#3B8FDE;border-radius:3px;height:40px;padding:0 12px;flex:0 1 480px;gap:8px}
+  .search input{flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px}
+  .search input::placeholder{color:#E3F0FC}
+  .selemp{background:#fff;color:#1877D2;border:none;border-radius:3px;height:40px;padding:0 14px;font-size:16px;cursor:pointer}
+  .hicons{margin-left:auto;display:flex;height:60px}
+  .hicons button{background:transparent;border:none;width:64px;cursor:pointer;position:relative}
+  .hicons .dark{background:#0F5FAE}
+  .badge{position:absolute;top:8px;right:10px;background:#D32F2F;color:#fff;font-size:12px;border-radius:10px;padding:1px 5px}
+  .avatar{width:40px;height:40px;border-radius:50%;background:#E3E3E3;display:inline-flex;align-items:center;justify-content:center}
+  .wrap{display:flex;min-height:calc(100vh - 60px)}
+  nav{width:270px;flex:none;border-right:1px solid #ddd;padding:8px 0}
+  nav a{display:flex;justify-content:space-between;align-items:center;padding:13px 20px;font-size:17px;color:#222;text-decoration:none}
+  nav a.open{color:#1877D2}
+  nav .sub{margin-left:28px;border-left:2px solid #ddd}
+  nav .sub a{font-size:15px;color:#444;padding:11px 18px}
+  nav .sub a.active{color:#1877D2}
+  main{flex:1;min-width:0;background:#F7F7F7;display:flex;flex-direction:column}
+  .tabbar{display:flex;align-items:center;gap:20px;height:44px;padding:0 16px;background:#fff;border-bottom:1px solid #ddd}
+  .tabbar .t{font-weight:700}.tabbar .t.active{color:#1877D2}
+  .tabbar .x{color:#C4C4C4;font-weight:400}
+  .company{margin-left:auto;display:flex;align-items:center;gap:14px;font-size:17px}
+  .title{background:#E9E9E9;padding:10px 16px;font-size:17px;border-bottom:1px solid #D6D6D6}
+  .body{padding:12px 16px 16px}
+  .tabs{display:flex;gap:2px;border-bottom:3px solid #1877D2}
+  .tabs button{border:none;padding:10px 40px;font-size:16px;cursor:pointer;background:#E9E9E9;color:#555}
+  .tabs button.on{background:#1877D2;color:#fff}
+  .panel{background:#fff;border:1px solid #D6D6D6}
+  .panel-h{background:#E9E9E9;padding:9px 12px;display:flex;align-items:center;gap:16px;font-size:16px}
+  .filters{border-top:none;margin-bottom:12px}
+  .fgrid{padding:18px 24px 8px;display:grid;grid-template-columns:1fr 1fr;column-gap:64px;row-gap:12px}
+  .fgrid label{display:flex;align-items:center;gap:12px}
+  .fgrid .lb{width:190px;font-size:15px}
+  .req{color:#2E7D32}
+  .dd{flex:1;max-width:260px;border:1px solid #BDBDBD;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;background:#fff}
+  .viewbtn{margin:8px 0 18px 226px;background:#fff;border:1px solid #BDBDBD;height:38px;padding:0 14px;font-size:15px;cursor:pointer}
+  .tbtn{display:flex;align-items:center;gap:6px;background:transparent;border:none;font-size:16px;color:#222;cursor:pointer;padding:2px 4px}
+  .tbtn:disabled{opacity:.4;cursor:default}
+  .tbtn[hidden]{display:none}
+  .scroll{overflow-x:auto}
+  .grid{min-width:max-content}
+  .row{display:grid;border-bottom:1px solid #E3E3E3}
+  .row>div{border-right:1px solid #E3E3E3;display:flex;align-items:center;justify-content:center;min-height:44px}
+  .head{background:#F3F3F3;border-bottom:1px solid #D6D6D6}
+  .head>div{font-size:14px;text-align:center;padding:8px 6px;min-height:40px;border-right-color:#D6D6D6}
+  .frow>div{min-height:32px;padding:4px;gap:4px}
+  .frow input[type=text]{flex:1;min-width:0;width:0;height:24px;border:1px solid #BDBDBD}
+  .row.sel{background:#CDE8FB}
+  .ic{background:transparent;border:none;cursor:pointer;padding:4px;display:flex}
+  input[type=checkbox]{width:17px;height:17px;margin:0;cursor:pointer}
+  .pager{display:flex;align-items:center;gap:16px;padding:12px 24px;border-top:1px solid #D6D6D6;font-size:15px}
+  .pager .circ{width:32px;height:32px;border-radius:50%;border:2px solid #D6D6D6;background:#fff;color:#BDBDBD}
+  .pager .cur{background:#1877D2;color:#fff;padding:4px 18px}
+  .psize{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .psize span{border:1px solid #BDBDBD;padding:3px 8px;display:flex;gap:18px;align-items:center}
+    .sec2{background:#fff;border:1px solid #D6D6D6;margin-bottom:14px}
+  .edit{background:transparent;border:none;cursor:pointer;padding:4px;display:flex}
+  .row>div.txt{justify-content:flex-start;padding:0 10px}
+  /* Popup */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:10}
+  .overlay[hidden]{display:none}
+  .modal{background:#fff;width:820px;max-width:95vw;max-height:92vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .modal-h{background:#1877D2;color:#fff;font-size:18px;font-weight:700;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+  .modal-h button{background:transparent;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}
+  .modal-b{padding:16px;display:flex;flex-direction:column;gap:16px}
+  .box{border:1px solid #D6D6D6;padding:16px 20px}
+  .f2{display:grid;grid-template-columns:1fr 1fr;column-gap:40px;row-gap:12px}
+  .fld{display:flex;align-items:center;gap:12px}
+  .fld .lb{width:170px;flex:none;font-size:14px}
+  .ro{flex:1;height:30px;background:#EEEEEE;border:1px solid #CFCFCF;display:flex;align-items:center;justify-content:space-between;padding:0 8px;color:#555}
+  .ro.tall{height:56px;align-items:flex-start;padding-top:6px}
+  .ed{flex:1;height:56px;border:1px solid #BDBDBD;background:#fff;font-family:inherit;font-size:14px;padding:6px 8px;resize:vertical}
+  fieldset{border:1px solid #D6D6D6;padding:12px 16px 14px;margin:0;display:flex;flex-direction:column;gap:12px}
+  legend{color:#888;padding:0 6px;font-size:14px}
+  .fullrow{display:flex;align-items:flex-start;gap:12px}
+  .fullrow .lb{width:170px;flex:none;padding-top:8px}
+  .btn-cancel{align-self:flex-start;background:#E53935;color:#fff;border:none;font-weight:700;font-size:14px;padding:9px 20px;cursor:pointer}
+    .modal.sm{width:620px}
+  .subbar{display:flex;gap:16px;padding:6px 12px;background:#F3F3F3;border-bottom:1px solid #D6D6D6}
+  .subbar .tbtn{font-size:14px}
+  .form{display:flex;flex-direction:column;gap:12px;padding:20px 24px}
+  .form .fld .lb{width:160px}
+  .sel{flex:1;height:30px;border:1px solid #BDBDBD;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 8px}
+  .sel.ro{background:#EEEEEE;border-color:#CFCFCF;color:#555}
+  .form textarea{flex:1;height:64px;border:1px solid #BDBDBD;font-family:inherit;font-size:14px;padding:6px 8px;resize:vertical}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="c">C</span><span class="r">ADENA</span></div>
+  <label class="search"><input type="text" placeholder="Search" aria-label="Search">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></label>
+  <button class="selemp" type="button">Select Employees</button>
+  <div class="hicons">
+    <button type="button" aria-label="Calendar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="5" width="18" height="15" rx="1"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+    <button type="button" class="dark" aria-label="Applications"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button>
+    <button type="button" aria-label="Notifications"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="badge">22</span></button>
+    <button type="button" aria-label="Account" style="width:72px"><span class="avatar"><svg width="24" height="24" viewBox="0 0 24 24" fill="#B5B5B5"><circle cx="12" cy="9" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6z"/></svg></span></button>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav id="nav" aria-label="Modules"></nav>
+  <main>
+    <div class="tabbar">
+      <svg width="26" height="20" viewBox="0 0 26 20" fill="none" stroke="#1877D2" stroke-width="2"><path d="M8 3L3 7l5 4"/><line x1="12" y1="3" x2="25" y2="3"/><line x1="12" y1="10" x2="25" y2="10"/><line x1="3" y1="17" x2="25" y2="17"/></svg>
+      <span class="t">Home <span class="x">⊗</span></span>
+      <span class="t">Temporary Transfer <span class="x">⊗</span></span>
+      <span class="t active">Temporary Transfer Approval <span class="x">⊗</span></span>
+      <span class="company">[Company] ▾
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M20 11a8 8 0 0 0-14-5l-2 2"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14 5l2-2"/><path d="M20 20v-4h-4"/></svg></span>
+    </div>
+    <div class="title">Temporary Transfer Approval</div>
+    <div class="body">
+      <section class="sec2" aria-label="Manager Temporary Transfer">
+        <div class="panel-h">Manager Temporary Transfer</div>
+        <div class="scroll"><div class="grid" id="gridMgr"></div></div>
+      </section>
+      <section class="sec2" aria-label="Employee Temporary Transfer">
+        <div class="panel-h">Employee Temporary Transfer</div>
+        <div class="scroll"><div class="grid" id="gridEmp"></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<!-- Edit popup -->
+<div class="overlay" id="editPop" hidden>
+  <div class="modal sm" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="modal-h"><span id="editTitle">Update Approval Assignment</span><button type="button" class="closeE" aria-label="Close">×</button></div>
+    <div class="subbar"><button type="button" class="tbtn closeE"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2E9E3F" stroke-width="2.6"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>OK</button><button type="button" class="tbtn closeE"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D32F2F" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>Cancel</button></div>
+    <div class="form">
+      <div class="fld"><span class="lb">Employee Level <span class="req">(*)</span></span><span class="sel ro"><span id="editLevel">Staff</span><span>▾</span></span></div>
+      <label class="fld"><span class="lb">First Approval</span><span class="sel">Restaurant General Manager<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Second Approval</span><span class="sel">AC<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Third Approval</span><span class="sel">&nbsp;<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Fourth Approval</span><span class="sel">&nbsp;<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Fifth Approval</span><span class="sel">&nbsp;<span>▾</span></span></label>
+      <label class="fld" style="align-items:flex-start"><span class="lb" style="padding-top:6px">Notify to</span><textarea></textarea></label>
+    </div>
+  </div>
+</div>
+<script>
+  var chev = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#888" stroke-width="1.5"><path d="M2 4l4 4 4-4"/></svg>';
+  var topMods = ['Organization'];
+  var sub = ['Add New Employee','Employee Profile','Transaction','Temporary Transfer Approval','Temporary Transfer','Resignation','Staffing Reports','Staffing Data Setup'];
+  var bottom = ['Competency','Recruitment','Onboarding & Offboarding','Training','Performance Appraisal','Reward & Discipline','Leave','Time Attendance'];
+  var h = topMods.map(function(m){return '<a href="#">'+m+chev+'</a>';}).join('');
+  h += '<a href="#" class="open">Staffing <span style="color:#1877D2">˄</span></a><div class="sub">';
+  h += sub.map(function(s){return '<a href="#"'+(s==='Temporary Transfer Approval'?' class="active"':'')+'>'+s+'</a>';}).join('');
+  h += '</div>' + bottom.map(function(m){return '<a href="#">'+m+chev+'</a>';}).join('');
+  document.getElementById('nav').innerHTML = h;
+
+  var FUNNEL = '<svg width="14" height="16" viewBox="0 0 14 16" fill="none" stroke="#888" stroke-width="1.5"><circle cx="7" cy="5" r="4"/><line x1="7" y1="9" x2="7" y2="15"/></svg>';
+  var EDIT = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E9E3F" stroke-width="2"><path d="M4 20l1-4L16 5l3 3L8 19z"/><line x1="14" y1="7" x2="17" y2="10"/></svg>';
+  var COLS = [
+    {k:'edit', label:'Edit', w:'56px'},
+    {label:'Employee Level', w:'210px', txt:true},
+    {label:'First Approval', w:'minmax(100px,1fr)'},
+    {label:'Second Approval', w:'minmax(100px,1fr)'},
+    {label:'Third Approval', w:'minmax(100px,1fr)'},
+    {label:'Fourth Approval', w:'minmax(100px,1fr)'},
+    {label:'Fifth Approval', w:'minmax(100px,1fr)'},
+    {label:'Notify to', w:'minmax(180px,1.5fr)'}
+  ];
+  function build(id, levels){
+    var tpl = 'grid-template-columns:' + COLS.map(function(c){return c.w;}).join(' ');
+    var o = '<div class="row head" style="'+tpl+'">' + COLS.map(function(c){ return '<div>'+c.label+'</div>'; }).join('') + '</div>';
+    o += '<div class="row frow head" style="'+tpl+';background:#fff">' + COLS.map(function(c){ return '<div>'+(c.k?'':'<input type="text" aria-label="Filter '+c.label+'">'+FUNNEL)+'</div>'; }).join('') + '</div>';
+    levels.forEach(function(lv){
+      o += '<div class="row" style="'+tpl+'">' + COLS.map(function(c, i){
+        if(c.k==='edit') return '<div><button type="button" class="edit" data-level="'+lv+'" aria-label="Edit '+lv+'">'+EDIT+'</button></div>';
+        return '<div class="txt">'+(i===1?lv:'')+'</div>';
+      }).join('') + '</div>';
+    });
+    document.getElementById(id).innerHTML = o;
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('button.edit');
+    if(b){ document.getElementById('editLevel').textContent = b.dataset.level; document.getElementById('editPop').hidden = false; }
+    if(e.target.closest('.closeE')) document.getElementById('editPop').hidden = true;
+  });
+  build('gridMgr', ['Restaurant General Manager','ARGM','AC']);
+  build('gridEmp', ['Staff','Senior','Supervisor']);
+  if(location.hash === '#edit') document.getElementById('editPop').hidden = false;
+</script>
+</body>
+</html>

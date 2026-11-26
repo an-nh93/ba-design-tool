@@ -119,5 +119,26 @@ namespace BADesign.Tests
             Assert.AreEqual("", item.Owner);
             Assert.AreEqual("", item.ProjectName);
         }
+
+        [TestMethod]
+        public void CanRead_OwnerReadsOwnPrivateDesign()
+        {
+            Assert.IsTrue(UiDesignCatalog.CanRead(5, false, 5));
+        }
+
+        [TestMethod]
+        public void CanRead_OtherUserCannotReadPrivateDesign()
+        {
+            Assert.IsFalse(UiDesignCatalog.CanRead(5, false, 6));
+            Assert.IsFalse(UiDesignCatalog.CanRead(5, false, 0));
+            Assert.IsFalse(UiDesignCatalog.CanRead(5, false, -5));
+        }
+
+        [TestMethod]
+        public void CanRead_AnyUserReadsPublicDesign()
+        {
+            Assert.IsTrue(UiDesignCatalog.CanRead(5, true, 6));
+            Assert.IsTrue(UiDesignCatalog.CanRead(5, true, 5));
+        }
     }
 }

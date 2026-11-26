@@ -222,18 +222,25 @@
 
             function itemRow(item) {
                 var tr = el('tr');
+                var isTemplate = item.Kind === 'template';
                 tr.setAttribute('data-key', item.Kind + ':' + item.Key);
-                tr.appendChild(cell(data('span', 'hm-name', item.Name)));
+                tr.appendChild(cell(isTemplate ? data('span', 'hm-name', item.Name) : el('span', 'hm-name', item.Name)));
                 tr.appendChild(cell(data('span', null, UI_LABELS[item.Ui] || '')));
-                tr.appendChild(cell(item.Kind === 'template' ? el('span', 'hm-muted', 'Mẫu của team') : data('span', 'hm-muted', item.Group)));
+                tr.appendChild(cell(el('span', 'hm-muted', isTemplate ? 'Mẫu của team' : item.Group)));
                 tr.appendChild(cell(moduleSelect(item)));
                 return tr;
+            }
+
+            function searchText(item) {
+                var texts = [item.Name, item.Group];
+                if (item.Kind !== 'template' && window.BaI18n) texts.push(BaI18n.translate(item.Name), BaI18n.translate(item.Group));
+                return texts.join(' ').toLowerCase();
             }
 
             function visibleItems() {
                 return state.items.filter(function (item) {
                     if (state.filter === 'none' && item.ModuleId) return false;
-                    return !state.query || (item.Name + ' ' + item.Group).toLowerCase().indexOf(state.query) >= 0;
+                    return !state.query || searchText(item).indexOf(state.query) >= 0;
                 });
             }
 

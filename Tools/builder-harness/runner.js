@@ -90,6 +90,7 @@ async (page, names, options) => {
         }
         else if (s.op === 'click') { const a = await ev(s.at); await mods(s, 'down'); await page.mouse.click(a.x, a.y, { button: s.button || 'left' }); await mods(s, 'up'); await page.waitForTimeout(200); }
         else if (s.op === 'dblclick') { const a = await ev(s.at); await page.mouse.dblclick(a.x, a.y); await page.waitForTimeout(250); }
+        else if (s.op === 'hover') { const a = await ev(s.at); await page.mouse.move(a.x, a.y); await page.waitForTimeout(200); }
         else if (s.op === 'type') { if (s.clear) await page.keyboard.press('Control+a'); await page.keyboard.type(s.text); await page.waitForTimeout(100); }
         else if (s.op === 'eval') out.push((s.title ? s.title + ': ' : '') + q(await ev(s.js)));
         else if (s.op === 'expect') { const got = String(await ev(s.js)); const good = got === String(s.want); if (good) totals.ok++; else totals.fail++; out.push((good ? 'OK   ' : 'FAIL ') + s.title + (good ? '' : ' -> got ' + got + ' want ' + s.want)); }

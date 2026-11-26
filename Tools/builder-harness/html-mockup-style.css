@@ -1,0 +1,3 @@
+/* Stylesheet "bên ngoài" của html-mockup-page.html: chỉ được tải khi người dùng chọn cho phép tải tài nguyên ngoài.
+   Có nó thì ô Region mới thành một ô nhập. */
+.late { flex: 1; height: 28px; border: 1px solid #aaa; background: #fff; display: flex; }

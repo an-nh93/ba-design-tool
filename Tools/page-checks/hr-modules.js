@@ -169,6 +169,11 @@ async (page) => {
     const english = await page.evaluate(() => ({ title: document.querySelector('.ba-top-bar-title').textContent.trim(), add: document.querySelector('#hmAdd').textContent.trim(), missing: (BaI18n.missing() || []).join(' ; ') }));
     check('English mode translates the page', english.title + '|' + english.add, 'HR modules|Add module');
     check('English mode leaves no Vietnamese text behind', english.missing, '');
+    const screenRow = () => page.evaluate((key) => { const tr = document.querySelector('#hmItems tr[data-key="screen:' + key + '"]'); return tr ? Array.from(tr.querySelectorAll('td')).slice(0, 3).map((td) => td.textContent.trim()).join('|') : 'row not found'; }, screenKey);
+    check('English mode translates the name and group of a standard screen', await screenRow(), 'List with toolbar (Core)|Core|Common patterns');
+    await page.fill('#hmSearch', 'toolbar');
+    check('the search matches the English name of a standard screen', await screenRow(), 'List with toolbar (Core)|Core|Common patterns');
+    await page.fill('#hmSearch', '');
   } finally {
     await page.evaluate(() => window.BaI18n && BaI18n.debug(false)).catch(() => null);
     await page.context().addCookies([{ name: 'baLang', value: 'vi', url: base }]);

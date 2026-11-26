@@ -5,6 +5,9 @@
 var controlGridEss = (function () {
     "use strict";
 
+    var MIN_WIDTH = 300;
+    var MIN_HEIGHT = 150;
+
     // ----------------- helpers -----------------
     function makeId(prefix) {
         return prefix + "_" + Date.now() + "_" + Math.floor(Math.random() * 10000);
@@ -412,7 +415,7 @@ var controlGridEss = (function () {
             return $('<div class="ess-grid-cell-view"></div>').text(comboTxt);
         }
 
-        var txt = v || (caption ? (caption + " " + (rowIndex + 1)) : ("Column " + (rowIndex + 1)));
+        var txt = v || (caption ? (caption + " " + (rowIndex + 1)) : "");
         return $('<div class="ess-grid-cell-view"></div>').text(txt);
     }
 
@@ -453,12 +456,7 @@ var controlGridEss = (function () {
                         // Position relative với content area
                         var finalLeft = cfg.left || 0;
                         var finalTop = cfg.top || 0;
-                        
-                        // Set z-index
-                        var sectionZ = parseInt(parentCfg.zIndex || "0", 10);
-                        if (isNaN(sectionZ)) sectionZ = 0;
-                        $root.css("z-index", sectionZ + 1);
-                        
+
                         $root.css({
                             position: "absolute",
                             left: finalLeft + "px",
@@ -487,12 +485,7 @@ var controlGridEss = (function () {
                         // Position relative với popup-body (không cần cộng popup offset)
                         var finalLeft = cfg.left || 20;
                         var finalTop = cfg.top || 50; // Tránh header
-                        
-                        // Set z-index cao hơn để hiển thị trên popup
-                        var popupZ = parseInt($popup.css("z-index") || "0", 10);
-                        if (isNaN(popupZ)) popupZ = 0;
-                        $root.css("z-index", popupZ + 10);
-                        
+
                         $root.css({
                             position: "absolute",
                             left: finalLeft + "px",
@@ -520,8 +513,9 @@ var controlGridEss = (function () {
                     width: (cfg.width || 900) + "px"
                 });
             }
+            builder.applyStacking(cfg, $root);
         }
-        
+
         // ✅ Update CSS cho element đã tồn tại
         if (!isNew) {
             $root.css({
@@ -530,6 +524,7 @@ var controlGridEss = (function () {
                 width: (cfg.width || 900) + "px"
             });
         }
+        applyHeight(cfg, $root);
 
         // Header
         var $header = $('<div class="ess-grid-header"></div>');
@@ -875,15 +870,15 @@ var controlGridEss = (function () {
 
         var isResizing = false;
 
-        // Thêm resize handle cho grid
-        if ($root.find('.ess-grid-resize-handle').length === 0) {
-            var $resizeHandle = $('<div class="ess-grid-resize-handle"></div>');
-            $root.append($resizeHandle);
+        if (!$root.children(".ub-resize").length) {
+            $root.append('<div class="ub-resize ub-resize-right"></div><div class="ub-resize ub-resize-bottom"></div><div class="ub-resize ub-resize-corner"></div>');
         }
 
+        builder.ensureMoveHandle($root);
+
         interact($root[0]).draggable({
-            allowFrom: ".ess-grid-header",
-            ignoreFrom: ".ess-grid-resize-handle, .ess-grid-table-wrapper, .ess-grid-table, .ess-grid-th, .ess-grid-td",
+            allowFrom: ".ess-grid-header, .ub-move",
+            ignoreFrom: ".ub-resize, .ess-grid-table-wrapper, .ess-grid-table, .ess-grid-th, .ess-grid-td",
             listeners: {
                 start: function (event) {
                     if (isResizing) return false;
@@ -898,17 +893,19 @@ var controlGridEss = (function () {
             }
         });
 
+        // Tay nắm mép phải đổi bề rộng, mép dưới đổi chiều cao (lưới thôi cao theo số dòng), góc đổi cả hai.
         interact($root[0]).resizable({
-            edges: { right: ".ess-grid-resize-handle" },
+            edges: { right: ".ub-resize-right, .ub-resize-corner", bottom: ".ub-resize-bottom, .ub-resize-corner" },
+            modifiers: controlSplitter.resizeLimits(MIN_WIDTH, MIN_HEIGHT),
             listeners: {
                 start: function (event) {
                     isResizing = true;
                 },
                 move: function (event) {
-                    var newW = Math.round(event.rect.width / builder.cssScale());
-                    if (newW < 300) newW = 300;
-                    $root.css("width", newW + "px");
-                    cfg.width = newW;
+                    var scale = builder.cssScale();
+                    if (event.edges.right) cfg.width = Math.round(event.rect.width / scale);
+                    if (event.edges.bottom) setOwnHeight(cfg, Math.round(event.rect.height / scale));
+                    applySize(cfg);
                 },
                 end: function () {
                     isResizing = false;
@@ -916,6 +913,52 @@ var controlGridEss = (function () {
                 }
             }
         });
+    }
+
+    // Lưới có ownHeight thì giữ đúng chiều cao cfg.height: bảng lấp chỗ còn lại và tự cuộn.
+    // Không có ownHeight thì lưới cao theo số dòng; cfg.height khi đó chỉ là chiều cao ước tính (lưới mới, bộ chụp), không dùng để vẽ.
+    function hasOwnHeight(cfg) {
+        return cfg.ownHeight === true && typeof cfg.height === "number" && cfg.height > 0;
+    }
+
+    // height là undefined: bỏ chiều cao riêng, lưới cao theo số dòng; cfg.height thành chiều cao ước tính: estimate khi có,
+    // không có thì đo chiều cao theo số dòng trên canvas.
+    function setOwnHeight(cfg, height, estimate) {
+        if (height === undefined) {
+            delete cfg.ownHeight;
+            if (estimate !== undefined) {
+                cfg.height = estimate;
+                return;
+            }
+            var natural = naturalHeight(cfg);
+            if (natural !== null) cfg.height = Math.round(natural);
+            return;
+        }
+        cfg.height = height;
+        cfg.ownHeight = true;
+    }
+
+    // Chiều cao của lưới khi cao theo số dòng (đơn vị thiết kế), đo trên canvas; lưới đang vẽ theo chiều cao riêng thì tạm bỏ để đo.
+    // Lưới chưa vẽ hoặc đang ẩn (tab không mở): null.
+    function naturalHeight(cfg) {
+        var $root = builder.controlElement(cfg);
+        if (!$root.length) return null;
+        var fixed = $root.hasClass("grid-fixed-height"), height = $root[0].style.height;
+        if (fixed) $root.removeClass("grid-fixed-height").css("height", "");
+        var measured = $root[0].getBoundingClientRect().height;
+        if (fixed) $root.addClass("grid-fixed-height").css("height", height);
+        return measured > 0 ? measured / builder.cssScale() : null;
+    }
+
+    function applyHeight(cfg, $root) {
+        var own = hasOwnHeight(cfg);
+        $root.toggleClass("grid-fixed-height", own).css("height", own ? cfg.height + "px" : "");
+    }
+
+    function applySize(cfg) {
+        var $root = builder.controlElement(cfg);
+        applyHeight(cfg, $root);
+        $root.css("width", cfg.width + "px");
     }
 
     // ----------------- properties panel -----------------
@@ -1390,8 +1433,14 @@ var controlGridEss = (function () {
     }
 
     return {
+        MIN_WIDTH: MIN_WIDTH,
         newConfig: newConfig,
         render: render,
+        hasOwnHeight: hasOwnHeight,
+        setOwnHeight: setOwnHeight,
+        naturalHeight: naturalHeight,
+        applyHeight: applyHeight,
+        applySize: applySize,
         showProperties: showProperties,
         addNew: addNew,
         renderExisting: renderExisting,

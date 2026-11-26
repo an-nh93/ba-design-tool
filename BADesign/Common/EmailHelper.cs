@@ -2,6 +2,7 @@ using System;
 using System.Data.SqlClient;
 using System.Net;
 using System.Net.Mail;
+using BADesign.Helpers.Security;
 
 namespace BADesign
 {
@@ -43,7 +44,7 @@ namespace BADesign
                             else if (k == Key_AccountName) accountName = v;
                             else if (k == Key_Username) username = v;
                             else if (k == Key_EmailAddress) emailAddress = v;
-                            else if (k == Key_Password) password = v;
+                            else if (k == Key_Password) password = BaSecret.Reveal(v);
                             else if (k == Key_EnableSSL) enableSSL = (v == "1" || string.Equals(v, "true", StringComparison.OrdinalIgnoreCase));
                             else if (k == Key_SSLPort) sslPort = v;
                         }

@@ -3,6 +3,10 @@
 
     var MAX_NODES = 1500;
     var MAX_TEXT = 200;
+    var MAX_GRID_ROWS = 10;
+    var MAX_CELL_TEXT = 60;
+    var MARK_ID = "ba-capture-mark";
+    var SCREEN_GAP = 40;
     var DX_ORDER = [
         ["ASPxClientGridView", "grid"], ["ASPxClientTreeList", "tree"], ["ASPxClientCardView", "grid"],
         ["ASPxClientPageControl", "tabs"], ["ASPxClientTabControl", "tabs"],
@@ -34,18 +38,39 @@
 
     var PERSONAL_KEY = /employee|fullname|firstname|lastname|middlename|username|manager|supervisor|approver|phone|mobile|mail|address|birth|passport|idcard|identity|taxcode|bank|salary|wage|account/i;
 
+    // Ký hiệu vẽ bằng chữ trong trang HTML thường: mũi tên sắp xếp ở cuối tiêu đề cột, mũi tên thả xuống ở cuối ô chọn.
+    var SORT_MARK = /\s*[▲▼△▽↑↓↕⇅]+$/;
+    var CARET_MARK = /\s*[▾▼▿▽⌄∨˅]$/;
+    var DATE_VALUE = /^\d{1,4}([\/.\-])\d{1,2}\1\d{1,4}$/;
+    var ACTIVE_MARK = /(^|[\s_-])(active|on|selected|current)([\s_-]|$)/i;
+
     function clean(text) {
         return String(text == null ? "" : text).replace(/->/g, "\u2192").replace(/<-/g, "\u2190").replace(/>=/g, "\u2265").replace(/<=/g, "\u2264").replace(/<>/g, "\u2260")
             .replace(/</g, "\uFF1C").replace(/>/g, "\uFF1E")
             .replace(/[\u0000-\u001F\u007F]/g, " ").replace(/\s+/g, " ").trim().slice(0, MAX_TEXT);
     }
 
-    function captureDocument(doc, ui) {
+    function isActiveTab(tab) {
+        return tab.getAttribute("aria-selected") === "true" || ACTIVE_MARK.test(tab.getAttribute("class") || "");
+    }
+
+    // Phần tử mang tiêu đề của một hộp thoại: theo aria-labelledby, không có thì heading đầu tiên trong hộp.
+    function dialogHeading(box) {
+        var ids = (box.getAttribute("aria-labelledby") || "").split(/\s+/).filter(Boolean);
+        var heading = ids.length ? box.ownerDocument.getElementById(ids[0]) : null;
+        return heading && box.contains(heading) ? heading : box.querySelector("h1, h2, h3, h4, h5, h6, [role=heading]");
+    }
+
+    // plan (chỉ khi đọc một trang HTML bất kỳ, ví dụ mockup): { scope: phần tử cần chụp, popup: hộp popup nếu scope là một popup,
+    // ignore: các phần tử bỏ qua }. Có plan thì control được nhận diện thêm theo cấu trúc và kiểu trình bày, không theo tên class.
+    function captureDocument(doc, ui, withData, plan) {
         var win = doc.defaultView;
+        var structural = !!plan;
         var scrollX = win.pageXOffset || 0, scrollY = win.pageYOffset || 0;
         var atoms = [];
         var claimed = [];
         var containers = [];
+        var planPopup = null;
 
         function rectOf(el) {
             var r = el.getBoundingClientRect();
@@ -88,6 +113,21 @@
         function isDisabled(el) {
             return !!(el.disabled || el.getAttribute("aria-disabled") === "true" || /\bdxeDisabled|\bdxbDisabled|\bdisabled\b/.test(el.className || ""));
         }
+        // Màu đang thấy ở chỗ một phần tử nền trong suốt: nền của phần tử cha gần nhất có màu; không cha nào có màu thì là nền trắng của trang.
+        function paintBehind(el) {
+            for (var p = el.parentElement; p; p = p.parentElement) {
+                var paint = hex(win.getComputedStyle(p).backgroundColor);
+                if (paint) return paint;
+            }
+            return "#ffffff";
+        }
+        // Một nút với ba màu như đang thấy trên trang: nền trong suốt lấy màu phía sau nút, nút không kẻ viền lấy viền trùng màu nền.
+        // Thiếu một màu thì Builder vẽ màu của nút mới (nền đỏ, viền xanh).
+        function buttonAtom(el, r, text, cs) {
+            var bg = hex(cs.backgroundColor) || paintBehind(el);
+            var ruled = parseFloat(cs.borderTopWidth) >= 1 && cs.borderTopStyle !== "none";
+            return { t: "button", x: r.x, y: r.y, w: r.w, h: r.h, text: text, disabled: isDisabled(el), bg: bg, fg: hex(cs.color), border: (ruled && hex(cs.borderTopColor)) || bg, el: el };
+        }
         var people = {}, peopleCount = 0;
         function scrub(value) {
             var cleaned = clean(value);
@@ -99,7 +139,7 @@
             return cleaned.replace(/[^\s@]+@[^\s@]+\.[A-Za-z]{2,}/g, "name@company.com");
         }
 
-        function textOf(el, skipSelector) {
+        function textOf(el, skipSelector, asShown) {
             if (!el) return "";
             var parts = [];
             var walker = doc.createTreeWalker(el, 4, null);
@@ -112,9 +152,9 @@
                     var owner = parent.closest(skipSelector);
                     if (owner && el.contains(owner)) continue;
                 }
-                parts.push(sampleFor(parent, clean(node.nodeValue)) || node.nodeValue);
+                parts.push(asShown ? node.nodeValue : (sampleFor(parent, clean(node.nodeValue)) || node.nodeValue));
             }
-            return scrub(parts.join(" "));
+            return asShown ? clean(parts.join(" ")) : scrub(parts.join(" "));
         }
 
         function sampleFor(el, value) {
@@ -163,12 +203,17 @@
             return null;
         }
 
+        function channels(color) {
+            return [parseInt(color.slice(1, 3), 16), parseInt(color.slice(3, 5), 16), parseInt(color.slice(5, 7), 16)];
+        }
+
+        var TAG_MARKS = structural ? "span, div, label, a, b, button" : "span, div, label, a, b";
         function cellStyle(cell) {
             if (!cell) return null;
             var text = textOf(cell);
             if (!text) return cell.querySelector("input[type=checkbox], [class*='CheckBox'], [class*='checkbox']") ? { type: "checkbox" } : null;
             if (text.length > 24) return null;
-            var marks = Array.prototype.slice.call(cell.querySelectorAll("span, div, label, a, b"));
+            var marks = Array.prototype.slice.call(cell.querySelectorAll(TAG_MARKS));
             for (var i = 0; i < marks.length; i++) {
                 var mark = marks[i];
                 if (!visible(mark)) continue;
@@ -176,7 +221,7 @@
                 if (!bg || bg === "#ffffff") continue;
                 var box = mark.getBoundingClientRect();
                 if (box.height < 12 || box.height > 34 || box.width < 24) continue;
-                var rgb = [parseInt(bg.slice(1, 3), 16), parseInt(bg.slice(3, 5), 16), parseInt(bg.slice(5, 7), 16)];
+                var rgb = channels(bg);
                 if (Math.max.apply(null, rgb) - Math.min.apply(null, rgb) < 40) continue;
                 if (textOf(mark) !== text) continue;
                 return { type: "tag", text: text, bg: bg, fg: hex(cs.color) };
@@ -184,21 +229,33 @@
             return null;
         }
 
-        function gridFromTable(el, headerCells, hasFilterRow, hasPager, title, rowSelector, toolbar) {
+        var CHECK_BOX = "input[type=checkbox], [class*='dxWeb_edtCheckBox'], [class*='dxICheckBox']";
+        function ticked(cell) {
+            var input = cell.querySelector("input[type=checkbox]");
+            return input ? !!input.checked : !!cell.querySelector("[class*='CheckBoxChecked']");
+        }
+        function cellValue(cell) {
+            if (!cell) return "";
+            var value = textOf(cell, null, true);
+            if (value) return value.slice(0, MAX_CELL_TEXT);
+            return cell.querySelector(CHECK_BOX) && ticked(cell) ? "x" : "";
+        }
+
+        // rows: selector của các dòng dữ liệu bên trong el, hoặc chính danh sách các phần tử dòng.
+        function gridFromTable(el, headerCells, hasFilterRow, hasPager, title, rows, toolbar) {
             var r = rectOf(el);
             var box = el.getBoundingClientRect();
-            var rows = Array.prototype.slice.call(el.querySelectorAll(rowSelector)).filter(function (row) {
-                if (!visible(row)) return false;
+            var groupPanel = el.querySelector("[class*='dxgvGroupPanel']");
+            var columns = [], cellIndexes = [], actions = [], checkbox = false;
+            var bodyRows = (typeof rows === "string" ? Array.prototype.slice.call(el.querySelectorAll(rows)) : rows).filter(visible);
+            var shownRows = bodyRows.filter(function (row) {
                 var rr = row.getBoundingClientRect();
                 return rr.top >= box.top - 2 && rr.bottom <= box.bottom + 2;
-            }).length;
-            var groupPanel = el.querySelector("[class*='dxgvGroupPanel']");
-            var columns = [], actions = [], checkbox = false;
-            var bodyRows = Array.prototype.slice.call(el.querySelectorAll(rowSelector)).filter(visible);
+            });
             var firstRow = bodyRows[0];
             headerCells.forEach(function (cell, index) {
                 if (!visible(cell)) return;
-                var text = textOf(cell);
+                var text = structural ? textOf(cell).replace(SORT_MARK, "") : textOf(cell);
                 var width = Math.round(cell.getBoundingClientRect().width);
                 var low = text.toLowerCase();
                 var hasCheck = !!cell.querySelector("input[type=checkbox], .dxICheckBox, [class*='dxWeb_edtCheckBox'], [class*='CheckBox'], [class*='checkbox']");
@@ -229,18 +286,21 @@
                     }
                 }
                 columns.push(column);
+                cellIndexes.push(index);
             });
-            push({ t: "grid", x: r.x, y: r.y, w: r.w, h: r.h, title: clean(title), filterRow: !!hasFilterRow, pager: !!hasPager, checkbox: checkbox, columns: columns, actions: actions, toolbar: toolbar || [], rows: Math.max(1, Math.min(10, rows)), groupPanel: !!(groupPanel && visible(groupPanel)), el: el });
+            var grid = { t: "grid", x: r.x, y: r.y, w: r.w, h: r.h, title: clean(title), filterRow: !!hasFilterRow, pager: !!hasPager, checkbox: checkbox, columns: columns, actions: actions, toolbar: toolbar || [], rows: Math.max(1, Math.min(MAX_GRID_ROWS, shownRows.length)), groupPanel: !!(groupPanel && visible(groupPanel)), el: el };
+            if (withData && shownRows.length) {
+                grid.data = shownRows.slice(0, MAX_GRID_ROWS).map(function (row) {
+                    return cellIndexes.map(function (index) { return cellValue(row.children[index]); });
+                });
+            }
+            push(grid);
             claim(el);
+            return grid;
         }
 
         function treeFromTable(el) {
             var r = rectOf(el), box = el.getBoundingClientRect();
-            var CHECK = "input[type=checkbox], [class*='dxWeb_edtCheckBox'], [class*='dxICheckBox']";
-            function ticked(cell) {
-                var input = cell.querySelector("input[type=checkbox]");
-                return input ? !!input.checked : !!cell.querySelector("[class*='CheckBoxChecked']");
-            }
             var rows = Array.prototype.slice.call(el.querySelectorAll("tr[class*='dxtlNode'], tr[class*='dxtlAltNode'], tr[class*='dxtlFocusedNode'], tr[class*='dxtlSelectedNode']")).filter(visible);
             var headers = Array.prototype.slice.call(el.querySelectorAll("td[class*='dxtlHeader'], th[class*='dxtlHeader']")).filter(visible);
             var mode = "none", items = [], branches = [], columns = null, scroll = false, rowHeight = 0, indent = 0;
@@ -266,10 +326,10 @@
                 }
                 if (/dxtlFocusedNode/.test(row.className || "")) item.focused = true;
                 if (data.length > 1) {
-                    item.cells = data.slice(1).map(function (cell) { return cell.querySelector(CHECK) ? ticked(cell) : textOf(cell); });
+                    item.cells = data.slice(1).map(function (cell) { return cell.querySelector(CHECK_BOX) ? ticked(cell) : textOf(cell); });
                     if (!columns) {
                         columns = data.slice(1).map(function (cell, index) {
-                            var check = cell.querySelector(CHECK);
+                            var check = cell.querySelector(CHECK_BOX);
                             var column = { caption: headers.length === data.length ? textOf(headers[index + 1]) : "", w: Math.max(20, Math.round(cell.getBoundingClientRect().width)), type: check ? "checkbox" : "text" };
                             if (check && /Disabled/.test(cell.innerHTML)) column.disabled = true;
                             return column;
@@ -371,7 +431,7 @@
                     try { text = x.control.GetText ? x.control.GetText() : ""; } catch (e) { text = ""; }
                     if (!text) text = textOf(x.el);
                     var cs = win.getComputedStyle(x.el);
-                    push({ t: "button", x: r.x, y: r.y, w: r.w, h: r.h, text: clean(text), disabled: isDisabled(x.el), bg: hex(cs.backgroundColor), fg: hex(cs.color), border: hex(cs.borderTopColor), el: x.el });
+                    push(buttonAtom(x.el, r, clean(text), cs));
                     claim(x.el);
                 } else if (x.kind === "label") {
                     text = "";
@@ -383,6 +443,56 @@
                     push({ t: x.kind, x: r.x, y: r.y, w: r.w, h: r.h, caption: "", disabled: isDisabled(x.el) || (function () { try { return x.control.GetEnabled && !x.control.GetEnabled(); } catch (e) { return false; } })(), el: x.el });
                     claim(x.el);
                 }
+            });
+        }
+
+        function hiddenBar(previous, r) {
+            if (r.y >= previous.y + previous.h - 1) return { vertical: false, size: 0 };
+            if (r.x >= previous.x + previous.w - 1) return { vertical: true, size: 0 };
+            return null;
+        }
+
+        function splitterPanes(table) {
+            var panes = [], bars = [], pending = null, known = true;
+            Array.prototype.slice.call(table.rows).forEach(function (row) {
+                Array.prototype.slice.call(row.cells).forEach(function (cell) {
+                    if (!visible(cell)) return;
+                    var r = rectOf(cell);
+                    var bar = /(^|\s)dxspl([VH])Separator/.exec(cell.className || "");
+                    if (bar) {
+                        var vertical = bar[2] === "V";
+                        pending = { vertical: vertical, size: vertical ? r.w : r.h };
+                        claim(cell);
+                        return;
+                    }
+                    if (panes.length) {
+                        var between = pending || hiddenBar(panes[panes.length - 1].r, r);
+                        if (!between) known = false;
+                        bars.push(between);
+                    }
+                    pending = null;
+                    panes.push({ cell: cell, r: r });
+                });
+            });
+            return known && panes.length > 1 ? { panes: panes, bars: bars } : null;
+        }
+
+        // Một bảng splitter của DevExpress có n pane thành n - 1 khối Splitter lồng nhau: khối thứ k chia pane k (vùng 1) với phần còn lại (vùng 2).
+        function collectSplitters() {
+            Array.prototype.slice.call(doc.querySelectorAll("table[class*='dxsplControl'], table[class*='dxsplP']")).forEach(function (table) {
+                if (!/(^|\s)dxspl(Control|P)(_\S+)?(\s|$)/.test(table.className || "") || !visible(table) || isClaimed(table)) return;
+                var found = splitterPanes(table);
+                if (!found) return;
+                found.bars.forEach(function (bar, k) {
+                    var rest = found.panes.slice(k);
+                    var first = rest[0].r;
+                    var frame = extentOf(rest.map(function (pane) { return pane.r; }), false);
+                    var box = { t: "splitter", x: frame.x0, y: frame.y0, w: frame.x1 - frame.x0, h: frame.y1 - frame.y0, vertical: bar.vertical, split: bar.vertical ? first.w : first.h, bar: bar.size };
+                    box.el = k ? rest[0].cell : table;
+                    box.cells = rest.map(function (pane) { return pane.cell; });
+                    box.rank = k / found.panes.length;
+                    containers.push(box);
+                });
             });
         }
 
@@ -453,7 +563,7 @@
                 if (r.w < 200 || r.h < 60) return;
                 containers.push({ t: "section", x: r.x, y: r.y, w: r.w, h: r.h, caption: textOf(head), el: el, skip: head });
             });
-            Array.prototype.slice.call(doc.querySelectorAll("div.title, div.title-2, div.box-title, div.card-title")).forEach(function (head) {
+            Array.prototype.slice.call(structural ? [] : doc.querySelectorAll("div.title, div.title-2, div.box-title, div.card-title")).forEach(function (head) {
                 var el = head.parentElement;
                 if (!el || !visible(head) || !visible(el) || isClaimed(el)) return;
                 if (containers.some(function (c) { return c.el === el; })) return;
@@ -523,7 +633,7 @@
                     return row !== head && !row.contains(head) && visible(row) && !row.querySelector("[data-languagekey='NoDataToDisplay']");
                 }).length;
                 var r = rectOf(table);
-                push({ t: "grid", x: r.x, y: r.y, w: r.w, h: r.h, title: "", filterRow: false, pager: false, checkbox: false, columns: columns, actions: [], toolbar: [], rows: Math.max(1, Math.min(10, rows)), groupPanel: false, el: table });
+                push({ t: "grid", x: r.x, y: r.y, w: r.w, h: r.h, title: "", filterRow: false, pager: false, checkbox: false, columns: columns, actions: [], toolbar: [], rows: Math.max(1, Math.min(MAX_GRID_ROWS, rows)), groupPanel: false, el: table });
                 claim(table);
             });
             Array.prototype.slice.call(doc.querySelectorAll("table")).forEach(function (table) {
@@ -574,11 +684,14 @@
                 var r = rectOf(el), cs = win.getComputedStyle(el);
                 if (r.h < 18 || r.h > 64 || r.w < 24 || r.w > 420) return;
                 var named = /(^|[\s_-])(btn|button)([\s_-]|$)/i.test(el.className || "");
-                var boxed = !!hex(cs.backgroundColor) && hex(cs.backgroundColor) !== "#ffffff" || (parseFloat(cs.borderTopWidth) >= 1 && parseFloat(cs.borderBottomWidth) >= 1 && cs.borderTopStyle !== "none");
+                var boxed = isBoxed(cs);
                 if (!named && !boxed) return;
                 var text = textOf(el);
                 if (!text || text.length > 60 || Array.prototype.some.call(el.querySelectorAll("input, select, table"), visible)) return;
-                push({ t: "button", x: r.x, y: r.y, w: r.w, h: r.h, text: text, disabled: isDisabled(el) || /deactive|disabled/i.test(el.className || ""), bg: hex(cs.backgroundColor), fg: hex(cs.color), border: parseFloat(cs.borderTopWidth) >= 1 ? hex(cs.borderTopColor) : null, flat: !boxed, icon: !!el.querySelector("i, svg, img, span[class*='icon']"), el: el });
+                var link = buttonAtom(el, r, text, cs);
+                link.flat = !boxed;
+                link.icon = !!el.querySelector("i, svg, img, span[class*='icon']");
+                push(link);
                 claim(el);
             });
             Array.prototype.slice.call(doc.querySelectorAll("input, select, textarea, button, a.btn, div.btn, span.btn, label.btn, [role=button]")).forEach(function (el) {
@@ -589,9 +702,11 @@
                 var check = tag === "INPUT" && (type === "checkbox" || type === "radio");
                 if (!check && (tag === "BUTTON" || tag === "A" || el.getAttribute("role") === "button" || /(^|\s)btn(\s|$)/.test(el.className || "") || (tag === "INPUT" && (type === "button" || type === "submit" || type === "reset")))) {
                     var text = tag === "INPUT" ? clean(el.value) : textOf(el);
-                    if (!text && r.w < 20) return;
+                    if (!text && (structural || r.w < 20)) { if (structural) claim(el); return; }
                     if (tag !== "INPUT" && r.h > 64 && el.querySelectorAll("*").length >= 4) return;
-                    push({ t: "button", x: r.x, y: r.y, w: r.w, h: r.h, text: text, disabled: isDisabled(el), bg: hex(cs.backgroundColor), fg: hex(cs.color), border: hex(cs.borderTopColor), el: el });
+                    var button = buttonAtom(el, r, text, cs);
+                    button.flat = structural && tag === "BUTTON" && !isBoxed(cs);
+                    push(button);
                 } else if (tag === "INPUT" && (type === "checkbox" || type === "radio")) {
                     var label = (el.id && doc.querySelector("label[for='" + el.id.replace(/'/g, "") + "']")) || el.closest("label");
                     var lr = label && visible(label) ? rectOf(label) : null;
@@ -617,14 +732,277 @@
             flat.forEach(function (a) { if (rows.indexOf(a.el.parentElement) < 0) rows.push(a.el.parentElement); });
             rows.forEach(function (parent) {
                 var items = flat.filter(function (a) { return a.el.parentElement === parent; }).sort(function (a, b) { return a.x - b.x; });
-                if (items.length < 2) return;
+                if (items.length < 2 && !isPopupBar(parent)) return;
                 var top = Math.min.apply(null, items.map(function (a) { return a.y; }));
                 var bottom = Math.max.apply(null, items.map(function (a) { return a.y + a.h; }));
                 if (bottom - top > 48) return;
                 var right = Math.max.apply(null, items.map(function (a) { return a.x + a.w; }));
                 atoms = atoms.filter(function (a) { return items.indexOf(a) < 0; });
                 push({ t: "toolbar", x: items[0].x, y: top, w: right - items[0].x, h: bottom - top, buttons: items.map(function (a) { return { text: a.text }; }), el: parent });
+                if (isPopupBar(parent)) joinHead(parent);
             });
+        }
+
+        function claimOutside(scope) {
+            for (var el = scope; el && el !== doc.body && el.parentElement; el = el.parentElement) {
+                Array.prototype.slice.call(el.parentElement.children).forEach(function (sibling) {
+                    if (sibling !== el) claim(sibling);
+                });
+            }
+        }
+
+        function commonAncestor(el, other) {
+            for (var p = el; p; p = p.parentElement) {
+                if (p.contains(other)) return p;
+            }
+            return null;
+        }
+
+        function bottomIn(box, el) {
+            return Math.round(el.getBoundingClientRect().bottom - box.getBoundingClientRect().top);
+        }
+
+        // Dải chứa tiêu đề của popup (cùng nút đóng) thuộc khung popup của Builder, không chụp lại.
+        // head là chiều cao phần đầu riêng của popup trên trang: dải tiêu đề, cộng dải nút nằm kế ngay dưới nó (joinHead); popup không có
+        // tiêu đề thì bằng 0. Tiêu đề không nằm trong một dải ở mép trên popup thì không biết phần đầu cao bao nhiêu và không ghi head.
+        function popupBox(box) {
+            var heading = dialogHeading(box);
+            if (heading && !visible(heading)) heading = null;
+            var bar = heading;
+            while (bar && bar.parentElement !== box) bar = bar.parentElement;
+            var band = bar;
+            if (bar) {
+                var top = bar.getBoundingClientRect().top - box.getBoundingClientRect().top;
+                if (top > 12 || bar.getBoundingClientRect().height > 80) { bar = heading; band = null; }
+            }
+            var r = rectOf(box);
+            planPopup = { t: "popup", x: r.x, y: r.y, w: r.w, h: r.h, title: heading ? textOf(heading) : clean(box.getAttribute("aria-label") || ""), el: box, modal: true, z: 0 };
+            if (band || !heading) {
+                planPopup.head = band ? bottomIn(box, band) : 0;
+                planPopup.headEnd = band;
+            }
+            containers.push(planPopup);
+            if (bar) claim(bar);
+        }
+
+        // Dải nút là phần tử nhìn thấy kế ngay sau dải tiêu đề của popup (hoặc là phần tử nhìn thấy đầu tiên khi popup không có tiêu đề)
+        // thì thuộc phần đầu của popup. Chỉ một dải nút được tính.
+        function joinHead(strip) {
+            if (!planPopup || planPopup.head == null || planPopup.headBar) return;
+            var before = strip.previousElementSibling;
+            while (before && !visible(before)) before = before.previousElementSibling;
+            if (before !== planPopup.headEnd) return;
+            planPopup.head = bottomIn(planPopup.el, strip);
+            planPopup.headBar = strip;
+        }
+
+        function collectRoleTabs() {
+            Array.prototype.slice.call(doc.querySelectorAll("[role=tablist]")).forEach(function (strip) {
+                if (isClaimed(strip) || !visible(strip)) return;
+                var captions = [], active = -1, panel = null;
+                Array.prototype.slice.call(strip.querySelectorAll("[role=tab]")).forEach(function (tab) {
+                    var caption = visible(tab) ? textOf(tab) : "";
+                    if (!caption) return;
+                    if (active < 0 && isActiveTab(tab)) {
+                        active = captions.length;
+                        panel = doc.getElementById(tab.getAttribute("aria-controls") || "");
+                    }
+                    captions.push(caption);
+                });
+                if (!captions.length) return;
+                var parent = strip.parentElement;
+                var host = panel && visible(panel) ? commonAncestor(strip, panel) : null;
+                if (!host || host === doc.body) host = parent && parent !== doc.body && rectOf(parent).h > rectOf(strip).h + 40 ? parent : strip;
+                var r = rectOf(host);
+                containers.push({ t: "tabs", x: r.x, y: r.y, w: r.w, h: r.h, tabs: captions, active: Math.max(0, active), el: host, skip: strip });
+                claim(strip);
+            });
+        }
+
+        // Một hàng của lưới dựng bằng thẻ thường (div, li, tr không có thead): từ 3 ô trở lên, ô sau nằm bên phải ô trước.
+        function rowEdges(row) {
+            var table = row.tagName === "TR" ? row.closest("table") : null;
+            if ((table && table.tHead) || isClaimed(row) || !visible(row)) return null;
+            var edges = [], last = -Infinity, shown = 0;
+            for (var i = 0; i < row.children.length; i++) {
+                var cell = row.children[i];
+                if (!visible(cell)) { edges.push(null); continue; }
+                var left = Math.round(cell.getBoundingClientRect().left);
+                if (left <= last) return null;
+                last = left;
+                shown++;
+                edges.push(left);
+            }
+            return shown >= 3 ? edges : null;
+        }
+
+        function sameEdges(edges, other) {
+            return edges.length === other.length && edges.every(function (left, i) {
+                return left === null ? other[i] === null : other[i] !== null && Math.abs(left - other[i]) <= 1;
+            });
+        }
+
+        function rowPaint(row) {
+            var own = hex(win.getComputedStyle(row).backgroundColor);
+            if (own) return own;
+            var cell = Array.prototype.slice.call(row.children).filter(visible)[0];
+            return cell ? hex(win.getComputedStyle(cell).backgroundColor) : null;
+        }
+
+        function rowWeight(row) {
+            var weight = 0;
+            Array.prototype.slice.call(row.children).forEach(function (cell) {
+                if (visible(cell) && /\S/.test(cell.textContent || "")) weight = Math.max(weight, parseInt(win.getComputedStyle(cell).fontWeight, 10) || 400);
+            });
+            return weight;
+        }
+
+        // Hàng tiêu đề: đa số ô có chữ, không có ô nhập, và trình bày khác hàng ngay dưới (nền khác, chữ đậm hơn) hoặc dùng th / role=columnheader.
+        function isHeaderRow(row, next) {
+            if (row.querySelector("input:not([type=checkbox]), select, textarea")) return false;
+            var cells = Array.prototype.slice.call(row.children).filter(visible);
+            var named = cells.filter(function (cell) { return /\S/.test(cell.textContent || ""); }).length;
+            if (named < 2 || named < cells.length / 2) return false;
+            if (cells.some(function (cell) { return cell.tagName === "TH" || cell.getAttribute("role") === "columnheader"; })) return true;
+            return !!next && (rowPaint(row) !== rowPaint(next) || (rowWeight(row) >= 600 && rowWeight(next) < 600));
+        }
+
+        function isFilterRow(row) {
+            return !!row && row.querySelectorAll("input[type=text], input[type=search], input:not([type]), select").length >= 2;
+        }
+
+        function soleWrapper(el) {
+            var parent = el.parentElement;
+            if (!parent || parent === doc.body) return null;
+            return Array.prototype.slice.call(parent.children).filter(visible).length === 1 ? parent : null;
+        }
+
+        function pagerAfter(el) {
+            var next = el.nextElementSibling;
+            if (!next || isClaimed(next) || !visible(next)) return null;
+            if (next.getBoundingClientRect().height > 80 || !/\d/.test(next.textContent || "")) return null;
+            return next.querySelectorAll("button, a, [role=button]").length >= 2 ? next : null;
+        }
+
+        function collectRowGrids() {
+            var groups = [];
+            Array.prototype.slice.call(plan.scope.querySelectorAll("*")).forEach(function (row) {
+                if (row.children.length < 3) return;
+                var edges = rowEdges(row);
+                if (!edges) return;
+                var box = row.getBoundingClientRect();
+                for (var i = groups.length - 1; i >= 0 && i >= groups.length - 8; i--) {
+                    if (sameEdges(groups[i].edges, edges) && Math.abs(box.top - groups[i].bottom) <= 4) {
+                        groups[i].rows.push(row);
+                        groups[i].bottom = box.bottom;
+                        return;
+                    }
+                }
+                groups.push({ edges: edges, rows: [row], bottom: box.bottom });
+            });
+            groups.forEach(function (group) {
+                var rows = group.rows.filter(function (row) { return !isClaimed(row); });
+                if (rows.length < 2) return;
+                var header = rows[0];
+                var filter = isFilterRow(rows[1]) && !isFilterRow(rows[2]) ? rows[1] : null;
+                var body = rows.slice(filter ? 2 : 1);
+                if (!isHeaderRow(header, body[0] || filter)) return;
+                var holder = rows.reduce(function (found, row) { return found && commonAncestor(found, row); }, header.parentElement);
+                if (!holder || holder === doc.body || holder === plan.scope) return;
+                var headerTop = header.getBoundingClientRect().top;
+                var before = Array.prototype.slice.call(holder.children).some(function (child) {
+                    if (rows.some(function (row) { return child === row || child.contains(row); }) || !visible(child)) return false;
+                    return child.getBoundingClientRect().top < headerTop - 1;
+                });
+                if (before) return;
+                var wrapper = soleWrapper(holder);
+                var pager = pagerAfter(holder) || (wrapper ? pagerAfter(wrapper) : null);
+                var grid = gridFromTable(holder, Array.prototype.slice.call(header.children), !!filter, !!pager, "", body);
+                if (wrapper && wrapper.clientWidth < grid.w - 1) {
+                    var frame = rectOf(wrapper);
+                    var right = Math.min(grid.x + grid.w, frame.x + frame.w);
+                    grid.x = Math.max(grid.x, frame.x);
+                    grid.w = right - grid.x;
+                }
+                if (pager) {
+                    var pr = rectOf(pager);
+                    grid.h = Math.max(grid.h, pr.y + pr.h - grid.y);
+                    claim(pager);
+                }
+            });
+        }
+
+        function isGray(color) {
+            if (!color) return false;
+            var rgb = channels(color);
+            var high = Math.max.apply(null, rgb);
+            return high - Math.min.apply(null, rgb) <= 8 && high >= 200 && high <= 246;
+        }
+
+        function hasEdgeIcon(el) {
+            var last = el.lastElementChild;
+            return !!last && /^(svg|i|img)$/i.test(last.tagName) && el.getBoundingClientRect().right - last.getBoundingClientRect().right <= 16;
+        }
+
+        // Ô nhập vẽ bằng thẻ thường: khung có viền đủ bốn cạnh, cao như một ô nhập, bên trong không có control hay khung nào khác.
+        // Khung ôm sát chữ của nó là nhãn hay thẻ trạng thái, không phải ô nhập.
+        function collectBoxFields() {
+            Array.prototype.slice.call(plan.scope.querySelectorAll("span, div, label, p")).forEach(function (el) {
+                if (!isBordered(el) || isClaimed(el) || !visible(el)) return;
+                var r = rectOf(el);
+                if (r.w < 40 || r.h < 18 || r.h > 120) return;
+                if (el.closest("button, a, [role=button], [role=tab]") || el.querySelector("input, select, textarea, button, table, a")) return;
+                if (Array.prototype.some.call(el.querySelectorAll("*"), isBordered)) return;
+                var shown = clean(el.textContent);
+                if (shown.length > 80) return;
+                var caret = CARET_MARK.test(shown) || hasEdgeIcon(el);
+                var value = shown.replace(CARET_MARK, "");
+                var cs = win.getComputedStyle(el);
+                var kind = DATE_VALUE.test(value) ? "date" : caret ? "combo" : r.h > 48 ? "memo" : "text";
+                if (kind === "memo" && el.children.length) return;
+                if (kind === "text" && value) {
+                    if (cs.cursor === "pointer") {
+                        push(buttonAtom(el, r, value, cs));
+                        claim(el);
+                        return;
+                    }
+                    var range = doc.createRange();
+                    range.selectNodeContents(el);
+                    if (r.w - range.getBoundingClientRect().width < 40) return;
+                }
+                var disabled = isDisabled(el) || el.getAttribute("aria-readonly") === "true" || isGray(hex(cs.backgroundColor));
+                push({ t: kind, x: r.x, y: r.y, w: r.w, h: r.h, caption: "", disabled: disabled, el: el });
+                claim(el);
+            });
+        }
+
+        // Dải tiêu đề của một khung: con đầu tiên, nằm sát mép trên, rộng bằng khung, có nền riêng hoặc đường kẻ dưới.
+        function headingBar(el) {
+            var bar = el.firstElementChild;
+            if (!bar || isClaimed(bar) || !visible(bar)) return null;
+            var box = el.getBoundingClientRect(), own = bar.getBoundingClientRect();
+            if (own.top - box.top > 6 || own.width < box.width - 12 || own.height > 64 || own.height > box.height - 8) return null;
+            var cs = win.getComputedStyle(bar);
+            var paint = hex(cs.backgroundColor);
+            var ruled = parseFloat(cs.borderBottomWidth) >= 1 && cs.borderBottomStyle !== "none";
+            return ruled || (paint && paint !== hex(win.getComputedStyle(el).backgroundColor)) ? bar : null;
+        }
+
+        // Dải nút phẳng nằm ngay trong hộp popup là thanh nút của popup, kể cả khi chỉ có một nút; nó không thuộc lưới nào bên dưới.
+        function isPopupBar(el) {
+            return structural && !!plan.popup && !!el && el.parentElement === plan.popup;
+        }
+
+        function collectStructure() {
+            claimOutside(plan.scope);
+            (plan.ignore || []).forEach(claim);
+            Array.prototype.slice.call(doc.querySelectorAll("nav, [role=navigation], [role=banner], body > header, body > footer, body > aside")).forEach(function (el) {
+                if (!el.contains(plan.scope) && !el.querySelector("[role=tablist]")) claim(el);
+            });
+            if (plan.popup) popupBox(plan.popup);
+            collectRoleTabs();
+            collectRowGrids();
+            collectBoxFields();
         }
 
         function hasFrame(el) {
@@ -637,16 +1015,25 @@
             return sides >= 3 || (cs.boxShadow && cs.boxShadow !== "none");
         }
 
-        function isCard(el) {
+        function isBordered(el) {
             var cs = win.getComputedStyle(el);
-            var sides = 0;
-            ["Top", "Right", "Bottom", "Left"].forEach(function (side) {
-                if (parseFloat(cs["border" + side + "Width"]) >= 1 && cs["border" + side + "Style"] !== "none") sides++;
+            return ["Top", "Right", "Bottom", "Left"].every(function (side) {
+                return parseFloat(cs["border" + side + "Width"]) >= 1 && cs["border" + side + "Style"] !== "none";
             });
-            return sides === 4 && parseFloat(cs.borderTopLeftRadius) >= 2;
         }
 
-        function boxHeading(el) {
+        function isCard(el) {
+            return isBordered(el) && parseFloat(win.getComputedStyle(el).borderTopLeftRadius) >= 2;
+        }
+
+        // Nút có nền màu hoặc có viền trên dưới; nút không có cả hai là nút phẳng (kiểu nút của thanh công cụ).
+        function isBoxed(cs) {
+            var bg = hex(cs.backgroundColor);
+            return !!bg && bg !== "#ffffff" || (parseFloat(cs.borderTopWidth) >= 1 && parseFloat(cs.borderBottomWidth) >= 1 && cs.borderTopStyle !== "none");
+        }
+
+        // bar: dải tiêu đề của khung (headingBar), chữ đầu tiên trong dải là tiêu đề dù không in đậm.
+        function boxHeading(el, bar) {
             var top = el.getBoundingClientRect().top;
             var walker = doc.createTreeWalker(el, 4, null);
             var node;
@@ -656,11 +1043,19 @@
                 if (!/\S/.test(node.nodeValue) || !visible(parent)) continue;
                 var box = parent.getBoundingClientRect();
                 var value = clean(node.nodeValue);
-                var strong = /^H[1-6]$/.test(parent.tagName) || parseInt(win.getComputedStyle(parent).fontWeight, 10) >= 600 || /title|header|heading/i.test(parent.className || "");
+                var strong = /^H[1-6]$/.test(parent.tagName) || parseInt(win.getComputedStyle(parent).fontWeight, 10) >= 600 || /title|header|heading/i.test(parent.className || "") || (!!bar && bar.contains(parent));
                 if (parent.tagName === "LABEL" || isClaimed(parent) || !strong || box.top - top > 60 || value.length < 2 || value.length > 80 || sampleFor(parent, value)) return null;
                 return { text: scrub(value), node: node };
             }
             return null;
+        }
+
+        // Khung chỉ bọc một lưới (cùng tiêu đề và thanh nút của lưới đó) là khung của chính lưới: lưới Core tự có thanh tiêu đề và thanh nút,
+        // nên không dựng thêm một khối chứa; tiêu đề và nút được gộp vào lưới ở foldGridHeaders.
+        function framesOneGrid(el, bar, inside) {
+            var body = inside.filter(function (a) { return !(bar && bar.contains(a.el)); });
+            if (body.length !== 1 || body[0].t !== "grid") return false;
+            return !containers.some(function (c) { return c.el !== el && el.contains(c.el); });
         }
 
         function collectFramedBoxes() {
@@ -670,19 +1065,22 @@
                 if (containers.some(function (c) { return c.el === el; })) return;
                 var r = rectOf(el);
                 if (r.w < 180 || r.h < 44 || !hasFrame(el)) return;
-                if ((r.h < 70 || ui !== "ess") && !isCard(el)) return;
-                var holds = atoms.filter(function (a) { return a.el && el.contains(a.el); }).length;
-                var heading = boxHeading(el);
-                if (!heading && !holds && !/\S/.test(el.textContent || "")) return;
+                if ((r.h < 70 || (ui !== "ess" && !structural)) && !isCard(el)) return;
+                var bar = structural ? headingBar(el) : null;
+                var inside = atoms.filter(function (a) { return a.el && el.contains(a.el); });
+                var heading = boxHeading(el, bar);
+                if (!heading && !inside.length && !/\S/.test(el.textContent || "")) return;
+                if (structural && framesOneGrid(el, bar, inside) && (ui === "core" || !heading)) return;
                 found.push({ el: el, r: r, heading: heading });
             });
             found.forEach(function (item) {
                 var nested = found.some(function (other) { return other !== item && item.el.contains(other.el); }) ||
-                    containers.some(function (c) { return item.el.contains(c.el); });
+                    containers.some(function (c) { return c.t !== "splitter" && item.el.contains(c.el); });
                 if (!item.heading && nested) return;
                 if (!item.heading) {
                     var holder = null;
                     containers.forEach(function (c) {
+                        if (c.t === "splitter") return;
                         if (c.el !== item.el && c.el.contains(item.el) && (!holder || holder.el.contains(c.el))) holder = c;
                     });
                     if (holder && item.r.w * item.r.h >= holder.w * holder.h * 0.75) return;
@@ -829,7 +1227,7 @@
                 });
                 if (!above.length) return;
                 function foldable(n) {
-                    return n.t === "toolbar" || n.t === "label" || (n.t === "combo" && /^(view data|applied for|local data language)$/i.test(n.caption || ""));
+                    return (n.t === "toolbar" && !isPopupBar(n.el)) || n.t === "label" || (n.t === "combo" && /^(view data|applied for|local data language)$/i.test(n.caption || ""));
                 }
                 var blockers = above.filter(function (n) { return !foldable(n); });
                 var limit = blockers.length ? Math.max.apply(null, blockers.map(function (n) { return n.y + n.h; })) : -Infinity;
@@ -870,23 +1268,33 @@
                 for (var p = el; p; p = p.parentElement) depth++;
                 return depth;
             }
-            boxes.forEach(function (c) { c.children = []; c.depth = depthOf(c.el); });
+            boxes.forEach(function (c) { c.children = []; c.depth = depthOf(c.el) + (c.rank || 0); });
+            function holds(box, el) {
+                if (!box.cells) return box.el.contains(el);
+                return box.cells.some(function (cell) { return cell.contains(el); });
+            }
             function parentOf(item, isBox) {
                 var best = null;
                 if (!item.el) return null;
                 for (var i = 0; i < boxes.length; i++) {
                     var c = boxes[i];
                     if (c === item || (isBox && c.el === item.el)) continue;
-                    if (c.el.contains(item.el) && (!best || c.depth > best.depth)) best = c;
+                    if (holds(c, item.el) && (!best || c.depth > best.depth)) best = c;
                 }
                 return best;
             }
             var roots = [];
-            atoms.forEach(function (a) { var p = parentOf(a, false); (p ? p.children : roots).push(a); });
-            boxes.forEach(function (c) { var p = parentOf(c, true); (p ? p.children : roots).push(c); });
+            function nest(item, isBox) {
+                var p = parentOf(item, isBox);
+                if (p && p.cells) item.pane = p.cells[0].contains(item.el) ? 0 : 1;
+                (p ? p.children : roots).push(item);
+            }
+            atoms.forEach(function (a) { nest(a, false); });
+            boxes.forEach(function (c) { nest(c, true); });
             roots = foldGridHeaders(roots);
             boxes.forEach(function (c) { c.children = foldGridHeaders(c.children); });
             boxes.slice().sort(function (a, b) { return b.depth - a.depth; }).forEach(function (c) {
+                if (c.t === "splitter") return;
                 var left = c.x, top = c.y, right = c.x + c.w, bottom = c.y + c.h;
                 c.children.forEach(function (k) {
                     left = Math.min(left, k.x); top = Math.min(top, k.y);
@@ -894,6 +1302,7 @@
                 });
                 if (bottom > c.y + c.h) bottom += 8;
                 if (right > c.x + c.w) right += 8;
+                if (c.head != null) c.head += c.y - top;
                 c.x = left; c.y = top; c.w = right - left; c.h = bottom - top;
             });
 
@@ -914,9 +1323,13 @@
             function out(n, tabIndex) {
                 var o = { t: n.t, x: n.x - minX, y: n.y - minY, w: n.w, h: n.h };
                 if (tabIndex != null) o.tab = tabIndex;
+                if (n.pane != null) o.pane = n.pane;
+                if (n.t === "splitter") { o.split = n.split; o.bar = n.bar; }
+                if (n.t === "popup" && n.head != null) o.head = n.head;
                 ["caption", "text", "title", "placeholder"].forEach(function (k) { if (n[k]) o[k] = n[k]; });
-                ["required", "disabled", "captionAbove", "bold", "filterRow", "pager", "checkbox", "groupPanel", "viewData", "language"].forEach(function (k) { if (n[k] === true) o[k] = true; });
+                ["required", "disabled", "captionAbove", "bold", "filterRow", "pager", "checkbox", "groupPanel", "viewData", "language", "vertical"].forEach(function (k) { if (n[k] === true) o[k] = true; });
                 if (n.t === "grid" && n.rows) o.rows = n.rows;
+                if (n.data) o.data = n.data;
                 if (n.t === "tree") {
                     o.check = n.check; o.rowHeight = n.rowHeight; o.indent = n.indent; o.items = n.items;
                     if (n.header) o.header = true;
@@ -943,7 +1356,9 @@
         }
 
         Array.prototype.slice.call(doc.querySelectorAll("[data-ba-capture-ignore]")).forEach(claim);
+        if (structural) collectStructure();
         if (ui === "core") collectDevExpress();
+        collectSplitters();
         collectPlain();
         collectFramedBoxes();
         collectText();
@@ -1044,22 +1459,29 @@
         });
     }
 
-    function fitToNodes(screen) {
-        var x0 = Infinity, y0 = Infinity, x1 = 0, y1 = 0;
-        (function measure(nodes) {
-            nodes.forEach(function (n) {
-                x0 = Math.min(x0, n.x); y0 = Math.min(y0, n.y);
-                x1 = Math.max(x1, n.x + n.w); y1 = Math.max(y1, n.y + n.h);
-                if (n.children) measure(n.children);
+    function extentOf(nodes, deep) {
+        var e = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+        (function measure(list) {
+            list.forEach(function (n) {
+                e.x0 = Math.min(e.x0, n.x, n.labelX != null ? n.labelX : n.x);
+                e.y0 = Math.min(e.y0, n.y, n.labelY != null ? n.labelY : n.y);
+                e.x1 = Math.max(e.x1, n.x + n.w);
+                e.y1 = Math.max(e.y1, n.y + n.h);
+                if (deep && n.children) measure(n.children);
             });
-        })(screen.nodes);
-        if (!isFinite(x0)) return;
-        if (x0 || y0) {
-            shiftNodes(screen.nodes, -x0, -y0);
-            screen.origin.x += x0; screen.origin.y += y0;
+        })(nodes);
+        return e;
+    }
+
+    function fitToNodes(screen) {
+        var e = extentOf(screen.nodes, true);
+        if (!isFinite(e.x0)) return;
+        if (e.x0 || e.y0) {
+            shiftNodes(screen.nodes, -e.x0, -e.y0);
+            if (screen.origin) { screen.origin.x += e.x0; screen.origin.y += e.y0; }
         }
-        screen.width = Math.max(1, x1 - x0);
-        screen.height = Math.max(1, y1 - y0);
+        screen.width = Math.max(1, e.x1 - e.x0);
+        screen.height = Math.max(1, e.y1 - e.y0);
     }
 
     function containerAt(nodes, box) {
@@ -1071,17 +1493,22 @@
         return found;
     }
 
+    function paneAt(splitter, box) {
+        var middle = splitter.vertical ? box.x + box.w / 2 - splitter.x : box.y + box.h / 2 - splitter.y;
+        return middle < splitter.split + splitter.bar / 2 ? 0 : 1;
+    }
+
     function uiOf(doc, options) {
         var win = doc.defaultView;
         var isEss = /\/ESS|IsESS=true/i.test(win.location.pathname + win.location.search);
         return options.ui || (win.ASPxClientControl && win.ASPxClientControl.GetControlCollection && !isEss && hasDevExpress(doc) ? "core" : "ess");
     }
 
-    function captureWithFrames(doc, options, depth) {
-        var screen = captureDocument(doc, uiOf(doc, options));
+    function captureWithFrames(doc, options, depth, withData) {
+        var screen = captureDocument(doc, uiOf(doc, options), withData);
         if (depth >= 2 || modalPopup(doc)) return screen;
         embeddedFrames(doc).forEach(function (frame) {
-            var sub = captureWithFrames(frame.doc, options, depth + 1);
+            var sub = captureWithFrames(frame.doc, options, depth + 1, withData);
             if (!sub.nodes.length) return;
             var dx = Math.round(frame.rect.left + sub.origin.x - screen.origin.x), dy = Math.round(frame.rect.top + sub.origin.y - screen.origin.y);
             shiftNodes(sub.nodes, dx, dy);
@@ -1089,6 +1516,7 @@
             var home = containerAt(screen.nodes, box);
             sub.nodes.forEach(function (n) {
                 if (home && home.t === "tabs") n.tab = home.active || 0;
+                if (home && home.t === "splitter") n.pane = paneAt(home, box);
                 (home ? home.children : screen.nodes).push(n);
             });
         });
@@ -1098,6 +1526,13 @@
 
     function pickDocument(rootDoc) {
         return pickTarget(rootDoc).doc;
+    }
+
+    var lastView = null;
+
+    function viewAt(doc, left, top) {
+        var view = doc.defaultView;
+        return { doc: doc, x: left + (view.pageXOffset || 0), y: top + (view.pageYOffset || 0) };
     }
 
     function wrapInPopup(screen, host, origin) {
@@ -1139,10 +1574,15 @@
         options = options || {};
         var target = options.document ? { doc: options.document, host: options.host || null } : pickTarget(document);
         var doc = target.doc;
-        var screen = captureWithFrames(doc, options, 0);
+        var screen = captureWithFrames(doc, options, 0, options.gridData === true && uiOf(doc, options) === "core");
         var origin = screen.origin;
         delete screen.origin;
-        if (target.host && !(screen.nodes.length === 1 && screen.nodes[0].t === "popup")) wrapInPopup(screen, target.host, origin);
+        lastView = viewAt(doc, origin.x, origin.y);
+        if (target.host && !(screen.nodes.length === 1 && screen.nodes[0].t === "popup")) {
+            wrapInPopup(screen, target.host, origin);
+            var shell = target.host.popup.getBoundingClientRect();
+            lastView = viewAt(target.host.popup.ownerDocument, shell.left, shell.top);
+        }
         if (options.title) screen.title = clean(options.title);
         else if (screen.nodes.length === 1 && screen.nodes[0].t === "popup" && screen.nodes[0].title) screen.title = screen.nodes[0].title;
         if (!screen.title) {
@@ -1199,18 +1639,179 @@
         return base;
     };
 
+    function partsOf(screen) {
+        var parts = [];
+        function add(part) {
+            part.id = parts.length;
+            parts.push(part);
+            return part;
+        }
+        function byPlace(nodes) {
+            return nodes.slice().sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+        }
+        function walk(nodes, owner, top) {
+            var loose = [];
+            function visit(node) {
+                if (node.t === "grid" || node.t === "tree") {
+                    add({ kind: node.t, node: node, owner: owner });
+                } else if (node.t === "tabs") {
+                    node.tabs.forEach(function (caption, index) {
+                        var members = (node.children || []).filter(function (child) { return tabOf(child, node) === index; });
+                        if (members.length) walk(members, add({ kind: "tab", node: node, tab: index, owner: owner }), false);
+                    });
+                } else if (node.t === "section" || node.t === "group") {
+                    walk(node.children || [], top ? add({ kind: "box", node: node, owner: owner }) : owner, false);
+                } else if (node.t === "popup") {
+                    walk(node.children || [], owner, top);
+                } else if (node.t === "splitter") {
+                    byPlace(node.children || []).forEach(visit);
+                } else {
+                    loose.push(node);
+                }
+            }
+            byPlace(nodes).forEach(visit);
+            if (top && loose.length) add({ kind: "rest", nodes: loose, owner: owner });
+        }
+        walk(screen.nodes || [], null, true);
+        return parts;
+    }
+
+    function partNodes(part) {
+        if (part.kind === "rest") return part.nodes;
+        if (part.kind === "tab") return (part.node.children || []).filter(function (child) { return tabOf(child, part.node) === part.tab; });
+        return [part.node];
+    }
+
+    function partTitle(part) {
+        if (part.kind === "tab") return part.node.tabs[part.tab];
+        if (part.kind === "rest") return "";
+        return part.node.title || part.node.caption || "";
+    }
+
+    function boundsOf(nodes) {
+        var e = extentOf(nodes, false);
+        return { x: e.x0, y: e.y0, w: e.x1 - e.x0, h: e.y1 - e.y0 };
+    }
+
+    function tally(nodes, counts) {
+        nodes.forEach(function (n) {
+            if (n.t === "grid" || n.t === "tree") counts.grids++;
+            else if (n.t === "button" || n.t === "toolbar" || n.t === "tag") counts.buttons++;
+            else if (n.children) tally(n.children, counts);
+            else if (n.t !== "label" && n.t !== "image") counts.fields++;
+        });
+        return counts;
+    }
+
+    global.__baParts = function (screen) {
+        return partsOf(screen).map(function (part) {
+            var nodes = partNodes(part);
+            var info = {
+                id: part.id, kind: part.kind, title: partTitle(part),
+                box: boundsOf(part.kind === "tab" ? [part.node] : nodes),
+                counts: tally(part.kind === "box" ? part.node.children || [] : nodes, { grids: 0, fields: 0, buttons: 0 })
+            };
+            if (part.owner) info.within = { kind: part.owner.kind, title: partTitle(part.owner) };
+            if (part.kind === "grid") {
+                info.columns = part.node.columns.length;
+                info.names = part.node.columns.slice(0, 3).map(function (column) { return column.caption; }).filter(Boolean);
+            }
+            return info;
+        });
+    };
+
+    function keepTabs(node, indexes) {
+        var position = {};
+        indexes.forEach(function (index, at) { position[index] = at; });
+        node.children = (node.children || []).filter(function (child) { return position[tabOf(child, node)] != null; });
+        node.children.forEach(function (child) { child.tab = position[tabOf(child, node)]; });
+        node.active = position[node.active || 0] || 0;
+        node.tabs = indexes.map(function (index) { return node.tabs[index]; });
+        return node;
+    }
+
+    function pickParts(screen, ids) {
+        var parts = partsOf(screen), chosen = {}, nodes = [], tabsDone = [];
+        ids.forEach(function (id) { if (parts[id]) chosen[id] = true; });
+        function covered(part) {
+            for (var owner = part.owner; owner; owner = owner.owner) if (chosen[owner.id]) return true;
+            return false;
+        }
+        parts.forEach(function (part) {
+            if (!chosen[part.id] || covered(part)) return;
+            if (part.kind !== "tab") { nodes = nodes.concat(partNodes(part)); return; }
+            if (tabsDone.indexOf(part.node) >= 0) return;
+            tabsDone.push(part.node);
+            nodes.push(keepTabs(part.node, parts.filter(function (other) { return other.kind === "tab" && other.node === part.node && chosen[other.id]; }).map(function (other) { return other.tab; })));
+        });
+        nodes.forEach(function (node) { delete node.tab; delete node.pane; });
+        return nodes;
+    }
+
+    function inPlaceOf(holder, child) {
+        delete child.pane;
+        if (holder.pane != null) child.pane = holder.pane;
+        if (holder.tab != null) child.tab = holder.tab;
+        return child;
+    }
+
+    // Bỏ Splitter thì các node trong hai vùng của nó lên thay chỗ nó, giữ nguyên vị trí trên màn hình.
+    function prune(nodes, options) {
+        var kept = [];
+        nodes.forEach(function (node) {
+            if (node.t === "grid" && !options.gridData) delete node.data;
+            if (node.children) node.children = prune(node.children, options);
+            if (node.t === "splitter" && options.splitters === false) {
+                node.children.forEach(function (child) { kept.push(inPlaceOf(node, child)); });
+                return;
+            }
+            kept.push(node);
+        });
+        return kept;
+    }
+
+    global.__baSelect = function (screen, options) {
+        options = options || {};
+        var picked = JSON.parse(JSON.stringify(screen));
+        if (Array.isArray(options.parts)) picked.nodes = pickParts(picked, options.parts);
+        picked.nodes = prune(picked.nodes, options);
+        fitToNodes(picked);
+        return picked;
+    };
+
+    global.__baHighlight = function (box) {
+        try {
+            var doc = lastView && lastView.doc;
+            if (!doc || !doc.body) return;
+            var mark = doc.getElementById(MARK_ID);
+            if (!box) {
+                if (mark) mark.parentNode.removeChild(mark);
+                return;
+            }
+            if (!mark) {
+                mark = doc.createElement("div");
+                mark.id = MARK_ID;
+                mark.setAttribute("data-ba-capture-ignore", "1");
+                doc.body.appendChild(mark);
+            }
+            var view = doc.defaultView;
+            mark.style.cssText = "position:fixed;z-index:2147483646;box-sizing:border-box;pointer-events:none;border:2px solid #0f75bd;border-radius:3px;background:rgba(15,117,189,0.12);" +
+                "left:" + (lastView.x + box.x - view.pageXOffset) + "px;top:" + (lastView.y + box.y - view.pageYOffset) + "px;width:" + Math.max(4, box.w) + "px;height:" + Math.max(4, box.h) + "px";
+        } catch (e) { }
+    };
+
     function delay(ms) {
         return new Promise(function (resolve) { setTimeout(resolve, ms); });
     }
 
-    function settle(read, tries) {
+    function settle(read, tries, pause) {
         var lastSize = -1;
         function step(left) {
             var current = read();
             var size = JSON.stringify(current).length;
             if (size === lastSize || left <= 0) return current;
             lastSize = size;
-            return delay(600).then(function () { return step(left - 1); });
+            return delay(pause || 600).then(function () { return step(left - 1); });
         }
         return Promise.resolve().then(function () { return step(tries); });
     }
@@ -1261,7 +1862,7 @@
         var target = options.document ? { doc: options.document, host: null } : pickTarget(document);
         var doc = target.doc;
         function capture() {
-            return global.__baCapture({ document: doc, host: target.host, ui: options.ui, title: options.title });
+            return global.__baCapture({ document: doc, host: target.host, ui: options.ui, title: options.title, gridData: options.gridData });
         }
         function activeCaption() {
             var items = tabStrip(doc) || [];
@@ -1301,5 +1902,203 @@
             });
         }
         return next(0);
+    };
+
+    // ----- Đọc một trang HTML bất kỳ (file mockup): trang chính và từng hộp thoại, kể cả hộp thoại đang ẩn -----
+
+    // Lớp phủ kín trang của một hộp thoại đang ẩn. Lớp phủ đang hiện mà không khai báo role thì không phân biệt được với khung của cả trang.
+    function hiddenCover(el) {
+        var view = el.ownerDocument.defaultView, cs = view.getComputedStyle(el);
+        if (cs.position !== "fixed") return false;
+        if (cs.display === "none") {
+            var wide = (cs.left === "0px" && cs.right === "0px") || /^100(%|vw)$/.test(cs.width);
+            var tall = (cs.top === "0px" && cs.bottom === "0px") || /^100(%|vh)$/.test(cs.height);
+            return wide && tall;
+        }
+        if (cs.visibility !== "hidden" && parseFloat(cs.opacity) !== 0) return false;
+        var r = el.getBoundingClientRect();
+        return r.width >= view.innerWidth - 2 && r.height >= view.innerHeight - 2;
+    }
+
+    function findDialogs(doc) {
+        var boxes = [];
+        Array.prototype.slice.call(doc.querySelectorAll("[role=dialog], [role=alertdialog], dialog")).forEach(function (box) {
+            if (!boxes.some(function (other) { return other.contains(box); })) boxes.push(box);
+        });
+        Array.prototype.slice.call(doc.body.querySelectorAll("*")).forEach(function (el) {
+            if (el.children.length !== 1 || !hiddenCover(el)) return;
+            if (boxes.some(function (box) { return box.contains(el) || el.contains(box); })) return;
+            boxes.push(el.children[0]);
+        });
+        return boxes;
+    }
+
+    // Phần tử ngoài cùng chỉ bọc riêng hộp thoại (lớp phủ của nó); trang chính bỏ qua cả phần tử này.
+    function coverOf(box) {
+        var cover = box;
+        while (cover.parentElement && cover.parentElement !== box.ownerDocument.body && cover.parentElement.children.length === 1) cover = cover.parentElement;
+        return cover;
+    }
+
+    // Hiện một hộp thoại đang ẩn bằng cách gỡ đúng thứ đang ẩn nó trên từng phần tử từ ngoài vào; trả về hàm đưa mọi thứ về như cũ.
+    function reveal(box) {
+        var view = box.ownerDocument.defaultView, body = box.ownerDocument.body, undo = [], chain = [];
+        function attribute(el, name, value) {
+            var had = el.getAttribute(name);
+            if (value === null) el.removeAttribute(name); else el.setAttribute(name, value);
+            undo.push(function () { if (had === null) el.removeAttribute(name); else el.setAttribute(name, had); });
+        }
+        function style(el, name, value) {
+            var had = el.style.getPropertyValue(name), priority = el.style.getPropertyPriority(name);
+            el.style.setProperty(name, value);
+            undo.push(function () { if (had) el.style.setProperty(name, had, priority); else el.style.removeProperty(name); });
+        }
+        for (var p = box; p && p !== body; p = p.parentElement) chain.unshift(p);
+        chain.forEach(function (el) {
+            if (el.hasAttribute("hidden")) attribute(el, "hidden", null);
+            if (el.tagName === "DIALOG" && !el.hasAttribute("open")) attribute(el, "open", "");
+            var cs = view.getComputedStyle(el);
+            if (cs.display === "none") {
+                var centred = !/^(normal|flex-start|start|left|)$/.test(cs.justifyContent) || !/^(normal|stretch|flex-start|start|)$/.test(cs.alignItems);
+                style(el, "display", centred ? "flex" : "block");
+            }
+            if (cs.visibility === "hidden") style(el, "visibility", "visible");
+            if (parseFloat(cs.opacity) === 0) style(el, "opacity", "1");
+        });
+        return function () {
+            undo.reverse().forEach(function (step) { step(); });
+        };
+    }
+
+    function mainScope(doc) {
+        var best = doc.body, bestArea = 0;
+        Array.prototype.slice.call(doc.querySelectorAll("main, [role=main]")).forEach(function (el) {
+            var r = el.getBoundingClientRect();
+            if (shown(el) && r.width * r.height > bestArea) { best = el; bestArea = r.width * r.height; }
+        });
+        return best;
+    }
+
+    // Chờ các hiệu ứng có điểm kết thúc (transition, animation) chạy xong, để tọa độ đọc được là tọa độ cuối cùng.
+    function calm(doc) {
+        var running = (doc.getAnimations ? doc.getAnimations() : []).filter(function (animation) {
+            var timing = animation.effect && animation.effect.getComputedTiming ? animation.effect.getComputedTiming() : null;
+            return !!timing && isFinite(timing.endTime);
+        });
+        var finished = Promise.all(running.map(function (animation) { return animation.finished.catch(function () { }); }));
+        return Promise.race([finished, delay(1500)]);
+    }
+
+    // Các tab bấm được của dải tab đầu tiên trong scope. Tab là liên kết sang trang khác thì không bấm (bấm sẽ rời khỏi trang đang đọc).
+    function switchableTabs(scope) {
+        var strip = Array.prototype.slice.call(scope.querySelectorAll("[role=tablist]")).filter(shown)[0];
+        if (!strip) return [];
+        var tabs = Array.prototype.slice.call(strip.querySelectorAll("[role=tab]")).filter(function (tab) {
+            return shown(tab) && !tab.disabled && tab.getAttribute("aria-disabled") !== "true";
+        });
+        var leaves = tabs.some(function (tab) {
+            var href = tab.getAttribute("href");
+            return !!href && href.charAt(0) !== "#";
+        });
+        return leaves ? [] : tabs;
+    }
+
+    // Chụp scope một lần cho mỗi tab của nó rồi gộp lại, để tab nào trong thiết kế cũng có nội dung.
+    function captureEveryTab(doc, scope, capture) {
+        function still() {
+            return calm(doc).then(function () { return settle(capture, 3, 150); });
+        }
+        var tabs = switchableTabs(scope);
+        if (tabs.length < 2) return still();
+        var start = tabs.map(isActiveTab).indexOf(true);
+        var screens = [];
+        function open(index) {
+            var tab = switchableTabs(scope)[index];
+            if (tab) tab.click();
+            return still();
+        }
+        function next(index) {
+            if (index < tabs.length) {
+                return open(index).then(function (screen) {
+                    screens.push(screen);
+                    return next(index + 1);
+                });
+            }
+            return (start >= 0 ? open(start) : Promise.resolve()).then(function () { return global.__baMergeTabs(screens); });
+        }
+        return next(0);
+    }
+
+    function externalCount(doc) {
+        return Array.prototype.slice.call(doc.querySelectorAll("link[rel~=stylesheet][href], script[src], img[src]")).filter(function (el) {
+            var url = el.getAttribute("href") || el.getAttribute("src") || "";
+            return !!url && !/^(data|blob):/i.test(url);
+        }).length;
+    }
+
+    // Xếp các màn hình lên cùng một mặt phẳng: màn hình đầu ở trên cùng, các màn hình sau xếp thành hàng bên dưới, hết chỗ thì xuống hàng.
+    function arrange(screens, rowWidth) {
+        var first = screens[0];
+        var all = { kind: first.kind, v: first.v, ui: first.ui, title: first.title, width: first.width, height: first.height, nodes: [] };
+        var limit = Math.max(first.width, rowWidth), x = 0, y = 0, rowHeight = 0;
+        screens.forEach(function (screen, index) {
+            var nodes = JSON.parse(JSON.stringify(screen.nodes));
+            if (index > 1 && x + screen.width > limit) {
+                x = 0;
+                y += rowHeight + SCREEN_GAP;
+                rowHeight = 0;
+            }
+            shiftNodes(nodes, x, y);
+            all.nodes = all.nodes.concat(nodes);
+            if (index === 0) {
+                y = screen.height + SCREEN_GAP;
+                return;
+            }
+            x += screen.width + SCREEN_GAP;
+            rowHeight = Math.max(rowHeight, screen.height);
+        });
+        fitToNodes(all);
+        return all;
+    }
+
+    // Trả về { screens: [{ kind: "page" | "popup", title, screen }], all: mọi màn hình xếp chung một mặt phẳng,
+    // skipped: [tiêu đề hộp thoại không hiện ra được], external: số tài nguyên ngoài mà trang tham chiếu }.
+    global.__baCaptureScreens = function (options) {
+        options = options || {};
+        var doc = options.document || document;
+        var ui = options.ui === "ess" ? "ess" : "core";
+        var boxes = findDialogs(doc);
+        var scope = mainScope(doc);
+        var screens = [], skipped = [];
+        function reader(plan) {
+            return function () {
+                var screen = captureDocument(doc, ui, false, plan);
+                delete screen.origin;
+                return screen;
+            };
+        }
+        function readPopup(box) {
+            var hide = reveal(box);
+            return captureEveryTab(doc, box, reader({ scope: box, popup: box })).then(function (screen) {
+                hide();
+                var popup = screen.nodes[0];
+                if (popup && popup.t === "popup" && popup.children && popup.children.length) {
+                    if (popup.title) screen.title = popup.title;
+                    screens.push({ kind: "popup", title: popup.title || "", screen: screen });
+                } else {
+                    var heading = dialogHeading(box);
+                    skipped.push(clean(heading ? heading.textContent : box.getAttribute("aria-label") || ""));
+                }
+            });
+        }
+        return captureEveryTab(doc, scope, reader({ scope: scope, ignore: boxes.map(coverOf) })).then(function (screen) {
+            if (screen.nodes.length) screens.push({ kind: "page", title: screen.title, screen: screen });
+            return boxes.reduce(function (chain, box) {
+                return chain.then(function () { return readPopup(box); });
+            }, Promise.resolve());
+        }).then(function () {
+            var all = screens.length > 1 ? arrange(screens.map(function (item) { return item.screen; }), doc.defaultView.innerWidth) : null;
+            return { screens: screens, all: all, skipped: skipped, external: externalCount(doc) };
+        });
     };
 })(typeof window !== "undefined" ? window : this);

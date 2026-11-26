@@ -162,6 +162,7 @@
                     c.top = (c.top || 0) + dy;
                 } else {
                     c.parentId = null;
+                    delete c.paneIndex;
                     c.left = baseLeft + ((c.left || 0) - minLeft);
                     c.top = baseTop + ((c.top || 0) - minTop);
                 }
@@ -179,6 +180,9 @@
             }
         });
 
+        var all = (builder.controls || []).concat(items);
+        items.forEach(function (c) { controlSplitter.fit(c, all); });
+
         var ordered = orderParentFirst(items);
         ordered.forEach(function (c) {
             if (c.type === "field" && !c.uiMode) c.uiMode = "core";
@@ -187,6 +191,8 @@
             delete c._fromRestore;
             builder.controls.push(c);
         });
+        // Chiều cao của lưới ESS chỉ đo được sau khi vẽ: lưới có mép dưới lọt khỏi vùng của Splitter thì thu lại lúc này.
+        items.forEach(function (c) { controlSplitter.land(c); });
 
         if (builder.rebuildGroups) builder.rebuildGroups();
         builder.refreshJson();                   // một lần = một bước Undo
@@ -255,11 +261,16 @@
                     method: "POST",
                     contentType: "application/json; charset=utf-8",
                     data: JSON.stringify(payload),
-                    success: function () {
+                    success: function (res) {
+                        var saved = res.d || {};
+                        if (!saved.success) {
+                            toast("Lỗi lưu component: " + saved.message, "error");
+                            return;
+                        }
                         toast("Đã lưu component '" + result.name + "' (" + items.length + " control).", "success");
                         snippet.loadLibrary();
                     },
-                    error: function (xhr) { toast("Lỗi lưu component: " + xhr.responseText, "error"); }
+                    error: function (xhr) { toast("Lỗi lưu component: " + builder.ajaxErrorText(xhr), "error"); }
                 });
             }
         });
@@ -281,7 +292,7 @@
                 snippet.instantiate(items, {});
                 toast("Đã chèn '" + dto.Name + "'.", "success");
             },
-            error: function (xhr) { toast("Lỗi tải component: " + xhr.responseText, "error"); }
+            error: function (xhr) { toast("Lỗi tải component: " + builder.ajaxErrorText(xhr), "error"); }
         });
     };
 
@@ -301,7 +312,7 @@
                 snippet.instantiate(arr, { placement: "below" });
                 toast("Đã chèn trang '" + dto.Name + "' xuống dưới canvas.", "success");
             },
-            error: function (xhr) { toast("Lỗi tải trang: " + xhr.responseText, "error"); }
+            error: function (xhr) { toast("Lỗi tải trang: " + builder.ajaxErrorText(xhr), "error"); }
         });
     };
 
@@ -367,7 +378,7 @@
                             contentType: "application/json; charset=utf-8",
                             data: JSON.stringify({ controlId: x.ControlId }),
                             success: function () { snippet.loadLibrary(); },
-                            error: function (xhr) { toast("Lỗi xoá: " + xhr.responseText, "error"); }
+                            error: function (xhr) { toast("Lỗi xoá: " + builder.ajaxErrorText(xhr), "error"); }
                         });
                     }).appendTo($act);
                 }

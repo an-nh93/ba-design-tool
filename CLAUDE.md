@@ -42,13 +42,18 @@ Khi file này khác bộ rule dùng chung thì file này được ưu tiên (ng�
   rồi chạy `dotnet test BADesign.Tests/bin/Debug/net48/BADesign.Tests.dll`. Build thay `BADesign/bin/BADesign.dll`
   nên site đang chạy sẽ khởi động lại và mọi phiên đăng nhập bị mất.
 - Front-end của UI Builder: bộ kịch bản Playwright trong `Tools/builder-harness` (cách chạy ở `Tools/builder-harness/README.md`).
-  Thay đổi giao diện phải có kịch bản kiểm tra và phải chạy lại toàn bộ bộ kịch bản.
+  Thay đổi giao diện phải có kịch bản kiểm tra. Sau khi sửa, chạy kịch bản mới và các kịch bản bị ảnh hưởng:
+  kịch bản của control hoặc tính năng vừa sửa, và kịch bản đi qua đoạn mã dùng chung vừa sửa (tìm theo tên hàm, selector,
+  helper trong `scenarios.json`). Không chạy lại toàn bộ bộ kịch bản cho một thay đổi nhỏ; chỉ chạy toàn bộ khi người dùng yêu cầu
+  (người dùng quy định ngày 2026-11-25). Báo cáo ghi rõ kịch bản nào đã chạy và phần nào chưa chạy lại.
 - Trang khác của tool: thử bằng Playwright trên `http://localhost:3393` với tài khoản test do người dùng cấp cho từng lần;
   không lưu tài khoản vào file, log hay bộ nhớ. Kịch bản lưu lại được đặt ở `Tools/page-checks` (hiện có `home.js` cho trang `/Home`
   và `hr-modules.js` cho trang `/HrModules`, cách chạy ở `Tools/page-checks/README.md`).
 - Bộ chuyển đổi màn hình và bộ đọc file draw.io (chạy bằng Node, không cần trình duyệt): `node Tools/ui-capture/test/convert.test.js`
   và `node Tools/ui-capture/test/drawio.test.js`.
 - Chữ giao diện: `node Tools/i18n/i18n-check.js` phải báo 0 chữ thiếu bản dịch.
+- Mã hóa dữ liệu nhạy cảm (`BaSecretStore`): `Tools/secret-store-check/check-secret-store.ps1` chạy trên LocalDB tạm, không đụng database dùng chung
+  (cách chạy ở `Tools/secret-store-check/README.md`).
 
 ## 4. Kiến trúc cần giữ
 

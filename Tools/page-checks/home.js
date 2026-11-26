@@ -47,7 +47,7 @@ async (page) => {
       if (String(project.name).indexOf(prefix) === 0) await api('/Pages/Builder.aspx/DeleteProject', { projectId: project.projectId });
     }
   };
-  const save = (name, projectId) => api('/Pages/Builder.aspx/SaveDesign', { controlId: null, pageName: name, controlName: name, controlType: 'page', jsonConfig: '[]', isPublic: false, thumbnailData: null, projectId: projectId });
+  const save = async (name, projectId) => ((await api('/Pages/Builder.aspx/SaveDesign', { controlId: null, pageName: name, controlName: name, controlType: 'page', jsonConfig: '[]', isPublic: false, thumbnailData: null, projectId: projectId })) || {}).controlId;
 
   await page.setViewportSize({ width: 1280, height: 620 });
   await page.context().addCookies([{ name: 'baLang', value: 'vi', url: base }]);
@@ -66,6 +66,12 @@ async (page) => {
     await page.waitForURL(/\/Builder/, { timeout: 60000 });
     await page.waitForFunction(() => { const dialog = document.querySelector('#bstDrawio'); return dialog && dialog.classList.contains('is-open'); }, null, { timeout: 60000 });
     check('the Builder opens the draw.io dialog and cleans the address', await page.evaluate(() => location.pathname + location.search + '|' + !!document.querySelector('#bstDrawio .bst-drop')), '/Builder|true');
+    await open();
+    check('the HTML file button leads to the import dialog of the Builder', await page.evaluate(() => { const link = document.querySelector('#hdFromHtml'); return link ? link.getAttribute('href') + '|' + link.textContent.trim() : 'missing'; }), '/Builder?htmlfile=1|Từ file HTML');
+    await page.click('#hdFromHtml');
+    await page.waitForURL(/\/Builder/, { timeout: 60000 });
+    await page.waitForFunction(() => { const dialog = document.querySelector('#bstHtml'); return dialog && dialog.classList.contains('is-open'); }, null, { timeout: 60000 });
+    check('the Builder opens the HTML file dialog and cleans the address', await page.evaluate(() => location.pathname + location.search + '|' + !!document.querySelector('#bstHtml .bst-drop')), '/Builder|true');
     await open();
 
     const projectBefore = ((await api('/Pages/Builder.aspx/GetProjects')) || []).length;
@@ -226,8 +232,21 @@ async (page) => {
     await page.evaluate(() => window.builderTemplates.openGallery());
     await page.waitForFunction(() => document.querySelectorAll('#bstGallery .bst-card').length > 0, null, { timeout: 30000 });
     await page.waitForTimeout(300);
-    check('English mode translates the module filter and the draw.io button of the gallery', await page.evaluate(() => { const select = document.querySelector('#bstGallery .bst-select'); const buttons = Array.from(document.querySelectorAll('#bstGallery .bst-head-btn')).map((b) => b.textContent); return [select.options[0].textContent, select.options[select.options.length - 1].textContent, select.title, buttons[buttons.length - 1]].join('|'); }), 'All modules|No module assigned|Filter by HR module|Open a draw.io file');
-    await page.evaluate(() => window.builderTemplates.closeGallery());
+    check('English mode translates the module filter and the file buttons of the gallery', await page.evaluate(() => { const select = document.querySelector('#bstGallery .bst-select'); const buttons = Array.from(document.querySelectorAll('#bstGallery .bst-head-btn')).map((b) => b.textContent); return [select.options[0].textContent, select.options[select.options.length - 1].textContent, select.title].concat(buttons.slice(-2)).join('|'); }), 'All modules|No module assigned|Filter by HR module|Open a draw.io file|Open an HTML file');
+    check('English mode translates the name, group and description of a standard screen', await page.evaluate(() => {
+      const card = Array.from(document.querySelectorAll('#bstGallery .bst-card')).filter((c) => c.querySelector('.bst-name').textContent === 'List with toolbar (Core)')[0];
+      if (!card) return 'card not found';
+      return /^Common patterns( · [^·]+)? · 2 controls$/.test(card.querySelector('.bst-meta').textContent) + '|' + card.querySelector('.bst-desc').textContent + '|' + card.querySelector('.bst-btn').textContent;
+    }), 'true|Toolbar and a grid with a filter row, select, edit and delete columns and paging. Used for list screens.|Use this screen');
+    await page.fill('#bstGallery .bst-search', 'toolbar');
+    check('the gallery search matches the English text on the cards', await page.evaluate(() => Array.from(document.querySelectorAll('#bstGallery .bst-card .bst-name')).map((e) => e.textContent).indexOf('List with toolbar (Core)') >= 0), 'true');
+    await page.fill('#bstGallery .bst-search', '');
+    await page.click('#bstGallery .bst-head-btn');
+    await page.waitForFunction(() => { const link = document.querySelector('#bstCapture .bst-bookmark'); return link && !link.classList.contains('is-disabled'); }, null, { timeout: 30000 });
+    await page.waitForTimeout(300);
+    check('English mode leaves no Vietnamese text in the gallery and the capture dialog', await page.evaluate(() => (BaI18n.missing() || []).join(' ; ')), '');
+    check('the bookmark carries the English texts of the panel shown on the HRM page', await page.evaluate(() => { const code = decodeURIComponent(document.querySelector('#bstCapture .bst-bookmark').getAttribute('href').slice(11)); return code.slice(code.lastIndexOf(')({')).indexOf('"done":"Screen captured"') >= 0; }), 'true');
+    await page.evaluate(() => { window.builderTemplates.closeCapture(); window.builderTemplates.closeGallery(); });
   } finally {
     await page.evaluate(() => window.BaI18n && BaI18n.debug(false)).catch(() => null);
     await page.context().addCookies([{ name: 'baLang', value: 'vi', url: base }]);

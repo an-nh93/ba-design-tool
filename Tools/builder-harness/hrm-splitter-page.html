@@ -1,0 +1,89 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Sample splitter page</title>
+<style>
+    body { margin: 0; background: #ffffff; font: 12px Tahoma, Arial, sans-serif; color: #333333; }
+    table { border-collapse: collapse; }
+    td, th { padding: 0; }
+    .dxeBase { display: inline-block; width: 70px; height: 18px; line-height: 18px; vertical-align: middle; }
+    .dxeTextBox { display: inline-block; width: 200px; height: 20px; border: 1px solid #9f9f9f; box-sizing: border-box; vertical-align: middle; }
+    .dxeTextBox input { width: 190px; height: 16px; border: 0; padding: 0 4px; font: inherit; }
+    .dxsplControl { width: 900px; table-layout: fixed; }
+    .dxsplP { width: 500px; table-layout: fixed; }
+    .dxsplPane { vertical-align: top; }
+    .dxsplVSeparator, .dxsplHSeparator { background: #e4e4e4; text-align: center; vertical-align: middle; }
+    .dxsplVSeparator img { width: 4px; height: 20px; }
+    .pane-body { padding: 10px; }
+    .dxgvControl { width: 480px; margin: 0 10px; border: 1px solid #9f9f9f; }
+    .dxgvHeader { height: 22px; padding: 0 6px; border: 1px solid #9f9f9f; background: #dcdcdc; text-align: left; }
+    .dxgvDataRow td { height: 22px; padding: 0 6px; border: 1px solid #d0d0d0; }
+</style>
+</head>
+<body>
+<table class="dxsplControl" id="splMain">
+    <colgroup><col style="width: 200px" /><col style="width: 6px" /><col style="width: 500px" /><col style="width: 6px" /><col style="width: 188px" /></colgroup>
+    <tbody>
+        <tr>
+            <td class="dxsplPane" style="height: 300px">
+                <div class="pane-body"><span class="dxeBase" id="lblGroup">Group</span></div>
+            </td>
+            <td class="dxsplVSeparator"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7" /></td>
+            <td class="dxsplPane">
+                <table class="dxsplP" id="splInner">
+                    <tbody>
+                        <tr>
+                            <td class="dxsplPane" style="height: 60px">
+                                <div class="pane-body"><span class="dxeBase" id="lblKeyword">Keyword</span><span class="dxeTextBox" id="txtKeyword"><input type="text" /></span></div>
+                            </td>
+                        </tr>
+                        <tr><td class="dxsplHSeparator" style="height: 5px"></td></tr>
+                        <tr>
+                            <td class="dxsplPane" style="height: 235px">
+                                <table class="dxgvControl" id="gvItems">
+                                    <tbody>
+                                        <tr>
+                                            <td class="dxgvHeader" style="width: 160px">Code</td>
+                                            <td class="dxgvHeader">Name</td>
+                                        </tr>
+                                        <tr class="dxgvDataRow"><td>IT01</td><td>First item</td></tr>
+                                        <tr class="dxgvDataRow"><td>IT02</td><td>Second item</td></tr>
+                                    </tbody>
+                                </table>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+            <td class="dxsplVSeparator"></td>
+            <td class="dxsplPane">
+                <div class="pane-body"><span class="dxeBase" id="lblNote">Note</span></div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+<script>
+    (function () {
+        function Control(id) { this.id = id; }
+        Control.prototype.GetMainElement = function () { return document.getElementById(this.id); };
+        function kindOf() {
+            function Kind(id) { Control.call(this, id); }
+            Kind.prototype = Object.create(Control.prototype);
+            return Kind;
+        }
+        window.ASPxClientControl = Control;
+        window.ASPxClientGridView = kindOf();
+        window.ASPxClientTextBox = kindOf();
+        window.ASPxClientLabel = kindOf();
+        var controls = [
+            new window.ASPxClientLabel("lblGroup"), new window.ASPxClientLabel("lblKeyword"), new window.ASPxClientTextBox("txtKeyword"),
+            new window.ASPxClientGridView("gvItems"), new window.ASPxClientLabel("lblNote")
+        ];
+        Control.GetControlCollection = function () {
+            return { ForEachControl: function (each) { controls.forEach(each); } };
+        };
+    })();
+</script>
+</body>
+</html>

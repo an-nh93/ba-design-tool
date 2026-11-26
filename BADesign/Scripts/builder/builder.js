@@ -160,10 +160,32 @@ var builder = {
         };
     },
 
+    // Phần nhìn thấy được của một phần tử trên canvas: khung của nó cắt theo mọi khối chứa có overflow khác visible (vùng của Splitter, popup).
+    visibleBox: function (el) {
+        var r = el.getBoundingClientRect();
+        var box = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
+        var stop = document.getElementById("canvas-zoom-inner");
+        for (var p = el.parentElement; p && p !== stop; p = p.parentElement) {
+            var style = window.getComputedStyle(p);
+            if (style.overflowX === "visible" && style.overflowY === "visible") continue;
+            var clip = p.getBoundingClientRect();
+            if (style.overflowX !== "visible") {
+                box.left = Math.max(box.left, clip.left);
+                box.right = Math.min(box.right, clip.right);
+            }
+            if (style.overflowY !== "visible") {
+                box.top = Math.max(box.top, clip.top);
+                box.bottom = Math.min(box.bottom, clip.bottom);
+            }
+        }
+        return box;
+    },
+
     revealControl: function (cfg) {
         var view = this.shellView(), $el = cfg ? this.controlElement(cfg) : null;
         if (!view || !$el || !$el.length) return;
-        var r = $el[0].getBoundingClientRect();
+        var r = this.visibleBox($el[0]);
+        if (r.right <= r.left || r.bottom <= r.top) return;
         var overX = Math.min(r.right - (view.right - 16), r.left - (view.left + 16));
         var overY = Math.min(r.bottom - (view.bottom - view.covered - 12), r.top - (view.top + 16));
         if (overX > 0) view.el.scrollLeft += overX;
@@ -575,9 +597,9 @@ var builder = {
                 return;
             }
 
-            // Cho phép quét khối khi click vào vùng trống trong groupbox/section (để chọn nhiều control bên trong)
-            var inGroupboxSectionContent = $t.closest(".page-field-groupbox-content, .page-field-section-content").length || builder.isTabBody(e.target);
-            if (!inGroupboxSectionContent && $t.closest(".page-field, .popup-field, .canvas-toolbar, .canvas-tabpage").length) {
+            // Cho phép quét khối khi click vào vùng trống trong phần nội dung của field là khối chứa (group box, section, vùng của Splitter)
+            var inFieldContent = $t.closest(builder.containerContentSelector).closest(".page-field").length > 0 || builder.isTabBody(e.target);
+            if (!inFieldContent && $t.closest(".page-field, .popup-field, .canvas-toolbar, .canvas-tabpage").length) {
                 return;
             }
             // Click vào popup nhưng không phải vùng trống body (vd: header/titlebar) → không marquee
@@ -866,10 +888,9 @@ var builder = {
         var area = shell.getBoundingClientRect();
         var nestable = type !== "popup" && type !== "tabpage" && type.indexOf("annot-") !== 0;
         var selected = this.selectedControlId ? this.getControlConfig(this.selectedControlId) : null;
-        if (selected && !nestable && !(type === "tabpage" && selected.type === "popup")) selected = null;
+        if (selected && !nestable && !(type === "tabpage" && this.hostsTabPages(selected))) selected = null;
         if (selected) {
-            var $content = $("#canvas").find('[data-id="' + selected.id + '"]')
-                .find(".popup-body, .page-field-groupbox-content, .page-field-section-content, .ess-collapsible-content").first();
+            var $content = $("#canvas").find('[data-id="' + selected.id + '"]').find(this.containerContentSelector).first();
             if ($content.length && $content.is(":visible")) {
                 var inner = $content[0].getBoundingClientRect();
                 var visible = {
@@ -1128,7 +1149,9 @@ var builder = {
 
         var $target = $(e.target);
         var $content = $target.closest(this.containerContentSelector);
-        this._marqueeScope = $content.length ? ($content.closest(".popup-design, .canvas-control").attr("data-id") || null) : null;
+        var $scope = $content.closest(".popup-design, .canvas-control");
+        this._marqueeScope = $content.length ? ($scope.attr("data-id") || null) : null;
+        this._marqueeOnScope = $content.length > 0 && $target.closest(".canvas-control")[0] === $scope[0];
         this._marqueeSkip = $target.closest(".canvas-tabpage").attr("data-id") || null;
         this._marqueeBase = (e.ctrlKey || e.metaKey || e.shiftKey) ? this.getAllSelectedControlIds() : null;
 
@@ -1183,9 +1206,12 @@ var builder = {
         var selRect = rectEl[0].getBoundingClientRect();
         rectEl.hide();
 
-        // Nếu quét rất nhỏ coi như click trống → clear selection
+        // Quét rất nhỏ là một cú bấm: bấm vào chỗ trống của một vùng Splitter thì chọn Splitter đó, chỗ trống khác thì bỏ chọn.
         if (tiny) {
-            if (!base) this.clearSelection();
+            if (base) return;
+            var host = this._marqueeOnScope ? this.getControlConfig(this._marqueeScope) : null;
+            if (controlSplitter.isSplitter(host)) this.selectControls([host.id]);
+            else this.clearSelection();
             return;
         }
 
@@ -1424,20 +1450,22 @@ var builder = {
     collectGuideTargets: function (ids) {
         var self = this;
         var scale = this.cssScale();
-        var parentId, mixed = false;
+        var parentId, pane = 0, mixed = false;
         ids.forEach(function (id) {
             var cfg = self.getControlConfig(id);
             if (!cfg) return;
             var pid = cfg.parentId || null;
-            if (parentId === undefined) parentId = pid;
-            else if (parentId !== pid) mixed = true;
+            if (parentId === undefined) {
+                parentId = pid;
+                pane = cfg.paneIndex || 0;
+            } else if (parentId !== pid || pane !== (cfg.paneIndex || 0)) mixed = true;
         });
-        this._dragGuideHost = (!mixed && parentId) ? this.containerContent(parentId) : $("#canvas-zoom-inner");
+        this._dragGuideHost = (!mixed && parentId) ? this.containerContent(parentId, pane) : $("#canvas-zoom-inner");
         if (mixed || parentId === undefined) return [];
 
         var targets = [];
         (this.controls || []).forEach(function (c) {
-            if (!c || ids.indexOf(c.id) >= 0 || (c.parentId || null) !== parentId) return;
+            if (!c || ids.indexOf(c.id) >= 0 || (c.parentId || null) !== parentId || (c.paneIndex || 0) !== pane) return;
             if (c.type === "annotation" || typeof c.left !== "number" || typeof c.top !== "number") return;
             var $el = self.controlElement(c);
             if (!$el.length || !$el.is(":visible")) return;
@@ -1802,7 +1830,7 @@ var builder = {
         return kept;
     },
 
-    containerContentSelector: ".popup-body, .page-field-groupbox-content, .page-field-section-content, .ess-collapsible-content",
+    containerContentSelector: ".popup-body, .page-field-groupbox-content, .page-field-section-content, .ess-collapsible-content, .core-splitter-pane",
 
     controlElement: function (cfg) {
         if (!cfg) return $();
@@ -1810,24 +1838,34 @@ var builder = {
         return (cfg.type === "popup" ? $el.filter(".popup-design") : $el.not(".popup-design")).first();
     },
 
+    // Nút nắm ở góc trên trái của lưới: lưới chỉ kéo được ở các dải phía trên bảng, và có thể không còn dải nào (không tiêu đề, không thanh nút).
+    ensureMoveHandle: function ($root) {
+        if (!$root.children(".ub-move").length) $root.append($('<span class="ub-move"></span>').attr("title", "Kéo để dời lưới"));
+    },
+
     isContainerConfig: function (cfg) {
-        return !!cfg && (cfg.type === "popup" || cfg.type === "collapsible-section" ||
+        return !!cfg && (cfg.type === "popup" || cfg.type === "collapsible-section" || controlSplitter.isSplitter(cfg) ||
             (cfg.type === "field" && (cfg.ftype === "groupbox" || cfg.ftype === "section")));
     },
 
-    containerContent: function (parentId) {
+    hostsTabPages: function (cfg) {
+        return !!cfg && (cfg.type === "popup" || controlSplitter.isSplitter(cfg));
+    },
+
+    containerContent: function (parentId, pane) {
         var cfg = parentId ? this.getControlConfig(parentId) : null;
         if (!this.isContainerConfig(cfg)) return $();
         var $el = this.controlElement(cfg);
         if (cfg.type === "popup") return $el.children(".popup-body").first();
         if (cfg.type === "collapsible-section") return $el.children(".ess-collapsible-content").first();
+        if (controlSplitter.isSplitter(cfg)) return controlSplitter.paneElement($el, pane);
         return $el.children(cfg.ftype === "groupbox" ? ".page-field-groupbox-content" : ".page-field-section-content").first();
     },
 
     canNest: function (child, parent) {
         if (!child || !this.isContainerConfig(parent) || child.id === parent.id) return false;
         if (child.type === "popup" || child.type === "annotation") return false;
-        if (child.type === "tabpage") return parent.type === "popup";
+        if (child.type === "tabpage") return this.hostsTabPages(parent);
         return true;
     },
 
@@ -1861,22 +1899,22 @@ var builder = {
             if (el.contains(this) || !$(this).is(":visible")) return;
             var $owner = $(this).closest(".popup-design, .canvas-control");
             if (!$owner.length) return;
-            var cr = $owner[0].getBoundingClientRect();
+            var cr = (controlSplitter.paneIndexOf(this) == null ? $owner[0] : this).getBoundingClientRect();
             if (cx < cr.left || cx > cr.right || cy < cr.top || cy > cr.bottom) return;
             var owner = self.getControlConfig($owner.attr("data-id"));
             if (!self.canNest(cfg, owner)) return;
             if (!best || self.isStackedAbove(this, best.content)) best = { id: owner.id, content: this };
         });
-        return best ? best.id : null;
+        return best ? { id: best.id, pane: controlSplitter.paneIndexOf(best.content) } : null;
     },
 
-    setControlParent: function (cfg, parentId) {
+    setControlParent: function (cfg, parentId, pane) {
         parentId = parentId || null;
         var $el = this.controlElement(cfg);
         if (!$el.length) return false;
         var parentCfg = parentId ? this.getControlConfig(parentId) : null;
         var docked = cfg.type === "toolbar" && !!parentCfg && parentCfg.type === "popup";
-        var $host = docked ? this.controlElement(parentCfg) : (parentId ? this.containerContent(parentId) : $("#canvas-zoom-inner"));
+        var $host = docked ? this.controlElement(parentCfg) : (parentId ? this.containerContent(parentId, pane) : $("#canvas-zoom-inner"));
         if (!$host.length) return false;
         if ((cfg.parentId || null) === parentId && $el.parent().is($host)) return false;
 
@@ -1892,6 +1930,8 @@ var builder = {
             minTop = Math.min(0, Math.round((this.controlElement(parentCfg)[0].getBoundingClientRect().top - $host[0].getBoundingClientRect().top) / scale));
         }
         cfg.parentId = parentId;
+        if (controlSplitter.isSplitter(parentCfg)) cfg.paneIndex = pane === 1 ? 1 : 0;
+        else delete cfg.paneIndex;
         cfg.left = Math.max(0, left);
         cfg.top = Math.max(minTop, top);
         $el.css({ left: cfg.left + "px", top: cfg.top + "px" });
@@ -1901,39 +1941,72 @@ var builder = {
             $el.toggleClass("toolbar-docked-in-popup", docked);
         }
 
-        if (cfg.type !== "field" && cfg.type !== "tabpage") {
+        if (this.derivesStacking(cfg)) {
+            this.applyStacking(cfg, $el);
+        } else if (cfg.type !== "field" && cfg.type !== "tabpage") {
             var z = cfg.zIndex != null ? cfg.zIndex : 1;
-            if (parentCfg) {
-                var base = parseInt(parentCfg.type === "popup" ? this.controlElement(parentCfg).css("z-index") : parentCfg.zIndex, 10);
-                z = (isNaN(base) ? 0 : base) + 1;
-            }
+            if (parentCfg) z = this.stackingBase(parentCfg) + 1;
             $el.css("z-index", z);
         }
         return true;
     },
 
+    // Lưới và toolbar không lưu z-index trong cấu hình: thứ tự chồng của chúng chỉ phụ thuộc cha.
+    derivesStacking: function (cfg) {
+        return cfg.type === "grid" || cfg.type === "ess-grid" || cfg.type === "toolbar";
+    },
+
+    stackingBase: function (parentCfg) {
+        var base = parseInt(parentCfg.type === "popup" ? this.controlElement(parentCfg).css("z-index") : parentCfg.zIndex, 10);
+        return isNaN(base) ? 0 : base;
+    },
+
+    // Lúc vẽ (mở thiết kế, Undo, dán, nhân bản) và lúc thả cùng gọi hàm này, nên hai control chồng nhau theo cùng một thứ tự
+    // dù chúng tới chỗ đó bằng đường nào. Lưới nổi trên các control khác của popup và trên nền của ESS Section;
+    // ở chỗ khác, và với toolbar, không có z-index: control vẽ sau nằm trên.
+    applyStacking: function (cfg, $el) {
+        var parentCfg = cfg.parentId ? this.getControlConfig(cfg.parentId) : null;
+        var z = "";
+        if (parentCfg && cfg.type !== "toolbar") {
+            if (parentCfg.type === "popup") z = this.stackingBase(parentCfg) + 10;
+            else if (parentCfg.type === "collapsible-section") z = this.stackingBase(parentCfg) + 1;
+        }
+        $el.css("z-index", z);
+    },
+
+    sameHost: function (a, b) {
+        return this.containerOf(a) === this.containerOf(b) && (a.paneIndex || 0) === (b.paneIndex || 0);
+    },
+
+    inheritTabMembership: function (cfg, parentCfg) {
+        cfg.tabPageId = parentCfg.tabPageId || null;
+        cfg.tabIndex = typeof parentCfg.tabIndex === "number" ? parentCfg.tabIndex : null;
+    },
+
     updateTabMembership: function (cfg, point) {
         var parentCfg = cfg.parentId ? this.getControlConfig(cfg.parentId) : null;
-        if (parentCfg && parentCfg.type !== "popup") {
-            cfg.tabPageId = parentCfg.tabPageId || null;
-            cfg.tabIndex = typeof parentCfg.tabIndex === "number" ? parentCfg.tabIndex : null;
+        if (parentCfg && !this.hostsTabPages(parentCfg)) {
+            this.inheritTabMembership(cfg, parentCfg);
             return;
         }
         var $el = this.controlElement(cfg);
         if (!$el.length) return;
         var self = this;
-        var owner = this.containerOf(cfg);
         var r = $el[0].getBoundingClientRect();
         var cx = point ? point.x : (r.left + r.right) / 2;
         var cy = point ? point.y : (r.top + r.bottom) / 2;
         var tab = null;
         (this.controls || []).forEach(function (c) {
-            if (!c || c.type !== "tabpage" || c.id === cfg.id || self.containerOf(c) !== owner) return;
+            if (!c || c.type !== "tabpage" || c.id === cfg.id || !self.sameHost(c, cfg)) return;
             var $tab = self.controlElement(c);
             if (!$tab.length || !$tab.is(":visible")) return;
             var tr = $tab[0].getBoundingClientRect();
             if (cx >= tr.left && cx <= tr.right && cy >= tr.top && cy <= tr.bottom) tab = c;
         });
+        if (!tab && controlSplitter.isSplitter(parentCfg)) {
+            this.inheritTabMembership(cfg, parentCfg);
+            return;
+        }
         cfg.tabPageId = tab ? tab.id : null;
         cfg.tabIndex = tab ? (tab.activeTabIndex || 0) : null;
     },
@@ -1943,9 +2016,8 @@ var builder = {
         var $tab = this.controlElement(tabCfg);
         if (!$tab.length) return;
         var tr = $tab[0].getBoundingClientRect();
-        var owner = this.containerOf(tabCfg);
         (this.controls || []).forEach(function (c) {
-            if (!c || c.tabPageId || c.id === tabCfg.id || self.containerOf(c) !== owner) return;
+            if (!c || c.tabPageId || c.id === tabCfg.id || !self.sameHost(c, tabCfg)) return;
             if (c.type === "popup" || c.type === "tabpage" || c.type === "annotation") return;
             var $el = self.controlElement(c);
             if (!$el.length || !$el.is(":visible")) return;
@@ -1960,7 +2032,8 @@ var builder = {
     placeInContainer: function (cfg, point) {
         var $el = this.controlElement(cfg);
         if (!$el.length) return false;
-        var changed = this.setControlParent(cfg, this.containerAt($el[0], cfg, point));
+        var target = this.containerAt($el[0], cfg, point);
+        var changed = this.setControlParent(cfg, target ? target.id : null, target ? target.pane : null);
         if (changed && this.snapEnabled && !this._dropExact) {
             cfg.left = Math.round(cfg.left / this.snapStep) * this.snapStep;
             cfg.top = Math.round(cfg.top / this.snapStep) * this.snapStep;
@@ -1980,7 +2053,7 @@ var builder = {
 
     mountInParent: function (cfg) {
         if (!cfg.parentId || cfg.type === "popup" || (cfg.type === "toolbar" && cfg.dock === "popup")) return;
-        var $host = this.containerContent(cfg.parentId);
+        var $host = this.containerContent(cfg.parentId, cfg.paneIndex);
         var $el = this.controlElement(cfg);
         if (!$host.length || !$el.length || $el.parent().is($host)) return;
         $host.append($el);
@@ -2103,6 +2176,7 @@ var builder = {
     },
 
     liftForDrag: function (cfg) {
+        controlSplitter.lift(cfg);
         if (cfg.parentId) this.setControlParent(cfg, null);
         this.controlElement(cfg).addClass("ub-dragging");
     },
@@ -2231,6 +2305,7 @@ var builder = {
         cfg.top = Math.round(cfg.top || 0);
         $root.css({ left: cfg.left + "px", top: cfg.top + "px" }).removeClass("ub-dragging");
         this.dropControl(cfg, this.dropPoint(event));
+        controlSplitter.land(cfg);
         this.refreshJson();
     },
 
@@ -2283,6 +2358,7 @@ var builder = {
         } finally {
             this._dropExact = false;
         }
+        list.forEach(function (c) { controlSplitter.land(c); });
     },
 
     endDragSelection: function () {
@@ -2348,6 +2424,7 @@ var builder = {
         }
 
         moving.forEach(function (c) {
+            controlSplitter.lift(c);
             c.left = (c.left || 0) + dx;
             c.top = (c.top || 0) + dy;
             if (c.type === "field" && self.isContainerConfig(self.getControlConfig(c.parentId))) {
@@ -2356,6 +2433,7 @@ var builder = {
             }
             self.controlElement(c).css({ left: c.left, top: c.top });
         });
+        moving.forEach(function (c) { controlSplitter.land(c); });
 
         this.refreshJson();
         this.updateSelectionSizeHint();
@@ -3437,7 +3515,7 @@ var builder = {
                     ]
                 });
             }
-        } else if (isField && !isContainerField && cfg.ftype !== "language" && cfg.ftype !== "progress") {
+        } else if (isField && !isContainerField && cfg.ftype !== "language" && cfg.ftype !== "progress" && cfg.ftype !== "splitter") {
             items.push({ text: "Đổi loại control", items: this.fieldTypeMenu(cfg) });
         }
         items.push({
@@ -3726,7 +3804,7 @@ var builder = {
             var $popupGroup = $select.find('optgroup[label="Popup"]');
             popups.forEach(function (p) {
                 var text = p.headerText || p.titleText || ("Popup " + p.id);
-                $popupGroup.append('<option value="popup:' + p.id + '">' + text + '</option>');
+                $popupGroup.append($("<option></option>").val("popup:" + p.id).text(text));
             });
         }
 
@@ -3736,7 +3814,7 @@ var builder = {
             var $secGroup = $select.find('optgroup[label="ESS Collapsible Section"]');
             sections.forEach(function (s) {
                 var text = s.caption || s.title || ("Section " + s.id);
-                $secGroup.append('<option value="section:' + s.id + '">' + text + '</option>');
+                $secGroup.append($("<option></option>").val("section:" + s.id).text(text));
             });
         }
 
@@ -4620,6 +4698,14 @@ var builder = {
         this.hideSizeHint();
     },
 
+    // Class chỉ có lúc đang sửa trên canvas (control đang chọn, Splitter đang có con trỏ ở trên); bản sao dùng để xem trước, xuất ảnh
+    // và lưu ảnh xem trước bỏ chúng đi.
+    editingClasses: "canvas-control-selected page-field-selected popup-field-selected popup-selected core-splitter-hover",
+
+    clearEditingState: function ($root) {
+        $root.find("." + this.editingClasses.split(" ").join(", .")).removeClass(this.editingClasses);
+    },
+
 
 
     // đồng bộ controls[] theo DOM (fix bug outline không cập nhật khi xoá field)
@@ -4750,17 +4836,21 @@ var builder = {
         var $overlay = $('<div class="ub-modal-backdrop"></div>');
         var html =
             '<div class="ub-modal ub-modal-confirm">' +
-            '  <div class="ub-modal-header">' + title + '</div>' +
+            '  <div class="ub-modal-header"></div>' +
             '  <div class="ub-modal-body">' +
-            '    <div class="ub-modal-message">' + message + '</div>' +
+            '    <div class="ub-modal-message"></div>' +
             '  </div>' +
             '  <div class="ub-modal-footer">' +
-            '    <button type="button" class="ub-btn ub-btn-secondary ub-btn-cancel">' + cancelText + '</button>' +
-            '    <button type="button" class="ub-btn ub-btn-primary ub-btn-ok">' + okText + '</button>' +
+            '    <button type="button" class="ub-btn ub-btn-secondary ub-btn-cancel"></button>' +
+            '    <button type="button" class="ub-btn ub-btn-primary ub-btn-ok"></button>' +
             '  </div>' +
             '</div>';
 
         var $dlg = $(html);
+        $dlg.find(".ub-modal-header").text(title);
+        $dlg.find(".ub-modal-message").text(message);
+        $dlg.find(".ub-btn-cancel").text(cancelText);
+        $dlg.find(".ub-btn-ok").text(okText);
         $overlay.append($dlg);
         $("body").append($overlay);
 
@@ -4916,12 +5006,16 @@ var builder = {
                         contentType: "application/json; charset=utf-8",
                         data: JSON.stringify(payload),
                         success: function (res) {
-                            var newId = res.d;
-                            cfg.controlDbId = newId;
-                            builder.showToast("Đã lưu control (ID = " + newId + ")", "success");
+                            var saved = res.d || {};
+                            if (!saved.success) {
+                                builder.showToast("Lỗi khi lưu control: " + saved.message, "error");
+                                return;
+                            }
+                            cfg.controlDbId = saved.controlId;
+                            builder.showToast("Đã lưu control (ID = " + saved.controlId + ")", "success");
                         },
                         error: function (xhr) {
-                            builder.showToast("Lỗi khi lưu control: " + xhr.responseText, "error");
+                            builder.showToast("Lỗi khi lưu control: " + builder.ajaxErrorText(xhr), "error");
                         }
                     });
                 });
@@ -5041,8 +5135,7 @@ var builder = {
             scale: 2,
             backgroundColor: "#ffffff",
             onclone: function (doc) {
-                $(doc).find(".canvas-control-selected, .page-field-selected, .popup-field-selected, .popup-selected")
-                    .removeClass("canvas-control-selected page-field-selected popup-field-selected popup-selected");
+                self.clearEditingState($(doc));
                 $(doc).find(".ub-diff-ghost").remove();
                 $(doc).find(".ub-diff-added, .ub-diff-changed, .ub-diff-moved").removeClass("ub-diff-added ub-diff-changed ub-diff-moved");
             }
@@ -5062,7 +5155,12 @@ var builder = {
                     projectId: design.projectId
                 }),
                 success: function (res) {
-                    var newId = res.d;
+                    var saved = res.d || {};
+                    if (!saved.success) {
+                        failed(saved.message);
+                        return;
+                    }
+                    var newId = saved.controlId;
                     self.isSaving = false;
                     $("#hiddenControlId").val(newId);
                     $("#hiddenIsClone").val("0");
@@ -5147,7 +5245,7 @@ var builder = {
                                 self.loadTemplateControls();
                             },
                             error: function (xhr) {
-                                alert("Lỗi xoá template: " + xhr.responseText);
+                                alert("Lỗi xoá template: " + builder.ajaxErrorText(xhr));
                             }
                         });
                     });
@@ -5179,7 +5277,8 @@ var builder = {
                     return;
                 }
 
-                cfg = $.extend(true, {}, cfg);
+                cfg = builder.sanitizeControls([$.extend(true, {}, cfg)])[0];
+                if (!cfg) { alert("Không đọc được control này"); return; }
                 cfg.controlDbId = null;
                 cfg.id = (cfg.type || "ctrl") + "_" + Date.now();
 
@@ -5187,7 +5286,7 @@ var builder = {
                 builder.registerControl(cfg);
             },
             error: function (xhr) {
-                alert("Lỗi load template: " + xhr.responseText);
+                alert("Lỗi load template: " + builder.ajaxErrorText(xhr));
             }
         });
     },
@@ -5255,7 +5354,7 @@ var builder = {
                 if (dto.ControlType === "page") builder.fitOnOpen();
             },
             error: function (xhr) {
-                alert("Lỗi load control: " + xhr.responseText);
+                alert("Lỗi load control: " + builder.ajaxErrorText(xhr));
             }
         });
     },
@@ -5311,6 +5410,7 @@ var builder = {
                 else if (added.type === "tabpage") self.placeInContainer(added, point);
                 else self.dropControl(added, point);
             });
+            fresh.forEach(function (added) { controlSplitter.land(added, true); });
 
             this.refreshJson();
             if (point && fresh.length) {
@@ -5347,23 +5447,6 @@ var builder = {
         this.updateOutline();
         this.updateSaveState();
         this.updateHistoryButtons();
-    },
-
-    saveConfig: function () {
-        var json = JSON.stringify(this.controls || []);
-        $.ajax({
-            url: builderServiceUrl + "/SaveConfig",
-            type: "POST",
-            contentType: "application/json; charset=utf-8",
-            dataType: "json",
-            data: JSON.stringify({ json: json }),
-            success: function () {
-                alert("Đã lưu JSON vào server (Output/generated-config.json)");
-            },
-            error: function (xhr) {
-                alert("Lỗi khi lưu JSON: " + xhr.responseText);
-            }
-        });
     },
 
     loadConfig: function () {
@@ -5413,10 +5496,6 @@ var builder = {
         });
     },
 
-    showPreview: function () {
-        window.location.href = "Preview.aspx";
-    },
-
     downloadJson: function () {
         var json = JSON.stringify(this.controls || [], null, 4);
         var blob = new Blob([json], { type: "application/json" });
@@ -5424,10 +5503,6 @@ var builder = {
         a.href = URL.createObjectURL(blob);
         a.download = "generated-config.json";
         a.click();
-    },
-
-    exportWord: function () {
-        window.location.href = "WordExport.aspx";
     },
 
     // ✅ Xuất hình ảnh (dùng html2canvas) - Clone canvas giống preview để capture đầy đủ
@@ -5567,7 +5642,7 @@ var builder = {
                         
                         // ✅ Render lại toàn bộ innerHTML với text được đặt trực tiếp trong HTML string
                         // ✅ Thử đổi display từ inline-flex sang inline-block để html2canvas render được text
-                        previewTagEl.innerHTML = '<span class="ess-tag-icon" style="margin-right:4px; display:inline-block; vertical-align:middle;"><i class="bi bi-tag-fill"></i></span><span class="ess-tag-text" style="display:inline-block; vertical-align:middle;">' + originalText + '</span>';
+                        previewTagEl.innerHTML = '<span class="ess-tag-icon" style="margin-right:4px; display:inline-block; vertical-align:middle;"><i class="bi bi-tag-fill"></i></span><span class="ess-tag-text" style="display:inline-block; vertical-align:middle;">' + self.escapeHtml(originalText) + '</span>';
                         
                         // Set style cho parent tag - ✅ Đổi từ inline-flex sang inline-block
                         previewTagEl.style.backgroundColor = originalBg;
@@ -6003,9 +6078,9 @@ var builder = {
             overflow: "visible"
         });
 
+        this.clearEditingState($canvasClone);
         $canvasClone.find("*").each(function() {
             var $el = $(this);
-            $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
             $el.removeAttr("data-interact-id");
             $el.find(".group-badge").remove();
             if ($el.hasClass("canvas-control") || $el.hasClass("popup-design") || $el.hasClass("page-field") || $el.hasClass("popup-field")) {
@@ -6258,10 +6333,9 @@ var builder = {
         });
         
         // Loại bỏ các class/attribute tương tác và event handlers
+        this.clearEditingState($canvasClone);
         $canvasClone.find("*").each(function() {
             var $el = $(this);
-            // Xóa các class tương tác
-            $el.removeClass("canvas-control-selected popup-selected popup-field-selected page-field-selected");
             // Xóa các attribute tương tác
             $el.removeAttr("data-interact-id");
             // ✅ Xóa badge group để không xuất hiện trong preview
@@ -6614,7 +6688,7 @@ var builder = {
             return;
         }
 
-        var msg = "Xóa " + $("<span>").text(this.getOutlineLabel(cfg)).html() + "?";
+        var msg = "Xóa " + this.getOutlineLabel(cfg) + "?";
 
         builder.showConfirm({
             title: "Xóa control",

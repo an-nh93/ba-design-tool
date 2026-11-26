@@ -24,7 +24,7 @@ namespace BADesign.Pages
         public string ConnectedDatabase { get; private set; } = "";
         public bool IsMultiDbMode { get; private set; }
         public bool CanEditSettings => UiAuthHelper.HasFeature("Settings");
-        public bool IsGuest => UiAuthHelper.IsAnonymous;
+        public bool CanUseCadenaEmailServer => AppSettings.CanReadEmailServerConfig();
 
         /// <summary>URL to EncryptDecrypt page with current connection token k (for Generate Demo Reset Script).</summary>
         public string EncryptDecryptUrl
@@ -1513,7 +1513,7 @@ WHERE T.IsActiveTransaction = 1";
             }
         }
 
-        /// <summary>Lấy username/email mặc định: guest = empty, logged-in = username từ web login + @cadena.com.sg</summary>
+        /// <summary>Lấy username/email mặc định: username từ web login + @cadena.com.sg</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetCurrentUserName(string k)
@@ -1524,7 +1524,7 @@ WHERE T.IsActiveTransaction = 1";
                 if (info == null || string.IsNullOrEmpty(info.ConnectionString))
                     return new { success = false, message = "Chưa kết nối database." };
                 if (UiAuthHelper.IsAnonymous)
-                    return new { success = true, userName = "", email = "" };
+                    return new { success = false, message = "Cần đăng nhập." };
                 var userName = HttpContext.Current?.Session?["UiUserName"] as string ?? "";
                 var email = string.IsNullOrEmpty(userName) ? "" : (userName.Trim() + "@cadena.com.sg").ToLowerInvariant();
                 return new { success = true, userName = userName, email = email };
@@ -1719,13 +1719,13 @@ ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME";
             return false;
         }
 
-        /// <summary>Lấy email mặc định: guest = empty, logged-in = username@cadena.com.sg</summary>
+        /// <summary>Lấy email mặc định: username từ web login + @domainSuffix (mặc định cadena.com.sg)</summary>
         [WebMethod(EnableSession = true)]
         [ScriptMethod(ResponseFormat = ResponseFormat.Json)]
         public static object GetWindowsUserEmail(string domainSuffix = "cadena.com.sg")
         {
             if (UiAuthHelper.IsAnonymous)
-                return new { success = true, email = "" };
+                return new { success = false, message = "Cần đăng nhập." };
             var userName = HttpContext.Current?.Session?["UiUserName"] as string;
             if (string.IsNullOrEmpty(userName))
                 return new { success = true, email = "" };
@@ -3010,7 +3010,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
             {
                 try
                 {
-                    var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                    var payload = BaJobSecrets.Read(payloadJson);
                     if (payload["email"] != null) emailTrim = (string)payload["email"] ?? "";
                     if (payload["phone"] != null) phoneTrim = (string)payload["phone"] ?? "";
                     bool en, pn;
@@ -3130,7 +3130,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
             int methodHash = 0;
             try
             {
-                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                var payload = BaJobSecrets.Read(payloadJson);
                 connStr = (string)payload["connectionString"];
                 var userIdsArr = payload["userIds"] as Newtonsoft.Json.Linq.JArray;
                 if (userIdsArr != null)
@@ -3193,7 +3193,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
             List<long> userIds = null;
             try
             {
-                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                var payload = BaJobSecrets.Read(payloadJson);
                 connStr = (string)payload["connectionString"];
                 var userIdsArr = payload["userIds"] as Newtonsoft.Json.Linq.JArray;
                 if (userIdsArr != null)
@@ -3256,7 +3256,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
             EmployeeTestDataOptions testDataOptions = null;
             try
             {
-                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                var payload = BaJobSecrets.Read(payloadJson);
                 connStr = (string)payload["connectionString"];
                 if (payload["companyID"] != null && !payload["companyID"].ToString().Equals("")) companyID = (int?)payload["companyID"];
                 var employeeIdsArr = payload["employeeIds"] as Newtonsoft.Json.Linq.JArray;
@@ -3354,7 +3354,7 @@ WHERE c.COLUMN_NAME LIKE N'%Phone%'
             int serverPort = 0;
             try
             {
-                var payload = Newtonsoft.Json.Linq.JObject.Parse(payloadJson);
+                var payload = BaJobSecrets.Read(payloadJson);
                 connStr = (string)payload["connectionString"];
                 if (payload["tenantID"] != null && payload["tenantID"].ToString() != "") tenantID = (int?)payload["tenantID"];
                 if (payload["companyID"] != null && payload["companyID"].ToString() != "") companyID = (int?)payload["companyID"];

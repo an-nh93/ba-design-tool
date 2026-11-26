@@ -77,7 +77,7 @@
         removed.forEach(function (item) {
             var cfg = item.cfg;
             if (cfg.parentId && gone[cfg.parentId]) return;
-            var $host = cfg.parentId ? builder.containerContent(cfg.parentId) : $("#canvas-zoom-inner");
+            var $host = cfg.parentId ? builder.containerContent(cfg.parentId, cfg.paneIndex) : $("#canvas-zoom-inner");
             if (!$host.length) return;
             var ghost = el("div", "ub-diff-ghost", item.label);
             ghost.style.left = (cfg.left || 0) + "px";

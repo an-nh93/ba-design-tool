@@ -4,6 +4,8 @@ Worker chỉ cần khi `Web.config` của site đặt `UseBackgroundWorker=true`
 
 Worker và site dùng chung bộ chạy job (`BaJobRunner` trong `BADesign.dll`) và cùng các khóa `MaxConcurrentJobs`, `WorkerPollIntervalSeconds`. Trước khi chạy bản này phải chạy `Scripts/AddBaJobRunner.sql` trên database của tool. Khi service dừng (`sc stop`, tắt máy), Worker chờ job đang chạy tối đa 15 giây rồi ghi job còn dở là "bị gián đoạn".
 
+Worker đọc chuỗi kết nối trong Payload của job bằng chính `BADesign.dll` nằm cạnh nó. Trước khi bật "Mã hóa dữ liệu nhạy cảm" ở trang Cài đặt, Worker phải là bản mới như site; Worker cũ sẽ chạy job lỗi vì không đọc được giá trị đã mã hóa (`Docs/Project/06-App-Settings.md`, mục Mã hóa dữ liệu nhạy cảm).
+
 ## Log (xem Worker nhận job và lỗi)
 
 Trong **App.config** có thể bật ghi file log:

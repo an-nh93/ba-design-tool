@@ -2,6 +2,7 @@ using System;
 using System.Data.SqlClient;
 using System.Net;
 using System.Text;
+using BADesign.Helpers.Security;
 
 namespace BADesign
 {
@@ -28,7 +29,7 @@ namespace BADesign
                         {
                             var k = r.GetString(0);
                             var v = r.IsDBNull(1) ? "" : (r.GetString(1) ?? "").Trim();
-                            if (k == Key_BotToken) botToken = v;
+                            if (k == Key_BotToken) botToken = BaSecret.Reveal(v).Trim();
                             else if (k == Key_ChatId) chatId = v;
                         }
                     }

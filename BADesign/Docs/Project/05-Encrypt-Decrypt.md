@@ -2,6 +2,8 @@
 
 `Pages/EncryptDecrypt.aspx`. Khớp cơ chế mã hóa Cadena cho dữ liệu nhạy cảm (điện thoại, email, lương), để demo và script reset ra đúng ciphertext mà ứng dụng HR đọc được.
 
+Trang và cả chín page method của trang đòi quyền Encrypt / Decrypt (`HasFeature("EncryptDecrypt")`), vì các hàm này mã hóa và giải mã bằng khóa của Cadena. Hai hàm lấy nhân viên từ HR DB còn cần token kết nối của phiên.
+
 ## Tab mã hóa đơn
 
 - Encrypt một giá trị → ciphertext.

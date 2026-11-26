@@ -4,7 +4,7 @@
 
 ## Connect
 
-Chọn server + database bên Database Tools rồi mở HR Helper với session kết nối đó. Không gõ connection string trên màn hình nếu user không có quyền xem.
+Chọn server + database bên Database Tools rồi mở HR Helper với session kết nối đó. Không gõ connection string trên màn hình nếu user không có quyền xem. Trang cần đăng nhập; token kết nối do Database Tools cấp (xem [03-Database-Tools.md](03-Database-Tools.md), mục Kết nối sang Trợ lý HR).
 
 ## Users
 
@@ -29,6 +29,8 @@ Hộp xác nhận của **Generate and Update** liệt kê nội dung cập nh�
 ## Company
 
 Sửa thông tin công ty demo (email, điện thoại, tên hiển thị) cho môi trường test.
+
+Nút **Cadena Email Server** điền cấu hình mail của Cadena lấy từ App Settings (`AppSettings.aspx/LoadEmailServerConfig`). Nút chỉ hiện, và hàm chỉ trả dữ liệu, cho người có quyền Database Tools hoặc Settings (`AppSettings.CanReadEmailServerConfig`).
 
 ## Other Information
 

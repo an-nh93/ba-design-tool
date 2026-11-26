@@ -13,8 +13,8 @@
     <link rel="stylesheet" href="https://cdn3.devexpress.com/jslib/23.2.5/css/dx.light.css" />
 
     <!-- Custom builder CSS -->
-    <link rel="stylesheet" href="../Content/builder.css?v=20261156" />
-    <link rel="stylesheet" href="../Content/builder-ess.css?v=20261152" />
+    <link rel="stylesheet" href="../Content/builder.css?v=20261175" />
+    <link rel="stylesheet" href="../Content/builder-ess.css?v=20261175" />
     <link rel="stylesheet" href="../Content/builder-core.css?v=20261154" />
     <link rel="stylesheet" href="../Content/style.css" />
 
@@ -34,34 +34,36 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/interact.js/1.10.11/interact.min.js"></script>
 
     <!-- Builder scripts (charset=utf-8 để hiển thị đúng tiếng Việt có dấu) -->
-    <script src="../Scripts/builder/builder.js?v=20261157" charset="utf-8"></script>
+    <script src="../Scripts/builder/builder.js?v=20261173" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-props.js?v=20261146" charset="utf-8"></script>
     <script src="../Scripts/builder/common.js?v=20261140" charset="utf-8"></script>
-    <script src="../Scripts/builder/control-grid.js?v=20261146" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-grid.js?v=20261177" charset="utf-8"></script>
     <script src="../Scripts/builder/control-popup.js?v=20261146" charset="utf-8"></script>
     <script src="../Scripts/builder/control-tree.js?v=20261146" charset="utf-8"></script>
-    <script src="../Scripts/builder/control-field.js?v=20261155" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-splitter.js?v=20261180" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-field.js?v=20261170" charset="utf-8"></script>
     <script src="../Scripts/builder/control-toolbar.js?v=20261146" charset="utf-8"></script>
     <script src="../Scripts/builder/control-tabpage.js?v=20261146" charset="utf-8"></script>
-    <script src="../Scripts/builder/control-grid-ess.js?v=20261146" charset="utf-8"></script>
+    <script src="../Scripts/builder/control-grid-ess.js?v=20261179" charset="utf-8"></script>
     <script src="../Scripts/builder/control-collapsible-section.js?v=20261146" charset="utf-8"></script>
     <script src="../Scripts/builder/control-annotation.js?v=20261156" charset="utf-8"></script>
-    <script src="../Scripts/builder/builder-snippet.js?v=20261140" charset="utf-8"></script>
+    <script src="../Scripts/builder/builder-snippet.js?v=20261177" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-slice.js?v=20261140" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-autolayout.js?v=20261140" charset="utf-8"></script>
-    <script src="../Scripts/builder/builder-import.js?v=20261140" charset="utf-8"></script>
-    <link href="../Content/builder-templates.css?v=20261150" rel="stylesheet" />
+    <script src="../Scripts/builder/builder-import.js?v=20261164" charset="utf-8"></script>
+    <link href="../Content/builder-templates.css?v=20261166" rel="stylesheet" />
     <link href="../Content/builder-features.css?v=20261146" rel="stylesheet" />
-    <script src="../Scripts/builder/builder-capture.js?v=20261150" charset="utf-8"></script>
+    <script src="../Scripts/builder/builder-capture.js?v=20261169" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-drawio.js?v=20261150" charset="utf-8"></script>
-    <script src="../Scripts/builder/builder-templates.js?v=20261151" charset="utf-8"></script>
+    <script src="../Scripts/builder/builder-html.js?v=20261167" charset="utf-8"></script>
+    <script src="../Scripts/builder/builder-templates.js?v=20261172" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-inline-edit.js?v=20261146" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-store.js?v=20261140" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-reference.js?v=20261140" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-draft.js?v=20261140" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-dialog.js?v=20261140" charset="utf-8"></script>
-    <script src="../Scripts/builder/builder-spec.js?v=20261146" charset="utf-8"></script>
-    <script src="../Scripts/builder/builder-versions.js?v=20261140" charset="utf-8"></script>
+    <script src="../Scripts/builder/builder-spec.js?v=20261162" charset="utf-8"></script>
+    <script src="../Scripts/builder/builder-versions.js?v=20261162" charset="utf-8"></script>
     <script src="../Scripts/builder/builder-review.js?v=20261150" charset="utf-8"></script>
     <style>
 /* ========== GLOBAL ========== */
@@ -1697,6 +1699,7 @@ body.ub-pan-active {
                         <div class="tool-item" data-control="toolbar">☰ Toolbar menu</div>
                         <div class="tool-item" data-control="tabpage">📑 Tab page</div>
                         <div class="tool-item" data-control="field-tree" data-ui="core" title="Cây cha - con kiểu Organization Structure của Core. Bấm nút + / - trên cây để đóng hoặc mở một nhánh.">🌳 Tree (cây cha - con)</div>
+                        <div class="tool-item" data-control="field-splitter" data-ui="core" title="Thanh chia vùng kiểu ASPxSplitter của Core. Đổi hướng ngang / dọc và ẩn hiện nút nắm trong phần thuộc tính.">↕ Splitter (thanh chia vùng)</div>
                     </div>
                 </div>
 

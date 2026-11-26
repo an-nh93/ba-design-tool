@@ -1,7 +1,9 @@
 'use strict';
 const assert = require('assert');
 const path = require('path');
-const capture = require(path.resolve(__dirname, '..', '..', '..', 'BADesign', 'Scripts', 'builder', 'builder-capture.js'));
+const builderScripts = path.resolve(__dirname, '..', '..', '..', 'BADesign', 'Scripts', 'builder');
+const capture = require(path.join(builderScripts, 'builder-capture.js'));
+const page = require(path.join(builderScripts, 'builder-capture-page.js'));
 
 let passed = 0;
 const failures = [];
@@ -203,6 +205,34 @@ test('popup children are relative to the popup body', function () {
     assert.strictEqual(controls[1].top, 420 - 100 - 59);
 });
 
+test('popup content that starts above the popup body moves down as one block and the popup grows by that much', function () {
+    const controls = convert('core', [{ t: 'popup', x: 100, y: 100, w: 400, h: 90, title: 'Confirm', children: [
+        { t: 'button', x: 114, y: 114, w: 60, h: 27, text: 'Yes' },
+        { t: 'button', x: 114, y: 150, w: 60, h: 27, text: 'No' },
+        { t: 'group', x: 200, y: 120, w: 180, h: 60, caption: 'G', children: [{ t: 'button', x: 210, y: 140, w: 60, h: 27, text: 'In' }] }
+    ] }]);
+    const lack = 100 + 59 - 114;
+    const yes = controls.filter(function (c) { return c.defaultValue === 'Yes'; })[0];
+    const no = controls.filter(function (c) { return c.defaultValue === 'No'; })[0];
+    const group = controls.filter(function (c) { return c.ftype === 'groupbox'; })[0];
+    const inner = controls.filter(function (c) { return c.defaultValue === 'In'; })[0];
+    assert.strictEqual(controls[0].height, 90 + lack);
+    assert.strictEqual(yes.top, 0);
+    assert.strictEqual(no.top - yes.top, 150 - 114);
+    assert.strictEqual(group.top - yes.top, 120 - 114);
+    assert.strictEqual(inner.top, 140 - 120 - 11);
+});
+
+test('a popup with room above its content keeps its size, and the toolbar docked to it does not count as content', function () {
+    const controls = convert('core', [{ t: 'popup', x: 100, y: 100, w: 400, h: 300, title: 'Edit', children: [
+        { t: 'toolbar', x: 106, y: 132, w: 160, h: 26, buttons: [{ text: 'Save' }, { text: 'Cancel' }] },
+        { t: 'button', x: 114, y: 170, w: 60, h: 27, text: 'Go' }
+    ] }]);
+    assert.strictEqual(controls[0].height, 300);
+    assert.strictEqual(controls[1].top, 32);
+    assert.strictEqual(controls.filter(function (c) { return c.defaultValue === 'Go'; })[0].top, 170 - 100 - 59);
+});
+
 test('toolbar directly inside a popup is docked to the popup, a toolbar inside a group belongs to the group', function () {
     const controls = convert('core', [{
         t: 'popup', x: 300, y: 100, w: 600, h: 400, title: 'Add New', children: [
@@ -223,6 +253,58 @@ test('toolbar directly inside a popup is docked to the popup, a toolbar inside a
     assert.strictEqual(controls[3].showBackground, true);
     assert.strictEqual(controls[3].left, 330 - 320 - 5);
     assert.strictEqual(controls[3].top, 200 - 180 - 11);
+});
+
+function headedPopup(head, children) {
+    return convert('core', [{ t: 'popup', x: 100, y: 100, w: 620, h: 436, head: head, title: 'Update', children: children }]);
+}
+function byText(controls, text) {
+    return controls.filter(function (c) { return c.defaultValue === text; })[0];
+}
+
+test('a popup whose own head is taller than the popup of the Builder puts the head toolbar on the strip and keeps the gap below the head', function () {
+    const controls = headedPopup(80, [
+        { t: 'toolbar', x: 112, y: 150, w: 136, h: 23, buttons: [{ text: 'OK' }, { text: 'Cancel' }] },
+        { t: 'button', x: 124, y: 200, w: 60, h: 27, text: 'Go' }
+    ]);
+    const toolbar = controls.filter(function (c) { return c.type === 'toolbar'; })[0];
+    assert.strictEqual(toolbar.dock, 'popup');
+    assert.strictEqual(toolbar.left, 12);
+    assert.strictEqual(toolbar.top, 32);
+    assert.strictEqual(byText(controls, 'Go').top, 200 - 100 - 80);
+    assert.strictEqual(controls[0].height, 436 - (80 - 59));
+});
+
+test('a popup whose own head is shorter moves its content down by the difference and grows by that much', function () {
+    const controls = headedPopup(44, [{ t: 'button', x: 124, y: 160, w: 60, h: 27, text: 'Go' }]);
+    assert.strictEqual(byText(controls, 'Go').top, 160 - 100 - 44);
+    assert.strictEqual(controls[0].height, 436 + (59 - 44));
+});
+
+test('a popup without a head of its own keeps the distance from its top edge to the content', function () {
+    const controls = headedPopup(0, [{ t: 'button', x: 124, y: 114, w: 60, h: 27, text: 'Go' }]);
+    assert.strictEqual(byText(controls, 'Go').top, 14);
+    assert.strictEqual(controls[0].height, 436 + 59);
+});
+
+test('a toolbar below the head of such a popup moves with the content', function () {
+    const controls = headedPopup(44, [
+        { t: 'button', x: 124, y: 160, w: 60, h: 27, text: 'Go' },
+        { t: 'toolbar', x: 112, y: 480, w: 136, h: 23, buttons: [{ text: 'Save' }, { text: 'Close' }] }
+    ]);
+    const toolbar = controls.filter(function (c) { return c.type === 'toolbar'; })[0];
+    assert.strictEqual(toolbar.dock, 'popup');
+    assert.strictEqual(toolbar.top, 480 - 100 + (59 - 44));
+});
+
+test('a head that reaches below the first content of the popup is cut back to that content, and a head outside the popup is brought inside', function () {
+    const low = headedPopup(200, [{ t: 'button', x: 124, y: 150, w: 60, h: 27, text: 'Go' }]);
+    assert.strictEqual(byText(low, 'Go').top, 0);
+    assert.strictEqual(low[0].height, 436 + (59 - 50));
+    const node = capture.normalize(screen('core', [{ t: 'popup', x: 0, y: 0, w: 300, h: 200, head: 9999, children: [{ t: 'label', x: 5, y: 150, w: 30, h: 10, text: 'a' }] }])).screen.nodes[0];
+    assert.strictEqual(node.head, 200);
+    const none = capture.normalize(screen('core', [{ t: 'popup', x: 0, y: 0, w: 300, h: 200, children: [{ t: 'label', x: 5, y: 150, w: 30, h: 10, text: 'a' }] }])).screen.nodes[0];
+    assert.strictEqual(none.head, undefined);
 });
 
 test('core grid inside a group box in a popup belongs to the group box', function () {
@@ -260,6 +342,17 @@ test('core grid inside a section of a tab belongs to the section and to that tab
     assert.strictEqual(grid.sampleData.length, 4);
     assert.strictEqual(grid.sampleData[0].Code, 'Code 1');
     assert.strictEqual(grid.allowGrouping, false);
+});
+
+test('an ess section inside a tab belongs to that tab, like every other control of the tab', function () {
+    const controls = convert('ess', [{
+        t: 'tabs', x: 0, y: 100, w: 800, h: 400, tabs: ['General', 'Shift'], active: 0, children: [
+            { t: 'section', tab: 1, x: 10, y: 140, w: 780, h: 200, caption: 'Shift', children: [{ t: 'label', x: 30, y: 200, w: 50, h: 18, text: 'A' }] }
+        ]
+    }]);
+    const tabpage = controls.filter(function (c) { return c.type === 'tabpage'; })[0];
+    const section = controls.filter(function (c) { return c.type === 'collapsible-section'; })[0];
+    assert.deepStrictEqual([section.tabPageId, section.tabIndex], [tabpage.id, 1]);
 });
 
 test('grid header options come from the capture', function () {
@@ -341,6 +434,16 @@ test('fields inside a group inside a tab keep both links', function () {
     assert.strictEqual(controls[2].tabPageId, controls[0].id);
 });
 
+test('a grid column without a caption gets no sample text of its own, the other columns keep theirs', function () {
+    const columns = [{ caption: '', w: 50 }, { caption: 'Employee ID', w: 120 }];
+    const core = convert('core', [{ t: 'grid', x: 10, y: 50, w: 600, h: 200, rows: 2, columns: columns, actions: [], toolbar: [] }])[0];
+    assert.deepStrictEqual(core.sampleData, [{ Col1: '', EmployeeID: 'EmployeeID 1' }, { Col1: '', EmployeeID: 'EmployeeID 2' }]);
+    assert.strictEqual(core.columns[0].caption, '');
+    const ess = convert('ess', [{ t: 'grid', x: 10, y: 50, w: 600, h: 200, rows: 2, columns: columns, actions: [], toolbar: [] }])[0];
+    assert.strictEqual(ess.columns[0].caption, '');
+    assert.strictEqual(ess.columns[0].key, 'Col1');
+});
+
 test('core grid keeps columns, row actions, toolbar and pager', function () {
     const c = convert('core', [{
         t: 'grid', x: 10, y: 50, w: 900, h: 300, title: 'Policies', filterRow: true, pager: true, checkbox: true,
@@ -392,6 +495,23 @@ test('an ess grid taller than captured grows its section and pushes the next sec
     assert.strictEqual(controls[1].height, 73 + 19 + 32);
     assert.strictEqual(controls[2].caption, 'Second');
     assert.strictEqual(controls[2].top, 130 + growth + 20);
+});
+
+test('a control on the header of an ess section moves below the header with the rest of the content, and the section grows by that much', function () {
+    const controls = convert('ess', [
+        { t: 'section', x: 0, y: 0, w: 900, h: 200, caption: 'Orders', children: [
+            { t: 'toolbar', x: 700, y: 6, w: 180, h: 28, buttons: [{ text: 'Add' }, { text: 'Delete' }] },
+            { t: 'label', x: 20, y: 60, w: 50, h: 18, text: 'A' }
+        ] },
+        { t: 'section', x: 0, y: 210, w: 900, h: 52, caption: 'Second', children: [] }
+    ]);
+    const lack = 52 - 6;
+    const toolbar = controls.filter(function (c) { return c.type === 'toolbar'; })[0];
+    const label = controls.filter(function (c) { return c.ftype === 'label'; })[0];
+    assert.strictEqual(controls[0].height, 200 + lack);
+    assert.strictEqual(toolbar.top, 0);
+    assert.strictEqual(label.top, 60 + lack - 5 - 52);
+    assert.strictEqual(controls.filter(function (c) { return c.caption === 'Second'; })[0].top, 210 + lack + 20);
 });
 
 test('ess button keeps the captured face size and an empty button gets a placeholder', function () {
@@ -456,6 +576,38 @@ test('root controls never overlap the rulers', function () {
         assert.ok(c.left >= 20, 'left ' + c.left);
         assert.ok(c.top >= 20, 'top ' + c.top);
     });
+});
+
+test('controls at the edge of a screen keep their distances: the screen moves as a whole', function () {
+    const buttons = convert('ess', [{ t: 'button', x: 0, y: 0, w: 60, h: 24, text: 'Submit' }, { t: 'button', x: 64, y: 0, w: 60, h: 24, text: 'Cancel' }]);
+    assert.strictEqual(buttons[1].left - buttons[0].left, 64);
+    assert.deepStrictEqual([buttons[0].left, buttons[0].top], [20, 20]);
+
+    const row = convert('core', [{ t: 'label', x: 0, y: 3, w: 40, h: 18, text: 'Note' }, { t: 'text', x: 100, y: 0, w: 100, h: 22 }]);
+    assert.strictEqual(row[0].top - (row[1].top + capture.METRICS.core.editorTop), 3);
+    assert.strictEqual(row[1].top, 20);
+
+    const form = convert('core', [
+        { t: 'text', x: 100, y: 0, w: 100, h: 22, caption: 'Code', labelX: 0 },
+        { t: 'text', x: 100, y: 30, w: 100, h: 22, caption: 'Salary Calculation Percentage', labelX: 0 }
+    ]);
+    assert.deepStrictEqual(form.map(function (c) { return c.labelWidth; }), [92, 152]);
+    assert.strictEqual(form[0].left + form[0].labelWidth, form[1].left + form[1].labelWidth);
+    assert.deepStrictEqual(form.map(function (c) { return c.left; }), [80, 20]);
+});
+
+test('a screen that keeps the margin is not moved, and a tab member at the edge moves with its tab page', function () {
+    const inside = convert('ess', [{ t: 'button', x: 7, y: 6, w: 60, h: 24, text: 'Submit' }, { t: 'label', x: 200, y: 40, w: 40, h: 16, text: 'Note' }]);
+    assert.deepStrictEqual(inside.map(function (c) { return [c.left, c.top]; }), [[20, 20], [200 - 7 + 20, 40 - 5 + 20]]);
+
+    const tabbed = convert('ess', [{
+        t: 'tabs', x: 0, y: 0, w: 400, h: 200, tabs: ['One'], active: 0,
+        children: [{ t: 'button', x: 0, y: 40, w: 60, h: 24, text: 'Add' }]
+    }]);
+    assert.deepStrictEqual(tabbed.map(function (c) { return c.type === 'tabpage' ? 'tabpage' : c.ftype; }), ['tabpage', 'button']);
+    assert.strictEqual(tabbed[1].left - tabbed[0].left, -7);
+    assert.strictEqual(tabbed[1].top - tabbed[0].top, 40 - 6);
+    assert.deepStrictEqual([tabbed[1].left, tabbed[0].top], [20, 20]);
 });
 
 test('convert throws a clear error for invalid input', function () {
@@ -524,7 +676,6 @@ test('a bold label keeps the bold flag', function () {
 });
 
 test('captures of several tabs merge into one screen', function () {
-    const page = require(path.resolve(__dirname, '..', '..', '..', 'BADesign', 'Scripts', 'builder', 'builder-capture-page.js'));
     function tabScreen(active, child) {
         return screen('core', [
             { t: 'grid', x: 0, y: 0, w: 800, h: 100, columns: [{ caption: 'Code', w: 100 }] },
@@ -693,6 +844,526 @@ test('a tree is drawn in the outline and counted in the summary', function () {
     const shapes = capture.outline(data).shapes;
     assert.deepStrictEqual(shapes, [['g', 10, 20, 300, 200]]);
     assert.strictEqual(capture.summarize(data).counts.total, 1);
+});
+
+function byText(controls, text) {
+    return controls.filter(function (c) { return c.defaultValue === text; })[0];
+}
+function firstPane(block) {
+    return capture.SPLIT.first(capture.SPLIT.room(block.splitOrientation === 'vertical' ? block.width : block.height), block.splitRatio);
+}
+function splitterOf(controls) {
+    return controls.filter(function (c) { return c.ftype === 'splitter'; })[0];
+}
+
+test('a splitter becomes a Splitter block and its two panes hold the controls', function () {
+    const controls = convert('core', [
+        { t: 'splitter', x: 0, y: 0, w: 800, h: 400, vertical: true, split: 265, bar: 6, children: [
+            { t: 'tree', pane: 0, x: 0, y: 0, w: 265, h: 400, check: 'none', items: [{ text: 'A', level: 0 }] },
+            { t: 'label', pane: 1, x: 280, y: 10, w: 60, h: 18, text: 'Right' }
+        ] }
+    ]);
+    const thickness = capture.METRICS.core.splitter;
+    const block = splitterOf(controls);
+    assert.strictEqual(block.type, 'field');
+    assert.strictEqual(block.uiMode, 'core');
+    assert.strictEqual(block.splitOrientation, 'vertical');
+    assert.strictEqual('splitGrip' in block, false);
+    assert.strictEqual(block.caption, '');
+    assert.strictEqual(block.labelWidth, 0);
+    assert.strictEqual(block.zIndex, 0);
+    assert.strictEqual(block.parentId, null);
+    assert.strictEqual(block.paneIndex, undefined);
+    assert.deepStrictEqual([block.left, block.top, block.width, block.height], [20, 20, 800, 400]);
+    assert.strictEqual(firstPane(block), 265);
+    const tree = controls.filter(function (c) { return c.ftype === 'tree'; })[0];
+    assert.deepStrictEqual([tree.parentId, tree.paneIndex, tree.left, tree.top], [block.id, 0, 0, 0]);
+    const right = byText(controls, 'Right');
+    assert.deepStrictEqual([right.parentId, right.paneIndex, right.left, right.top], [block.id, 1, 280 - 265 - thickness, 10]);
+});
+
+test('a splitter whose bar is hidden on the page gets the bar thickness and the lower pane keeps its content', function () {
+    const result = capture.convert(screen('core', [
+        { t: 'splitter', x: 0, y: 0, w: 800, h: 310, split: 110, bar: 0, grip: false, children: [
+            { t: 'grid', pane: 0, x: 0, y: 0, w: 800, h: 100, rows: 5, columns: [{ caption: 'Code', w: 80 }], actions: [], toolbar: [] },
+            { t: 'tabs', pane: 1, x: 0, y: 110, w: 800, h: 200, tabs: ['Detail'], active: 0, children: [{ t: 'label', x: 10, y: 150, w: 60, h: 18, text: 'Inside' }] }
+        ] },
+        { t: 'label', x: 0, y: 320, w: 60, h: 18, text: 'Below' }
+    ], { height: 338 }), { idSeed: 'T' });
+    const gridGrowth = 22 + 35 + 5 * 35 - 100;
+    const thickness = capture.METRICS.core.splitter;
+    const block = splitterOf(result.controls);
+    const grid = result.controls.filter(function (c) { return c.type === 'grid'; })[0];
+    const tabpage = result.controls.filter(function (c) { return c.type === 'tabpage'; })[0];
+    const inside = byText(result.controls, 'Inside');
+    const below = byText(result.controls, 'Below');
+    assert.strictEqual(block.splitOrientation, 'horizontal');
+    assert.strictEqual('splitGrip' in block, false);
+    assert.deepStrictEqual([block.left, block.top, block.width, block.height], [20, 20, 800, 310 + gridGrowth + thickness]);
+    assert.strictEqual(firstPane(block), 110 + gridGrowth);
+    assert.deepStrictEqual([grid.parentId, grid.paneIndex, grid.left, grid.top], [block.id, 0, 0, 0]);
+    assert.deepStrictEqual([tabpage.parentId, tabpage.paneIndex, tabpage.left, tabpage.top, tabpage.height], [block.id, 1, 0, 0, 200]);
+    assert.deepStrictEqual([inside.parentId, inside.paneIndex, inside.tabPageId, inside.tabIndex, inside.left, inside.top], [block.id, 1, tabpage.id, 0, 10, 40]);
+    assert.deepStrictEqual([below.parentId, below.paneIndex, below.top], [null, undefined, 20 + 320 + gridGrowth + thickness]);
+    assert.strictEqual(result.screen.height, 338 + gridGrowth + thickness);
+    assert.strictEqual(result.screen.width, 1000);
+});
+
+test('a vertical splitter hidden on the page moves the right pane by the bar thickness', function () {
+    const result = capture.convert(screen('core', [
+        { t: 'splitter', x: 0, y: 0, w: 325, h: 400, vertical: true, split: 265, bar: 0, children: [
+            { t: 'tree', pane: 0, x: 0, y: 0, w: 265, h: 400, check: 'none', items: [{ text: 'A', level: 0 }] },
+            { t: 'label', pane: 1, x: 265, y: 10, w: 60, h: 18, text: 'Right' }
+        ] },
+        { t: 'label', x: 100, y: 420, w: 60, h: 18, text: 'Under' }
+    ], { width: 325, height: 438 }), { idSeed: 'T' });
+    const thickness = capture.METRICS.core.splitter;
+    const block = splitterOf(result.controls);
+    const right = byText(result.controls, 'Right');
+    assert.strictEqual(block.splitOrientation, 'vertical');
+    assert.deepStrictEqual([block.left, block.top, block.width, block.height], [20, 20, 325 + thickness, 400]);
+    assert.strictEqual(firstPane(block), 265);
+    assert.deepStrictEqual([right.parentId, right.paneIndex, right.left, right.top], [block.id, 1, 0, 10]);
+    assert.strictEqual(byText(result.controls, 'Under').left, 120);
+    assert.strictEqual(byText(result.controls, 'Under').top, 440);
+    assert.strictEqual(result.screen.width, 325 + thickness);
+    assert.strictEqual(result.screen.height, 438);
+});
+
+test('a splitter inside a group grows the group and moves what follows the group', function () {
+    const controls = convert('core', [
+        { t: 'group', x: 0, y: 0, w: 400, h: 200, caption: 'G', children: [
+            { t: 'splitter', x: 5, y: 11, w: 390, h: 180, split: 89, bar: 0, children: [
+                { t: 'label', pane: 0, x: 10, y: 20, w: 60, h: 18, text: 'Top' },
+                { t: 'label', pane: 1, x: 10, y: 100, w: 60, h: 18, text: 'Bottom' }
+            ] }
+        ] },
+        { t: 'label', x: 0, y: 210, w: 60, h: 18, text: 'After' }
+    ]);
+    const thickness = capture.METRICS.core.splitter;
+    const group = controls.filter(function (c) { return c.ftype === 'groupbox'; })[0];
+    const block = splitterOf(controls);
+    const top = byText(controls, 'Top'), bottom = byText(controls, 'Bottom');
+    assert.strictEqual(group.height, 200 + thickness);
+    assert.strictEqual(block.parentId, group.id);
+    assert.deepStrictEqual([block.left, block.top, block.width, block.height], [0, 0, 390, 180 + thickness]);
+    assert.strictEqual(firstPane(block), 89);
+    assert.deepStrictEqual([top.parentId, top.paneIndex, top.left, top.top], [block.id, 0, 5, 9]);
+    assert.deepStrictEqual([bottom.parentId, bottom.paneIndex, bottom.left, bottom.top], [block.id, 1, 5, 0]);
+    assert.strictEqual(byText(controls, 'After').top, 20 + 210 + thickness);
+});
+
+test('a splitter inside a pane of another splitter keeps both levels', function () {
+    const controls = convert('core', [
+        { t: 'splitter', x: 0, y: 0, w: 900, h: 500, vertical: true, split: 250, bar: 5, children: [
+            { t: 'tree', pane: 0, x: 0, y: 0, w: 250, h: 500, check: 'none', items: [{ text: 'A', level: 0 }] },
+            { t: 'splitter', pane: 1, x: 255, y: 0, w: 645, h: 500, split: 100, bar: 0, children: [
+                { t: 'label', pane: 0, x: 265, y: 10, w: 60, h: 18, text: 'Filter' },
+                { t: 'grid', pane: 1, x: 255, y: 100, w: 645, h: 400, rows: 2, columns: [{ caption: 'Code', w: 80 }], actions: [], toolbar: [] }
+            ] }
+        ] }
+    ]);
+    const thickness = capture.METRICS.core.splitter;
+    const blocks = controls.filter(function (c) { return c.ftype === 'splitter'; });
+    const outer = blocks[0], inner = blocks[1];
+    const filter = byText(controls, 'Filter');
+    const grid = controls.filter(function (c) { return c.type === 'grid'; })[0];
+    assert.deepStrictEqual([outer.splitOrientation, outer.left, outer.top, outer.width, outer.height], ['vertical', 20, 20, 900 + thickness - 5, 500 + thickness]);
+    assert.strictEqual(firstPane(outer), 250);
+    assert.deepStrictEqual([inner.splitOrientation, inner.parentId, inner.paneIndex, inner.left, inner.top, inner.width, inner.height],
+        ['horizontal', outer.id, 1, 0, 0, 645, 500 + thickness]);
+    assert.strictEqual(firstPane(inner), 100);
+    assert.deepStrictEqual([filter.parentId, filter.paneIndex, filter.left, filter.top], [inner.id, 0, 10, 10]);
+    assert.deepStrictEqual([grid.parentId, grid.paneIndex, grid.left, grid.top], [inner.id, 1, 0, 0]);
+});
+
+test('a pane grows to hold a control that sticks out of it on the page', function () {
+    const result = capture.convert(screen('core', [
+        { t: 'splitter', x: 0, y: 0, w: 800, h: 300, split: 100, bar: 0, children: [
+            { t: 'label', pane: 0, x: 10, y: 10, w: 60, h: 18, text: 'Top' },
+            { t: 'tabs', pane: 1, x: 0, y: 100, w: 800, h: 203, tabs: ['Detail'], active: 0, children: [] }
+        ] },
+        { t: 'label', x: 0, y: 310, w: 60, h: 18, text: 'Below' }
+    ], { height: 328 }), { idSeed: 'T' });
+    const thickness = capture.METRICS.core.splitter;
+    const block = splitterOf(result.controls);
+    const tabpage = result.controls.filter(function (c) { return c.type === 'tabpage'; })[0];
+    assert.deepStrictEqual([block.width, block.height], [800, 300 + thickness + 3]);
+    assert.strictEqual(firstPane(block), 100);
+    assert.deepStrictEqual([tabpage.paneIndex, tabpage.top, tabpage.height], [1, 0, 203]);
+    assert.strictEqual(block.height - thickness - firstPane(block), tabpage.height);
+    assert.strictEqual(byText(result.controls, 'Below').top, 20 + 310 + thickness + 3);
+    assert.strictEqual(result.screen.height, 328 + thickness + 3);
+});
+
+test('a control that sticks out of the first pane makes that pane longer and moves the second pane', function () {
+    const controls = convert('core', [
+        { t: 'splitter', x: 0, y: 0, w: 800, h: 300, split: 100, bar: 0, children: [
+            { t: 'label', pane: 0, x: 10, y: 90, w: 60, h: 18, text: 'Top' },
+            { t: 'label', pane: 1, x: 10, y: 120, w: 60, h: 18, text: 'Bottom' }
+        ] }
+    ]);
+    const thickness = capture.METRICS.core.splitter;
+    const block = splitterOf(controls);
+    const top = byText(controls, 'Top'), bottom = byText(controls, 'Bottom');
+    assert.strictEqual(firstPane(block), 108);
+    assert.strictEqual(block.height, 300 + 8 + thickness);
+    assert.deepStrictEqual([top.paneIndex, top.top], [0, 90]);
+    assert.deepStrictEqual([bottom.paneIndex, bottom.top], [1, 20]);
+});
+
+test('a control taller than a vertical splitter makes the whole block taller', function () {
+    const controls = convert('core', [
+        { t: 'splitter', x: 0, y: 0, w: 400, h: 200, vertical: true, split: 150, bar: 6, children: [
+            { t: 'label', pane: 0, x: 10, y: 190, w: 60, h: 18, text: 'Left' },
+            { t: 'label', pane: 1, x: 170, y: 10, w: 60, h: 18, text: 'Right' }
+        ] }
+    ]);
+    const block = splitterOf(controls);
+    assert.deepStrictEqual([block.width, block.height], [400, 208]);
+    assert.strictEqual(firstPane(block), 150);
+    assert.deepStrictEqual([byText(controls, 'Left').top, byText(controls, 'Right').left], [190, 170 - 150 - capture.METRICS.core.splitter]);
+});
+
+test('a screen without a splitter keeps every position', function () {
+    const nodes = [
+        { t: 'text', x: 150, y: 10, w: 200, h: 20, caption: 'Code', labelX: 20 },
+        { t: 'group', x: 400, y: 0, w: 300, h: 100, caption: 'G', children: [{ t: 'checkbox', x: 410, y: 30, w: 80, h: 18, caption: 'Active' }] },
+        { t: 'button', x: 720, y: 10, w: 80, h: 24, text: 'Go' }
+    ];
+    const result = capture.convert(screen('core', nodes, { width: 800, height: 100 }), { idSeed: 'T' });
+    assert.strictEqual(result.screen.width, 800);
+    assert.strictEqual(result.screen.height, 100);
+    assert.strictEqual(byText(result.controls, 'Go').left, 740);
+    assert.strictEqual(result.controls.filter(function (c) { return c.ftype === 'groupbox'; })[0].left, 420);
+    assert.strictEqual(result.controls.filter(function (c) { return c.ftype === 'checkbox'; })[0].left, 410 - 400 - 5);
+    result.controls.forEach(function (c) { assert.strictEqual(c.paneIndex, undefined); });
+});
+
+test('a splitter keeps only its own values and wrong values fall back', function () {
+    const nodes = capture.normalize(screen('core', [
+        { t: 'splitter', x: 0, y: 50, w: 300, h: 200, vertical: 'yes', grip: 0, split: 'abc', bar: -3, caption: '<b>', onclick: 'x', children: 'none' },
+        { t: 'splitter', x: 50, y: 0, w: 100, h: 80, vertical: true, grip: false, split: 5000, bar: 40, children: [
+            { t: 'label', pane: 7, x: 60, y: 10, w: 20, h: 10, text: 'A' },
+            { t: 'label', pane: '1', x: 60, y: 30, w: 20, h: 10, text: 'B' },
+            { t: 'label', pane: 1, x: 60, y: 50, w: 20, h: 10, text: 'C' },
+            null,
+            { t: 'bogus' }
+        ] },
+        { t: 'splitter', x: 'a', y: null, w: 'b', h: {} },
+        { t: 'label', pane: 1, x: 0, y: 300, w: 20, h: 10, text: 'Outside' }
+    ])).screen.nodes;
+    assert.deepStrictEqual(nodes[0], { t: 'splitter', x: 0, y: 50, w: 300, h: 200, vertical: false, bar: 0, split: 100, children: [] });
+    assert.deepStrictEqual(nodes[1], { t: 'splitter', x: 50, y: 0, w: 100, h: 80, vertical: true, bar: 6, split: 94, children: [
+        { t: 'label', x: 60, y: 10, w: 20, h: 10, text: 'A', pane: 0 },
+        { t: 'label', x: 60, y: 30, w: 20, h: 10, text: 'B', pane: 0 },
+        { t: 'label', x: 60, y: 50, w: 20, h: 10, text: 'C', pane: 1 }
+    ] });
+    assert.deepStrictEqual(nodes[2], { t: 'splitter', x: 0, y: 0, w: 1, h: 1, vertical: false, bar: 0, split: 1, children: [] });
+    assert.strictEqual(nodes[3].pane, undefined);
+
+    const controls = convert('core', nodes);
+    const blocks = controls.filter(function (c) { return c.ftype === 'splitter'; });
+    assert.strictEqual(blocks.length, 3);
+    blocks.forEach(function (c) {
+        assert.ok(Number.isInteger(c.left) && Number.isInteger(c.top) && c.width >= 1 && c.height >= 1);
+        assert.ok(typeof c.splitRatio === 'number' && isFinite(c.splitRatio) && c.splitRatio >= 0 && c.splitRatio <= 100);
+    });
+    assert.deepStrictEqual(controls.filter(function (c) { return c.parentId === blocks[1].id; }).map(function (c) { return c.defaultValue + c.paneIndex; }), ['A0', 'B0', 'C1']);
+    assert.strictEqual(byText(controls, 'Outside').paneIndex, undefined);
+});
+
+test('a splitter draws its bar in the outline and counts as a container in the summary', function () {
+    const data = screen('core', [
+        { t: 'splitter', x: 0, y: 0, w: 400, h: 300, split: 100, bar: 0, children: [
+            { t: 'label', pane: 0, x: 10, y: 10, w: 50, h: 18, text: 'Top' },
+            { t: 'splitter', pane: 1, x: 0, y: 100, w: 400, h: 200, vertical: true, split: 200, bar: 6, children: [
+                { t: 'button', pane: 1, x: 220, y: 120, w: 60, h: 22, text: 'Go' }
+            ] }
+        ] }
+    ]);
+    assert.deepStrictEqual(capture.outline(data).shapes, [['i', 0, 100, 400, 6], ['l', 10, 15, 50, 8], ['i', 200, 100, 6, 200], ['b', 220, 120, 60, 22]]);
+    assert.deepStrictEqual(capture.summarize(data).counts, { total: 4, fields: 0, grids: 0, buttons: 1, containers: 2 });
+});
+
+test('rows captured from a core grid become its sample rows', function () {
+    const grid = convert('core', [{
+        t: 'grid', x: 0, y: 0, w: 600, h: 200, rows: 3,
+        columns: [{ caption: 'Code', w: 100 }, { caption: 'Active', w: 60, type: 'checkbox' }, { caption: 'Note', w: 200 }],
+        data: [['WH01', 'x', 'Main <b>store</b>'], ['WH02', '', ''], ['WH03']]
+    }]).filter(function (c) { return c.type === 'grid'; })[0];
+    assert.deepStrictEqual(grid.sampleData, [
+        { Code: 'WH01', Active: true, Note: 'Main ＜b＞store＜/b＞' },
+        { Code: 'WH02', Active: false, Note: '' },
+        { Code: 'WH03', Active: false, Note: '' }
+    ]);
+});
+
+test('captured rows set the row count and are limited in rows, cells and text', function () {
+    const rows = [];
+    for (let i = 0; i < 25; i++) rows.push(['R' + i, 'y'.repeat(200), 'extra', 'more']);
+    const node = capture.normalize(screen('core', [{
+        t: 'grid', x: 0, y: 0, w: 300, h: 100, rows: 2, columns: [{ caption: 'Code', w: 80 }, { caption: 'Name', w: 120 }], data: rows
+    }])).screen.nodes[0];
+    assert.strictEqual(node.data.length, capture.LIMITS.gridRows);
+    assert.strictEqual(node.rows, capture.LIMITS.gridRows);
+    node.data.forEach(function (row) {
+        assert.strictEqual(row.length, 2);
+        assert.strictEqual(row[1].length, capture.LIMITS.cell);
+    });
+
+    const controls = convert('core', [
+        { t: 'grid', x: 0, y: 0, w: 600, h: 100, rows: 1, columns: [{ caption: 'Code', w: 80 }], actions: [], toolbar: [], data: [['A'], ['B'], ['C'], ['D']] },
+        { t: 'label', x: 0, y: 120, w: 60, h: 18, text: 'Below' }
+    ]);
+    assert.strictEqual(controls[0].sampleData.length, 4);
+    assert.strictEqual(byText(controls, 'Below').top, 20 + 120 + (22 + 35 + 4 * 35 - 100));
+});
+
+test('captured rows of the wrong shape never break the conversion', function () {
+    ['text', 5, {}, [], [null], [5, 'x'], [[null, 7, { a: 1 }, ['n']]], [{ length: 2 }], [['x'.repeat(5000)]]].forEach(function (data) {
+        const grid = convert('core', [{
+            t: 'grid', x: 0, y: 0, w: 300, h: 100, rows: 2, columns: [{ caption: 'Code', w: 80 }, { caption: 'Paid', w: 60, type: 'checkbox' }], data: data
+        }])[0];
+        assert.ok(grid.sampleData.length >= 1, 'rows for ' + JSON.stringify(data).slice(0, 30));
+        grid.sampleData.forEach(function (row) {
+            assert.strictEqual(typeof row.Code, 'string');
+            assert.ok(row.Code.length <= capture.LIMITS.cell);
+            assert.strictEqual(typeof row.Paid, 'boolean');
+        });
+    });
+});
+
+test('an ESS grid does not take captured rows', function () {
+    const nodes = [{ t: 'grid', x: 0, y: 0, w: 500, h: 200, rows: 2, columns: [{ caption: 'Code', w: 120 }], data: [['A'], ['B'], ['C']] }];
+    assert.strictEqual(capture.normalize(screen('ess', nodes)).screen.nodes[0].data, undefined);
+    const grid = convert('ess', nodes).filter(function (c) { return c.type === 'ess-grid'; })[0];
+    assert.strictEqual(grid.sampleRowCount, 2);
+    assert.strictEqual(grid.sampleData, undefined);
+});
+
+function masterDetail() {
+    return screen('core', [
+        { t: 'toolbar', x: 0, y: 0, w: 300, h: 25, buttons: [{ text: 'Add' }, { text: 'Delete' }] },
+        { t: 'text', x: 500, y: 2, w: 150, h: 20, caption: 'Search', labelX: 440 },
+        { t: 'splitter', x: 0, y: 30, w: 1000, h: 500, split: 200, bar: 0, children: [
+            { t: 'grid', pane: 0, x: 0, y: 30, w: 1000, h: 200, title: 'Warehouse', rows: 2,
+                columns: [{ caption: 'Code', w: 100 }, { caption: 'Name', w: 200 }, { caption: 'Active', w: 60, type: 'checkbox' }, { caption: 'Note', w: 200 }],
+                data: [['WH01', 'Main', 'x', ''], ['WH02', 'Spare', '', '']] },
+            { t: 'tabs', pane: 1, x: 0, y: 230, w: 1000, h: 300, tabs: ['General', 'Stock', 'Empty', 'History'], active: 0, children: [
+                { t: 'section', tab: 0, x: 10, y: 270, w: 980, h: 100, caption: 'Address', children: [{ t: 'text', x: 150, y: 310, w: 200, h: 20, caption: 'Street', labelX: 30 }] },
+                { t: 'grid', tab: 1, x: 10, y: 270, w: 980, h: 150, rows: 1, columns: [{ caption: 'Item', w: 100 }, { caption: 'Qty', w: 80 }], data: [['Bolt', '4']] },
+                { t: 'button', tab: 1, x: 10, y: 430, w: 80, h: 22, text: 'Recount' },
+                { t: 'tree', tab: 3, x: 10, y: 270, w: 300, h: 200, check: 'none', items: [{ text: 'Root', level: 0 }] }
+            ] }
+        ] },
+        { t: 'group', x: 0, y: 540, w: 400, h: 60, caption: 'Remark', children: [{ t: 'memo', x: 10, y: 560, w: 380, h: 30 }] }
+    ], { height: 600 });
+}
+function gridsOf(nodes, found) {
+    nodes.forEach(function (n) {
+        if (n.t === 'grid') found.push(n);
+        if (n.children) gridsOf(n.children, found);
+    });
+    return found;
+}
+
+test('the parts of a screen are its grids, trees, tabs with content, top boxes and the loose controls', function () {
+    const parts = page.__baParts(masterDetail());
+    assert.deepStrictEqual(parts.map(function (p) { return p.id; }), [0, 1, 2, 3, 4, 5, 6, 7]);
+    assert.deepStrictEqual(parts.map(function (p) { return p.kind; }), ['grid', 'tab', 'tab', 'grid', 'tab', 'tree', 'box', 'rest']);
+    assert.deepStrictEqual(parts.map(function (p) { return p.title; }), ['Warehouse', 'General', 'Stock', '', 'History', '', 'Remark', '']);
+    assert.deepStrictEqual(parts.map(function (p) { return p.within ? p.within.kind + ':' + p.within.title : ''; }),
+        ['', '', '', 'tab:Stock', '', 'tab:History', '', '']);
+    assert.deepStrictEqual(parts[0].box, { x: 0, y: 30, w: 1000, h: 200 });
+    assert.strictEqual(parts[0].columns, 4);
+    assert.deepStrictEqual(parts[0].names, ['Code', 'Name', 'Active']);
+    assert.deepStrictEqual(parts[1].box, { x: 0, y: 230, w: 1000, h: 300 });
+    assert.deepStrictEqual(parts[1].counts, { grids: 0, fields: 1, buttons: 0 });
+    assert.deepStrictEqual(parts[2].counts, { grids: 1, fields: 0, buttons: 1 });
+    assert.deepStrictEqual(parts[3].box, { x: 10, y: 270, w: 980, h: 150 });
+    assert.deepStrictEqual(parts[4].counts, { grids: 1, fields: 0, buttons: 0 });
+    assert.deepStrictEqual(parts[6].counts, { grids: 0, fields: 1, buttons: 0 });
+    assert.deepStrictEqual(parts[7].box, { x: 0, y: 0, w: 650, h: 25 });
+    assert.deepStrictEqual(parts[7].counts, { grids: 0, fields: 1, buttons: 1 });
+    assert.deepStrictEqual(page.__baParts({}), []);
+});
+
+test('the whole screen can be copied without grid rows or without splitters', function () {
+    const source = masterDetail();
+    const before = JSON.stringify(source);
+
+    const plain = page.__baSelect(source);
+    assert.deepStrictEqual(plain.nodes.map(function (n) { return n.t; }), ['toolbar', 'text', 'splitter', 'group']);
+    assert.deepStrictEqual(gridsOf(plain.nodes, []).map(function (g) { return g.data; }), [undefined, undefined]);
+    assert.deepStrictEqual(plain.nodes[2].children.map(function (n) { return n.t + n.pane; }), ['grid0', 'tabs1']);
+    assert.deepStrictEqual([plain.width, plain.height], [1000, 600]);
+
+    const withRows = page.__baSelect(source, { parts: null, gridData: true, splitters: false });
+    assert.deepStrictEqual(withRows.nodes.map(function (n) { return n.t + ':' + n.x + ',' + n.y + ':' + n.pane; }),
+        ['toolbar:0,0:undefined', 'text:500,2:undefined', 'grid:0,30:undefined', 'tabs:0,230:undefined', 'group:0,540:undefined']);
+    assert.deepStrictEqual(gridsOf(withRows.nodes, []).map(function (g) { return g.data.length; }), [2, 1]);
+    assert.deepStrictEqual([withRows.width, withRows.height], [1000, 600]);
+
+    assert.strictEqual(page.__baSelect(source, { parts: 'all' }).nodes.length, 4);
+    assert.strictEqual(JSON.stringify(source), before);
+});
+
+test('dropping the splitters keeps what their panes hold, also inside a tab or another splitter', function () {
+    const source = screen('core', [
+        { t: 'tabs', x: 0, y: 0, w: 900, h: 500, tabs: ['A', 'B'], active: 0, children: [
+            { t: 'splitter', tab: 1, x: 10, y: 40, w: 880, h: 400, vertical: true, split: 300, bar: 6, children: [
+                { t: 'label', pane: 0, x: 20, y: 50, w: 60, h: 18, text: 'Left' },
+                { t: 'splitter', pane: 1, x: 316, y: 40, w: 574, h: 400, split: 100, bar: 0, children: [
+                    { t: 'label', pane: 1, x: 330, y: 150, w: 60, h: 18, text: 'Deep' }
+                ] }
+            ] }
+        ] }
+    ]);
+    const kept = page.__baSelect(source).nodes[0].children[0];
+    assert.deepStrictEqual([kept.t, kept.tab, kept.children[0].pane, kept.children[1].t, kept.children[1].pane, kept.children[1].children[0].pane], ['splitter', 1, 0, 'splitter', 1, 1]);
+
+    const flat = page.__baSelect(source, { splitters: false });
+    assert.deepStrictEqual(flat.nodes[0].children.map(function (n) { return [n.t, n.text, n.tab, n.pane, n.x, n.y].join(':'); }),
+        ['label:Left:1::20:50', 'label:Deep:1::330:150']);
+
+    const controls = capture.convert(flat, { idSeed: 'P' }).controls;
+    assert.strictEqual(controls.filter(function (c) { return c.ftype === 'splitter'; }).length, 0);
+    assert.deepStrictEqual(controls.filter(function (c) { return c.ftype === 'label'; }).map(function (c) { return c.tabIndex + ':' + c.paneIndex; }), ['1:undefined', '1:undefined']);
+});
+
+test('one grid can be copied alone, moved to the corner of the screen', function () {
+    const source = masterDetail();
+    const master = page.__baSelect(source, { parts: [0], gridData: true });
+    assert.strictEqual(master.nodes.length, 1);
+    assert.deepStrictEqual([master.nodes[0].t, master.nodes[0].x, master.nodes[0].y, master.nodes[0].pane], ['grid', 0, 0, undefined]);
+    assert.deepStrictEqual([master.width, master.height], [1000, 200]);
+    assert.strictEqual(master.nodes[0].data.length, 2);
+    assert.strictEqual(page.__baSelect(source, { parts: [0, 0, '0'] }).nodes.length, 1);
+
+    const detail = page.__baSelect(source, { parts: [3], gridData: true });
+    assert.strictEqual(detail.nodes.length, 1);
+    assert.strictEqual(detail.nodes[0].tab, undefined);
+    assert.deepStrictEqual([detail.nodes[0].x, detail.nodes[0].y, detail.width, detail.height], [0, 0, 980, 150]);
+    assert.deepStrictEqual(detail.nodes[0].data, [['Bolt', '4']]);
+
+    const controls = capture.convert(master, { idSeed: 'P' }).controls;
+    assert.strictEqual(controls.length, 1);
+    assert.deepStrictEqual(controls[0].sampleData.map(function (r) { return r.Active; }), [true, false]);
+});
+
+test('one tab can be copied alone and keeps the tab control with only that tab', function () {
+    const stock = page.__baSelect(masterDetail(), { parts: [2] });
+    assert.strictEqual(stock.nodes.length, 1);
+    const tabs = stock.nodes[0];
+    assert.deepStrictEqual([tabs.t, tabs.x, tabs.y, tabs.w, tabs.h], ['tabs', 0, 0, 1000, 300]);
+    assert.deepStrictEqual(tabs.tabs, ['Stock']);
+    assert.strictEqual(tabs.active, 0);
+    assert.deepStrictEqual(tabs.children.map(function (c) { return c.t + c.tab; }), ['grid0', 'button0']);
+    assert.strictEqual(tabs.children[0].y, 40);
+    assert.strictEqual(tabs.children[0].data, undefined);
+    assert.deepStrictEqual([stock.width, stock.height], [1000, 300]);
+
+    const controls = capture.convert(stock, { idSeed: 'P' }).controls;
+    const tabpage = controls.filter(function (c) { return c.type === 'tabpage'; })[0];
+    assert.deepStrictEqual(tabpage.tabs, [{ caption: 'Stock' }]);
+    controls.filter(function (c) { return c !== tabpage; }).forEach(function (c) {
+        assert.strictEqual(c.tabPageId, tabpage.id);
+        assert.strictEqual(c.tabIndex, 0);
+    });
+});
+
+test('several tabs keep their order and a part inside a chosen part is not copied twice', function () {
+    const picked = page.__baSelect(masterDetail(), { parts: [4, 2, 3] });
+    assert.strictEqual(picked.nodes.length, 1);
+    const tabs = picked.nodes[0];
+    assert.deepStrictEqual(tabs.tabs, ['Stock', 'History']);
+    assert.deepStrictEqual(tabs.children.map(function (c) { return c.t + c.tab; }), ['grid0', 'button0', 'tree1']);
+
+    const active = masterDetail();
+    active.nodes[2].children[1].active = 3;
+    assert.strictEqual(page.__baSelect(active, { parts: [2, 4] }).nodes[0].active, 1);
+});
+
+test('a tab inside a tab can be copied alone', function () {
+    const nested = screen('core', [{ t: 'tabs', x: 0, y: 0, w: 800, h: 400, tabs: ['Outer A', 'Outer B'], active: 0, children: [
+        { t: 'tabs', tab: 0, x: 10, y: 40, w: 780, h: 300, tabs: ['Inner 1', 'Inner 2'], active: 1, children: [
+            { t: 'grid', x: 20, y: 80, w: 700, h: 100, rows: 1, columns: [{ caption: 'Code', w: 80 }] }
+        ] }
+    ] }]);
+    const parts = page.__baParts(nested);
+    assert.deepStrictEqual(parts.map(function (p) { return p.kind + ':' + p.title + (p.within ? '<' + p.within.title : ''); }),
+        ['tab:Outer A', 'tab:Inner 2<Outer A', 'grid:<Inner 2']);
+
+    const inner = page.__baSelect(nested, { parts: [1] });
+    assert.deepStrictEqual(inner.nodes.map(function (n) { return n.t; }), ['tabs']);
+    assert.strictEqual(inner.nodes[0].tab, undefined);
+    assert.deepStrictEqual(inner.nodes[0].tabs, ['Inner 2']);
+    assert.strictEqual(inner.nodes[0].active, 0);
+    assert.deepStrictEqual([inner.nodes[0].x, inner.nodes[0].y, inner.nodes[0].children[0].x, inner.nodes[0].children[0].y, inner.nodes[0].children[0].tab], [0, 0, 10, 40, 0]);
+    assert.deepStrictEqual([inner.width, inner.height], [780, 300]);
+
+    const all = page.__baSelect(nested, { parts: [0, 1, 2] });
+    assert.strictEqual(all.nodes.length, 1);
+    assert.deepStrictEqual(all.nodes[0].tabs, ['Outer A']);
+    assert.deepStrictEqual(all.nodes[0].children[0].tabs, ['Inner 1', 'Inner 2']);
+});
+
+test('the loose controls keep their captions inside the copied area', function () {
+    const source = screen('core', [
+        { t: 'splitter', x: 0, y: 0, w: 900, h: 200, split: 110, bar: 0, children: [
+            { t: 'grid', pane: 0, x: 0, y: 0, w: 900, h: 100, rows: 1, columns: [{ caption: 'Code', w: 80 }] },
+            { t: 'text', pane: 1, x: 200, y: 130, w: 150, h: 20, caption: 'Name', labelX: 60 },
+            { t: 'date', pane: 1, x: 200, y: 180, w: 150, h: 20, caption: 'From', captionAbove: true, labelX: 200, labelY: 160, labelW: 40, labelH: 14 }
+        ] }
+    ]);
+    assert.deepStrictEqual(page.__baParts(source).map(function (p) { return p.kind; }), ['grid', 'rest']);
+    assert.deepStrictEqual(page.__baParts(source)[1].box, { x: 60, y: 130, w: 290, h: 70 });
+
+    const rest = page.__baSelect(source, { parts: [1] });
+    assert.deepStrictEqual(rest.nodes.map(function (n) { return n.t + n.pane; }), ['textundefined', 'dateundefined']);
+    assert.deepStrictEqual([rest.nodes[0].x, rest.nodes[0].y, rest.nodes[0].labelX], [140, 0, 0]);
+    assert.deepStrictEqual([rest.nodes[1].x, rest.nodes[1].y, rest.nodes[1].labelX, rest.nodes[1].labelY], [140, 50, 140, 30]);
+    assert.deepStrictEqual([rest.width, rest.height], [290, 70]);
+
+    const controls = capture.convert(rest, { idSeed: 'P' }).controls;
+    const name = controls.filter(function (c) { return c.caption === 'Name'; })[0];
+    assert.deepStrictEqual([name.left, name.top], [20, 20]);
+    assert.strictEqual(name.labelWidth, 140 - 0 - 8);
+    assert.strictEqual(byText(controls, 'From').top, name.top + capture.METRICS.core.editorTop + 30);
+});
+
+test('a popup lists its boxes, grids and loose controls, and a top box can be copied alone', function () {
+    const popup = screen('core', [{ t: 'popup', x: 0, y: 0, w: 600, h: 400, title: 'Input Warehouse', children: [
+        { t: 'toolbar', x: 2, y: 30, w: 200, h: 25, buttons: [{ text: 'Save' }] },
+        { t: 'text', x: 150, y: 70, w: 200, h: 20, caption: 'Code', labelX: 20 },
+        { t: 'group', x: 10, y: 100, w: 580, h: 80, caption: 'Detail', children: [{ t: 'checkbox', x: 20, y: 130, w: 80, h: 18, caption: 'Active' }] },
+        { t: 'grid', x: 10, y: 200, w: 580, h: 150, rows: 1, columns: [{ caption: 'Item', w: 100 }] }
+    ] }], { width: 600, height: 400 });
+    const parts = page.__baParts(popup);
+    assert.deepStrictEqual(parts.map(function (p) { return p.kind + ':' + p.title; }), ['box:Detail', 'grid:', 'rest:']);
+    assert.strictEqual(parts.filter(function (p) { return p.within; }).length, 0);
+
+    const rest = page.__baSelect(popup, { parts: [2] });
+    assert.deepStrictEqual(rest.nodes.map(function (n) { return n.t; }), ['toolbar', 'text']);
+    assert.deepStrictEqual([rest.nodes[0].x, rest.nodes[0].y, rest.nodes[1].x, rest.nodes[1].y, rest.nodes[1].labelX], [0, 0, 148, 40, 18]);
+    assert.deepStrictEqual([rest.width, rest.height], [348, 60]);
+
+    const box = page.__baSelect(popup, { parts: [0] });
+    assert.deepStrictEqual(box.nodes.map(function (n) { return n.t; }), ['group']);
+    assert.deepStrictEqual([box.nodes[0].x, box.nodes[0].y, box.nodes[0].children[0].x, box.nodes[0].children[0].y], [0, 0, 10, 30]);
+    assert.deepStrictEqual([box.width, box.height], [580, 80]);
+    assert.strictEqual(page.__baSelect(popup).nodes[0].t, 'popup');
+});
+
+test('a wrong list of parts copies nothing and never throws', function () {
+    const source = masterDetail();
+    [[], [99, -1, 'x', null, {}, 2.5, '__proto__', 'length']].forEach(function (ids) {
+        const picked = page.__baSelect(source, { parts: ids, gridData: 'yes', splitters: 0 });
+        assert.deepStrictEqual(picked.nodes, []);
+        assert.strictEqual(capture.normalize(picked).ok, false);
+    });
+    assert.doesNotThrow(function () { page.__baHighlight({ x: 0, y: 0, w: 10, h: 10 }); page.__baHighlight(null); });
 });
 
 console.log('builder-capture: ' + passed + ' passed, ' + failures.length + ' failed');

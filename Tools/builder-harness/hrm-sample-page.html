@@ -1,0 +1,132 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Sample HRM page</title>
+<style>
+    body { margin: 0; background: #ffffff; font: 12px Tahoma, Arial, sans-serif; color: #333333; }
+    table { border-collapse: collapse; }
+    td, th { padding: 0; }
+    .search-bar { height: 24px; padding: 6px 8px; }
+    .dxeBase { display: inline-block; width: 70px; height: 18px; line-height: 18px; vertical-align: middle; }
+    .dxeTextBox { display: inline-block; width: 200px; height: 20px; border: 1px solid #9f9f9f; box-sizing: border-box; vertical-align: middle; }
+    .dxeTextBox input { width: 190px; height: 16px; border: 0; padding: 0 4px; font: inherit; }
+    .dxsplControl { width: 900px; table-layout: fixed; }
+    .dxsplPane { vertical-align: top; }
+    .dxgvControl { width: 880px; margin: 0 10px; border: 1px solid #9f9f9f; }
+    .dxgvTitlePanel { height: 26px; padding: 0 6px; background: #f2f2f2; font-weight: bold; }
+    .dxgvTitlePanel ul { display: inline-block; margin: 0 0 0 12px; padding: 0; list-style: none; font-weight: normal; }
+    .dxm-item { display: inline-block; height: 20px; line-height: 20px; margin-right: 4px; padding: 0 8px; border: 1px solid #c0c0c0; }
+    .dxgvHeader { height: 22px; padding: 0 6px; border: 1px solid #9f9f9f; background: #dcdcdc; text-align: left; }
+    .dxgvDataRow td { height: 22px; padding: 0 6px; border: 1px solid #d0d0d0; }
+    .dxICheckBox { display: inline-block; width: 15px; height: 15px; border: 1px solid #8a8a8a; box-sizing: border-box; }
+    .dxWeb_edtCheckBoxChecked { background: #0f75bd; }
+    .dxtcLite { width: 900px; }
+    .dxtc-strip { display: flex; height: 26px; margin: 0; padding: 0 10px; list-style: none; border-bottom: 3px solid #0f75bd; }
+    .dxtc-tab, .dxtc-activeTab { height: 25px; line-height: 25px; margin-right: 1px; padding: 0 14px; background: #e6e6e6; cursor: pointer; }
+    .dxtc-activeTab { background: #0f75bd; color: #ffffff; }
+    .tab-body { display: none; height: 200px; padding: 12px 10px; box-sizing: border-box; }
+    .tab-body.is-open { display: block; }
+    .tab-body .dxgvControl { margin: 0; }
+</style>
+</head>
+<body>
+<div class="search-bar">
+    <span class="dxeBase" id="lblKeyword">Keyword</span><span class="dxeTextBox" id="txtKeyword"><input type="text" /></span>
+</div>
+<table class="dxsplControl" id="splWarehouse">
+    <tbody>
+        <tr>
+            <td class="dxsplPane" style="height: 240px">
+                <table class="dxgvControl" id="gvWarehouse">
+                    <tbody>
+                        <tr>
+                            <td class="dxgvTitlePanel" colspan="4">Warehouse<ul><li class="dxm-item">Add</li><li class="dxm-item">Delete</li></ul></td>
+                        </tr>
+                        <tr>
+                            <td class="dxgvHeader" style="width: 120px">Code</td>
+                            <td class="dxgvHeader" style="width: 260px">Name</td>
+                            <td class="dxgvHeader" style="width: 80px">Active</td>
+                            <td class="dxgvHeader">Note</td>
+                        </tr>
+                        <tr class="dxgvDataRow">
+                            <td>WH01</td>
+                            <td>Main store</td>
+                            <td><span class="dxICheckBox dxWeb_edtCheckBoxChecked"></span></td>
+                            <td></td>
+                        </tr>
+                        <tr class="dxgvDataRow">
+                            <td>WH02</td>
+                            <td>Spare parts</td>
+                            <td><span class="dxICheckBox dxWeb_edtCheckBoxUnchecked"></span></td>
+                            <td>Closed on Sunday</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td class="dxsplPane" style="height: 240px">
+                <div class="dxtcLite" id="pcDetail">
+                    <ul class="dxtc-strip">
+                        <li class="dxtc-activeTab" data-tab="general">General</li>
+                        <li class="dxtc-tab" data-tab="stock">Stock</li>
+                    </ul>
+                    <div class="tab-body is-open" data-body="general">
+                        <span class="dxeBase" id="lblAddress">Address</span><span class="dxeTextBox" id="txtAddress"><input type="text" /></span>
+                    </div>
+                    <div class="tab-body" data-body="stock">
+                        <table class="dxgvControl" id="gvStock">
+                            <tbody>
+                                <tr>
+                                    <td class="dxgvHeader" style="width: 300px">Item</td>
+                                    <td class="dxgvHeader">Quantity</td>
+                                </tr>
+                                <tr class="dxgvDataRow"><td>Bolt M8</td><td>40</td></tr>
+                                <tr class="dxgvDataRow"><td>Washer</td><td>120</td></tr>
+                                <tr class="dxgvDataRow"><td>Hinge</td><td>6</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </td>
+        </tr>
+    </tbody>
+</table>
+<script>
+    (function () {
+        function Control(id) { this.id = id; }
+        Control.prototype.GetMainElement = function () { return document.getElementById(this.id); };
+        function kindOf() {
+            function Kind(id) { Control.call(this, id); }
+            Kind.prototype = Object.create(Control.prototype);
+            return Kind;
+        }
+        window.ASPxClientControl = Control;
+        window.ASPxClientGridView = kindOf();
+        window.ASPxClientPageControl = kindOf();
+        window.ASPxClientTextBox = kindOf();
+        window.ASPxClientLabel = kindOf();
+        var controls = [
+            new window.ASPxClientLabel("lblKeyword"), new window.ASPxClientTextBox("txtKeyword"),
+            new window.ASPxClientGridView("gvWarehouse"), new window.ASPxClientPageControl("pcDetail"),
+            new window.ASPxClientLabel("lblAddress"), new window.ASPxClientTextBox("txtAddress"),
+            new window.ASPxClientGridView("gvStock")
+        ];
+        Control.GetControlCollection = function () {
+            return { ForEachControl: function (each) { controls.forEach(each); } };
+        };
+        document.querySelector(".dxtc-strip").addEventListener("click", function (event) {
+            var tab = event.target.closest("li[data-tab]");
+            if (!tab) return;
+            Array.prototype.forEach.call(document.querySelectorAll(".dxtc-strip li"), function (li) {
+                li.className = li === tab ? "dxtc-activeTab" : "dxtc-tab";
+            });
+            Array.prototype.forEach.call(document.querySelectorAll(".tab-body"), function (body) {
+                body.classList.toggle("is-open", body.getAttribute("data-body") === tab.getAttribute("data-tab"));
+            });
+        });
+    })();
+</script>
+</body>
+</html>

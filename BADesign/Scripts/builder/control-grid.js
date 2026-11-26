@@ -1,5 +1,8 @@
 var controlGrid = {
 
+    MIN_WIDTH: 200,
+    MIN_HEIGHT: 200,
+
     // Tạo grid mới khi kéo từ toolbox
     addNew: function (dropPoint) {
         var id = "grid_" + new Date().getTime();
@@ -269,6 +272,40 @@ var controlGrid = {
         return list[Math.max(0, rowIndex || 0) % list.length];
     },
 
+    // Lưới có cfg.height (số px) thì giữ đúng chiều cao đó: phần dxDataGrid lấp chỗ còn lại và tự cuộn.
+    // Không có cfg.height thì lưới cao theo số dòng.
+    hasOwnHeight: function (cfg) {
+        return typeof cfg.height === "number" && cfg.height > 0;
+    },
+
+    // height là undefined: bỏ chiều cao riêng, lưới cao theo số dòng.
+    setOwnHeight: function (cfg, height) {
+        if (height === undefined) delete cfg.height;
+        else cfg.height = height;
+    },
+
+    dxHeight: function (cfg) {
+        return this.hasOwnHeight(cfg) ? "100%" : null;
+    },
+
+    applyHeight: function (cfg, $root) {
+        var own = this.hasOwnHeight(cfg);
+        $root.toggleClass("grid-fixed-height", own).css("height", own ? cfg.height + "px" : "");
+    },
+
+    // Kích thước của lưới vừa đổi từ ngoài phần Thuộc tính (ví dụ lưới bám theo vùng của Splitter): vẽ theo kích thước mới,
+    // không ghi lịch sử; hai ô Rộng / Cao hiện giá trị mới nếu phần Thuộc tính đang mở cho lưới này.
+    applySize: function (cfg) {
+        var $root = builder.controlElement(cfg);
+        this.applyHeight(cfg, $root);
+        $root.css("width", cfg.width + "px");
+        var grid = $("#" + cfg.id + "_dxGrid").dxDataGrid("instance");
+        if (grid) grid.option("height", this.dxHeight(cfg));
+        if (builder.selectedControlId !== cfg.id) return;
+        $("#txtGridWidth").val(cfg.width);
+        $("#txtGridHeight").val(this.hasOwnHeight(cfg) ? cfg.height : "");
+    },
+
     // ====== RENDER GRID ======
     renderExisting: function (cfg) {
         // ✅ XÓA DOM element cũ trước khi render mới để tránh duplicate
@@ -303,7 +340,7 @@ var controlGrid = {
             '      </div>',
             '      <div class="grid-title-right"></div>',
             '  </div>',
-            '  <div id="' + cfg.id + '_dxGrid"></div>',
+            '  <div id="' + cfg.id + '_dxGrid" class="grid-dx-body"></div>',
             '</div>'
         ].join("");
 
@@ -331,12 +368,7 @@ var controlGrid = {
                     // Position relative với content area
                     var finalLeft = cfg.left != null ? cfg.left : 0;
                     var finalTop = cfg.top != null ? cfg.top : 0;
-                    
-                    // Set z-index
-                    var sectionZ = parseInt(parentCfg.zIndex || "0", 10);
-                    if (isNaN(sectionZ)) sectionZ = 0;
-                    $root.css("z-index", sectionZ + 1);
-                    
+
         $root.css({
             position: "absolute",
                         left: finalLeft + "px",
@@ -367,11 +399,7 @@ var controlGrid = {
                     
                     var finalLeft = cfg.left != null ? cfg.left : 10;
                     var finalTop = cfg.top != null ? cfg.top : 50;
-                    
-                    var popupZ = parseInt($popup.css("z-index") || "0", 10);
-                    if (isNaN(popupZ)) popupZ = 0;
-                    $root.css("z-index", popupZ + 10);
-                    
+
                     $root.css({
                         position: "absolute",
                         left: finalLeft + "px",
@@ -399,13 +427,15 @@ var controlGrid = {
                 width: cfg.width + "px"
             });
         }
+        builder.applyStacking(cfg, $root);
+        this.applyHeight(cfg, $root);
 
         // kéo grid trên canvas (move)
         // CHỈ cho kéo khi bấm vào các thanh phía trên (View Data, Title...)
         // KHÔNG cho kéo khi bấm trong vùng dxDataGrid → để DevExtreme xử lý resize column
         interact($root[0]).draggable({
             // chỉ được start drag từ các vùng này
-            allowFrom: ".grid-header-panel-row, .grid-data-header, .grid-title-bar",
+            allowFrom: ".grid-header-panel-row, .grid-data-header, .grid-title-bar, .ub-move",
 
             listeners: {
                 move: function (event) {
@@ -425,23 +455,19 @@ var controlGrid = {
 
 
 
-        // resize ngang grid (kéo cạnh phải)
-        $root.append('<div class="ub-resize ub-resize-right"></div>');
+        builder.ensureMoveHandle($root);
+
+        // kéo giãn grid: tay nắm mép phải đổi bề rộng, mép dưới đổi chiều cao riêng (như ô Cao lưới), góc đổi cả hai
+        $root.append('<div class="ub-resize ub-resize-right"></div><div class="ub-resize ub-resize-bottom"></div><div class="ub-resize ub-resize-corner"></div>');
         interact($root[0]).resizable({
-            edges: { right: ".ub-resize-right" },
+            edges: { right: ".ub-resize-right, .ub-resize-corner", bottom: ".ub-resize-bottom, .ub-resize-corner" },
+            modifiers: controlSplitter.resizeLimits(controlGrid.MIN_WIDTH, controlGrid.MIN_HEIGHT),
             listeners: {
                 move: function (event) {
-                    var newW = Math.round(event.rect.width / builder.cssScale());
-                    if (newW < 200) newW = 200;
-
-                    $root.css("width", newW + "px");
-                    cfg.width = newW;
-
-                    var inst = $("#" + cfg.id + "_dxGrid").dxDataGrid("instance");
-                    if (inst) {
-                        inst.option("width", "100%");
-                    }
-
+                    var scale = builder.cssScale();
+                    if (event.edges.right) cfg.width = Math.round(event.rect.width / scale);
+                    if (event.edges.bottom) cfg.height = Math.round(event.rect.height / scale);
+                    controlGrid.applySize(cfg);
                     builder.refreshJson({ skipHistory: true });
                 },
                 end: function () { builder.refreshJson(); }
@@ -468,7 +494,7 @@ var controlGrid = {
             paging: { pageSize: cfg.pageSize || 20 },
             pager: { visible: cfg.showPager === true, showInfo: true, showNavigationButtons: true, showPageSizeSelector: true, allowedPageSizes: [10, 20, 50], infoText: "Page {0} of {1} ({2} items)", displayMode: "full" },
             filterRow: { visible: cfg.filterRow === true },
-            headerFilter: { visible: true },
+            headerFilter: { visible: cfg.filterRow === true },
             searchPanel: {
                 visible: cfg.showSearchBox !== false,
                 placeholder: "Search..."
@@ -495,6 +521,7 @@ var controlGrid = {
             showRowLines: true,
             showColumnLines: true,
             width: "100%",
+            height: this.dxHeight(cfg),
             onColumnResized: function (e) {
                 var col = e.component.columnOption(e.columnIndex);
 
@@ -700,7 +727,8 @@ var controlGrid = {
                 P.line(P.field("Nhãn View Data", P.text({ id: "txtDataCaption", value: cfg.dataHeaderCaption || "" }), null, "txtDataCaption")) +
                 P.line(P.field("Giá trị View Data", P.text({ id: "txtDataValue", value: cfg.dataHeaderValue || "" }), null, "txtDataValue"))) +
             P.section("Kích thước",
-                P.line(P.field("Rộng lưới (px)", P.number({ id: "txtGridWidth", value: widthVal, placeholder: "vd: 900" }), "pp-field--num", "txtGridWidth")));
+                P.line(P.field("Rộng lưới (px)", P.number({ id: "txtGridWidth", value: widthVal, placeholder: "vd: 900" }), "pp-field--num", "txtGridWidth")) +
+                P.line(P.field("Cao lưới (px)", P.number({ id: "txtGridHeight", value: controlGrid.hasOwnHeight(cfg) ? cfg.height : "", placeholder: "Tự động" }), "pp-field--num", "txtGridHeight")));
 
         var columnRows = columns.map(function (col, idx) {
             var body = P.line(
@@ -828,6 +856,18 @@ var controlGrid = {
             var v = parseFloat(this.value);
             if (isNaN(v) || v <= 0) return;
             cfg.width = v;
+            self.refreshGrid(cfg);
+        });
+        // Ô để trống: lưới cao theo số dòng. Giá trị không phải số dương: giữ chiều cao đang có.
+        $("#txtGridHeight").on("change", function () {
+            var blank = $.trim(this.value) === "" && !this.validity.badInput;
+            var v = Math.round(parseFloat(this.value));
+            if (!blank && !(v > 0)) {
+                this.value = self.hasOwnHeight(cfg) ? cfg.height : "";
+                return;
+            }
+            if (blank) delete cfg.height;
+            else cfg.height = v;
             self.refreshGrid(cfg);
         });
 
@@ -1112,10 +1152,14 @@ var controlGrid = {
             cfg.width = w;
         }
 
+        var $root = $(".canvas-control[data-id='" + cfg.id + "']");
+        this.applyHeight(cfg, $root);
+
         grid.option({
             columns: dxColumns,
             selection: selectionOpt,
             'filterRow.visible': cfg.filterRow === true,
+            'headerFilter.visible': cfg.filterRow === true,
             'pager.visible': cfg.showPager === true,
             'paging.pageSize': cfg.pageSize || 20,
             'groupPanel.visible': cfg.allowGrouping !== false,
@@ -1128,10 +1172,10 @@ var controlGrid = {
             allowColumnResizing: true,
             columnResizingMode: "widget",
             columnMinWidth: 40,
-            width: "100%"
+            width: "100%",
+            height: this.dxHeight(cfg)
         });
 
-        var $root = $(".canvas-control[data-id='" + cfg.id + "']");
         $root.css("width", cfg.width + "px");
 
         var headerPanel = $root.find(".dx-datagrid-header-panel").detach();
@@ -1147,14 +1191,17 @@ var controlGrid = {
         if (cfg.sampleData && cfg.sampleData.length > 0) {
             return cfg.sampleData;
         }
-        var cols = (cfg.columns || []).map(function (c) { return c.name; });
-        if (cols.length === 0) return [];
+        var columns = cfg.columns || [];
+        if (columns.length === 0) return [];
 
         var data = [];
         for (var i = 1; i <= 5; i++) {
             var row = {};
-            cols.forEach(function (c) {
-                if (c.toLowerCase() === "code") {
+            columns.forEach(function (column) {
+                var c = column.name;
+                if (column.caption === "") {
+                    row[c] = "";
+                } else if (c.toLowerCase() === "code") {
                     row[c] = "Code " + i;
                 } else if (c.toLowerCase() === "name") {
                     row[c] = "Name " + i;

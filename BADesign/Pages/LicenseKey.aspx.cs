@@ -8,6 +8,7 @@ using System.Web.Services;
 using System.Web.UI;
 using BADesign;
 using BADesign.Helpers;
+using BADesign.Helpers.Database;
 using BADesign.Helpers.Security;
 
 namespace BADesign.Pages
@@ -228,7 +229,7 @@ namespace BADesign.Pages
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
 
                 var list = new List<string>();
-                var master = BuildConnStr(s.Item1, s.Item2, s.Item3, s.Item4, "master");
+                var master = DbConnectionString.ForServer(s.Item1, s.Item2, s.Item3, s.Item4, "master", 10);
                 using (var c = new SqlConnection(master))
                 using (var q = c.CreateCommand())
                 {
@@ -266,7 +267,7 @@ namespace BADesign.Pages
                 var s = GetServer(serverId);
                 if (s == null) return new { success = false, message = "Không tìm thấy server." };
 
-                var connStr = BuildConnStr(s.Item1, s.Item2, s.Item3, s.Item4, databaseName.Trim());
+                var connStr = DbConnectionString.ForServer(s.Item1, s.Item2, s.Item3, s.Item4, databaseName.Trim(), 10);
                 // Thử mở để chắc chắn kết nối được
                 using (var c = new SqlConnection(connStr))
                 {
@@ -470,18 +471,11 @@ namespace BADesign.Pages
                             r.IsDBNull(0) ? "" : r.GetString(0),
                             r.IsDBNull(1) ? (int?)null : r.GetInt32(1),
                             r.IsDBNull(2) ? "" : r.GetString(2),
-                            r.IsDBNull(3) ? "" : r.GetString(3));
+                            BaSecret.Reveal(r.IsDBNull(3) ? "" : r.GetString(3)));
                     }
                 }
             }
             return null;
-        }
-
-        private static string BuildConnStr(string server, int? port, string user, string password, string catalog)
-        {
-            var dataSource = string.IsNullOrEmpty(server) ? "."
-                : (port.HasValue && port.Value > 0) ? server + "," + port.Value : server;
-            return string.Format("Data Source={0};Initial Catalog={1};UID={2};PWD={3};Connect Timeout=10;", dataSource, catalog, user, password);
         }
 
         private static bool IsSystemDb(string db)

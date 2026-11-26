@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Temporary Transfer — CADENA mockup</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Roboto,"Segoe UI",Arial,sans-serif;color:#222;font-size:14px;background:#fff}
+  button{font-family:inherit}
+  header{background:#1877D2;height:60px;display:flex;align-items:center;gap:24px;padding-left:16px}
+  .logo{color:#fff;font-weight:700;width:270px;display:flex;align-items:baseline;letter-spacing:1px}
+  .logo .c{font-size:44px;line-height:1}.logo .r{font-size:30px;line-height:1}
+  .search{display:flex;align-items:center;background:#3B8FDE;border-radius:3px;height:40px;padding:0 12px;flex:0 1 480px;gap:8px}
+  .search input{flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:16px}
+  .search input::placeholder{color:#E3F0FC}
+  .selemp{background:#fff;color:#1877D2;border:none;border-radius:3px;height:40px;padding:0 14px;font-size:16px;cursor:pointer}
+  .hicons{margin-left:auto;display:flex;height:60px}
+  .hicons button{background:transparent;border:none;width:64px;cursor:pointer;position:relative}
+  .hicons .dark{background:#0F5FAE}
+  .badge{position:absolute;top:8px;right:10px;background:#D32F2F;color:#fff;font-size:12px;border-radius:10px;padding:1px 5px}
+  .avatar{width:40px;height:40px;border-radius:50%;background:#E3E3E3;display:inline-flex;align-items:center;justify-content:center}
+  .wrap{display:flex;min-height:calc(100vh - 60px)}
+  nav{width:270px;flex:none;border-right:1px solid #ddd;padding:8px 0}
+  nav a{display:flex;justify-content:space-between;align-items:center;padding:13px 20px;font-size:17px;color:#222;text-decoration:none}
+  nav a.open{color:#1877D2}
+  nav .sub{margin-left:28px;border-left:2px solid #ddd}
+  nav .sub a{font-size:15px;color:#444;padding:11px 18px}
+  nav .sub a.active{color:#1877D2}
+  main{flex:1;min-width:0;background:#F7F7F7;display:flex;flex-direction:column}
+  .tabbar{display:flex;align-items:center;gap:20px;height:44px;padding:0 16px;background:#fff;border-bottom:1px solid #ddd}
+  .tabbar .t{font-weight:700}.tabbar .t.active{color:#1877D2}
+  .tabbar .x{color:#C4C4C4;font-weight:400}
+  .company{margin-left:auto;display:flex;align-items:center;gap:14px;font-size:17px}
+  .title{background:#E9E9E9;padding:10px 16px;font-size:17px;border-bottom:1px solid #D6D6D6}
+  .body{padding:12px 16px 16px}
+  .tabs{display:flex;gap:2px;border-bottom:3px solid #1877D2}
+  .tabs button{border:none;padding:10px 40px;font-size:16px;cursor:pointer;background:#E9E9E9;color:#555}
+  .tabs button.on{background:#1877D2;color:#fff}
+  .panel{background:#fff;border:1px solid #D6D6D6}
+  .panel-h{background:#E9E9E9;padding:9px 12px;display:flex;align-items:center;gap:16px;font-size:16px}
+  .filters{border-top:none;margin-bottom:12px}
+  .fgrid{padding:18px 24px 8px;display:grid;grid-template-columns:1fr 1fr;column-gap:64px;row-gap:12px}
+  .fgrid label{display:flex;align-items:center;gap:12px}
+  .fgrid .lb{width:190px;font-size:15px}
+  .req{color:#2E7D32}
+  .dd{flex:1;max-width:260px;border:1px solid #BDBDBD;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;background:#fff}
+  .viewbtn{margin:8px 0 18px 226px;background:#fff;border:1px solid #BDBDBD;height:38px;padding:0 14px;font-size:15px;cursor:pointer}
+  .tbtn{display:flex;align-items:center;gap:6px;background:transparent;border:none;font-size:16px;color:#222;cursor:pointer;padding:2px 4px}
+  .tbtn:disabled{opacity:.4;cursor:default}
+  .tbtn[hidden]{display:none}
+  .scroll{overflow-x:auto}
+  .grid{min-width:max-content}
+  .row{display:grid;border-bottom:1px solid #E3E3E3}
+  .row>div{border-right:1px solid #E3E3E3;display:flex;align-items:center;justify-content:center;min-height:44px}
+  .head{background:#F3F3F3;border-bottom:1px solid #D6D6D6}
+  .head>div{font-size:14px;text-align:center;padding:8px 6px;min-height:40px;border-right-color:#D6D6D6}
+  .frow>div{min-height:32px;padding:4px;gap:4px}
+  .frow input[type=text]{flex:1;min-width:0;width:0;height:24px;border:1px solid #BDBDBD}
+  .row.sel{background:#CDE8FB}
+  .ic{background:transparent;border:none;cursor:pointer;padding:4px;display:flex}
+  input[type=checkbox]{width:17px;height:17px;margin:0;cursor:pointer}
+  .pager{display:flex;align-items:center;gap:16px;padding:12px 24px;border-top:1px solid #D6D6D6;font-size:15px}
+  .pager .circ{width:32px;height:32px;border-radius:50%;border:2px solid #D6D6D6;background:#fff;color:#BDBDBD}
+  .pager .cur{background:#1877D2;color:#fff;padding:4px 18px}
+  .psize{margin-left:auto;display:flex;align-items:center;gap:8px}
+  .psize span{border:1px solid #BDBDBD;padding:3px 8px;display:flex;gap:18px;align-items:center}
+  /* Popup */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center;z-index:10}
+  .overlay[hidden]{display:none}
+  .modal{background:#fff;width:820px;max-width:95vw;max-height:92vh;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,.25)}
+  .modal-h{background:#1877D2;color:#fff;font-size:18px;font-weight:700;padding:10px 16px;display:flex;justify-content:space-between;align-items:center}
+  .modal-h button{background:transparent;border:none;color:#fff;font-size:22px;cursor:pointer;line-height:1}
+  .modal-b{padding:16px;display:flex;flex-direction:column;gap:16px}
+  .box{border:1px solid #D6D6D6;padding:16px 20px}
+  .f2{display:grid;grid-template-columns:1fr 1fr;column-gap:40px;row-gap:12px}
+  .fld{display:flex;align-items:center;gap:12px}
+  .fld .lb{width:170px;flex:none;font-size:14px}
+  .ro{flex:1;height:30px;background:#EEEEEE;border:1px solid #CFCFCF;display:flex;align-items:center;justify-content:space-between;padding:0 8px;color:#555}
+  .ro.tall{height:56px;align-items:flex-start;padding-top:6px}
+  .ed{flex:1;height:56px;border:1px solid #BDBDBD;background:#fff;font-family:inherit;font-size:14px;padding:6px 8px;resize:vertical}
+  fieldset{border:1px solid #D6D6D6;padding:12px 16px 14px;margin:0;display:flex;flex-direction:column;gap:12px}
+  legend{color:#888;padding:0 6px;font-size:14px}
+  .fullrow{display:flex;align-items:flex-start;gap:12px}
+  .fullrow .lb{width:170px;flex:none;padding-top:8px}
+  .btn-cancel{align-self:flex-start;background:#E53935;color:#fff;border:none;font-weight:700;font-size:14px;padding:9px 20px;cursor:pointer}
+  /* Add popup */
+  .modal.wide{width:1400px;max-width:97vw}
+  .actions{display:flex;gap:6px;padding:8px 16px 0}
+  .btn-submit{background:#1E88E5;color:#fff;border:none;font-size:14px;padding:7px 18px;cursor:pointer}
+  .btn-red{background:#D32F2F;color:#fff;border:none;font-size:14px;padding:7px 18px;cursor:pointer}
+  .sec{border:1px solid #D6D6D6}
+  .sec-h{background:#E9E9E9;padding:8px 12px;display:flex;align-items:center;gap:16px;font-size:15px}
+  .sec-b{padding:16px 20px;display:flex;flex-direction:column;gap:12px}
+  .inp{flex:1;height:30px;border:1px solid #BDBDBD;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 8px}
+  .btn-plain{background:#fff;border:1px solid #BDBDBD;height:30px;padding:0 10px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .egrid .row>div{min-height:40px}
+  .vHide{display:none !important}
+  .tag{display:inline-flex;align-items:center;gap:4px;border:none;border-radius:3px;padding:3px 10px;font-size:13px;font-weight:700;color:#fff;cursor:pointer}
+  .tag.pending{background:#F39C12}.tag.approved{background:#2E9E3F}
+  .modal.hist{width:760px}
+  .tl{position:relative;padding:20px 30px 24px}
+  .tl-item{display:grid;grid-template-columns:150px 36px 1fr;align-items:start;min-height:64px}
+  .tl-time{text-align:right;padding-right:16px;color:#888;font-size:15px;line-height:1.4;padding-top:6px}
+  .tl-dot{position:relative;display:flex;justify-content:center}
+  .tl-dot::after{content:"";position:absolute;top:26px;bottom:-40px;left:50%;width:1px;background:#D6D6D6}
+  .tl-item:last-child .tl-dot::after{display:none}
+  .tl-num{width:24px;height:24px;border-radius:50%;background:#D6D6D6;color:#fff;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;margin-top:6px}
+  .tl-num.on{background:#1877D2}
+  .tl-card{border-radius:6px;padding:10px 14px;margin-bottom:14px;background:#F3F3F3}
+  .tl-card.on{background:#EAF3FC}
+  .tl-act{color:#1877D2;font-size:15px;margin-bottom:6px}
+  .tl-who{font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px}
+  .tl-done{color:#BDBDBD;font-size:16px;padding-top:8px}
+  .overlay.sub{z-index:20;background:rgba(0,0,0,.25)}
+  .modal.mid{width:900px}
+  .subbar{display:flex;gap:16px;padding:6px 12px;background:#F3F3F3;border-bottom:1px solid #D6D6D6}
+  .subbar .tbtn{font-size:14px}
+  .sort{color:#888;font-size:10px;margin-left:6px}
+  .row.pick{background:#CDE8FB}
+  .sec2{background:#fff;border:1px solid #D6D6D6;margin-bottom:14px}
+  .edit{background:transparent;border:none;cursor:pointer;padding:4px;display:flex}
+  .row>div.txt{justify-content:flex-start;padding:0 10px}
+  .modal.sm{width:620px}
+  .subbar{display:flex;gap:16px;padding:6px 12px;background:#F3F3F3;border-bottom:1px solid #D6D6D6}
+  .subbar .tbtn{font-size:14px}
+  .form{display:flex;flex-direction:column;gap:12px;padding:20px 24px}
+  .form .fld .lb{width:160px}
+  .selbox{flex:1;height:30px;border:1px solid #BDBDBD;background:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 8px}
+  .selbox.ro{background:#EEEEEE;border-color:#CFCFCF;color:#555}
+  .form textarea{flex:1;height:64px;border:1px solid #BDBDBD;font-family:inherit;font-size:14px;padding:6px 8px;resize:vertical}
+  .tag.rejected{background:#D32F2F}.tag.cancelled{background:#9E9E9E}
+  .tl-act.rej{color:#D32F2F}.tl-act.skip{color:#888}
+  .tl-reason{color:#555;font-size:14px;margin-top:4px}
+  .modal.xs{width:520px}
+  .msg{padding:22px 24px;font-size:15px;line-height:1.5;display:flex;gap:14px;align-items:flex-start}
+  .msg-ft{display:flex;justify-content:flex-end;gap:8px;padding:0 24px 18px}
+  .btn-ok{background:#1877D2;color:#fff;border:none;padding:8px 22px;font-size:14px;cursor:pointer}
+  .btn-gray{background:#fff;border:1px solid #BDBDBD;padding:8px 18px;font-size:14px;cursor:pointer}
+  .page[hidden]{display:none}
+  nav a[data-page]{cursor:pointer}
+</style>
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="c">C</span><span class="r">ADENA</span></div>
+  <label class="search"><input type="text" placeholder="Search" aria-label="Search">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg></label>
+  <button class="selemp" type="button">Select Employees</button>
+  <div class="hicons">
+    <button type="button" aria-label="Calendar"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="5" width="18" height="15" rx="1"/><line x1="3" y1="10" x2="21" y2="10"/></svg></button>
+    <button type="button" class="dark" aria-label="Applications"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></button>
+    <button type="button" aria-label="Notifications"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="badge">22</span></button>
+    <button type="button" aria-label="Account" style="width:72px"><span class="avatar"><svg width="24" height="24" viewBox="0 0 24 24" fill="#B5B5B5"><circle cx="12" cy="9" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6z"/></svg></span></button>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav id="nav" aria-label="Modules"></nav>
+  <main>
+    <div class="tabbar">
+      <svg width="26" height="20" viewBox="0 0 26 20" fill="none" stroke="#1877D2" stroke-width="2"><path d="M8 3L3 7l5 4"/><line x1="12" y1="3" x2="25" y2="3"/><line x1="12" y1="10" x2="25" y2="10"/><line x1="3" y1="17" x2="25" y2="17"/></svg>
+      <span class="t">Home <span class="x">⊗</span></span>
+      <span class="t" id="tbApr" data-page="apr" style="cursor:pointer">Temporary Transfer Approval <span class="x">⊗</span></span>
+      <span class="t active" id="tbTT" data-page="tt" style="cursor:pointer">Temporary Transfer <span class="x">⊗</span></span>
+      <span class="company">[Company] ▾
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="2"><path d="M20 11a8 8 0 0 0-14-5l-2 2"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14 5l2-2"/><path d="M20 20v-4h-4"/></svg></span>
+    </div>
+    <div class="page" id="pageTT">
+    <div class="title">Temporary Transfer</div>
+    <div class="body">
+      <div class="tabs" role="tablist">
+        <button type="button" role="tab" id="tabSent" class="on">Temporary Transfer</button>
+        <button type="button" role="tab" id="tabRecv">Received Temporary Transfer</button>
+      </div>
+      <section class="panel filters">
+        <div class="panel-h" style="justify-content:space-between">Filter Conditions <span style="color:#1877D2">˄</span></div>
+        <div class="fgrid">
+          <label><span class="lb">Transfer From Date <span class="req">(*)</span></span><span class="dd">01/01/2024 <span>▾</span></span></label>
+          <label><span class="lb">Transfer To Date <span class="req">(*)</span></span><span class="dd">31/01/2024 <span>▾</span></span></label>
+          <label><span class="lb" id="restLabel">To Restaurant</span><span class="dd">All <span>▾</span></span></label>
+          <label><span class="lb">Status</span><span class="dd">All <span>▾</span></span></label>
+        </div>
+        <button type="button" class="viewbtn">View Data</button>
+      </section>
+      <section class="panel">
+        <div class="panel-h">
+          <span id="gridTitle">Temporary Transfer</span>
+          <button type="button" class="tbtn" id="btnAdd"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2E9E3F" stroke-width="3"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>Add</button>
+          <button type="button" class="tbtn" id="btnDel" disabled><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#D32F2F" stroke-width="2.6"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Delete</button>
+          <button type="button" class="tbtn" id="btnApprove" disabled hidden><svg width="18" height="18" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#2E9E3F"/><path d="M7 12.5l3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4"/></svg>Approve</button>
+          <button type="button" class="tbtn" id="btnReject" disabled hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D32F2F" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>Reject</button>
+        </div>
+        <div class="scroll"><div class="grid" id="grid"></div></div>
+        <div class="pager">
+          <span>Page 1 of 1 (3 items)</span>
+          <button type="button" class="circ" aria-label="Previous page">‹</button>
+          <span class="cur">[1]</span>
+          <button type="button" class="circ" aria-label="Next page">›</button>
+          <span class="psize">Page size: <span>20 ▾</span></span>
+        </div>
+      </section>
+    </div>
+    </div>
+    <div class="page" id="pageApr" hidden>
+    <div class="title">Temporary Transfer Approval</div>
+    <div class="body">
+      <section class="sec2" aria-label="Manager Temporary Transfer">
+        <div class="panel-h">Manager Temporary Transfer</div>
+        <div class="scroll"><div class="grid" id="gridMgr"></div></div>
+      </section>
+      <section class="sec2" aria-label="Employee Temporary Transfer">
+        <div class="panel-h">Employee Temporary Transfer</div>
+        <div class="scroll"><div class="grid" id="gridEmp"></div></div>
+      </section>
+    </div>
+    </div>
+  </main>
+</div>
+
+<!-- View Details popup -->
+<div class="overlay" id="popup" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="popupTitle">
+    <div class="modal-h"><span id="popupTitle">Temporary Transfer Request</span><button type="button" id="popupClose" aria-label="Close">×</button></div>
+    <div class="modal-b">
+      <div class="box f2">
+        <div class="fld"><span class="lb">Employee ID</span><span class="ro"></span></div>
+        <div class="fld"><span class="lb">Employee Name</span><span class="ro"></span></div>
+        <div class="fld"><span class="lb">Job Title</span><span class="ro"></span></div>
+        <div class="fld"><span class="lb">Employee Level</span><span class="ro"></span></div>
+      </div>
+      <div class="box" style="display:flex;flex-direction:column;gap:14px">
+        <fieldset>
+          <legend>Transfer to</legend>
+          <div class="f2">
+            <div class="fld"><span class="lb">Restaurant</span><span class="ro"></span></div>
+            <div class="fld"><span class="lb">Restaurant Manager Name</span><span class="ro"></span></div>
+            <div class="fld"><span class="lb">Restaurant Address</span><span class="ro"></span></div>
+            <div class="fld"><span class="lb">Restaurant Manager Email</span><span class="ro"></span></div>
+          </div>
+        </fieldset>
+        <div class="f2">
+          <div class="fld"><span class="lb">From Date <span class="req">(*)</span></span><span class="ro">&nbsp;<span>▾</span></span></div>
+          <div class="fld"><span class="lb">To Date <span class="req">(*)</span></span><span class="ro">&nbsp;<span>▾</span></span></div>
+        </div>
+        <div class="fullrow"><span class="lb">Remark</span><span class="ro tall" style="flex:1"></span></div>
+        <div class="fullrow vSent"><span class="lb">Reason for Rejection</span><span class="ro tall" style="flex:1"></span></div>
+        <label class="fullrow vSent"><span class="lb">Reason for Cancel Transfer Request <span class="req">(*)</span></span><textarea class="ed"></textarea></label>
+        <label class="fullrow vRecv"><span class="lb">Reason for Rejection <span class="req">(*)</span></span><textarea class="ed"></textarea></label>
+        <div class="fullrow vRecv"><span class="lb">Reason for Cancel Transfer Request</span><span class="ro tall" style="flex:1"></span></div>
+      </div>
+      <button type="button" class="btn-cancel vSent">Cancel Submitted</button>
+      <div class="vRecv" style="display:flex;gap:8px">
+        <button type="button" class="btn-cancel" style="background:#2E9E3F">Approve</button>
+        <button type="button" class="btn-cancel">Reject</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Action History popup -->
+<div class="overlay" id="histPop" hidden>
+  <div class="modal hist" role="dialog" aria-modal="true" aria-labelledby="histTitle">
+    <div class="modal-h"><span id="histTitle">Action History</span><button type="button" id="histClose" aria-label="Close">×</button></div>
+    <div class="tl">
+      <div class="tl-item"><div></div><div class="tl-dot"><span class="tl-num on"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#fff" stroke-width="2.4"><path d="M3 8.5l3 3 7-7"/></svg></span></div><div class="tl-done" style="color:#1877D2">Completed</div></div>
+      <div class="tl-item"><div class="tl-time">10:05 AM<br>25/11/2026</div><div class="tl-dot"><span class="tl-num on">4</span></div><div class="tl-card on"><div class="tl-act rej">Rejected</div><div class="tl-who"><svg width="14" height="14" viewBox="0 0 24 24" fill="#9E9E9E" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6z"/></svg> Lê Văn Cường</div><div class="tl-reason">Reason: Restaurant B does not need extra staff this week</div></div></div>
+      <div class="tl-item"><div class="tl-time">9:15 AM<br>25/11/2026</div><div class="tl-dot"><span class="tl-num on">3</span></div><div class="tl-card on"><div class="tl-act">Approved</div><div class="tl-who"><svg width="14" height="14" viewBox="0 0 24 24" fill="#9E9E9E" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6z"/></svg> Trần Thị Bình</div></div></div>
+      <div class="tl-item"><div class="tl-time">8:42 PM<br>24/11/2026</div><div class="tl-dot"><span class="tl-num on">2</span></div><div class="tl-card on"><div class="tl-act skip">Skipped (requester)</div><div class="tl-who"><svg width="14" height="14" viewBox="0 0 24 24" fill="#9E9E9E" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6z"/></svg> Nguyễn Văn An</div></div></div>
+      <div class="tl-item"><div class="tl-time">8:42 PM<br>24/11/2026</div><div class="tl-dot"><span class="tl-num on">1</span></div><div class="tl-card on"><div class="tl-act">Submit</div><div class="tl-who"><svg width="14" height="14" viewBox="0 0 24 24" fill="#9E9E9E" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4-6 8-6s7 2 8 6z"/></svg> Nguyễn Văn An</div></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit popup -->
+<div class="overlay" id="editPop" hidden>
+  <div class="modal sm" role="dialog" aria-modal="true" aria-labelledby="editTitle">
+    <div class="modal-h"><span id="editTitle">Update Approval Assignment</span><button type="button" class="closeE" aria-label="Close">×</button></div>
+    <div class="subbar"><button type="button" class="tbtn closeE"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2E9E3F" stroke-width="2.6"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>OK</button><button type="button" class="tbtn closeE"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D32F2F" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>Cancel</button></div>
+    <div class="form">
+      <div class="fld"><span class="lb">Employee Level <span class="req">(*)</span></span><span class="selbox ro"><span id="editLevel">Staff</span><span>▾</span></span></div>
+      <label class="fld"><span class="lb">First Approval</span><span class="selbox">Restaurant General Manager<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Second Approval</span><span class="selbox">AC<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Third Approval</span><span class="selbox">&nbsp;<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Fourth Approval</span><span class="selbox">&nbsp;<span>▾</span></span></label>
+      <label class="fld"><span class="lb">Fifth Approval</span><span class="selbox">&nbsp;<span>▾</span></span></label>
+      <label class="fld" style="align-items:flex-start"><span class="lb" style="padding-top:6px">Notify to</span><textarea></textarea></label>
+    </div>
+  </div>
+</div>
+<!-- Confirm message (MS9004 / MS9005) -->
+<div class="overlay sub" id="confirmPop" hidden>
+  <div class="modal xs" role="alertdialog" aria-modal="true" aria-labelledby="cfTitle">
+    <div class="modal-h"><span id="cfTitle">Confirmation</span><button type="button" class="closeCf" aria-label="Close">×</button></div>
+    <div class="msg"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#1877D2" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14"/><circle cx="12" cy="17" r=".8" fill="#1877D2"/></svg><span id="cfText">Only records pending your approval will be approved. Other records will be skipped.</span></div>
+    <div class="msg-ft"><button type="button" class="btn-ok" id="cfOk">OK</button><button type="button" class="btn-gray closeCf">Cancel</button></div>
+  </div>
+</div>
+
+<!-- Reject reason popup -->
+<div class="overlay sub" id="reasonPop" hidden>
+  <div class="modal xs" role="dialog" aria-modal="true" aria-labelledby="rsTitle">
+    <div class="modal-h"><span id="rsTitle">Reason for Rejection</span><button type="button" class="closeRs" aria-label="Close">×</button></div>
+    <div class="subbar"><button type="button" class="tbtn closeRs"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2E9E3F" stroke-width="2.6"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>OK</button><button type="button" class="tbtn closeRs"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D32F2F" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>Cancel</button></div>
+    <div class="form"><label class="fld" style="align-items:flex-start"><span class="lb" style="width:150px;padding-top:6px">Reason for Rejection <span class="req">(*)</span></span><textarea style="height:90px"></textarea></label></div>
+  </div>
+</div>
+
+<!-- Add popup -->
+<div class="overlay" id="addPopup" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <div class="modal-h"><span id="addTitle">Temporary Transfer Request</span><button type="button" class="closeBtn" aria-label="Close">×</button></div>
+    <div class="actions">
+      <button type="button" class="btn-submit">Submit</button>
+      <button type="button" class="btn-red closeBtn">Cancel</button>
+    </div>
+    <div class="modal-b">
+      <section class="sec">
+        <div class="sec-h" style="justify-content:space-between">Temporary Transfer Information <span style="color:#1877D2">˄</span></div>
+        <div class="sec-b">
+          <div class="f2">
+            <div class="fld"><span class="lb">To Restaurant <span class="req">(*)</span></span><span class="inp"></span><button type="button" class="btn-plain" id="btnSelRest">Select Restaurant</button></div>
+            <div class="fld"><span class="lb">Restaurant Address</span><span class="ro"></span></div>
+            <div class="fld"><span class="lb">Restaurant Manager Name</span><span class="ro"></span></div>
+            <div class="fld"><span class="lb">Restaurant Manager Email</span><span class="ro"></span></div>
+            <div class="fld"><span class="lb">From Date <span class="req">(*)</span></span><span class="inp">&nbsp;<span>▾</span></span></div>
+            <div class="fld"><span class="lb">To Date <span class="req">(*)</span></span><span class="inp">&nbsp;<span>▾</span></span></div>
+          </div>
+          <label class="fullrow"><span class="lb">Remark</span><textarea class="ed"></textarea></label>
+        </div>
+      </section>
+      <section class="sec">
+        <div class="sec-h">List of Employees
+          <button type="button" class="tbtn" style="font-size:15px" id="btnAddEmp"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2E9E3F" stroke-width="3"><line x1="8" y1="2" x2="8" y2="14"/><line x1="2" y1="8" x2="14" y2="8"/></svg>Add Employee</button>
+          <button type="button" class="tbtn" style="font-size:15px" disabled><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#D32F2F" stroke-width="2.6"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>Remove</button>
+        </div>
+        <div class="scroll"><div class="grid egrid" id="empGrid"></div></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Select Employees popup -->
+<div class="overlay sub" id="selEmp" hidden>
+  <div class="modal mid" role="dialog" aria-modal="true" aria-labelledby="selEmpTitle">
+    <div class="modal-h"><span id="selEmpTitle">Select Employees</span><button type="button" class="closeSub" aria-label="Close">×</button></div>
+    <div class="subbar"><button type="button" class="tbtn closeSub"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#2E9E3F" stroke-width="2.6"><path d="M2.5 8.5l3.5 3.5 7.5-8"/></svg>OK</button><button type="button" class="tbtn closeSub"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D32F2F" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>Cancel</button></div>
+    <div style="padding:12px"><div style="border:1px solid #D6D6D6"><div class="grid egrid" id="selEmpGrid"></div><div class="pager"><span>Page 1 of 1 (5 items)</span><button type="button" class="circ" aria-label="Previous page">‹</button><span class="cur">[1]</span><button type="button" class="circ" aria-label="Next page">›</button><span class="psize">Page size: <span>20 ▾</span></span></div></div></div>
+  </div>
+</div>
+
+<!-- Select Restaurant popup -->
+<div class="overlay sub" id="selRest" hidden>
+  <div class="modal mid" role="dialog" aria-modal="true" aria-labelledby="selRestTitle">
+    <div class="modal-h"><span id="selRestTitle">Select Restaurant</span><button type="button" class="closeSub" aria-label="Close">×</button></div>
+    <div class="subbar"><button type="button" class="tbtn closeSub"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D32F2F" stroke-width="2.4"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>Cancel</button></div>
+    <div style="padding:12px"><div style="border:1px solid #D6D6D6"><div class="grid egrid" id="selRestGrid"></div><div class="pager"><span>Page 1 of 5 (82 items)</span><button type="button" class="circ" aria-label="Previous page">‹</button><span class="cur">[1]</span><span>2</span><span>3</span><span>4</span><span>5</span><button type="button" class="circ" aria-label="Next page" style="color:#555;border-color:#888">›</button><span class="psize">Page size: <span>20 ▾</span></span></div></div></div>
+  </div>
+</div>
+
+<script>
+  // Left menu
+  var chev = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="#888" stroke-width="1.5"><path d="M2 4l4 4 4-4"/></svg>';
+  var topMods = ['Organization'];
+  var sub = ['Add New Employee','Employee Profile','Transaction','Temporary Transfer Approval','Temporary Transfer','Resignation','Staffing Reports','Staffing Data Setup'];
+  var bottom = ['Competency','Recruitment','Onboarding & Offboarding','Training','Performance Appraisal','Reward & Discipline','Leave','Time Attendance'];
+  var h = topMods.map(function(m){return '<a href="#">'+m+chev+'</a>';}).join('');
+  h += '<a href="#" class="open">Staffing <span style="color:#1877D2">˄</span></a><div class="sub">';
+  h += sub.map(function(s){var pg = s==='Temporary Transfer'?'tt':(s==='Temporary Transfer Approval'?'apr':''); return '<a href="#"'+(pg?' data-page="'+pg+'"':'')+(pg==='tt'?' class="active"':'')+'>'+s+'</a>';}).join('');
+  h += '</div>' + bottom.map(function(m){return '<a href="#">'+m+chev+'</a>';}).join('');
+  document.getElementById('nav').innerHTML = h;
+
+  // Grid
+  var ICON_VIEW = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#757575" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><line x1="12" y1="11" x2="12" y2="17"/><circle cx="12" cy="7.5" r="0.8" fill="#757575"/></svg>';
+  var ICON_DEL = '<svg width="18" height="18" viewBox="0 0 16 16" fill="none" stroke="#D32F2F" stroke-width="2.6"><line x1="3" y1="3" x2="13" y2="13"/><line x1="13" y1="3" x2="3" y2="13"/></svg>';
+  var FUNNEL = '<svg width="14" height="16" viewBox="0 0 14 16" fill="none" stroke="#888" stroke-width="1.5"><circle cx="7" cy="5" r="4"/><line x1="7" y1="9" x2="7" y2="15"/></svg>';
+  var ALL_COLS = [
+    {k:'check', w:'48px'},
+    {k:'view', label:'View', w:'52px'},
+    {k:'del', label:'Delete', w:'60px', onlySent:true},
+    {label:'Status', w:'minmax(130px,1fr)'},
+    {label:'Employee ID', w:'minmax(120px,1fr)'},
+    {label:'Employee Name', w:'minmax(180px,1fr)'},
+    {label:'Job Title', w:'minmax(150px,1fr)'},
+    {label:'Employee Level', w:'minmax(140px,1fr)'},
+    {label:'From Restaurant', w:'minmax(160px,1fr)'},
+    {label:'To Restaurant', w:'minmax(160px,1fr)'},
+    {label:'Transfer From Date', w:'minmax(150px,1fr)'},
+    {label:'Transfer To Date', w:'minmax(150px,1fr)'},
+    {label:'Requested By', w:'minmax(160px,1fr)'},
+    {label:'Requested Date', w:'minmax(140px,1fr)'}
+  ];
+  var state = { tab:'sent', checked:[false,false,false] };
+
+  function render(){
+    var sent = state.tab === 'sent';
+    var cols = ALL_COLS.filter(function(c){ return sent || !c.onlySent; });
+    var tpl = 'grid-template-columns:' + cols.map(function(c){return c.w;}).join(' ');
+    var all = state.checked.every(Boolean), any = state.checked.some(Boolean);
+    var out = '<div class="row head" style="'+tpl+'">' + cols.map(function(c){
+      return '<div>' + (c.k==='check' ? '<input type="checkbox" id="chkAll" aria-label="Select all"'+(all?' checked':'')+'>' : c.label) + '</div>';
+    }).join('') + '</div>';
+    out += '<div class="row frow head" style="'+tpl+';background:#fff">' + cols.map(function(c){
+      return '<div>' + (c.k ? '' : '<input type="text" aria-label="Filter '+c.label+'">'+FUNNEL) + '</div>';
+    }).join('') + '</div>';
+    state.checked.forEach(function(on,i){
+      out += '<div class="row'+(on?' sel':'')+'" style="'+tpl+'">' + cols.map(function(c){
+        if(c.k==='check') return '<div><input type="checkbox" data-i="'+i+'" aria-label="Select row '+(i+1)+'"'+(on?' checked':'')+'></div>';
+        if(c.k==='view') return '<div><button type="button" class="ic" aria-label="View">'+ICON_VIEW+'</button></div>';
+        if(c.k==='del') return '<div><button type="button" class="ic" aria-label="Delete row">'+ICON_DEL+'</button></div>';
+        if(c.label==='Status'){ var st = sent ? ['Pending','Approved','Rejected'][i] : ['Pending','Pending','Approved'][i]; return '<div><button type="button" class="tag '+st.toLowerCase()+' openHist">'+st+'</button></div>'; }
+        return '<div></div>';
+      }).join('') + '</div>';
+    });
+    document.getElementById('grid').innerHTML = out;
+
+    document.getElementById('tabSent').className = sent ? 'on' : '';
+    document.getElementById('tabRecv').className = sent ? '' : 'on';
+    document.getElementById('restLabel').textContent = sent ? 'To Restaurant' : 'From Restaurant';
+    document.getElementById('gridTitle').textContent = sent ? 'Temporary Transfer' : 'Received Temporary Transfer';
+    document.getElementById('btnAdd').hidden = !sent;
+    document.getElementById('btnDel').hidden = !sent;
+    document.getElementById('btnApprove').hidden = sent;
+    document.getElementById('btnDel').disabled = !any;
+    document.getElementById('btnApprove').disabled = !any;
+    document.getElementById('btnReject').hidden = sent;
+    document.getElementById('btnReject').disabled = !any;
+  }
+
+  document.getElementById('grid').addEventListener('change', function(e){
+    if(e.target.id === 'chkAll'){
+      var on = e.target.checked;
+      state.checked = state.checked.map(function(){return on;});
+    } else if(e.target.dataset.i !== undefined){
+      state.checked[+e.target.dataset.i] = e.target.checked;
+    }
+    render();
+  });
+  document.addEventListener('click', function(e){
+    if(e.target.closest('.openHist')) document.getElementById('histPop').hidden = false;
+  });
+  // View Details popup: 'sent' = Cancel Submitted; 'received' = Approve / Reject
+  function openView(mode){
+    var recv = mode === 'received';
+    Array.prototype.forEach.call(document.querySelectorAll('#popup .vSent'), function(el){ el.classList.toggle('vHide', recv); });
+    Array.prototype.forEach.call(document.querySelectorAll('#popup .vRecv'), function(el){ el.classList.toggle('vHide', !recv); });
+    document.getElementById('popup').hidden = false;
+  }
+  document.getElementById('grid').addEventListener('click', function(e){
+    var b = e.target.closest('button[aria-label="View"]');
+    if(b) openView(state.tab);
+  });
+  document.getElementById('histClose').onclick = function(){ document.getElementById('histPop').hidden = true; };
+  document.getElementById('popupClose').onclick = function(){ document.getElementById('popup').hidden = true; };
+  document.getElementById('popup').addEventListener('click', function(e){ if(e.target.id === 'popup') e.target.hidden = true; });
+  document.getElementById('tabSent').onclick = function(){ state = {tab:'sent', checked:[false,false,false]}; render(); };
+  document.getElementById('tabRecv').onclick = function(){ state = {tab:'received', checked:[false,false,false]}; render(); };
+  // Add popup: employee list
+  (function(){
+    var ec = [
+      {k:'check', w:'44px'}, {k:'rm', label:'Remove', w:'64px'},
+      {label:'Employee ID', w:'minmax(110px,1fr)'}, {label:'Employee Name', w:'minmax(130px,1fr)'},
+      {label:'Job Title', w:'minmax(100px,1fr)'}, {label:'Employee Level', w:'minmax(120px,1fr)'},
+      {label:'From Restaurant', w:'minmax(120px,1fr)'}, {label:'To Restaurant', w:'minmax(110px,1fr)'},
+      {label:'Transfer From Date', w:'minmax(120px,1fr)'}, {label:'Transfer To Date', w:'minmax(120px,1fr)'}
+    ];
+    var tpl = 'grid-template-columns:' + ec.map(function(c){return c.w;}).join(' ');
+    var o = '<div class="row head" style="'+tpl+'">' + ec.map(function(c){ return '<div>'+(c.k==='check'?'<input type="checkbox" aria-label="Select all">':c.label)+'</div>'; }).join('') + '</div>';
+    o += '<div class="row frow head" style="'+tpl+';background:#fff">' + ec.map(function(c){ return '<div>'+(c.k?'':'<input type="text" aria-label="Filter '+c.label+'">'+FUNNEL)+'</div>'; }).join('') + '</div>';
+    for(var i=0;i<3;i++){
+      o += '<div class="row" style="'+tpl+'">' + ec.map(function(c){
+        if(c.k==='check') return '<div><input type="checkbox" aria-label="Select employee"></div>';
+        if(c.k==='rm') return '<div><button type="button" class="ic" aria-label="Remove employee">'+ICON_DEL+'</button></div>';
+        return '<div></div>';
+      }).join('') + '</div>';
+    }
+    document.getElementById('empGrid').innerHTML = o;
+  })();
+  document.getElementById('btnAdd').addEventListener('click', function(){ document.getElementById('addPopup').hidden = false; });
+  Array.prototype.forEach.call(document.querySelectorAll('#addPopup .closeBtn'), function(b){ b.onclick = function(){ document.getElementById('addPopup').hidden = true; }; });
+
+  // ===== Temporary Transfer Approval page =====
+  var EDIT = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E9E3F" stroke-width="2"><path d="M4 20l1-4L16 5l3 3L8 19z"/><line x1="14" y1="7" x2="17" y2="10"/></svg>';
+  var COLS = [
+    {k:'edit', label:'Edit', w:'56px'},
+    {label:'Employee Level', w:'210px', txt:true},
+    {label:'First Approval', w:'minmax(100px,1fr)'},
+    {label:'Second Approval', w:'minmax(100px,1fr)'},
+    {label:'Third Approval', w:'minmax(100px,1fr)'},
+    {label:'Fourth Approval', w:'minmax(100px,1fr)'},
+    {label:'Fifth Approval', w:'minmax(100px,1fr)'},
+    {label:'Notify to', w:'minmax(180px,1.5fr)'}
+  ];
+  function build(id, levels){
+    var tpl = 'grid-template-columns:' + COLS.map(function(c){return c.w;}).join(' ');
+    var o = '<div class="row head" style="'+tpl+'">' + COLS.map(function(c){ return '<div>'+c.label+'</div>'; }).join('') + '</div>';
+    o += '<div class="row frow head" style="'+tpl+';background:#fff">' + COLS.map(function(c){ return '<div>'+(c.k?'':'<input type="text" aria-label="Filter '+c.label+'">'+FUNNEL)+'</div>'; }).join('') + '</div>';
+    levels.forEach(function(lv){
+      o += '<div class="row" style="'+tpl+'">' + COLS.map(function(c, i){
+        if(c.k==='edit') return '<div><button type="button" class="edit" data-level="'+lv+'" aria-label="Edit '+lv+'">'+EDIT+'</button></div>';
+        return '<div class="txt">'+(i===1?lv:'')+'</div>';
+      }).join('') + '</div>';
+    });
+    document.getElementById(id).innerHTML = o;
+  }
+  document.addEventListener('click', function(e){
+    var b = e.target.closest('button.edit');
+    if(b){ document.getElementById('editLevel').textContent = b.dataset.level; document.getElementById('editPop').hidden = false; }
+    if(e.target.closest('.closeE')) document.getElementById('editPop').hidden = true;
+  });
+  build('gridMgr', ['Restaurant General Manager','ARGM','AC']);
+  build('gridEmp', ['Staff','Senior','Supervisor']);
+  function showPage(pg){
+    document.getElementById('pageTT').hidden = pg!=='tt';
+    document.getElementById('pageApr').hidden = pg!=='apr';
+    document.getElementById('tbTT').classList.toggle('active', pg==='tt');
+    document.getElementById('tbApr').classList.toggle('active', pg==='apr');
+    Array.prototype.forEach.call(document.querySelectorAll('nav a[data-page]'), function(a){ a.classList.toggle('active', a.dataset.page===pg); });
+  }
+  document.addEventListener('click', function(e){
+    var t = e.target.closest('[data-page]');
+    if(t){ e.preventDefault(); showPage(t.dataset.page); }
+  });
+  // ===== Approve / Reject on Received grid =====
+  function openConfirm(kind){
+    document.getElementById('cfText').textContent = kind==='approve'
+      ? 'Only records pending your approval will be approved. Other records will be skipped.'
+      : 'Only records pending your approval will be rejected. Other records will be skipped.';
+    document.getElementById('cfOk').dataset.kind = kind;
+    document.getElementById('confirmPop').hidden = false;
+  }
+  document.getElementById('btnApprove').addEventListener('click', function(){ openConfirm('approve'); });
+  document.getElementById('btnReject').addEventListener('click', function(){ openConfirm('reject'); });
+  document.getElementById('cfOk').addEventListener('click', function(){
+    document.getElementById('confirmPop').hidden = true;
+    if(this.dataset.kind==='reject') document.getElementById('reasonPop').hidden = false;
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('.closeCf'), function(b){ b.onclick = function(){ document.getElementById('confirmPop').hidden = true; }; });
+  Array.prototype.forEach.call(document.querySelectorAll('.closeRs'), function(b){ b.onclick = function(){ document.getElementById('reasonPop').hidden = true; }; });
+  // Sub popups
+  function buildGrid(id, cols, n, numbered){
+    var tpl = 'grid-template-columns:' + cols.map(function(c){return c.w;}).join(' ');
+    var o = '<div class="row head" style="'+tpl+'">' + cols.map(function(c){ return '<div>'+(c.k==='check'?'<input type="checkbox" aria-label="Select all">':c.label+(c.sort?'<span class="sort">▲</span>':''))+'</div>'; }).join('') + '</div>';
+    o += '<div class="row frow head" style="'+tpl+';background:#fff">' + cols.map(function(c){ return '<div>'+(c.k?'':'<input type="text" aria-label="Filter '+c.label+'">'+FUNNEL)+'</div>'; }).join('') + '</div>';
+    for(var i=0;i<n;i++){
+      o += '<div class="row'+(i===1?' pick':'')+'" style="'+tpl+'">' + cols.map(function(c){
+        if(c.k==='check') return '<div><input type="checkbox" aria-label="Select row"'+(i===1?' checked':'')+'></div>';
+        if(c.k==='no') return '<div>'+(i+1)+'</div>';
+        return '<div></div>';
+      }).join('') + '</div>';
+    }
+    document.getElementById(id).innerHTML = o;
+  }
+  buildGrid('selEmpGrid', [{k:'check',w:'44px'},{label:'Employee ID',w:'1fr'},{label:'Employee Name',w:'1.2fr'},{label:'Job Title',w:'1fr',sort:true},{label:'Employee Level',w:'1fr',sort:true},{label:'Restaurant',w:'1.2fr',sort:true}], 5);
+  buildGrid('selRestGrid', [{k:'no',label:'No',w:'60px'},{label:'Restaurant Code',w:'1fr'},{label:'Restaurant Name',w:'1.6fr'}], 6);
+  document.getElementById('btnAddEmp').onclick = function(){ document.getElementById('selEmp').hidden = false; };
+  document.getElementById('btnSelRest').onclick = function(){ document.getElementById('selRest').hidden = false; };
+  Array.prototype.forEach.call(document.querySelectorAll('.closeSub'), function(b){ b.onclick = function(){ b.closest('.overlay').hidden = true; }; });
+
+  if(['#received','#popuprecv','#hist','#recvsel'].indexOf(location.hash) >= 0) state.tab = 'received';
+  render();
+  if(location.hash === '#popup') openView('sent');
+  if(location.hash === '#approval' || location.hash === '#edit') showPage('apr');
+  if(location.hash === '#edit') document.getElementById('editPop').hidden = false;
+  if(location.hash === '#confirm'){ state.tab='received'; state.checked=[true,false,true]; render(); openConfirm('approve'); }
+  if(location.hash === '#reason'){ state.tab='received'; state.checked=[true,false,true]; render(); document.getElementById('reasonPop').hidden = false; }
+  if(location.hash === '#popuprecv') openView('received');
+  if(location.hash === '#hist') document.getElementById('histPop').hidden = false;
+  if(location.hash === '#recvsel'){ state.checked=[true,false,true]; render(); }
+  if(location.hash === '#add' || location.hash === '#selemp' || location.hash === '#selrest') document.getElementById('addPopup').hidden = false;
+  if(location.hash === '#selemp') document.getElementById('selEmp').hidden = false;
+  if(location.hash === '#selrest') document.getElementById('selRest').hidden = false;
+</script>
+</body>
+</html>
